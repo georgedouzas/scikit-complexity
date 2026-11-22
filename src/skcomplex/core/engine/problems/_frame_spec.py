@@ -9,16 +9,22 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from ...specs._agent_snapshot_spec import AgentSnapshotSpec
-from ...specs._base_record_spec import BaseRecordSpec
-from ...specs._base_spec import BaseSpec
+from ...base import BaseSpec
 from ...types import AnyArray, Array
+from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._base_problem_spec import BaseProblemSpec
+from ._base_record_spec import BaseRecordSpec
 
 
 @dataclass(frozen=True)
 class FrameSpec(BaseSpec):
-    """A spec of the state of a simulation at one point in time.
+    """A spec of the state of a run at one time, which observers receive.
+
+    It holds the step, the time, the states and parameters, and the agents, reporters, observables, events, and
+    structures of one frame, such as the size 10 of a population at time 0. A run hands one to every observer at every
+    frame. It records the course of an epidemic, the prices of a market, and the moves of a flock.
+
+    Read more in the user guide, under Observe.
 
     Args:
         step:
@@ -50,6 +56,17 @@ class FrameSpec(BaseSpec):
 
         structures:
             A mapping from the path of a rewritten element to its word or patch at this frame.
+
+    See Also:
+        BaseObserver: Receives the frames of a run.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime import RecorderObserver
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> recorder = RecorderObserver()
+        >>> _ = LogisticGrowthSystem().prepare().simulate(until=1, dt=1, observers=[recorder])
+        >>> recorder.frames_[0].time, recorder.frames_[0].state.tolist()
+        (0.0, [10.0])
     """
 
     step: int

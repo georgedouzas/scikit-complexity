@@ -6,6 +6,7 @@ The quota is set from a noisy measurement of the stock.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,15 +14,19 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, normal, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class MeasuredFisheryElement(Element):
-    """Logistic fish stock with a noisy growth rate, harvested by a quota.
+    """Logistic fish stock with a noisy growth rate, harvested by a quota by `QuotaHarvestInteraction`.
 
     The quota is set from a measurement with an error. Every step of length `step` is an Euler-Maruyama step of
     `dx = (R0 + sigma_R W) x (1 - x / K) dt - gamma dt`, where `W` is white noise. The fishermen measure `x~ = x + e`,
@@ -32,9 +37,6 @@ class MeasuredFisheryElement(Element):
     Args:
         label:
             The label of the fishery.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The fish stock.
@@ -60,31 +62,30 @@ class MeasuredFisheryElement(Element):
         restocking:
             1 to let a negative quota release fish into the stock, 0 to floor the quota at zero.
 
+        size:
+            The number of fisheries, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import MeasuredFisheryElement
         >>> MeasuredFisheryElement('fishery', error=0.1).error
         0.1
     """
 
-    draws = True
-
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        catch: Annotated[float, StateSpec()] = 0.0,
-        r0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        error: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        step: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        restocking: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        catch: object = 0.0,
+        r0: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        sigma_r: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        error: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        step: Annotated[object, RealSet.open(0, oo)] = 0.01,
+        restocking: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.x = x
         self.catch = catch
         self.r0 = r0
@@ -94,30 +95,63 @@ class MeasuredFisheryElement(Element):
         self.step = step
         self.restocking = restocking
 
+
+class QuotaHarvestInteraction(Interaction):
+    """Noisy logistic growth of a fish stock harvested by a quota set from a noisy measurement.
+
+    Every step of length `step` is an Euler-Maruyama step of `dx = (R0 + sigma_R W) x (1 - x / K) dt - gamma dt`, with
+    the quota `gamma = x~ - K / 2` of the measured stock `x~ = x + e`. All the values are those of the fishery.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the fishery or of the group of fisheries.
+
+    Examples:
+        >>> from skcomplex.systems.economics.resources import QuotaHarvestInteraction
+        >>> QuotaHarvestInteraction('harvest', target='fisheries').target
+        'fisheries'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the Euler-Maruyama step of the stock and the quota of the step.
+
+        Args:
+            context:
+                The namespace of the fishery.
+        """
+        super()._prepare(context)
+        fishery = context.target
+        quota = self._get_quota(fishery)
+        growth = fishery.x * (1 - fishery.x / fishery.K)
+        noisy = (
+            fishery.x
+            + (fishery.r0 * growth - quota) * fishery.step
+            + fishery.sigma_r * growth * sqrt(fishery.step) * normal('growth', 0, 1)
+        )
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(fishery.x, where(both(fishery.x > 0, noisy > 0), noisy, 0)),
+            UpdateLaw(fishery.catch, quota),
+        ]
+
     @staticmethod
-    def _get_quota(s: SimpleNamespace) -> Expression:
+    def _get_quota(fishery: SimpleNamespace) -> Expression:
         """Return the quota `x~ - K / 2` from the measured stock.
 
         It is floored at zero without restocking.
         """
-        quota = s.x + normal('error', 0, 1) * s.error - s.K / 2
-        return where(quota > 0, quota, s.restocking * quota)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Euler-Maruyama step of the stock and the quota of the step.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        quota = self._get_quota(s)
-        growth = s.x * (1 - s.x / s.K)
-        noisy = s.x + (s.r0 * growth - quota) * s.step + s.sigma_r * growth * sqrt(s.step) * normal('growth', 0, 1)
-        return [UpdateLaw(s.x, where(both(s.x > 0, noisy > 0), noisy, 0)), UpdateLaw(s.catch, quota)]
+        quota = fishery.x + normal('error', 0, 1) * fishery.error - fishery.K / 2
+        return where(quota > 0, quota, fishery.restocking * quota)
 
 
 def _get_extinct_share(stocks: object) -> float:
@@ -169,9 +203,15 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
-        >>> FisheryMeasurementErrorsSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> FisheryMeasurementErrorsSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -180,9 +220,9 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Argun et al. 2016')
     until = 5000
     observables = (
-        ObservableSpec('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
-        ObservableSpec('mean_stock', group='fisheries', variable='x', reduce='mean'),
-        ObservableSpec('mean_catch', group='fisheries', variable='catch', reduce='mean'),
+        Observable('extinct', group='fisheries', variable='x', reduce=_get_extinct_share),
+        Observable('mean_stock', group='fisheries', variable='x', reduce='mean'),
+        Observable('mean_catch', group='fisheries', variable='catch', reduce='mean'),
     )
 
     def __init__(
@@ -197,8 +237,10 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         step: float = 0.01,
         restocking: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_fisheries = n_fisheries
         self.x = x
         self.r0 = r0
@@ -208,20 +250,19 @@ class FisheryMeasurementErrorsSystem(BaseSystem):
         self.step = step
         self.restocking = restocking
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        fisheries = GroupElement(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        fisheries = MeasuredFisheryElement(
             'fisheries',
-            element=MeasuredFisheryElement,
+            x=self.x,
+            r0=self.r0,
+            sigma_r=self.sigma_r,
+            K=self.K,
+            error=self.error,
+            step=self.step,
+            restocking=float(self.restocking),
             size=self.n_fisheries,
-            values={
-                'x': self.x,
-                'r0': self.r0,
-                'sigma_r': self.sigma_r,
-                'K': self.K,
-                'error': self.error,
-                'step': self.step,
-                'restocking': float(self.restocking),
-            },
         )
-        return CompositeSystem(self.label, elements=[fisheries])
+        harvest = QuotaHarvestInteraction('harvest', target='fisheries')
+        self.system_ = System(self.label, elements=[fisheries], interactions=[harvest])

@@ -5,12 +5,17 @@ import itertools
 import networkx as nx
 import numpy as np
 import pytest
+import skfem
 import toponetx
 import xgi
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.errors import SpaceError, ValidationError
+from skcomplex.core.systems import System
+
+GRID = skfem.MeshTri.init_tensor(np.linspace(0, 1, 3), np.linspace(0, 1, 3))
+BLOCK = skfem.MeshTet.init_tensor(*[np.linspace(0, 1, 3)] * 3)
 
 
 def _is_zero(product):
@@ -223,10 +228,15 @@ def test_loop_of_a_network_raises_a_space_error():
         ({'space': LatticeSpace((3, 3)), 'faces': [(0, 1, 2)]}, SpaceError),
         ({'space': LatticeSpace((3, 3)), 'dimension': 1}, ValidationError),
         ({'space': NetworkSpace(nx.cycle_graph(3)), 'faces': 'simplices'}, ValidationError),
+        ({}, ValidationError),
+        ({'points': GRID.p}, ValidationError),
+        ({'space': LatticeSpace((3, 3)), 'points': GRID.p, 'cells': GRID.t}, ValidationError),
+        ({'points': GRID.p, 'cells': GRID.t, 'faces': [(0, 1, 2)]}, SpaceError),
+        ({'points': GRID.p, 'cells': GRID.t, 'boundary': 'fixed'}, ValidationError),
     ],
 )
 def test_check_rejects_arguments_the_complex_cannot_take(arguments, error):
-    """Test that a space, faces, or a dimension the complex cannot take raise an error."""
+    """Test that a source, faces, or a dimension the complex cannot take raise an error."""
     with pytest.raises(error):
         CellComplexSpace(**arguments).prepare()
 
@@ -245,9 +255,10 @@ def test_cofaces_list_the_faces_of_every_link_with_their_signs():
 def test_potential_and_field_strength_groups_hold_one_member_per_cell():
     """Test that groups on the edges and hyperedges of a periodic 16 by 16 complex hold 512 and 256 values."""
     space = CellComplexSpace(LatticeSpace((16, 16)))
-    potentials = GroupElement('potentials', element=Element, space=space, on='edges').prepare()
-    strengths = GroupElement('strengths', element=Element, space=space, on='hyperedges').prepare()
-    assert (potentials.size_, strengths.size_) == (512, 256)
+    potentials = Element('potentials', values={'A': 0.0}, space=space, on='edges')
+    strengths = Element('strengths', values={'F': 0.0}, space=space, on='hyperedges')
+    parameters = System(elements=[potentials, strengths]).prepare()._problem.parameters
+    assert (parameters.get_entry('potentials.A').size, parameters.get_entry('strengths.F').size) == (512, 256)
 
 
 @pytest.mark.parametrize(
@@ -257,8 +268,9 @@ def test_potential_and_field_strength_groups_hold_one_member_per_cell():
         CellComplexSpace(LatticeSpace((4, 4), boundary='fixed')),
         CellComplexSpace(NetworkSpace(nx.complete_graph(5)), faces='cliques'),
         CellComplexSpace(NetworkSpace(nx.petersen_graph())),
+        CellComplexSpace(points=GRID.p, cells=GRID.t),
     ],
-    ids=['periodic-3d', 'fixed-2d', 'cliques', 'cycle-basis'],
+    ids=['periodic-3d', 'fixed-2d', 'cliques', 'cycle-basis', 'mesh'],
 )
 def test_boundaries_walk_every_face_and_agree_with_the_incidence(space):
     """Test that the edges around every face form a closed walk whose signed sum is the row of the face's incidence."""
@@ -279,3 +291,58 @@ def test_boundaries_of_a_plaquette_turn_from_the_first_axis_to_the_second():
     space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
     assert space.boundaries_[0].tolist() == [0, 72, 1, 64]
     assert space.boundary_signs_[0].tolist() == [1.0, 1.0, -1.0, -1.0]
+
+
+def test_mesh_has_its_nodes_as_sites_and_the_boundary_nodes():
+    """Test that a mesh of a unit square has its nodes as sites and every node but the centre on the boundary."""
+    space = CellComplexSpace(points=GRID.p, cells=GRID.t).prepare()
+    center = int(np.flatnonzero((space.positions_ == 0.5).all(axis=1))[0])
+    assert (space.size_, space.n_dim_, space.shape_, space.periodic_) == (9, 2, (9,), False)
+    assert sorted(space.boundary_nodes_.tolist()) == [node for node in range(9) if node != center]
+    assert np.array_equal(space.cells_, GRID.t)
+
+
+def test_mesh_has_its_sides_as_edges_and_its_triangles_as_faces():
+    """Test that the edges of a mesh are the sides of its triangles and its faces the triangles in node order."""
+    space = CellComplexSpace(points=GRID.p, cells=GRID.t).prepare()
+    sides = {tuple(sorted(pair)) for cell in GRID.t.T.tolist() for pair in itertools.combinations(cell, 2)}
+    assert {tuple(sorted(edge)) for edge in space.graph.edges} == sides
+    assert sorted(space.hyperedges_) == sorted(tuple(sorted(cell)) for cell in GRID.t.T.tolist())
+    assert _sizes(space) == [9, 16, 8]
+    assert _is_zero(space.incidences_[1] @ space.incidences_[0])
+
+
+def test_mesh_neighbours_share_a_cell():
+    """Test that the neighbours of a node are the other nodes of the cells that hold it."""
+    space = CellComplexSpace(points=GRID.p, cells=GRID.t).prepare()
+    center = int(np.flatnonzero((space.positions_ == 0.5).all(axis=1))[0])
+    shared = {int(node) for cell in GRID.t.T if center in cell for node in cell} - {center}
+    assert set(space._get_neighbors(center).tolist()) == shared
+
+
+def test_tetrahedral_mesh_of_dimension_three_has_vanishing_products():
+    """Test that a mesh of tetrahedra in 3D has cells up to degree 3 whose boundaries have no boundary."""
+    space = CellComplexSpace(points=BLOCK.p, cells=BLOCK.t, dimension=3).prepare()
+    assert space.n_dim_ == 3
+    assert _sizes(space)[0] == BLOCK.p.shape[1]
+    assert _sizes(space)[-1] == BLOCK.t.shape[1]
+    assert _is_zero(space.incidences_[1] @ space.incidences_[0])
+    assert _is_zero(space.incidences_[2] @ space.incidences_[1])
+
+
+@pytest.mark.parametrize(
+    ('points', 'cells', 'message'),
+    [
+        (np.linspace(0, 1, 5), GRID.t, r'points of the cell complex .*two or three rows'),
+        (GRID.p.T, GRID.t, r'points of the cell complex .*two or three rows'),
+        (GRID.p, np.zeros((3, 0), dtype=int), r'cells of the cell complex .*nonempty'),
+        (GRID.p, GRID.t[:, 0], r'cells of the cell complex .*two-dimensional'),
+        (GRID.p, GRID.t.T, r'cells of the cell complex .*3 rows'),
+        (GRID.p, GRID.t + 100, r'cells of the cell complex .*index 108.*9 points'),
+        (GRID.p, GRID.t.astype(float), r'cells of the cell complex .*integers'),
+    ],
+)
+def test_mesh_checks_its_points_and_cells(points, cells, message):
+    """Test that points or cells of the wrong shape, kind, or range raise an error that names the argument."""
+    with pytest.raises(ValidationError, match=message):
+        CellComplexSpace(points=points, cells=cells).prepare()

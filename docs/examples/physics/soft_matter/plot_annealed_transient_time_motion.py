@@ -14,7 +14,6 @@ coefficients for long, so the dark slow walkers stay near the origin while the b
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import AnnealedTransientTimeMotionSystem
@@ -24,7 +23,7 @@ SYSTEM = 'annealed_transient_time_motion'
 system = AnnealedTransientTimeMotionSystem(n_walkers=500, sigma=0.5, gamma=1.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.5)
-trajectory = simulate(system, solver=solver, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Subdiffusion from heterogeneous diffusion

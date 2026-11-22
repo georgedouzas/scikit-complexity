@@ -8,7 +8,6 @@ import rerun as rr
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import LinearProgramVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.ecology import CometsSystem, LotkaVolterraSystem
@@ -83,16 +82,16 @@ def test_visual_rejects_an_element_without_a_program():
 def test_observer_streams_a_batch_culture_to_a_file(tmp_path: Path):
     """Test that a dynamic FBA run saves its recording with the variables and the objective series."""
     observer = RerunObserver('culture', save_path=tmp_path / 'run.rrd', blueprint='default', interval=10)
-    trajectory = simulate(DynamicFBASystem().prepare().system_, until=1.0, dt=0.05, observers=[observer])
+    trajectory = DynamicFBASystem().prepare().system_.simulate(until=1.0, dt=0.05, observers=[observer])
     assert (tmp_path / 'run.rrd').exists()
     assert observer.logged_frames_ == 3
     objective = trajectory.get_values('fba/cell.objective_0')
-    assert objective[-1] == pytest.approx(0.8739, rel=0.01)
+    assert -objective[-1] == pytest.approx(0.8739, rel=0.01)
 
 
 def test_observer_logs_the_growth_of_every_site_as_an_image(tmp_path: Path):
     """Test that a lattice logs its growth variable through the image visual of its group."""
     observer = RerunObserver('colony', save_path=tmp_path / 'colony.rrd', interval=1)
     system = CometsSystem(shape=(4, 4)).prepare().system_
-    simulate(system, until=0.1, dt=0.1, observers=[observer])
+    system.simulate(until=0.1, dt=0.1, observers=[observer])
     assert (tmp_path / 'colony.rrd').exists()

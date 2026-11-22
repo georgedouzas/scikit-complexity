@@ -6,6 +6,7 @@ Shaken chains of frictional blocks relax to blocked configurations.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,39 +14,72 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import both, laplacian, pulse_train, where
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class FrictionalBlockElement(Element):
-    """Block of a chain on a rough floor, joined to its neighbours.
-
-    The block is at the position `x` with the velocity `v`.
-
-    The springs of stiffness `k` and an anchor spring pull the block, Coulomb friction holds it while the force stays
-    below `mu_s` and slows it by `mu_d` while it slides, and periodic shaking of amplitude `amplitude` kicks it during
-    the first `shake_time` of every `shake_time + relax_time`.
+    """Blocks of a chain on a rough floor, at the positions `x` with the velocities `v`.
 
     Args:
         label:
-            The label of the block.
-
-        visual:
-            How the block is drawn, or `None` for none.
+            The label of the blocks.
 
         x:
-            The initial position.
+            The initial position, one per block or shared.
 
         v:
-            The initial velocity.
+            The initial velocity, one per block or shared.
 
         m:
             The mass.
+
+        space:
+            The lattice of the chain, or `None` for one block.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import FrictionalBlockElement
+        >>> FrictionalBlockElement('block', m=2.0).m
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = 0.0,
+        v: object = 0.0,
+        m: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.x = x
+        self.v = v
+        self.m = m
+
+
+class ShakenFrictionInteraction(Interaction):
+    """Springs, Coulomb friction, and periodic shaking of a chain of blocks.
+
+    The springs of stiffness `k` between neighbours and an anchor spring pull every block, Coulomb friction holds it
+    while the force stays below `mu_s` and slows it by `mu_d` while it slides, and a random force of amplitude
+    `amplitude` shakes it during the first `shake_time` of every `shake_time + relax_time`. It is a granular pile that
+    is tapped, or a fault whose blocks stick and slip.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the blocks, whose positions are `x`, velocities `v`, and mass `m`.
 
         k:
             The stiffness of the springs between neighbours.
@@ -69,40 +103,32 @@ class FrictionalBlockElement(Element):
             The time between shakings.
 
         v_stick:
-            The speed below which the block can stick.
+            The speed below which a block can stick.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import FrictionalBlockElement
-        >>> FrictionalBlockElement('block', mu_s=2.0).mu_s
+        >>> from skcomplex.systems.physics.soft_matter import ShakenFrictionInteraction
+        >>> ShakenFrictionInteraction('friction', target='chain', mu_s=2.0).mu_s
         2.0
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (RateLaw, NoiseLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        anchor: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        mu_s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        mu_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        shake_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        relax_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        v_stick: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
+        target: Role,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        anchor: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        mu_s: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        mu_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        amplitude: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        shake_time: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        relax_time: Annotated[float, RealSet.open(0, oo)] = 8.0,
+        v_stick: Annotated[float, RealSet.open(0, oo)] = 0.02,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.v = v
-        self.m = m
+        super().__init__(label)
+        self.target = target
         self.k = k
         self.anchor = anchor
         self.mu_s = mu_s
@@ -112,26 +138,25 @@ class FrictionalBlockElement(Element):
         self.relax_time = relax_time
         self.v_stick = v_stick
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the springs, the sticking Coulomb friction, and the shaking of the block.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the positions and the velocities of the blocks, and the shaking of the velocities.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the position and the velocity, and the noise law of the shaking.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        force = s.k * laplacian(s.x) - s.anchor * s.x
-        moving = abs(s.v) > s.v_stick
-        direction = where(moving, where(s.v > 0, 1, -1), where(force > 0, 1, -1))
-        stuck = both(abs(s.v) <= s.v_stick, abs(force) < s.mu_s)
-        shaking = pulse_train(s.t, s.shake_time + s.relax_time, s.shake_time)
-        return [
-            RateLaw(s.x, where(moving, s.v, 0)),
-            RateLaw(s.v, where(stuck, 0, (force - s.mu_d * direction) / s.m)),
-            NoiseLaw(s.v, s.amplitude * shaking / s.m),
+        super()._prepare(context)
+        s, t = context, context.t
+        x, v, m = s.target.x, s.target.v, s.target.m
+        force = s.k * laplacian(x) - s.anchor * x
+        moving = abs(v) > s.v_stick
+        direction = where(moving, where(v > 0, 1, -1), where(force > 0, 1, -1))
+        stuck = both(abs(v) <= s.v_stick, abs(force) < s.mu_s)
+        shaking = pulse_train(t, s.shake_time + s.relax_time, s.shake_time)
+        self.laws_ = [
+            RateLaw(x.diff(t), where(moving, v, 0)),
+            RateLaw(v.diff(t), where(stuck, 0, (force - s.mu_d * direction) / m)),
+            NoiseLaw(v, s.amplitude * shaking / m),
         ]
 
 
@@ -183,10 +208,16 @@ class ShakenSpringBlockSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import ShakenSpringBlockSystem
-        >>> ShakenSpringBlockSystem(5).prepare().system_.elements[0].prepare().size_
-        5
+        >>> ShakenSpringBlockSystem(5).prepare().simulate(until=10.0).get_values('chain.x').shape
+        (2, 5)
     """
 
     field = 'physics/soft_matter'
@@ -194,7 +225,6 @@ class ShakenSpringBlockSystem(BaseSystem):
     references = ('Bertin 2021', 'Edwards and Oakeshott 1989', 'Bertin, Dauchot, and Droz 2004')
     until = 200.0
     dt = 10.0
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -209,8 +239,10 @@ class ShakenSpringBlockSystem(BaseSystem):
         relax_time: float = 8.0,
         v_stick: float = 0.02,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_blocks = n_blocks
         self.k = k
         self.anchor = anchor
@@ -221,26 +253,30 @@ class ShakenSpringBlockSystem(BaseSystem):
         self.relax_time = relax_time
         self.v_stick = v_stick
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a chain of blocks joined by springs on a frictional substrate.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a chain of blocks joined by springs on a frictional substrate.
 
-        The chain is shaken and relaxed in turn.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        chain = FieldElement(
-            'chain',
-            element=FrictionalBlockElement,
-            space=LatticeSpace(self.n_blocks, boundary='reflecting'),
-            boundary={'x': 'zero-flux', 'v': 'zero-flux'},
-            values={
-                'x': np.zeros(self.n_blocks),
-                'k': self.k,
-                'anchor': self.anchor,
-                'mu_s': self.mu_s,
-                'mu_d': self.mu_d,
-                'amplitude': self.amplitude,
-                'shake_time': self.shake_time,
-                'relax_time': self.relax_time,
-                'v_stick': self.v_stick,
-            },
+        super()._prepare(context)
+        space = LatticeSpace(self.n_blocks, boundary='reflecting')
+        friction = ShakenFrictionInteraction(
+            'friction',
+            target='chain',
+            k=self.k,
+            anchor=self.anchor,
+            mu_s=self.mu_s,
+            mu_d=self.mu_d,
+            amplitude=self.amplitude,
+            shake_time=self.shake_time,
+            relax_time=self.relax_time,
+            v_stick=self.v_stick,
         )
-        return CompositeSystem(self.label, elements=[chain])
+        self.system_ = System(
+            self.label,
+            elements=[FrictionalBlockElement('chain', x=np.zeros(self.n_blocks), space=space)],
+            interactions=[friction],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )

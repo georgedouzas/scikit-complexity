@@ -10,8 +10,8 @@ It grows on A alone.
 
 from collections.abc import Mapping
 
-from .....core.specs import DeclaredVariableSpec, VisualSpec
-from ._metabolic_network import MetabolicNetworkElement
+from .....core.types import Role
+from ._flux_balance import FluxBalanceInteraction
 from ._reaction_spec import ReactionSpec
 
 TOY_REACTIONS = {
@@ -29,66 +29,54 @@ TOY_REACTIONS = {
 TOY_OBJECTIVE = {'vbio': 1.0}
 
 
-class ToyNetworkElement(MetabolicNetworkElement):
-    """The toy network of Table 8.2 of Raman (2021).
-
-    It grows on A alone.
+class ToyFluxBalanceInteraction(FluxBalanceInteraction):
+    """Flux balance of the toy network of Table 8.2 of Raman (2021), which grows on A alone.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for the bars of its program.
+        cell:
+            The path of the cell whose values hold the fluxes, the bounds, and the switches.
+
+        reactions:
+            The reactions by name.
 
         objective:
-            The coefficient of every reaction in the objective, or `None` for `default_objective`.
+            The coefficient of every reaction in the objective.
 
         parsimonious:
             Whether to minimise the total absolute flux after the objective.
 
         infeasible:
-            The infeasibility policy of the program.
+            What a run does when the balances and bounds cannot all hold.
 
         name:
             The name of the network.
 
-        reactions:
-            The reactions by name.
-
-        default_objective:
-            The objective of the network when `objective` is `None`.
-
-        variables:
-            The declared states and parameters that replace the ones of the reactions, by name, or `None` for none.
-
     Examples:
-        >>> from skcomplex.systems.biology.common.metabolism import ToyNetworkElement
-        >>> ToyNetworkElement('cell').get_value('upper_v1')
+        >>> from skcomplex.systems.biology.common.metabolism import ToyFluxBalanceInteraction
+        >>> ToyFluxBalanceInteraction('fba').get_values()['upper_v1']
         1000.0
     """
 
     def __init__(
         self,
-        label: str,
-        visual: VisualSpec | None = None,
+        label: str = 'fba',
         *,
-        objective: Mapping[str, float] | None = None,
+        cell: Role = 'cell',
+        reactions: Mapping[str, ReactionSpec] = TOY_REACTIONS,
+        objective: Mapping[str, float] = TOY_OBJECTIVE,
         parsimonious: bool = False,
         infeasible: str = 'raise',
         name: str | None = 'ToyNetwork',
-        reactions: Mapping[str, ReactionSpec] = TOY_REACTIONS,
-        default_objective: Mapping[str, float] = TOY_OBJECTIVE,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
         super().__init__(
             label,
-            visual,
+            cell=cell,
+            reactions=reactions,
             objective=objective,
             parsimonious=parsimonious,
             infeasible=infeasible,
             name=name,
-            reactions=reactions,
-            default_objective=default_objective,
-            variables=variables,
         )

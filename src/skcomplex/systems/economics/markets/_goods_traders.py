@@ -6,17 +6,20 @@ They barter two or three goods with their neighbours.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import MovementInteraction
 from ..common.exchange import ExchangeInteraction, cobb_douglas
@@ -31,9 +34,6 @@ class GoodsTraderElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         sugar:
             The holding of sugar.
@@ -53,26 +53,38 @@ class GoodsTraderElement(Element):
         salt_weight:
             The Cobb-Douglas weight of salt, zero when salt is not traded.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import GoodsTraderElement
-        >>> GroupElement('traders', element=GoodsTraderElement, size=4, values={'sugar': 5.0}).size
+        >>> GoodsTraderElement('traders', sugar=5.0, size=4).size
         4
     """
+
+    visual = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar_weight', 'color_range': (0.0, 1.0)}),
         *,
-        sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        spice: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        salt: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        sugar_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        spice_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        salt_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sugar: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        spice: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        salt: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        sugar_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        spice_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        salt_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.sugar = sugar
         self.spice = spice
         self.salt = salt
@@ -131,13 +143,19 @@ class GoodsTradersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The number of goods is not 2 or 3.
 
     Examples:
         >>> from skcomplex.systems.economics.markets import GoodsTradersSystem
-        >>> GoodsTradersSystem(20, goods=2).prepare().system_.elements[0].prepare().size_
+        >>> GoodsTradersSystem(20, goods=2).prepare().system_.elements[0].size
         20
     """
 
@@ -147,8 +165,8 @@ class GoodsTradersSystem(BaseSystem):
     until = 50
     invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
     observables = (
-        ObservableSpec('utility', _get_utility, group='traders', reduce='mean'),
-        *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _get_utility, group='traders', reduce='mean'),
+        *(Observable(good, group='traders', variable=good, reduce='sum') for good in GOODS),
     )
 
     def __init__(
@@ -164,8 +182,10 @@ class GoodsTradersSystem(BaseSystem):
         high: float = 20.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_traders = n_traders
         self.goods = goods
         self.width = width
@@ -176,8 +196,9 @@ class GoodsTradersSystem(BaseSystem):
         self.high = high
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.goods not in (2, 3):
             error_msg = f'The traders barter 2 or 3 goods, but got {self.goods}.'
             raise ValueError(error_msg)
@@ -188,28 +209,22 @@ class GoodsTradersSystem(BaseSystem):
         holdings = rng.uniform(self.low, self.high, (self.n_traders, self.goods))
         values: dict[str, Array] = {GOODS[index]: holdings[:, index] for index in range(self.goods)}
         values |= {WEIGHTS[index]: weights[:, index] for index in range(self.goods)}
-        traders = GroupElement(
-            'traders',
-            element=GoodsTraderElement,
-            size=self.n_traders,
-            values=values,
-            variable=True,
-            location=locations,
-        )
-        return CompositeSystem(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev')
+        x, y = np.array(locations).T
+        traders = GoodsTraderElement('traders', values={**values, 'x': x, 'y': y}, size=self.n_traders, space=space)
+        self.system_ = System(
             self.label,
             elements=[traders],
             interactions=[
                 MovementInteraction('wander', target='traders', probability=self.mobility, phase='move'),
                 ExchangeInteraction(
                     'exchange',
-                    source='traders',
                     target='traders',
                     goods=GOODS[: self.goods],
                     pairing='neighbor-pairs',
                     quantity=self.quantity,
                 ),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', metric='chebyshev'),
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('move'), PhaseSpec('trade')])),
+            space=space,
+            solver=MesaSolver(phases=[PhaseSpec('move'), PhaseSpec('trade')]),
         )

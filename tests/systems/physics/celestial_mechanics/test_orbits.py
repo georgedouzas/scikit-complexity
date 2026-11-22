@@ -5,12 +5,11 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from skcomplex.core.errors import SolverError
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.celestial_mechanics import (
     NBodySystem,
     RestrictedThreeBodySystem,
@@ -18,22 +17,22 @@ from skcomplex.systems.physics.celestial_mechanics import (
     TwoBodyOrbitSystem,
 )
 from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
-from skcomplex.systems.physics.common.particles import MassPointElement
 
 from ..conftest import _relative_spread, _run, _series, _upward_crossings
 
 
 def test_gravity_keeps_circular_orbit():
     """Test that a light body on a circular orbit keeps its radius."""
-    system = CompositeSystem(
+    system = System(
         elements=[
-            MassPointElement('sun', m=1000.0),
-            MassPointElement('planet', x=[10.0, 0.0], x_d1=[0.0, 10.0], m=1e-6),
+            Element('sun', values={'x': [0.0, 0.0], 'm': 1000.0}),
+            Element('planet', values={'x': [10.0, 0.0], "x'": [0.0, 10.0], 'm': 1e-6}),
         ],
         interactions=[GravityInteraction('gravity', first='sun', second='planet', G=1.0)],
         space=ContinuousSpace(n_dim=2),
+        solver=ScipyODESolver(rtol=1e-10, atol=1e-12),
     )
-    trajectory = simulate(system, until=6, dt=0.5, solver=ScipyODESolver(rtol=1e-10, atol=1e-12))
+    trajectory = system.prepare().simulate(until=6, dt=0.5)
     radius = np.linalg.norm(trajectory.get_values('planet.x') - trajectory.get_values('sun.x'), axis=1)
     assert np.allclose(radius, 10.0, rtol=1e-4)
 
@@ -58,7 +57,7 @@ def test_kepler_orbit_conserves_energy_and_momentum_and_follows_the_third_law():
 
 def test_kepler_orbit_records_its_energy_within_its_invariant_tolerance():
     """Test that the default run of the Kepler problem records its energy and passes its invariant check."""
-    trajectory = simulate(TwoBodyOrbitSystem(), random_state=0)
+    trajectory = TwoBodyOrbitSystem().prepare().simulate(random_state=0)
     energy = np.asarray(trajectory.get_values('planet.energy'), dtype=float)
     assert np.ptp(energy) < 1e-6
 
@@ -69,7 +68,7 @@ def test_figure_eight_returns_after_its_period():
     for index in range(3):
         position = _series(trajectory, f'body_{index}.x')[0]
         assert np.allclose(position[-1], position[0], atol=1e-4)
-    momentum = sum(_series(trajectory, f'body_{index}.x_d1')[0] for index in range(3))
+    momentum = sum(_series(trajectory, f"body_{index}.x'")[0] for index in range(3))
     assert np.abs(momentum).max() < 1e-8
 
 
@@ -93,14 +92,14 @@ def test_restricted_three_body_conserves_the_jacobi_constant():
 
 def test_restricted_three_body_records_its_hamiltonian_within_its_invariant_tolerance():
     """Test that the default run of the restricted three-body problem passes its invariant check."""
-    trajectory = simulate(RestrictedThreeBodySystem(), random_state=0)
+    trajectory = RestrictedThreeBodySystem().prepare().simulate(random_state=0)
     assert np.ptp(np.asarray(trajectory.get_values('body.energy'), dtype=float)) < 1e-6
 
 
 def test_restricted_three_body_admits_no_split_of_the_yoshida_solver():
     """Test that the Coriolis terms of the rotating frame make the Yoshida solver name a momentum and RK4Solver."""
     with pytest.raises(SolverError, match=r'rate of body\.p[xy] reads .*body\.p[xy].*RK4Solver'):
-        Yoshida4Solver().prepare(PassCompiler().prepare(RestrictedThreeBodySystem().prepare().system_).run().problem_)
+        RestrictedThreeBodySystem(solver=Yoshida4Solver()).prepare().simulate(until=0.1)
 
 
 def test_restricted_three_body_defaults_are_chaotic():
@@ -117,7 +116,7 @@ def test_restricted_three_body_defaults_are_chaotic():
 def test_sitnikov_conserves_energy_with_circular_primaries_and_stays_symmetric():
     """Test that the Sitnikov body conserves its energy above circular primaries and oscillates symmetrically."""
     trajectory = _run(SitnikovSystem(0.5), 30.0, 0.05)
-    z, speed = _series(trajectory, 'body.z', 'body.z_d1')
+    z, speed = _series(trajectory, 'body.z', "body.z'")
     energy = speed**2 / 2 - 1 / np.sqrt(z**2 + 0.25)
     assert np.abs(energy - energy[0]).max() < 1e-6
     assert z.min() == pytest.approx(-0.5, abs=1e-4)

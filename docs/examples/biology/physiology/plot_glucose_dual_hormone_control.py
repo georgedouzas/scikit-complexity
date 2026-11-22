@@ -15,14 +15,13 @@ peak, and the glucagon that answers the dip.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import GlucoseDualHormoneControlSystem
 
 SYSTEM = 'glucose_dual_hormone_control'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(GlucoseDualHormoneControlSystem(), observers=[observer])
+trajectory = GlucoseDualHormoneControlSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Attenuation by two antagonistic loops
@@ -31,7 +30,7 @@ trajectory = simulate(GlucoseDualHormoneControlSystem(), observers=[observer])
 # should be corrected almost as well, while the dip of the exercise should be deeper and last longer. With both loops
 # the excursions to both sides should stay small, the attenuation of Konieczny et al.
 
-single = simulate(GlucoseDualHormoneControlSystem(glucagon=False))
+single = GlucoseDualHormoneControlSystem(glucagon=False).prepare().simulate()
 times = trajectory.times
 fig, (glucose, hormones) = plt.subplots(1, 2, figsize=(10, 4))
 glucose.plot(times, trajectory.get_values('organism.G'), label='insulin and glucagon')

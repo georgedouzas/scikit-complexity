@@ -7,42 +7,42 @@ Kuramoto oscillators and coupled logistic maps sit on the edges of a graph.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import Target
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, UpdateLaw
+from ....core.components.laws.utils import neighbors
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.oscillators import LinkElement, PhaseOscillatorElement, PhaseRotationInteraction, order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
 
 class LogisticNodeElement(Element):
-    """Logistic map on a node of a network.
-
-    The map has its value, growth rate, and weight of the neighbours.
+    """Logistic maps on the nodes of a network, with their values, growth rates, and weights of the neighbours.
 
     `LogisticCouplingInteraction` iterates `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`, where the map
     `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network.
 
     Args:
         label:
-            The label of the node or the group on the nodes.
-
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
+            The label of the maps.
 
         x:
-            The initial value.
+            The initial value, or one value per node.
 
         r:
             The growth rate of the logistic map.
@@ -50,9 +50,8 @@ class LogisticNodeElement(Element):
         epsilon:
             The weight of the neighbours.
 
-    Attributes:
-        default_visual_:
-            The visual of the node when it sets none.
+        space:
+            The network or lattice with one map on every node, or `None` for one map.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import LogisticNodeElement
@@ -60,38 +59,40 @@ class LogisticNodeElement(Element):
         0.5
     """
 
+    visual = VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.5,
-        r: Annotated[float, ParameterSpec()] = 4.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: object = 0.5,
+        r: float = 4.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.x = x
         self.r = r
         self.epsilon = epsilon
 
 
-class EdgeCouplingInteraction(KuramotoCouplingInteraction):
+class EdgeCouplingInteraction(Interaction):
     """Kuramoto coupling along the weighted edges of a network.
 
-    The coupling is `theta_i' += K w_ij sin(theta_j - theta_i)`.
+    The coupling is `theta_i' += K w_ij sin(theta_j - theta_i - alpha)` at both ends of every edge.
 
     The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
-    group on the edges.
+    element on the edges, as the lines of a power grid or the gap junctions of neurons.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        target:
+        among:
             The path of the group of oscillators on the nodes.
 
-        links:
-            The path of the group on the edges, whose parameter `w` weighs every edge.
+        along:
+            `True` for the edges of the network of the oscillators, or the name of a layer.
 
         K:
             The coupling strength.
@@ -101,89 +102,97 @@ class EdgeCouplingInteraction(KuramotoCouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import EdgeCouplingInteraction
-        >>> EdgeCouplingInteraction('coupling', target='nodes', links='edges', K=0.5).weights
-        'w'
+        >>> EdgeCouplingInteraction('coupling', among='nodes', K=0.5).K
+        0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
+        among: Role,
+        along: bool | str | None = True,
         K: float = 1.0,
         alpha: float = 0.0,
     ) -> None:
-        super().__init__(label, target=target, K=K, alpha=alpha, weights='w')
-        self.links = links
+        super().__init__(label, among=among, along=along)
+        self.K = K
+        self.alpha = alpha
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the turn of the phases at both ends of an edge towards each other.
+
+        Args:
+            context:
+                The namespace of the ends `source` and `target`, the edge `edge`, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        first, second = s.source.theta, s.target.theta
+        weight = s.K * s.edge.w
+        self.laws_ = [
+            RateLaw(second.diff(s.t), weight * sin(first - second - s.alpha)),
+            RateLaw(first.diff(s.t), weight * sin(second - first - s.alpha)),
+        ]
 
 
-class LogisticCouplingInteraction(CouplingInteraction):
+class LogisticCouplingInteraction(Interaction):
     """Coupled logistic maps.
 
     The maps follow `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)` with `f(x) = r x (1 - x)`.
 
     The map of every node mixes with the mean of the maps of its neighbours `j` on its lattice or network, with the
     parameters `r` and `epsilon` of the node. A node with no neighbours keeps `(1 - epsilon) f(x_i)`. It is the map
-    form of coupling, with the mean of the maps of the neighbours combined with the map of the node.
+    form of coupling, as for populations on islands that exchange migrants or chaotic lasers that share light.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
-            The path of the group of maps, on the nodes of a lattice or network.
+            The path of the maps, on the nodes of a lattice or network.
 
         state:
             The name of the state that the maps iterate.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.components.spaces import NetworkSpace
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> maps = GroupElement(
-        ...     'maps',
-        ...     element=LogisticNodeElement,
-        ...     space=NetworkSpace(nx.path_graph(2)),
-        ...     values={'x': [0.25, 0.5], 'epsilon': 0.5},
-        ...     on='sites',
-        ... )
-        >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
-        >>> system = CompositeSystem(elements=[maps], interactions=[coupling], time=DiscreteTime())
-        >>> simulate(system, until=1).get_values('maps.x')[-1].tolist()
+        >>> maps = LogisticNodeElement('maps', x=[0.25, 0.5], epsilon=0.5, space=NetworkSpace(nx.path_graph(2)))
+        >>> system = System(elements=[maps], interactions=[LogisticCouplingInteraction('coupling', target='maps')])
+        >>> system.prepare().simulate(until=1).get_values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = 'x') -> None:
-        super().__init__(
-            label,
-            target=target,
-            read=state,
-            write=state,
-            function=self._get_map,
-            reduce='mean',
-            form='map',
-            combine=self._get_mix,
-        )
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, state: str = 'x') -> None:
+        super().__init__(label)
+        self.target = target
         self.state = state
 
-    @staticmethod
-    def _get_logistic(r: Expression, x: Expression) -> Expression:
-        """Return the logistic map `r x (1 - x)`."""
-        return r * x * (1 - x)
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the map of every node mixed with the mean map of its neighbours.
 
-    def _get_map(self, namespace: SimpleNamespace) -> Expression:
-        """Return the map of the neighbour, with the growth rate of the node."""
-        return self._get_logistic(namespace.member.r, getattr(namespace.other, self.state))
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        node = context.target
+        x, other = getattr(node, self.state), getattr(node.other, self.state)
+        neighbours = neighbors(node.r * other * (1 - other), reduce='mean')
+        self.laws_ = [UpdateLaw(x, (1 - node.epsilon) * (node.r * x * (1 - x)) + node.epsilon * neighbours)]
 
-    def _get_mix(self, namespace: SimpleNamespace, reduction: Target) -> Target:
-        """Return the map of the node mixed with the mean map of its neighbours."""
-        member = namespace.member
-        own = self._get_logistic(member.r, getattr(member, self.state))
-        return (1 - member.epsilon) * own + member.epsilon * reduction
+
+class NodeOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a node, drawn with its phase."""
+
+    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
 
 
 class KuramotoOnNetworksSystem(BaseSystem):
@@ -223,6 +232,12 @@ class KuramotoOnNetworksSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The network is unknown.
@@ -230,7 +245,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.physics.synchronization import KuramotoOnNetworksSystem
         >>> system = KuramotoOnNetworksSystem(20, degree=4).prepare().system_
-        >>> system.elements[1].prepare().size_
+        >>> system.elements[1].space.graph.number_of_edges()
         40
     """
 
@@ -265,8 +280,10 @@ class KuramotoOnNetworksSystem(BaseSystem):
         sigma: float = 0.5,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.network = network
         self.degree = degree
@@ -275,8 +292,14 @@ class KuramotoOnNetworksSystem(BaseSystem):
         self.sigma = sigma
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Kuramoto oscillators coupled along the edges of a network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         space = KuramotoOnNetworksSystem._get_network(
             self.network,
             self.n_oscillators,
@@ -286,20 +309,18 @@ class KuramotoOnNetworksSystem(BaseSystem):
         )
         rng = np.random.default_rng(self.seed + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
-        oscillators = GroupElement(
+        oscillators = NodeOscillatorElement(
             'oscillators',
-            element=PhaseOscillatorElement,
+            theta=rng.uniform(0, 2 * math.pi, self.n_oscillators),
+            omega=rng.normal(0.0, self.sigma, self.n_oscillators),
             space=space,
-            values={
-                'theta': rng.uniform(0, 2 * math.pi, self.n_oscillators),
-                'omega': rng.normal(0.0, self.sigma, self.n_oscillators),
-            },
-            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
-            on='sites',
         )
-        links = GroupElement('links', element=LinkElement, space=space, on='edges')
-        coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=self.K / mean_degree)
-        return CompositeSystem(self.label, elements=[oscillators, links], interactions=[coupling])
+        links = LinkElement('links', space=space, on='edges')
+        interactions = [
+            PhaseRotationInteraction('rotation', target='oscillators'),
+            EdgeCouplingInteraction('coupling', among='oscillators', K=self.K / mean_degree),
+        ]
+        self.system_ = System(self.label, elements=[oscillators, links], interactions=interactions)
 
 
 class CoupledMapLatticesOnNetworksSystem(BaseSystem):
@@ -338,13 +359,19 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The network is unknown.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import CoupledMapLatticesOnNetworksSystem
-        >>> CoupledMapLatticesOnNetworksSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> CoupledMapLatticesOnNetworksSystem(20).prepare().system_.elements[0].space.graph.number_of_nodes()
         20
     """
 
@@ -353,7 +380,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
     references = ('Arenas et al. 2008', 'Kaneko 1989')
     until = 100.0
     dt = 1.0
-    observables = (ObservableSpec('spread', group='maps', variable='x', reduce='var'),)
+    observables = (Observable('spread', group='maps', variable='x', reduce='var'),)
 
     def __init__(
         self,
@@ -366,8 +393,10 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         epsilon: float = 0.9,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.network = network
         self.degree = degree
@@ -376,20 +405,26 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         self.epsilon = epsilon
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return chaotic logistic maps on the nodes of a network.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of chaotic logistic maps on the nodes of a network.
 
-        Each map is pulled towards the mean of its neighbours.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValueError:
+                The network is unknown.
         """
+        super()._prepare(context)
         space = KuramotoOnNetworksSystem._get_network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
         rng = np.random.default_rng(self.seed + 1)
-        maps = GroupElement(
+        maps = LogisticNodeElement(
             'maps',
-            element=LogisticNodeElement,
+            x=rng.uniform(0.0, 1.0, self.n_nodes),
+            r=self.r,
+            epsilon=self.epsilon,
             space=space,
-            values={'x': rng.uniform(0.0, 1.0, self.n_nodes), 'r': self.r, 'epsilon': self.epsilon},
-            visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
-            on='sites',
         )
         coupling = LogisticCouplingInteraction('coupling', target='maps')
-        return CompositeSystem(self.label, elements=[maps], interactions=[coupling], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[maps], interactions=[coupling])

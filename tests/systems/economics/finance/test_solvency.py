@@ -42,7 +42,7 @@ def test_eisenberg_noe_clearing_reaches_the_greatest_clearing_vector():
     system = EisenbergNoeClearingSystem().prepare().system_
     trajectory = _run(system, 60)
     matrix = np.asarray(system.interactions[0].liabilities)
-    external = system.elements[0].values['external']
+    external = system.elements[0].external
     owed = matrix.sum(axis=1)
     shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)
     size = len(owed)

@@ -9,11 +9,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import RateInteraction
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
+from .....core.types import Role
 
 
-class MortalityInteraction(RateInteraction):
+class MortalityInteraction(Interaction):
     """Death or loss at a constant per capita rate, `dx/dt = -d x`.
 
     Args:
@@ -31,28 +32,41 @@ class MortalityInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import MortalityInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('foxes', x=8.0)],
         ...     interactions=[MortalityInteraction('death', target='foxes', d=0.5)],
         ... )
-        >>> trajectory = simulate(system, until=2.0, dt=0.01)
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.01)
         >>> round(float(trajectory.get_values('foxes.x')[-1]), 3)
         2.943
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        d: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
         self.d = d
+        self.state = state
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the population.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the loss `-d x`.

@@ -14,14 +14,13 @@ triangular and a rectangular wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.mechatronics import MagneticLevitationSystem
 
 SYSTEM = 'magnetic_levitation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(MagneticLevitationSystem(), observers=[observer])
+trajectory = MagneticLevitationSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The closed-form periodic solution
@@ -31,7 +30,7 @@ trajectory = simulate(MagneticLevitationSystem(), observers=[observer])
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for damping in [0.5, 1.0, 2.0]:
-    trajectory = simulate(MagneticLevitationSystem(b=damping), until=8)
+    trajectory = MagneticLevitationSystem(b=damping).prepare().simulate(until=8)
     times = trajectory.times
     tau = 2 / np.pi * np.arcsin(np.sin(np.pi * times / 2))
     wave = np.sign(np.cos(np.pi * times / 2))

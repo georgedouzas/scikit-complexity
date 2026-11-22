@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import BallisticPendulumSystem
 
@@ -28,7 +27,7 @@ blueprint = rrb.Blueprint(
 )
 system = BallisticPendulumSystem(speed=200.0, distance=1.0, m=0.01, M=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, until=4.0, observers=[observer])
+trajectory = system.prepare().simulate(until=4.0, observers=[observer])
 
 # %%
 # Height of the swing against the speed of the bullet
@@ -40,7 +39,7 @@ trajectory = simulate(system, until=4.0, observers=[observer])
 speeds = np.linspace(50.0, 400.0, 8)
 heights = []
 for speed in speeds:
-    run = simulate(BallisticPendulumSystem(speed=speed, distance=1.0, m=0.01, M=1.0), until=2.0, dt=0.005)
+    run = BallisticPendulumSystem(speed=speed, distance=1.0, m=0.01, M=1.0).prepare().simulate(until=2.0, dt=0.005)
     angle = np.ravel(run.get_values('pendulum.theta'))
     heights.append(1 - np.cos(np.abs(angle).max()))
 grid = np.linspace(0.0, 400.0, 200)

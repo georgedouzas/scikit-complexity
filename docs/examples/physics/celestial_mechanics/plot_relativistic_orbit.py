@@ -13,7 +13,6 @@ rosette.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import RelativisticOrbitSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'relativistic_orbit'
 
 system = RelativisticOrbitSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Precessing orbit
@@ -31,7 +30,7 @@ trajectory = simulate(system, observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 6))
 for epsilon in [0.0, 0.05]:
-    run = simulate(RelativisticOrbitSystem(epsilon=epsilon))
+    run = RelativisticOrbitSystem(epsilon=epsilon).prepare().simulate()
     angle = np.asarray(run.times)
     radius = 1 / np.ravel(run.get_values('planet.u'))
     ax.plot(radius * np.cos(angle), radius * np.sin(angle), label=f'epsilon = {epsilon}')

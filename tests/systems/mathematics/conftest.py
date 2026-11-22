@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 
-from skcomplex.core.components.systems import BaseSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.systems import BaseSystem
 
 
 def _run(
@@ -12,12 +12,12 @@ def _run(
     until: float,
     dt: float = 1,
     random_state: int = 0,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
 ) -> Trajectory:
     """Return the trajectory of a system run with a frame duration and a random state, with its tuned solver."""
-    return simulate(system, until=until, dt=dt, random_state=random_state, observables=observables)
+    return system.prepare().simulate(until, dt=dt, random_state=random_state, observables=observables)
 
 
 def _final(system: BaseSystem, until: float) -> Trajectory:
     """Return the trajectory of a system run to `until` with frames at the start and the end only."""
-    return simulate(system, until=until, dt=until, random_state=0)
+    return _run(system, until, dt=until)

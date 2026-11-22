@@ -13,7 +13,6 @@ where the string never moves, and only swells and flips with the mode frequency 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.waves import StandingWavesSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'standing_waves'
 
 system = StandingWavesSystem(n_sites=99, length=2.0, c=1.0, mode=3, amplitude=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Nodes and frequency

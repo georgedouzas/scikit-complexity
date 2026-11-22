@@ -11,7 +11,6 @@ settles at `k V / (R b + k^2)`.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.mechatronics import DcMotorSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'dc_motor'
 V, R, k, b = 12.0, 1.0, 0.5, 0.2
 system = DcMotorSystem(V=V, R=R, k=k, b=b)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, dt=0.05, observers=[observer])
+trajectory = system.prepare().simulate(dt=0.05, observers=[observer])
 
 # %%
 # Speed and current

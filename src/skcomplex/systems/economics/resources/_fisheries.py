@@ -6,19 +6,21 @@ Natural losses and the catch deplete the stages.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from functools import partial
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import minimum
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 TONNES_PER_MILLION_KG = 1e3
 FEMALE_FRACTION = 0.5
@@ -42,9 +44,6 @@ class HilsaElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         eggs:
             The eggs in the nests, in millions of fish.
@@ -131,37 +130,36 @@ class HilsaElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        eggs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        larvae: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        juveniles: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        yearlings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        adults: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        migrants: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 0.0,
-        spawners: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 375.0,
-        female_fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = FEMALE_FRACTION,
-        eggs_per_nest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2e5,
-        max_nests: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = MAX_NESTS,
-        spawning_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = SPAWNING_TIME,
-        hatching_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        larval_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        river_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        ocean_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        adult_ocean_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        migration_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        egg_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.99,
-        larval_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        juvenile_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        first_year_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        second_year_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        migration_loss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        juvenile_harvest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
-        adult_harvest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        weight_per_adult: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.82,
-        weight_per_juvenile: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
+        eggs: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        larvae: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        juveniles: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        yearlings: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        adults: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        migrants: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 0.0,
+        spawners: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 375.0,
+        female_fraction: Annotated[float, RealSet.closed_open(0, oo)] = FEMALE_FRACTION,
+        eggs_per_nest: Annotated[float, RealSet.closed_open(0, oo)] = 2e5,
+        max_nests: Annotated[float, RealSet.closed_open(0, oo)] = MAX_NESTS,
+        spawning_time: Annotated[float, RealSet.open(0, oo)] = SPAWNING_TIME,
+        hatching_time: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        larval_time: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        river_time: Annotated[float, RealSet.open(0, oo)] = 8.0,
+        ocean_time: Annotated[float, RealSet.open(0, oo)] = 12.0,
+        adult_ocean_time: Annotated[float, RealSet.open(0, oo)] = 12.0,
+        migration_time: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        egg_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.99,
+        larval_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        juvenile_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        first_year_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        second_year_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        migration_loss: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
+        juvenile_harvest: Annotated[float, RealSet.closed_open(0, oo)] = 0.48,
+        adult_harvest: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        weight_per_adult: Annotated[float, RealSet.closed_open(0, oo)] = 0.82,
+        weight_per_juvenile: Annotated[float, RealSet.closed_open(0, oo)] = 0.09,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.eggs = eggs
         self.larvae = larvae
         self.juveniles = juveniles
@@ -251,6 +249,12 @@ class HilsaFisherySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import HilsaFisherySystem
         >>> HilsaFisherySystem(adult_harvest=0.5).prepare().system_.elements[0].adult_harvest
@@ -263,9 +267,9 @@ class HilsaFisherySystem(BaseSystem):
     until = 120.0
     dt = 0.5
     observables = (
-        ObservableSpec('nests', _nests, element='hilsa'),
-        ObservableSpec('adult_weight', _get_adult_weight, element='hilsa'),
-        ObservableSpec('juvenile_weight', _get_juvenile_weight, element='hilsa'),
+        Observable('nests', _nests, element='hilsa'),
+        Observable('adult_weight', _get_adult_weight, element='hilsa'),
+        Observable('juvenile_weight', _get_juvenile_weight, element='hilsa'),
     )
 
     @staticmethod
@@ -275,42 +279,42 @@ class HilsaFisherySystem(BaseSystem):
         following: str,
         time: str,
         losses: tuple[tuple[str, str], ...],
-    ) -> TransferInteraction:
-        """Return the transfer that drains a stage over its duration.
+    ) -> Interaction:
+        """Return the flows that drain a stage over its duration.
 
         A share goes to each loss and the rest to the next stage. The stage reads the duration `time` and the share of
         every loss by name, and reports the flow to the next stage as `hilsa.<label>` and the flow to every loss as
         `hilsa.<label>_<loss>`.
         """
         shares = [share for share, _ in losses]
-        return TransferInteraction(
-            label,
-            source='hilsa',
-            target='hilsa',
-            state=stock,
-            into=following,
-            amount=partial(HilsaFisherySystem._get_survival, stock=stock, time=time, shares=shares),
-            flow=label,
-            legs=[
-                (
-                    stock,
-                    Sink(sink),
-                    partial(HilsaFisherySystem._get_loss, stock=stock, time=time, share=share),
-                    f'{label}_{sink}',
-                )
+
+        def drain(s: SimpleNamespace) -> list[BaseLaw]:
+            """Return the flow into the next stage and the flow to every loss."""
+            held = getattr(s.target, stock)
+            flows: list[BaseLaw] = [
+                RateLaw(
+                    {held: -1, getattr(s.target, following): +1},
+                    HilsaFisherySystem._get_survival(s, stock, time, shares),
+                    label=label,
+                ),
+            ]
+            flows += [
+                RateLaw({held: -1}, HilsaFisherySystem._get_loss(s, stock, time, share), label=f'{label}_{sink}')
                 for share, sink in losses
-            ],
-        )
+            ]
+            return flows
+
+        return Interaction(label, roles={'target': 'hilsa'}, laws=drain)
 
     @staticmethod
     def _get_outflow(s: SimpleNamespace, stock: str, time: str) -> Expression:
         """Return the outflow of a stage over its duration."""
-        return getattr(s.source, stock) / getattr(s.source, time)
+        return getattr(s.target, stock) / getattr(s.target, time)
 
     @staticmethod
     def _get_survival(s: SimpleNamespace, stock: str, time: str, shares: list[str]) -> Expression:
         """Return the outflow of a stage that survives its losses into the next stage."""
-        return (1 - sum((getattr(s.source, share) for share in shares), start=0)) * HilsaFisherySystem._get_outflow(
+        return (1 - sum((getattr(s.target, share) for share in shares), start=0)) * HilsaFisherySystem._get_outflow(
             s,
             stock,
             time,
@@ -319,7 +323,7 @@ class HilsaFisherySystem(BaseSystem):
     @staticmethod
     def _get_loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
         """Return the outflow of a stage to one loss."""
-        return getattr(s.source, share) * HilsaFisherySystem._get_outflow(s, stock, time)
+        return getattr(s.target, share) * HilsaFisherySystem._get_outflow(s, stock, time)
 
     def __init__(
         self,
@@ -330,8 +334,10 @@ class HilsaFisherySystem(BaseSystem):
         adult_harvest: float = 0.8,
         migration_loss: float = 0.25,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.spawners = spawners
         self.eggs_per_nest = eggs_per_nest
         self.juvenile_harvest = juvenile_harvest
@@ -339,21 +345,19 @@ class HilsaFisherySystem(BaseSystem):
         self.migration_loss = migration_loss
 
     @staticmethod
-    def _get_birth_death() -> list[TransferInteraction]:
+    def _get_birth_death() -> list[Interaction]:
         """Return the life cycle flows of the stages of the hilsa.
 
         They are the spawning, hatching, growth, migration, losses, and catch.
         """
         mortality = 'mortality'
         return [
-            TransferInteraction(
+            Interaction(
                 'egg_deposition',
-                source='hilsa',
-                target='hilsa',
-                state=Source('spawning'),
-                into='eggs',
-                amount=lambda s: s.source.eggs_per_nest * _nests(s.source),
-                flow='egg_deposition',
+                roles={'target': 'hilsa'},
+                laws=lambda s: [
+                    RateLaw({s.target.eggs: +1}, s.target.eggs_per_nest * _nests(s.target), label='egg_deposition'),
+                ],
             ),
             HilsaFisherySystem._get_stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
             HilsaFisherySystem._get_stage(
@@ -391,20 +395,15 @@ class HilsaFisherySystem(BaseSystem):
                 'migration_time',
                 (('migration_loss', mortality),),
             ),
-            TransferInteraction(
+            Interaction(
                 'spawning',
-                source='hilsa',
-                target='hilsa',
-                state='spawners',
-                into=Sink('spent'),
-                amount=lambda s: _get_spawning(s.source),
-                flow='spawning',
-                legs=[
-                    (
-                        'spawners',
-                        Sink('catch'),
-                        lambda s: s.source.adult_harvest * s.source.spawners / s.source.spawning_time,
-                        'adult_catch',
+                roles={'target': 'hilsa'},
+                laws=lambda s: [
+                    RateLaw({s.target.spawners: -1}, _get_spawning(s.target), label='spawning'),
+                    RateLaw(
+                        {s.target.spawners: -1},
+                        s.target.adult_harvest * s.target.spawners / s.target.spawning_time,
+                        label='adult_catch',
                     ),
                 ],
             ),
@@ -431,8 +430,9 @@ class HilsaFisherySystem(BaseSystem):
             inflow *= 1 - losses.get(name, fraction)
         return {**stages, 'spawners': spawners}
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         hilsa = HilsaElement(
             'hilsa',
             eggs_per_nest=self.eggs_per_nest,
@@ -449,4 +449,4 @@ class HilsaFisherySystem(BaseSystem):
                 self.migration_loss,
             ),
         )
-        return CompositeSystem(self.label, elements=[hilsa], interactions=self._get_birth_death())
+        self.system_ = System(self.label, elements=[hilsa], interactions=self._get_birth_death())

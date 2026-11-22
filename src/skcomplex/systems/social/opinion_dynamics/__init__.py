@@ -75,7 +75,7 @@ from ._persuasion import (
     SocialImpactSystem,
     SznajdSystem,
 )
-from ._random_pairs import RandomPairsInteraction
+from ._random_pairs import MeetingsInteraction, NeighborhoodsInteraction, RandomPairsInteraction
 from ._standardization import (
     ComplexAgentElement,
     ComplexAgentView,
@@ -90,6 +90,7 @@ from ._undecided import (
     UndecidedView,
 )
 from ._voters import (
+    MajorityRuleInteraction,
     MajorityRuleSystem,
     MajorityVoterElement,
     VariantVoterElement,
@@ -138,12 +139,15 @@ __all__: list[str] = [
     'InfluentialsSystem',
     'JoinAClubSystem',
     'KineticOpinionSystem',
+    'MajorityRuleInteraction',
     'MajorityRuleSystem',
     'MajorityVoterElement',
+    'MeetingsInteraction',
     'NamerElement',
     'NamerView',
     'NamingGameSystem',
     'NamingGamesInteraction',
+    'NeighborhoodsInteraction',
     'OpinionElement',
     'OpinionEncountersInteraction',
     'PersuaderElement',

@@ -6,6 +6,7 @@ Nearby signed regulators make the giant component of a network on a torus move.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,13 +16,16 @@ from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import HyperedgeInteraction, Interaction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, components, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 CHUNK = 500
 ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high': 1.0})
@@ -36,11 +40,11 @@ class PercolatingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         active:
             1 when the node is in the giant component of the active links, and 0 otherwise.
+
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import PercolatingNodeElement
@@ -48,14 +52,16 @@ class PercolatingNodeElement(Element):
         1.0
     """
 
+    visual = ACTIVITY_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = ACTIVITY_VISUAL,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        active: Annotated[float, FiniteEnumeratedSet([0, 1])] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.active = active
 
 
@@ -68,9 +74,6 @@ class SignedLinkElement(Element):
         label:
             The label of the link group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         active:
             1 when the link is active, and 0 otherwise.
 
@@ -82,6 +85,9 @@ class SignedLinkElement(Element):
             The number of regulating nodes that let the link be active while they are active, the regulators of its
             hyperedge after the negative ones.
 
+        space:
+            The network whose links hold one member each, or `None` for one link.
+
     Examples:
         >>> from skcomplex.systems.mathematics.networks import SignedLinkElement
         >>> SignedLinkElement('links', negatives=2).negatives
@@ -91,19 +97,19 @@ class SignedLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        negatives: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0,
-        positives: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1,
+        active: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        negatives: Annotated[object, RealSet.closed_open(0, oo)] = 0,
+        positives: Annotated[object, RealSet.closed_open(0, oo)] = 1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on='edges' if space is not None else None)
         self.active = active
         self.negatives = negatives
         self.positives = positives
 
 
-class SignedRegulationInteraction(HyperedgeInteraction):
+class SignedRegulationInteraction(Interaction):
     """Regulation of every link by signed regulating nodes.
 
     The regulators let the link be active with probability `p` in its phase.
@@ -117,13 +123,13 @@ class SignedRegulationInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        nodes:
+        among:
             The path of the group on the nodes, whose activity the regulators read.
 
-        links:
-            The path of the group on the edges, whose activity the regulation sets.
+        along:
+            `'hyperedges'`, the hyperedges of the network the regulation runs along.
 
         p:
             The probability that a link the regulation allows is active.
@@ -133,7 +139,7 @@ class SignedRegulationInteraction(HyperedgeInteraction):
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import SignedRegulationInteraction
-        >>> SignedRegulationInteraction('regulation', nodes='nodes', links='links').p
+        >>> SignedRegulationInteraction('regulation', among='nodes').p
         0.5
     """
 
@@ -145,22 +151,24 @@ class SignedRegulationInteraction(HyperedgeInteraction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
+        among: Role = 'nodes',
+        along: str = 'hyperedges',
+        p: Annotated[float, RealSet.closed(0, 1)] = 0.5,
         phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.nodes = nodes
-        self.links = links
+        super().__init__(label, among=among, along=along)
         self.p = p
         self.phase = phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activity of the link from its regulating nodes.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the activity of the link from its regulating nodes, the members of the hyperedge after its ends.
 
-        The regulating nodes are the members of the hyperedge after its ends.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(context)
+        s = context
         negatives, positives = s.edge.negatives, s.edge.positives
         blocked, silent = SR(1), SR(1)
         for position, regulator in enumerate(s.others[1:]):
@@ -168,7 +176,9 @@ class SignedRegulationInteraction(HyperedgeInteraction):
             positive = where(negatives > position, 0, where(negatives + positives > position, 1, 0))
             silent *= 1 - positive * regulator.active
         allowed = blocked * where(positives > 0, 1 - silent, 1)
-        return [UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase)]
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase),
+        ]
 
 
 class PercolationInteraction(Interaction):
@@ -178,7 +188,7 @@ class PercolationInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         nodes:
             The path of the group on the nodes, whose activity the interaction sets.
@@ -201,8 +211,8 @@ class PercolationInteraction(Interaction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
+        nodes: Role,
+        links: Role,
         phase: str | None = None,
     ) -> None:
         super().__init__(label)
@@ -210,9 +220,16 @@ class PercolationInteraction(Interaction):
         self.links = links
         self.phase = phase
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the membership of the giant component of the active links."""
-        return [UpdateLaw(s.nodes.active, components(s.links.active, reduce='giant'), phase=self.phase)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the membership of the giant component of the active links.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        giant = components(context.links.active, reduce='giant')
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.nodes.active, giant, phase=self.phase)]
 
 
 class SpatialTriadicPercolationSystem(BaseSystem):
@@ -268,11 +285,15 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import SpatialTriadicPercolationSystem
-        >>> system = SpatialTriadicPercolationSystem(1.0).prepare().system_
-        >>> trajectory = simulate(system, until=2, random_state=0)
+        >>> trajectory = SpatialTriadicPercolationSystem(1.0).prepare().simulate(until=2, random_state=0)
         >>> giant = trajectory.get_values('nodes.active').mean(axis=1)
         >>> bool(giant[0] == 1.0 and giant[1] < 0.1)
         True
@@ -283,7 +304,7 @@ class SpatialTriadicPercolationSystem(BaseSystem):
     references = ('Millán, Sun, Torres, and Bianconi 2023', 'Waxman 1988')
     until = 100
     dt = 1
-    observables = (ObservableSpec('giant', group='nodes', variable='active'),)
+    observables = (Observable('giant', group='nodes', variable='active'),)
 
     def __init__(
         self,
@@ -298,8 +319,10 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         p: float = 0.8,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.side = side
         self.density = density
         self.c = c
@@ -377,8 +400,9 @@ class SpatialTriadicPercolationSystem(BaseSystem):
         hyperedges = [item + (item[0],) * (width - len(item)) for item in regulators]
         return hyperedges, np.asarray(negatives), np.asarray(positives)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = self._get_waxman_torus(
             round(self.density * self.side**2),
@@ -395,12 +419,10 @@ class SpatialTriadicPercolationSystem(BaseSystem):
             rng,
         )
         space = NetworkSpace(graph, hyperedges=hyperedges)
-        nodes = GroupElement('nodes', element=PercolatingNodeElement, space=space, on='sites')
-        values = {'negatives': negatives, 'positives': positives}
-        links = GroupElement('links', element=SignedLinkElement, space=space, on='edges', values=values)
+        nodes = PercolatingNodeElement('nodes', space=space)
+        links = SignedLinkElement('links', negatives=negatives, positives=positives, space=space)
         interactions = [
-            SignedRegulationInteraction('regulation', nodes='nodes', links='links', p=self.p, phase='regulation'),
+            SignedRegulationInteraction('regulation', among='nodes', p=self.p, phase='regulation'),
             PercolationInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
         ]
-        time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
-        return CompositeSystem(self.label, elements=[nodes, links], interactions=interactions, time=time)
+        self.system_ = System(self.label, elements=[nodes, links], interactions=interactions)

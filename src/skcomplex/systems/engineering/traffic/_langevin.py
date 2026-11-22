@@ -6,6 +6,7 @@ The equations are those of the density of the cars. The speed is set by the loca
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import divergence, laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.traffic import CarElement, OptimalVelocityInteraction, SpeedAdaptationInteraction
 
 
@@ -27,6 +31,68 @@ class TrafficMomentsElement(Element):
     """Density `rho` and flow `w` of Langevin traffic on a road.
 
     They are the first two moments of its speeds.
+
+    Args:
+        label:
+            The label of the road.
+
+        rho:
+            The initial density, one value per cell or one for all.
+
+        w:
+            The initial flow, one value per cell or one for all.
+
+        space:
+            The lattice of the cells of the road, or `None` for one cell.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import TrafficMomentsElement
+        >>> TrafficMomentsElement('road').w
+        0.25
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        w: object = 0.25,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.rho = rho
+        self.w = w
+
+
+class TrafficMomentsInteraction(Interaction):
+    """Closed moment equations of the density `rho` and the flow `w` of Langevin traffic.
+
+    They are `rho_t + w_x = (D rho_x)_x` and `w_t + (2 u w - rho u^2)_x = -gamma (w - rho u) + (D w_x)_x`, with the
+    desired speed `u(rho) = u0 (1 - rho / rho_max)` and the diffusion coefficient `D = D1 rho`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the road.
+
+        gamma:
+            The relaxation rate of the speed.
+
+        u0:
+            The desired speed on an empty road.
+
+        rho_max:
+            The jam density.
+
+        D1:
+            The diffusion coefficient per unit density.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import TrafficMomentsInteraction
+        >>> TrafficMomentsInteraction('moments', target='road').D1
+        0.2
     """
 
     law_classes = (RateLaw,)
@@ -34,37 +100,38 @@ class TrafficMomentsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        w: Annotated[object, StateSpec()] = 0.25,
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        u0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        target: Role,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        u0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        D1: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.rho = rho
-        self.w = w
+        super().__init__(label)
+        self.target = target
         self.gamma = gamma
         self.u0 = u0
         self.rho_max = rho_max
         self.D1 = D1
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the closed moment equations of the density and the flow."""
-        return [
-            RateLaw(s.rho, -divergence([s.w]) + laplacian(s.D1 * s.rho**2 / 2)),
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the closed moment equations of the density and the flow.
+
+        Args:
+            context:
+                The namespace of the road, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t = context, context.t
+        rho, w = s.target.rho, s.target.w
+        speed = LangevinDrivingInteraction._get_target_speed(rho, s)
+        self.laws_: list[BaseLaw] = [
+            RateLaw(rho.diff(t), -divergence([w]) + laplacian(s.D1 * rho**2 / 2)),
             RateLaw(
-                s.w,
-                -divergence(
-                    [
-                        2 * LangevinDrivingInteraction._get_target_speed(s.rho, s) * s.w
-                        - s.rho * LangevinDrivingInteraction._get_target_speed(s.rho, s) ** 2,
-                    ],
-                )
-                - s.gamma * (s.w - s.rho * LangevinDrivingInteraction._get_target_speed(s.rho, s))
-                + s.D1 * (laplacian(s.rho * s.w) + s.rho * laplacian(s.w) - s.w * laplacian(s.rho)) / 2,
+                w.diff(t),
+                -divergence([2 * speed * w - rho * speed**2])
+                - s.gamma * (w - rho * speed)
+                + s.D1 * (laplacian(rho * w) + rho * laplacian(w) - w * laplacian(rho)) / 2,
             ),
         ]
 
@@ -72,7 +139,7 @@ class TrafficMomentsElement(Element):
 class LangevinDrivingInteraction(SpeedAdaptationInteraction):
     """Relaxation of the speed of every car of a ring road, with noise.
 
-    The speed relaxes towards the speed of the local density. The speed follows
+    The speed relaxes towards the speed of the local density. The speed `v = x'` follows
     `dv = -gamma (v - u(rho)) dt + sqrt(2 D1 rho) dW`, with the desired speed `u(rho) = u0 (1 - rho / rho_max)` of the
     density `rho`, the inverse of the headway to the next car, an Ornstein-Uhlenbeck relaxation over the time
     `1 / gamma` with a noise that grows with the density.
@@ -102,21 +169,21 @@ class LangevinDrivingInteraction(SpeedAdaptationInteraction):
     Examples:
         >>> from skcomplex.systems.engineering.traffic import LangevinDrivingInteraction
         >>> LangevinDrivingInteraction('drive', target='cars', gamma=2.0).state
-        'v'
+        "x'"
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        u0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        target: Role,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        u0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        D1: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        road_length: Annotated[float, RealSet.open(0, oo)] = 100.0,
     ) -> None:
-        super().__init__(label, target=target, state='v')
+        super().__init__(label, target=target, state="x'")
         self.gamma = gamma
         self.u0 = u0
         self.rho_max = rho_max
@@ -162,7 +229,7 @@ class LangevinTrafficSystem(BaseSystem):
     stable while `u0 rho^2 / rho_max < gamma / 2`, as for the optimal velocity system. Strong noise lets cars pass each
     other, and the headway of a car that has passed the car ahead wraps around the ring.
 
-    The system has the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
+    The system has the group `cars` of positions `cars.x` and speeds `cars.x'`, car `i + 1` ahead of car `i`.
 
     Args:
         n_cars:
@@ -186,9 +253,15 @@ class LangevinTrafficSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import LangevinTrafficSystem
-        >>> float(LangevinTrafficSystem(n_cars=10, length=20.0).prepare().system_.elements[0].values['v'][0])
+        >>> float(LangevinTrafficSystem(n_cars=10, length=20.0).prepare().system_.elements[0].values["x'"][0])
         0.5
     """
 
@@ -197,7 +270,6 @@ class LangevinTrafficSystem(BaseSystem):
     references = ('Bertin 2021',)
     until = 200.0
     dt = 1.0
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -209,8 +281,10 @@ class LangevinTrafficSystem(BaseSystem):
         rho_max: float = 1.0,
         D1: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cars = n_cars
         self.length = length
         self.gamma = gamma
@@ -218,15 +292,17 @@ class LangevinTrafficSystem(BaseSystem):
         self.rho_max = rho_max
         self.D1 = D1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = self.n_cars / self.length
         positions = np.arange(self.n_cars) * self.length / self.n_cars
-        cars = GroupElement(
+        cars = CarElement(
             'cars',
-            element=CarElement,
+            positions,
+            values={"x'": np.full(self.n_cars, self.u0 * (1 - density / self.rho_max))},
             size=self.n_cars,
-            values={'x': positions, 'v': np.full(self.n_cars, self.u0 * (1 - density / self.rho_max))},
+            space=ContinuousSpace(extent=(self.length,)),
         )
         driving = LangevinDrivingInteraction(
             'drive',
@@ -237,7 +313,7 @@ class LangevinTrafficSystem(BaseSystem):
             D1=self.D1,
             road_length=self.length,
         )
-        return CompositeSystem(self.label, elements=[cars], interactions=[driving])
+        self.system_ = System(self.label, elements=[cars], interactions=[driving], solver=EulerMaruyamaSolver(dt=0.01))
 
 
 class TrafficDensityEquationSystem(BaseSystem):
@@ -285,9 +361,15 @@ class TrafficDensityEquationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import TrafficDensityEquationSystem
-        >>> TrafficDensityEquationSystem(10).prepare().system_.elements[0].values['D1']
+        >>> TrafficDensityEquationSystem(10).prepare().system_.interactions[0].D1
         0.2
     """
 
@@ -296,7 +378,6 @@ class TrafficDensityEquationSystem(BaseSystem):
     references = ('Bertin 2021',)
     until = 400.0
     dt = 4.0
-    solver = RK4Solver(dt=0.1)
 
     def __init__(
         self,
@@ -311,8 +392,10 @@ class TrafficDensityEquationSystem(BaseSystem):
         perturbation: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.density = density
@@ -323,18 +406,19 @@ class TrafficDensityEquationSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         rho = self.density * (1 + self.perturbation * rng.standard_normal(self.n))
-        values = {
-            'rho': rho,
-            'w': rho * self.u0 * (1 - rho / self.rho_max),
-            'gamma': self.gamma,
-            'u0': self.u0,
-            'rho_max': self.rho_max,
-            'D1': self.D1,
-        }
         space = LatticeSpace(self.n, spacing=self.length / self.n)
-        road = FieldElement('road', element=TrafficMomentsElement, space=space, values=values)
-        return CompositeSystem(self.label, elements=[road])
+        road = TrafficMomentsElement('road', rho=rho, w=rho * self.u0 * (1 - rho / self.rho_max), space=space)
+        moments = TrafficMomentsInteraction(
+            'moments',
+            target='road',
+            gamma=self.gamma,
+            u0=self.u0,
+            rho_max=self.rho_max,
+            D1=self.D1,
+        )
+        self.system_ = System(self.label, elements=[road], interactions=[moments], solver=RK4Solver(dt=0.1))

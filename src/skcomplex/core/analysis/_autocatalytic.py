@@ -9,11 +9,13 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
+from ..engine.problems import NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, NetworkSnapshotSpec
-from ..types import Array, DataKind, Indices
-from .types import Source
+from ..types import Array, Indices
+from ._analysis_tags import AnalysisTags
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.NETWORK)
 
@@ -21,6 +23,12 @@ TAGS = AnalysisTags(DataKind.NETWORK)
 @dataclass(frozen=True)
 class AutocatalyticSetsResult:
     """A result of `autocatalytic_sets`, the largest such set at every frame.
+
+    It holds, for every frame, the reactions of the largest set that makes its own helpers from the food, the products
+    of those reactions, their number and share, and whether such a set exists. It reports the self-making chemistry of
+    the origin of life and the goods of an economy that are made from each other.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         snapshots:
@@ -40,6 +48,14 @@ class AutocatalyticSetsResult:
 
         exists:
             Whether every frame holds a RAF.
+
+    See Also:
+        autocatalytic_sets: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import AutocatalyticSetsResult
+        >>> AutocatalyticSetsResult((), (), (), [], [], [False]).exists
+        [False]
     """
 
     snapshots: list[NetworkSnapshotSpec]
@@ -51,25 +67,22 @@ class AutocatalyticSetsResult:
 
 
 def autocatalytic_sets(
-    source: Source,
+    source: DataSource,
     *,
     food: Sequence[int] | None = None,
     frames: Sequence[int] | None = None,
 ) -> AutocatalyticSetsResult:
-    """Return the maximal autocatalytic set of a catalytic reaction network.
+    """Return the largest set of reactions that catalyse each other, at every frame.
 
-    The set is found at every frame. The method is that of Hordijk and Steel. The network is a network snapshot whose
-    hyperedges are the reactions and whose directed edges are the catalysis. Every hyperedge produces its last member
-    from its other members, the reactants, and an edge from a node `c` to a node `p` makes `c` a catalyst of every
-    reaction that produces `p`, as goods catalyse the production of other goods in the TAP model of Hordijk and Kauffman
-    (2022). A set of reactions is reflexively autocatalytic and food-generated, a RAF, when every reaction has a
-    catalyst produced by the set or in the food set, and every reactant is reachable from the food set by reactions of
-    the set. The algorithm of Hordijk and Steel (2004) finds the largest RAF, the union of every RAF: it removes the
-    reactions with a reactant outside the closure of the food set, or without a catalyst in it, until no reaction is
-    removed, and returns the reactions left, an empty set when there is no RAF.
+    The network is a snapshot whose hyperedges are reactions, each making its last member from the others, and whose
+    edges are catalysis, an edge from `c` to `p` making `c` a helper of every reaction that makes `p`. A set of
+    reactions is autocatalytic when every reaction has a helper made by the set or found in the food, and every reactant
+    can be made from the food by the set. The algorithm of Hordijk and Steel (2004) drops the reactions that fail, again
+    and again, and returns what is left, an empty set when there is none. It finds sets of molecules that make
+    themselves at the origin of life and goods that are made from each other in the economies of Hordijk and Kauffman
+    (2022).
 
-    It appears in studies of the origin of life, where sets of molecules catalyse their own production, and in models of
-    economies whose goods are made from each other.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -89,20 +102,17 @@ def autocatalytic_sets(
         AnalysisError:
             The source is neither a network snapshot nor a trajectory of a network whose hyperedges change.
 
+    See Also:
+        loops: Finds the feedback loops of a network.
+        elementary_modes: Finds the pathways of a metabolism.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import autocatalytic_sets
-        >>> from skcomplex.core.specs import NetworkSnapshotSpec
-        >>> nodes = np.arange(5)
-        >>> reactions = np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
-        >>> sources, targets = np.array([3, 4, 0]), np.array([2, 3, 4])
-        >>> snapshot = NetworkSnapshotSpec(nodes, sources, targets, np.arange(3), reactions)
-        >>> result = autocatalytic_sets(snapshot)
-        >>> result.reactions[0].tolist(), result.products[0].tolist()
-        ([0, 1, 2], [2, 3, 4])
-        >>> uncatalysed = NetworkSnapshotSpec(nodes, sources[:2], targets[:2], np.arange(2), reactions)
-        >>> autocatalytic_sets(uncatalysed).exists.tolist()
-        [False]
+        >>> from skcomplex.core.engine.problems import NetworkSnapshotSpec
+        >>> edges, reactions = np.array([[3, 4, 0], [2, 3, 4]]), np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
+        >>> autocatalytic_sets(NetworkSnapshotSpec(np.arange(5), *edges, np.arange(3), reactions)).reactions[0].tolist()
+        [0, 1, 2]
     """
     if isinstance(source, NetworkSnapshotSpec):
         snapshots = [source]

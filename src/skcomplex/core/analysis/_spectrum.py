@@ -11,11 +11,12 @@ import numpy.typing as npt
 from scipy import signal
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
-from .types import Source
+from .types import DataSource
 
 KINDS = ('power', 'structure-factor')
 SETTINGS = {
@@ -31,6 +32,12 @@ KIND_TAGS = {
 @dataclass(frozen=True)
 class SpectrumResult:
     """A result of `spectrum`, the spectrum of series or of a field.
+
+    It holds the data read and how its power spreads over frequencies, or over wavenumbers for a field, such as a peak
+    at the wavelength 8 for stripes that repeat every 8 sites. It reports the rhythms of brain waves, the cycles of a
+    business, and the energy cascade of turbulence.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -48,6 +55,16 @@ class SpectrumResult:
 
         wavenumbers:
             The wavenumbers of the shells, without 0, for `'structure-factor'`.
+
+    See Also:
+        spectrum: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import spectrum
+        >>> factor = spectrum(np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64), kind='structure-factor')
+        >>> round(float(2 * np.pi / factor.wavenumbers[factor.power.argmax()]), 1)
+        8.0
     """
 
     values: Array
@@ -58,7 +75,7 @@ class SpectrumResult:
 
 
 def spectrum(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'power',
     variables: Sequence[str] | None = None,
@@ -68,23 +85,21 @@ def spectrum(
 ) -> SpectrumResult:
     """Return the spectrum of every series of a source, or of a field.
 
-    The kinds read series or fields:
+    A spectrum splits a series into waves of different frequencies and gives the power of each, such as a peak at 5
+    for a sine wave that turns 5 times per unit time. A field gives the power of its waves in space, read from the last
+    frame of a trajectory, or every frame when `frames` is true. It finds the rhythms of brain waves, the cycles of a
+    business, and the energy cascade of turbulence.
 
-    - `'power'`: the power spectral density of every series by Welch's method.
-    - `'structure-factor'`: the radially averaged structure factor `S(k)` of a field on a periodic grid of any
-      dimension, in shells of width `2 pi / (side spacing)`, averaged over frames when `frames` is true.
-
-    A structure factor reads the last frame of a trajectory, or every frame when `frames` is true.
-
-    It appears in many fields. It finds the rhythms of brain waves, the cycles of a business, and the energy cascade of
-    turbulence.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array of series or of a field.
 
         kind:
-            The spectrum to compute, one of the kinds above.
+            What to return. `'power'` gives the power spectral density of every series by the method of Welch.
+            `'structure-factor'` gives the radially averaged structure factor `S(k)` of a field on a periodic grid of
+            any dimension, in shells of width `2 pi / (side spacing)`, averaged over frames when `frames` is true.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series, or the first field for a field.
@@ -106,6 +121,10 @@ def spectrum(
         AnalysisError:
             The kind is unknown, a setting the kind does not read is changed, or a setting is not positive.
 
+    See Also:
+        correlation: Gives the correlation of series, of an ensemble, or of a field.
+        mode_decomposition: Fits a linear system to series and gives its modes.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import spectrum
@@ -113,10 +132,6 @@ def spectrum(
         >>> result = spectrum(np.sin(2 * np.pi * 5 * times), dt=0.01)
         >>> round(float(result.frequencies[result.power[0].argmax()]))
         5
-        >>> stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
-        >>> factor = spectrum(stripes, kind='structure-factor')
-        >>> round(float(2 * np.pi / factor.wavenumbers[factor.power.argmax()]), 1)
-        8.0
     """
     _check_choice('spectrum', 'kind', kind, KINDS)
     _check_settings(

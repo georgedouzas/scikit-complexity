@@ -3,25 +3,24 @@
 The suspensions are made of masses, springs, and dampers.
 """
 
-from ._magnetic_levitation import LevitatedBallElement, MagneticLevitationSystem
+from ._magnetic_levitation import DampingInteraction, LevitatedBallElement, MagneticLevitationSystem
 from ._mechatronics import (
-    ArmatureElement,
     DcMotorSystem,
     InertiaElement,
     MotorCouplingInteraction,
-    QuarterCarElement,
     QuarterCarSystem,
+    TireInteraction,
 )
 from ._vibrating_table import VibratingTableSystem
 
 __all__: list[str] = [
-    'ArmatureElement',
+    'DampingInteraction',
     'DcMotorSystem',
     'InertiaElement',
     'LevitatedBallElement',
     'MagneticLevitationSystem',
     'MotorCouplingInteraction',
-    'QuarterCarElement',
     'QuarterCarSystem',
+    'TireInteraction',
     'VibratingTableSystem',
 ]

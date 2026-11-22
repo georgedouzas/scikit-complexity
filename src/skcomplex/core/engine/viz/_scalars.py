@@ -9,17 +9,19 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import PARTS, SERIES_COLORS, BaseVisual
 
 
 class ScalarsVisual(BaseVisual):
-    """A visual that logs each state component of an element as a time series.
+    """A visual that draws every value of an element as a line over time.
 
-    Every state gets static series colors from a categorical palette, by its position among the states of every element
-    of the problem, so the series of one view are told apart. The lag states that keep the past values of a delayed
-    state are left out.
+    It draws one line per value, or per entry of a vector value, each with a colour of its own, such as the prey of a
+    predator and prey system in `ScalarsVisual(path='prey')`. The past values that a delayed value keeps are left out.
+    It shows the populations of an ecosystem, the concentrations of a reaction, and the price of a market.
+
+    Read more in the user guide, under Observe.
 
     Args:
         components:
@@ -35,11 +37,17 @@ class ScalarsVisual(BaseVisual):
         styled_:
             The entity paths whose series colors are logged.
 
+    See Also:
+        HistogramVisual: Draws the spread of the values of a group as histograms.
+        ImageVisual: Draws the values of a grid as images.
+
     Examples:
         >>> from skcomplex.core.engine.viz import ScalarsVisual
-        >>> ScalarsVisual()
-        ScalarsVisual()
+        >>> ScalarsVisual(path='prey')
+        ScalarsVisual(path='prey')
     """
+
+    numeric_options = ('components',)
 
     def __init__(
         self,
@@ -82,7 +90,7 @@ class ScalarsVisual(BaseVisual):
         for state, name in element.states.items():
             if frame.problem.companions.get(name, ('',))[0] == 'lag':
                 continue
-            path, value = f'{element.path}/{state}', self._get_value(frame.get_value(name))
+            path, value = BaseVisual._get_state_path(element.path, state), self._get_value(frame.get_value(name))
             if path not in self.styled_:
                 self._log_series_style(
                     recording,
@@ -93,7 +101,11 @@ class ScalarsVisual(BaseVisual):
                 self.styled_.add(path)
             BaseVisual._log_scalars(recording, path, value)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one time series view of the states of the element.
 
         Args:
@@ -108,10 +120,9 @@ class ScalarsVisual(BaseVisual):
                 A time series view with the element path as origin, or no view for an element without states.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import ScalarsVisual
             >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-            >>> problem = simulate(LotkaVolterraSystem(), until=0).problem
+            >>> problem = LotkaVolterraSystem().prepare().simulate(until=0).problem
             >>> view = ScalarsVisual(path=problem.elements[0].path).prepare(problem).views_[0]
             >>> type(view).__name__, str(view.origin)
             ('TimeSeriesView', 'prey')

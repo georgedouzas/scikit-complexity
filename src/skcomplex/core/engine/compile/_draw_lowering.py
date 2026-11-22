@@ -1,4 +1,4 @@
-"""Draws of every component, lowered to values in an extended parameter vector."""
+"""Rewrite the random draws of laws as numbers stored after the parameters."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,29 +8,34 @@ import re
 from collections.abc import Callable, Mapping
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR, SR, Expression, log
 from sage.modules.free_module_element import FreeModuleElement
 from scipy import stats
 
-from ...components.laws import BaseLaw, UpdateLaw
+from ...components import EntrySpec
+from ...components.laws import BaseLaw, CallSpec, DrawSpec, UpdateLaw
 from ...components.laws.utils import clip, logistic, stop_gradient, where
 from ...components.laws.utils._draws import draws_in
 from ...components.laws.utils._reductions import reductions_in
+from ...enums import DrawKind
 from ...errors import ValidationError
-from ...specs import CallSpec, DrawSpec, EntrySpec, NamedDrawSpec, NeighborReadSpec, SampledDrawSpec
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
+from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._kernel_spec import KernelSpec
+from ..problems._named_draw_spec import _NamedDrawSpec
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._request_spec import _RequestSpec
-from ..types import ReadKind
+from ..problems._sampled_draw_spec import _SampledDrawSpec
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
 
-NORMAL_KINDS = frozenset({'normal'})
+NORMAL_KINDS = frozenset({DrawKind.NORMAL})
 SHIFT = 'shift_member'
 RELAXATION_FLOOR = 1e-12
 DISTRIBUTIONS = tuple(
@@ -43,15 +48,16 @@ DISTRIBUTIONS = tuple(
 
 
 class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """A lowering of the draws of every component to values in a parameter vector.
+    """A lowering that rewrites the random draws of laws as numbers drawn each step.
 
-    The parameter vector is extended with the drawn values. `prepare(compilation)` reads where the parameters end and
-    the time symbol, and `run(laws)` takes the laws of every kernel spec, replaces every draw of their update laws by a
-    drawn value, and places the drawn values after the parameters, by component path, draw name, and member index. A
-    draw read at a member offset reads the value the offset member draws, so the members of a group can share one draw.
-    `_apply_references()` then gives every spec the references of its drawn values. On the JAX backend a Bernoulli or
-    categorical draw with a temperature is lowered to its continuous relaxation of the same uniform value, and with
-    `hard` to the exact value with the gradient of the relaxation, while every other backend draws it exactly.
+    An update law may draw a random number, such as a random turn for every bird of a flock. Before every step the run
+    draws all these numbers at once and stores them after the parameters, and this lowering rewrites every draw of a law
+    as a read of its stored number, ordered by component path, draw name, and member index. A draw read at a member
+    offset reads the number that the other member draws, so the members of a group can share one draw. On the JAX
+    backend a Bernoulli or categorical draw with a temperature becomes a smooth version of itself, so gradients can pass
+    through it. It serves the turns of a flock, the shocks of a market, and the mutations of a population.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         offset_:
@@ -72,6 +78,18 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
 
         relaxes_:
             Whether relaxed draws are lowered to their relaxation, true on the JAX backend.
+
+    See Also:
+        DrawsPass: The pass that runs this lowering.
+        DrawKernel: Draws the numbers before every step.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._draw_lowering import DrawLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.active_matter import VicsekSystem
+        >>> compilation = PassCompiler().prepare(VicsekSystem()).compilation_
+        >>> DrawLowering().prepare(compilation).run(compilation.shifted).draws_.size
+        400
     """
 
     offset_: int
@@ -97,7 +115,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         super()._prepare(context)
         declarations = self.compilation_.layout
         if declarations is None:
-            error_msg = 'The compilation has no layout yet. Lower draws after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting draws.'
             raise ValidationError(error_msg)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
         self.requests_, self.draws_, self.shifted_ = [], None, {}
@@ -252,7 +270,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         for spec in specs:
             for reference in spec.references.values():
                 read = reference.neighbor
-                if isinstance(read, NeighborReadSpec) and read.order is not None:
+                if isinstance(read, _NeighborReadSpec) and read.order is not None:
                     orders.setdefault(id(read.order), read.order)
         return tuple(orders.values())
 
@@ -282,8 +300,8 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
             start += request.rows
-        sampled: list[SampledDrawSpec] = []
-        named: list[NamedDrawSpec] = []
+        sampled: list[_SampledDrawSpec] = []
+        named: list[_NamedDrawSpec] = []
         position = self.offset_
         for request in ordered:
             if request.draw is None:
@@ -291,7 +309,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 position += request.rows
         for request in ordered:
             if request.draw is not None:
-                sampled.append(SampledDrawSpec(position, request.rows, self._get_sampler(request)))
+                sampled.append(_SampledDrawSpec(position, request.rows, self._get_sampler(request)))
                 named.append(self._get_named(request, position))
                 position += request.rows
         self.draws_ = DrawKernel(
@@ -302,7 +320,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             tuple(named),
         ).prepare()
 
-    def _get_named(self, request: _RequestSpec, start: int) -> NamedDrawSpec:
+    def _get_named(self, request: _RequestSpec, start: int) -> _NamedDrawSpec:
         """Return a draw of a request as runs record and replay it.
 
         Its arguments are evaluated from the states and parameters of the member.
@@ -313,13 +331,13 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             raise ValidationError(error_msg)
         nested = draws_in(list(draw.arguments))
         arguments = None if nested else self._get_arguments_of(request, draw)
-        return NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
+        return _NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
 
     def _get_arguments_of(
         self,
         request: _RequestSpec,
         draw: DrawSpec,
-    ) -> Callable[[float, Array, Array], list[Array]] | None:
+    ) -> Callable[[float, Array, Array], list[npt.ArrayLike]] | None:
         """Return the function of the values of the arguments of a draw.
 
         It is `None` when they read a symbol that is not a state or a parameter of the member, or reduce over other
@@ -343,7 +361,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)
 
-        def evaluate(t: float, x: Array, q: Array) -> list[Array]:
+        def evaluate(t: float, x: Array, q: Array) -> list[npt.ArrayLike]:
             return list(function(t, *(reader.get_column_of(x, q) for reader in readers)))
 
         return evaluate

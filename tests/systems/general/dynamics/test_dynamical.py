@@ -1,17 +1,20 @@
 """Test the `_dynamical` module of `skcomplex.systems.general.dynamics`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.backends import BaseBackend, NumbaBackend
+from skcomplex.core.engine.solvers import BaseSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.dynamics import DynamicalSystem
 from skcomplex.systems.general.dynamics.types import Equations
 
@@ -26,8 +29,10 @@ class LorenzSystem(DynamicalSystem):
         rho: float = 28.0,
         beta: float = 8.0 / 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.sigma = sigma
         self.rho = rho
         self.beta = beta
@@ -49,41 +54,21 @@ class LorenzSystem(DynamicalSystem):
         }
 
 
-class LorenzElement(Element):
-    """The Lorenz flow written as element laws."""
+class LorenzInteraction(Interaction):
+    """The Lorenz flow written as one interaction."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-        z: Annotated[object, StateSpec()] = 1.0,
-        sigma: Annotated[object, ParameterSpec()] = 10.0,
-        rho: Annotated[object, ParameterSpec()] = 28.0,
-        beta: Annotated[object, ParameterSpec()] = 8.0 / 3.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.sigma = sigma
-        self.rho = rho
-        self.beta = beta
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        return [
-            RateLaw(s.x, s.sigma * (s.y - s.x)),
-            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-            RateLaw(s.z, s.x * s.y - s.beta * s.z),
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        s, t = context.target, context.t
+        self.laws_: list[BaseLaw] = [
+            RateLaw(s.x.diff(t), s.sigma * (s.y - s.x)),
+            RateLaw(s.y.diff(t), s.x * (s.rho - s.z) - s.y),
+            RateLaw(s.z.diff(t), s.x * s.y - s.beta * s.z),
         ]
-
-
-class LorenzElementSystem(BaseSystem[CompositeSystem]):
-    """The Lorenz flow of an element with laws."""
-
-    def _build_system(self) -> CompositeSystem:
-        return CompositeSystem(self.label, elements=[LorenzElement('lorenz')])
 
 
 def henon(order: str) -> DynamicalSystem:
@@ -106,9 +91,24 @@ def test_dynamical_system_decays_exponentially():
         parameters={'k': 0.5},
         element='tank',
     )
-    trajectory = simulate(system, until=2.0, dt=0.1)
+    trajectory = system.prepare().simulate(until=2.0, dt=0.1)
     assert 'tank.x' in trajectory.names
     assert trajectory.get_values('tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-5)
+
+
+def test_dynamical_system_rejects_a_state_outside_its_allowed_values():
+    """Test that a population allowed only nonnegative sizes rejects a negative one."""
+    system = DynamicalSystem(
+        states={'n': -1.0},
+        equations={'n': lambda s: -s.target.n},
+        allowed={'n': RealSet.closed_open(0, oo)},
+        element='population',
+    )
+    with pytest.raises(ValidationError, match='n'):
+        system.prepare()
+    system.set_params(states={'n': 1.0})
+    trajectory = system.prepare().simulate(until=1.0, dt=1.0)
+    assert trajectory.get_values('population.n')[-1] == pytest.approx(np.exp(-1.0), rel=1e-4)
 
 
 def test_dynamical_system_rejects_an_equation_of_an_unknown_state():
@@ -126,7 +126,7 @@ def test_dynamical_system_iterates_the_logistic_map():
         parameters={'r': 2.0},
         time='discrete',
     )
-    trajectory = simulate(system, until=30)
+    trajectory = system.prepare().simulate(until=30)
     assert trajectory.get_values('state.x')[-1] == pytest.approx(0.5, abs=1e-9)
     tags = system.get_tags()
     assert tags.laws == frozenset({'update'})
@@ -139,6 +139,19 @@ def test_dynamical_system_tags_an_ornstein_uhlenbeck_process():
     tags = system.get_tags()
     assert tags.laws == frozenset({'rate', 'noise'})
     assert tags.randomness == 'stochastic'
+
+
+def test_dynamical_system_drives_an_acceleration_with_noise():
+    """Test that a noise on the acceleration `x''` shakes the velocity of a damped particle."""
+    system = DynamicalSystem(
+        states={'x': 0.0},
+        equations={"x''": lambda s: -s.target.x.diff(s.t)},
+        noises={"x''": 0.5},
+        element='bead',
+    )
+    trajectory = system.prepare().simulate(until=1.0, dt=0.1, random_state=0)
+    assert system.form_ == 'stochastic differential equations'
+    assert np.ptp(trajectory.get_values("bead.x'")) > 0
 
 
 def test_dynamical_system_rejects_noise_in_discrete_time():
@@ -155,24 +168,40 @@ def test_dynamical_system_rejects_noise_in_discrete_time():
 
 def test_dynamical_system_maps_read_the_start_of_the_step():
     """Test that the Hénon map gives the same trajectory in both orders of its states."""
-    first = simulate(henon('xy'), until=10)
-    second = simulate(henon('yx'), until=10)
+    first = henon('xy').prepare().simulate(until=10)
+    second = henon('yx').prepare().simulate(until=10)
     for name in ('map.x', 'map.y'):
         np.testing.assert_array_equal(first.get_values(name), second.get_values(name))
 
 
+def test_dynamical_system_gives_the_rate_of_a_derivative():
+    """Test that the equation of `"x''"` is an acceleration, so `x'' = -x` from rest at 1 swings as `cos t`."""
+    system = DynamicalSystem(states={'x': 1.0, "x'": 0.0}, equations={"x''": lambda s: -s.target.x}, element='spring')
+    trajectory = system.prepare().simulate(until=3.0, dt=0.5)
+    assert system.states_ == ('spring.x', "spring.x'")
+    np.testing.assert_allclose(trajectory.get_values('spring.x'), np.cos(trajectory.times), atol=1e-5)
+
+
 def test_dynamical_system_subclass_takes_its_own_parameters():
-    """Test that a subclass lists its own parameters and passes a changed one to the next `prepare`."""
+    """Test that a subclass lists its own parameters and settings and passes a changed one to the next `prepare`."""
     system = LorenzSystem()
-    assert sorted(system.get_params(deep=False)) == ['beta', 'label', 'rho', 'sigma']
+    assert sorted(system.get_params(deep=False)) == ['backend', 'beta', 'label', 'rho', 'sigma', 'solver']
     element = system.set_params(rho=10.0).prepare().system_.elements[0]
-    assert element.get_value('rho') == pytest.approx(10.0)
+    assert element.values['rho'] == pytest.approx(10.0)
 
 
-def test_dynamical_system_equals_the_same_equations_as_element_laws():
-    """Test that the trajectory equals the one of the same equations written as element laws."""
-    rebased = simulate(LorenzSystem(), until=5.0, dt=0.01)
-    original = simulate(LorenzElementSystem(), until=5.0, dt=0.01)
+def test_dynamical_system_runs_on_the_backend_it_is_given():
+    """Test that a dynamical system passes its backend to the system it prepares."""
+    trajectory = LorenzSystem().set_params(backend=NumbaBackend()).prepare().simulate(until=1.0, dt=0.5)
+    assert trajectory.problem.backend == 'numba'
+
+
+def test_dynamical_system_equals_the_same_equations_as_an_interaction():
+    """Test that the trajectory equals the one of the same equations written as one interaction."""
+    rebased = LorenzSystem().prepare().simulate(until=5.0, dt=0.01)
+    lorenz = Element('lorenz', values={'x': 1.0, 'y': 1.0, 'z': 1.0, 'sigma': 10.0, 'rho': 28.0, 'beta': 8.0 / 3.0})
+    original = System(elements=[lorenz], interactions=[LorenzInteraction('flow', target='lorenz')])
+    original = original.prepare().simulate(until=5.0, dt=0.01)
     assert rebased.names == original.names
     for name in original.names:
         np.testing.assert_array_equal(rebased.get_values(name), original.get_values(name))

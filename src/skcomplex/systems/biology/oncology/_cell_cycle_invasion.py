@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -11,12 +12,15 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import shift_member
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 BINARY = FiniteEnumeratedSet([0, 1])
 NEIGHBOURS = 6
@@ -81,6 +85,9 @@ class CellSiteElement(Element):
         open_5:
             1 when the neighbour at the sixth offset lies inside the lattice.
 
+        size:
+            The number of sites, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import CellSiteElement
         >>> CellSiteElement('site', g1=1).g1
@@ -91,23 +98,24 @@ class CellSiteElement(Element):
         self,
         label: str,
         *,
-        g1: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        es: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        sg2m: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        Rr: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
-        Ry: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.17,
-        Rg: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        Mr: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        My: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        Mg: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        open_0: Annotated[float, ParameterSpec(domain=BINARY)] = 1,
-        open_1: Annotated[float, ParameterSpec(domain=BINARY)] = 1,
-        open_2: Annotated[float, ParameterSpec(domain=BINARY)] = 1,
-        open_3: Annotated[float, ParameterSpec(domain=BINARY)] = 1,
-        open_4: Annotated[float, ParameterSpec(domain=BINARY)] = 1,
-        open_5: Annotated[float, ParameterSpec(domain=BINARY)] = 1,
+        g1: Annotated[float | Array, BINARY] = 0,
+        es: Annotated[float | Array, BINARY] = 0,
+        sg2m: Annotated[float | Array, BINARY] = 0,
+        Rr: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.04,
+        Ry: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.17,
+        Rg: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.08,
+        Mr: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.25,
+        My: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.25,
+        Mg: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.25,
+        open_0: Annotated[float | Array, BINARY] = 1,
+        open_1: Annotated[float | Array, BINARY] = 1,
+        open_2: Annotated[float | Array, BINARY] = 1,
+        open_3: Annotated[float | Array, BINARY] = 1,
+        open_4: Annotated[float | Array, BINARY] = 1,
+        open_5: Annotated[float | Array, BINARY] = 1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.g1 = g1
         self.es = es
         self.sg2m = sg2m
@@ -152,13 +160,20 @@ class CellCycleInvasionInteraction(Interaction):
 
     law_classes = (JumpLaw,)
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], offsets: tuple[int, ...]) -> None:
+    def __init__(self, label: str, *, target: Role, offsets: tuple[int, ...]) -> None:
         super().__init__(label)
         self.target = target
         self.offsets = offsets
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jumps of the cell cycle, the divisions, and the moves of every site."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the jumps of the cell cycle, the divisions, and the moves of every site.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        namespace = context
         s = namespace.target
         cells = (s.g1, s.es, s.sg2m)
         opens = (s.open_0, s.open_1, s.open_2, s.open_3, s.open_4, s.open_5)
@@ -177,7 +192,7 @@ class CellCycleInvasionInteraction(Interaction):
             for cell, rate in zip(cells, (s.Mr, s.My, s.Mg), strict=True):
                 moved = shift_member(cell, offset, boundary='fixed')
                 laws.append(JumpLaw(rate / NEIGHBOURS * cell * vacant, {cell: -1, moved: 1}))
-        return laws
+        self.laws_: list[BaseLaw] = laws
 
 
 class CellCycleInvasionSystem(BaseSystem):
@@ -228,9 +243,15 @@ class CellCycleInvasionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import CellCycleInvasionSystem
-        >>> CellCycleInvasionSystem(8, 4).prepare().system_.elements[0].prepare().size_
+        >>> CellCycleInvasionSystem(8, 4).prepare().system_.elements[0].size
         32
     """
 
@@ -239,9 +260,7 @@ class CellCycleInvasionSystem(BaseSystem):
     references = ('Carr et al. 2021', 'Simpson et al. 2018', 'Wang et al. 2024')
     until = 48.0
     dt = 1.0
-    observables = tuple(
-        ObservableSpec(f'{phase}_cells', group='cells', variable=phase, reduce='sum') for phase in PHASES
-    )
+    observables = tuple(Observable(f'{phase}_cells', group='cells', variable=phase, reduce='sum') for phase in PHASES)
 
     def __init__(
         self,
@@ -258,8 +277,10 @@ class CellCycleInvasionSystem(BaseSystem):
         scratch: tuple[float, float] | None = (0.375, 0.625),
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.Rr = Rr
@@ -272,8 +293,14 @@ class CellCycleInvasionSystem(BaseSystem):
         self.scratch = scratch
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the sites of the lattice with the initial monolayer and its scratch."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the sites of the lattice with the initial monolayer and its scratch.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         width, height = self.width, self.height
         rows, columns = np.divmod(np.arange(width * height), width)
         steps = ((0, 1), (0, -1), (1, 0), (-1, 0), (-1, 1), (1, -1))
@@ -290,12 +317,19 @@ class CellCycleInvasionSystem(BaseSystem):
             occupied &= ~((columns >= low * width) & (columns < high * width))
         shares = np.asarray(STEADY_SHARES) / sum(STEADY_SHARES)
         phases = rng.choice(len(PHASES), size=width * height, p=shares)
-        values: dict[str, object] = {
-            phase: (occupied & (phases == index)).astype(float) for index, phase in enumerate(PHASES)
-        }
-        values.update(opens)
-        values.update({'Rr': self.Rr, 'Ry': self.Ry, 'Rg': self.Rg, 'Mr': self.Mr, 'My': self.My, 'Mg': self.Mg})
+        cycle_phases = {phase: (occupied & (phases == index)).astype(float) for index, phase in enumerate(PHASES)}
         offsets = tuple(row * width + column for row, column in steps)
-        cells = GroupElement('cells', element=CellSiteElement, size=width * height, values=values)
+        cells = CellSiteElement(
+            'cells',
+            **cycle_phases,
+            **opens,
+            Rr=self.Rr,
+            Ry=self.Ry,
+            Rg=self.Rg,
+            Mr=self.Mr,
+            My=self.My,
+            Mg=self.Mg,
+            size=width * height,
+        )
         cycle = CellCycleInvasionInteraction('cycle', target='cells', offsets=offsets)
-        return CompositeSystem(self.label, elements=[cells], interactions=[cycle])
+        self.system_ = System(self.label, elements=[cells], interactions=[cycle])

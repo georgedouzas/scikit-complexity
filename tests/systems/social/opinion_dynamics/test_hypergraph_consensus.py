@@ -24,6 +24,6 @@ def test_hypergraph_consensus_moves_the_mean_with_reinforcement():
 def test_hypergraph_consensus_stops_while_the_triangles_are_off():
     """Test that the opinions do not move in a half period when no triangle is active."""
     system = HypergraphConsensusSystem(period=4.0).prepare().system_
-    system.elements[1].values['phase'][:] = np.pi
+    system.elements[1].phase[:] = np.pi
     opinions = _run(system, 2.0, dt=0.1).get_values('nodes.x')
     assert np.allclose(opinions[-1], opinions[0])

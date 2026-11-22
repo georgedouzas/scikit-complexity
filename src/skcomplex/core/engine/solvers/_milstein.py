@@ -6,45 +6,48 @@
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...components.laws import ConstraintLaw, EventLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ._sde import SDESolver
 
 
 class MilsteinSolver(SDESolver):
     """A solver of stochastic differential equations by the Milstein scheme of Platen.
 
-    It is of strong order 1. It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with `(g(Y) -
-    g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise.
+    It takes a helper value `Y = X + f h + g sqrt(h)` and corrects the noise by
+    `(g(Y) - g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise and is of strong order 1. Choose it
+    for noise whose size depends on the state, such as a price whose shocks grow with it, where it is closer to the
+    exact path than Euler-Maruyama, in models of interest rates, populations, and stock prices.
 
-    Choose it for diagonal noise whose amplitude depends on the state, where it converges faster than Euler-Maruyama. It
-    appears in models of interest rates and of population noise.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The fixed internal step.
 
+    See Also:
+        EulerMaruyamaSolver: The default solver of noise in continuous time.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import MilsteinSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> problem = simulate(GeometricBrownianMotionSystem(), until=0).problem
-        >>> stepper = MilsteinSolver(dt=0.01, random_state=0).prepare(problem)
-        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
-        True
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
+        >>> system = GeometricBrownianMotionSystem(solver=MilsteinSolver(dt=0.01)).prepare()
+        >>> system.simulate(until=1, dt=1, random_state=0).get_values('asset.price').round(2).tolist()
+        [100.0, 130.8]
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={RateLaw, ConstraintLaw, EventLaw, _BoundaryLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

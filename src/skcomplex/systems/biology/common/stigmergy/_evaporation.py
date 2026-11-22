@@ -7,17 +7,16 @@ The mark is lost at a per unit rate that its holder sets.
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.interactions import RateInteraction
-from .....core.components.spaces import BaseSpace
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
+from .....core.types import Role
 
 
-class EvaporationInteraction(RateInteraction):
+class EvaporationInteraction(Interaction):
     """Evaporation of a mark, `dm/dt = -e m`.
 
     The rate `e` is a parameter of the element that holds the mark.
@@ -43,52 +42,52 @@ class EvaporationInteraction(RateInteraction):
             The state or the name of the rate of evaporation is not a name.
 
     Examples:
-        >>> from typing import Annotated
         >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.stigmergy import EvaporationInteraction
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class ScentElement(Element):
-        ...     def __init__(
-        ...         self, label, level: Annotated[float, StateSpec()] = 8.0, e: Annotated[float, ParameterSpec()] = 0.5
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.level = level
-        ...         self.e = e
         >>> evaporation = EvaporationInteraction('evaporation', target='scent', state='level', evaporation='e')
-        >>> system = CompositeSystem(elements=[ScentElement('scent')], interactions=[evaporation])
-        >>> trajectory = simulate(system, until=2.0, dt=0.01)
+        >>> system = System(elements=[Element('scent', values={'level': 8.0, 'e': 0.5})], interactions=[evaporation])
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.01)
         >>> round(float(trajectory.get_values('scent.level')[-1]), 3)
         2.943
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'level',
         evaporation: str = 'evaporation',
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.evaporation = evaporation
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a name of the rate of evaporation that is no parameter.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state or the name of the rate of evaporation is not a name.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.evaporation, str) or not self.evaporation.isidentifier():
             error_msg = f'The evaporation of {self.label!r} is {self.evaporation!r}. Name a parameter of the target.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the loss `-e m` of the mark.

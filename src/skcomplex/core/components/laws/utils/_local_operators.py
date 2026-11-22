@@ -15,38 +15,35 @@ dagger = _OperatorFunction('dagger', nargs=1)
 
 
 def local_operator(subsystem: object, name: object) -> Expression:
-    """Return the operator of a name of the `HilbertSpec` of a subsystem.
+    """Return a named operator that acts on one subsystem alone.
 
-    It acts on that subsystem alone. Operators do not commute, so a product of operators is written with
-    `operator_product` and an adjoint with `dagger`, both kept unevaluated until the compiler lowers them to matrices.
-    Coefficients are ordinary expressions, so an operator is a sum of numbers or parameters times local operators,
-    such as `J * operator_product(a, b)` rather than `J * a * b`.
+    The name picks an operator of the Hilbert space of the subsystem, such as `local_operator(q, 'z')` for the Pauli `Z`
+    of the qubit `q`. Operators do not commute, so a product is written `operator_product(a, b)` and an adjoint
+    `dagger(a)`, both kept as they are until the compiler turns them into matrices. A coefficient is an ordinary
+    expression, so a coupling of strength `J` is `J * operator_product(a, b)`. It builds the Hamiltonian of a spin
+    chain, of a cavity holding light and an atom, and of a register of qubits.
+
+    Read more in the user guide, under Laws.
 
     Args:
         subsystem:
             The symbol of the state of the subsystem, such as `namespace.psi`.
 
         name:
-            The name of the operator in the `HilbertSpec`, such as `'z'`, or its symbol.
+            The name of the operator in the Hilbert space, such as `'z'`, or its symbol.
 
     Returns:
         operator:
             The unevaluated local operator.
+
+    See Also:
+        has_operator: Checks whether an expression holds a local operator.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR
         >>> from skcomplex.core.components.laws.utils import local_operator
         >>> local_operator(SR.symbol('q'), 'z')
         local_operator(q, z)
-
-        A coupling of two subsystems with a strength `J` is a product of their operators.
-
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import dagger, operator_product
-        >>> a = local_operator(SR.symbol('a'), 'x')
-        >>> b = local_operator(SR.symbol('b'), 'minus')
-        >>> var('J') * operator_product(a, b) + dagger(b)
-        J*operator_product(local_operator(a, x), local_operator(b, minus)) + dagger(local_operator(b, minus))
     """
     return LOCAL_OPERATOR(subsystem, SR.symbol(name) if isinstance(name, str) else name)
 
@@ -54,7 +51,11 @@ def local_operator(subsystem: object, name: object) -> Expression:
 def has_operator(expression: object) -> bool:
     """Check whether an expression holds a local operator.
 
-    A local operator makes it an operator rather than a scalar.
+    An expression that holds a local operator is an operator of a quantum system rather than a number, such as
+    `2 * local_operator(q, 'z')`, while `J` alone is a number. The compiler reads it to tell a Hamiltonian from an
+    ordinary rate. It sorts the terms of a spin chain, a cavity, and a register of qubits.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -63,6 +64,9 @@ def has_operator(expression: object) -> bool:
     Returns:
         has_operator:
             Whether a local operator appears in the expression.
+
+    See Also:
+        local_operator: Builds the operators it looks for.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, var

@@ -13,7 +13,6 @@ stays stable, so a small seed dies out while a large one settles at a high preva
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.spreading import HypergraphExposureSisSystem
 
@@ -22,7 +21,7 @@ HYPERDEGREE, RATE, RECOVERY = 5.0, 0.06, 0.05
 
 system = HypergraphExposureSisSystem(share=0.3, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-trajectory = simulate(system, until=200, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=200, observers=[observer], random_state=0)
 
 # %%
 # Two stable prevalences
@@ -34,7 +33,7 @@ trajectory = simulate(system, until=200, observers=[observer], random_state=0)
 
 def prevalence(share):
     """Return the share of infected participants after every step of a run."""
-    run = simulate(HypergraphExposureSisSystem(share=share, seed=0), random_state=0)
+    run = HypergraphExposureSisSystem(share=share, seed=0).prepare().simulate(random_state=0)
     infected = run.get_values('participants.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)
 

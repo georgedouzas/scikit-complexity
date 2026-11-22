@@ -6,18 +6,21 @@ Advection carries a state of a field by a drift, the conservation law whose flux
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import SimpleNamespace
+from typing import cast
 
 from sage.all__sagemath_symbolics import SR
 from sage.modules.free_module_element import FreeModuleElement
 
-from .....core.components.interactions import ConservationInteraction
-from .....core.components.spaces import BaseSpace
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
+from .....core.components.laws.utils import divergence
 from .....core.errors import ValidationError
+from .....core.types import Role
 
 
-class AdvectionInteraction(ConservationInteraction):
+class AdvectionInteraction(Interaction):
     """Advection `du/dt + divergence(a u) = source(ns)` of a state `u` of a field by a drift.
 
     Physics names it advection, the transport of a state by a flow or by the streaming of a phase-space density.
@@ -29,7 +32,7 @@ class AdvectionInteraction(ConservationInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field whose state is carried.
@@ -43,41 +46,21 @@ class AdvectionInteraction(ConservationInteraction):
         source:
             A function of the namespace that returns the source, or `None` for none.
 
-        limiter:
-            The slope limiter of the reconstruction of a finite-volume field, `'minmod'`, `'van-leer'`, or `None`.
-
-        riemann:
-            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, or `None` for the divergence of
-            the flux on a field of another discretization.
-
-        sources:
-            The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
-            position lattice of a target on a phase space is read broadcast along the class axes.
-
     Raises:
         ValidationError:
-            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+            The state is not a name, or a function is not callable.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.fields import AdvectionInteraction
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.u = u
-        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic', discretization='finite-volume')
         >>> values = {'u': np.exp(-((np.arange(50) - 25) / 5.0) ** 2)}
-        >>> volumes = 'finite-volume'
-        >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
+        >>> tracer = Element('tracer', values=values, space=space)
         >>> drift = AdvectionInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = CompositeSystem(elements=[field], interactions=[drift])
-        >>> trajectory = simulate(system, until=1.0, dt=0.01)
+        >>> trajectory = System(elements=[tracer], interactions=[drift]).prepare().simulate(until=1.0, dt=0.01)
         >>> total = trajectory.get_values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True
@@ -87,57 +70,46 @@ class AdvectionInteraction(ConservationInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        limiter: str | None = 'minmod',
-        riemann: str | None = 'rusanov',
-        sources: Sequence[str] = (),
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            source=source,
-            limiter=limiter,
-            riemann=riemann,
-            sources=sources,
-        )
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.drift = drift
+        self.source = source
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an invalid state, drift, or scheme.
-
-        It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, a function is not callable, or the limiter or the
-                numerical flux is unknown.
+                The state is not a name, the drift is not callable, or the source is neither callable nor `None`.
         """
-        super()._prepare(context)
+        super()._check_arguments()
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = f'{type(self).__name__} {self.label!r} carries the state {self.state!r}, which is no name.'
+            raise ValidationError(error_msg)
         if not callable(self.drift):
             error_msg = f'The drift of {self.label!r} is {self.drift!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
+        if self.source is not None and not callable(self.source):
+            error_msg = f'The source of {self.label!r} is {self.source!r}. Give a function of the namespace.'
+            raise ValidationError(error_msg)
 
-    def _get_flux(self, namespace: SimpleNamespace) -> object:
-        """Return the flux `a u`, one component per component of the drift.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the divergence of the flux `a u` and the rate of the source.
 
         Args:
-            namespace:
-                The namespace of the symbols the flux can use, with the namespace of the field.
-
-        Returns:
-            flux:
-                The flux, one expression or one per dimension.
+            context:
+                The namespace of the field, the time `t`, and the parameters.
         """
-        state = getattr(self._get_member(namespace, 'target'), self.state)
-        drift = self.drift(namespace) if callable(self.drift) else None
-        if isinstance(drift, FreeModuleElement | list | tuple):
-            return [SR(component) * state for component in drift]
-        return SR(drift) * state
+        super()._prepare(context)
+        u = getattr(context.target, self.state)
+        drift = cast('Callable[[SimpleNamespace], object]', self.drift)(context)
+        components = drift if isinstance(drift, FreeModuleElement | list | tuple) else [drift]
+        self.laws_ = [RateLaw(u, -divergence([SR(component) * u for component in components]))]
+        if self.source is not None:
+            self.laws_.append(RateLaw(u, self.source(context)))

@@ -13,14 +13,13 @@ the androgen-independent cells grow throughout and cause the relapse.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ContinuousAndrogenSuppressionSystem
 
 SYSTEM = 'continuous_androgen_suppression'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ContinuousAndrogenSuppressionSystem(), observers=[observer], until=900)
+trajectory = ContinuousAndrogenSuppressionSystem().prepare().simulate(observers=[observer], until=900)
 
 # %%
 # Androgen and relapse

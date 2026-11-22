@@ -14,7 +14,6 @@ errors of the measurement can push a stock to extinction.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
 
@@ -24,15 +23,18 @@ STEPS = 5000
 
 def run(**settings):
     """Return the trajectory of the fisheries with some settings."""
-    return simulate(FisheryMeasurementErrorsSystem(sigma_r=1.4, **settings), until=STEPS, random_state=0)
+    return FisheryMeasurementErrorsSystem(sigma_r=1.4, **settings).prepare().simulate(until=STEPS, random_state=0)
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(
-    FisheryMeasurementErrorsSystem(sigma_r=1.4, error=0.2),
-    until=STEPS,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    FisheryMeasurementErrorsSystem(sigma_r=1.4, error=0.2)
+    .prepare()
+    .simulate(
+        until=STEPS,
+        observers=[observer],
+        random_state=0,
+    )
 )
 
 # %%

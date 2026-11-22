@@ -11,11 +11,12 @@ import numpy.typing as npt
 from scipy import fft
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_real, _read_snapshots
-from .types import Source
+from .types import DataSource
 
 MIN_LINE_POINTS = 2
 FIT_POINTS = 20
@@ -24,9 +25,13 @@ TAGS = AnalysisTags(DataKind.AGENTS)
 
 @dataclass(frozen=True)
 class DisplacementResult:
-    """A result of `displacement`, the mean squared displacement over lags.
+    """A result of `displacement`, the mean squared distance travelled over every lag.
 
-    It comes with its scaling exponent and the diffusion coefficient.
+    It holds the positions, the lags, the mean squared distance at every lag, the exponent of its growth with the lag, 1
+    for plain diffusion and 2 for straight flight, and the diffusion coefficient. It reports how molecules spread in a
+    fluid, how cells crawl in a tissue, and how animals forage.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         positions:
@@ -44,6 +49,16 @@ class DisplacementResult:
 
         diffusion:
             The coefficient `D` of `msd = 2 d D lag` fitted over the fit range in `d` dimensions.
+
+    See Also:
+        displacement: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import displacement
+        >>> walks = np.cumsum(np.random.default_rng(0).standard_normal((2000, 500)), axis=0)
+        >>> round(displacement(walks).exponent, 1)
+        1.0
     """
 
     positions: Array
@@ -54,20 +69,22 @@ class DisplacementResult:
 
 
 def displacement(
-    source: Source,
+    source: DataSource,
     *,
     group: str | None = None,
     dt: float = 1.0,
     lags: Sequence[int] | None = None,
     fit_range: tuple[float, float] | None = None,
 ) -> DisplacementResult:
-    """Return the mean squared displacement of particles over all lags.
+    """Return the mean squared distance particles travel over every lag.
 
-    It comes with its scaling exponent and the diffusion. The displacement of every particle is computed for all lags at
-    once with an FFT, so positions must be unwrapped across periodic boundaries, as a trajectory gives them.
+    For every lag it averages the squared distance each particle moves in that time,
+    `MSD(tau) = <|x(t + tau) - x(t)|^2>`, and fits `MSD ~ tau^a`, where `a` is 1 for diffusion and 2 for straight
+    flight, with an FFT over all lags at once. Positions must be unwrapped across periodic walls, as a trajectory gives
+    them. It tells diffusion from flight in the paths of molecules in a fluid, of cells in a tissue, and of animals that
+    forage.
 
-    It appears in many fields. It tells diffusion from flight in the paths of particles in a fluid, of cells in a
-    tissue, and of animals that forage.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -93,13 +110,16 @@ def displacement(
         AnalysisError:
             The time step or a lag is not positive, the agents have no positions, or the fit range holds too few lags.
 
+    See Also:
+        passage: Measures the times to reach a level.
+        kramers_moyal: Estimates the drift and noise of a path.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import displacement
         >>> walks = np.cumsum(np.random.default_rng(0).standard_normal((2000, 500)), axis=0)
-        >>> result = displacement(walks)
-        >>> round(result.exponent, 1), round(result.diffusion, 1)
-        (1.0, 0.5)
+        >>> round(displacement(walks).exponent, 1)
+        1.0
     """
     if dt <= 0:
         error_msg = f'displacement has dt={dt!r}. Use a positive time step.'

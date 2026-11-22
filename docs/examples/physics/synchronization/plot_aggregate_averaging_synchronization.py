@@ -12,7 +12,6 @@ short transient their values coincide forever, although each keeps wandering cha
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import AggregateAveragingSynchronizationSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'aggregate_averaging_synchronization'
 
 system = AggregateAveragingSynchronizationSystem(x1=0.3, x2=0.6, r=4.0, kappa=0.4)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Window of synchronization
@@ -33,7 +32,7 @@ trajectory = simulate(system, observers=[observer])
 couplings = np.linspace(0.0, 1.0, 41)
 differences = []
 for coupling in couplings:
-    run = simulate(AggregateAveragingSynchronizationSystem(x1=0.3, x2=0.6, kappa=coupling), until=200)
+    run = AggregateAveragingSynchronizationSystem(x1=0.3, x2=0.6, kappa=coupling).prepare().simulate(until=200)
     gap = np.abs(np.ravel(run.get_values('first.x')) - np.ravel(run.get_values('second.x')))
     differences.append(gap[-50:].mean())
 fig, ax = plt.subplots(figsize=(6, 4))
@@ -58,7 +57,7 @@ for delay in (0, 1, 2):
     gaps = []
     for coupling in couplings:
         system = AggregateAveragingSynchronizationSystem(kind='bernoulli', r=1.5, kappa=coupling, delay=delay)
-        run = simulate(system, until=300)
+        run = system.prepare().simulate(until=300)
         gap = np.abs(np.ravel(run.get_values('first.x')) - np.ravel(run.get_values('second.x')))
         gaps.append(np.minimum(gap, 1 - gap)[-50:].max())
     ax.semilogy(couplings, np.maximum(gaps, 1e-17), 'o-', markersize=3, label=f'delay T = {delay}')

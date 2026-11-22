@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import CoupledPendulumsSystem
 
@@ -28,7 +27,7 @@ blueprint = rrb.Blueprint(
 )
 system = CoupledPendulumsSystem(theta1=0.2, theta2=0.0, k=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-trajectory = simulate(system, until=50, observers=[observer])
+trajectory = system.prepare().simulate(until=50, observers=[observer])
 
 # %%
 # Normal modes and beats

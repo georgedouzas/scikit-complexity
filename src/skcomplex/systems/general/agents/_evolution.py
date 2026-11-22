@@ -11,13 +11,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.sets.real_set import RealSet
 
+from ....core.base import BaseSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import BaseSpace
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import SimulationError, ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec
-from ....core.types import Array, ElementKind
+from ....core.types import Array, Role
 
 SELECTIONS = ('tournament', 'roulette', 'proportional', 'rank')
 REPLACEMENTS = ('generational', 'moran', 'death-birth', 'truncation', 'best-mutant')
@@ -53,7 +52,7 @@ class EvolutionInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the agent group whose strategies evolve.
@@ -127,7 +126,7 @@ class EvolutionInteraction(Interaction):
         >>> from types import SimpleNamespace
         >>> from skcomplex.systems.general.agents import EvolutionInteraction
         >>> evolution = EvolutionInteraction('evolution', target='agents', selection='roulette', phase='breeding')
-        >>> evolution.prepare().run(SimpleNamespace()).laws_[0].phase
+        >>> evolution.prepare(SimpleNamespace(target=SimpleNamespace())).laws_[0].phase
         'breeding'
         >>> EvolutionInteraction('evolution', target='agents', selection='rank', replacement='moran').selection
         'rank'
@@ -137,7 +136,7 @@ class EvolutionInteraction(Interaction):
         50
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     draws = True
 
@@ -145,24 +144,21 @@ class EvolutionInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[
-            str,
-            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('strategy',)),
-        ],
+        target: Role,
         strategy: str | Sequence[str] = 'strategy',
         fitness: str | None = 'fitness',
         selection: str = 'tournament',
         replacement: str = 'generational',
-        crossover: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.7,
+        crossover: Annotated[float, RealSet.closed(0, 1)] = 0.7,
         mutation: float | Callable[[Array, np.random.Generator], Array] = 0.01,
         elite: int = 0,
         tournament: int = 2,
         alphabet: int | None = 2,
         scale: float = 0.1,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        death: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         change: str = 'other',
         parents: str = 'survivors',
-        fraction: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        fraction: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         period: int = 1,
         evaluate: Callable[[Array, SystemViewProtocol], Array] | None = None,
         reset: Mapping[str, float] | None = None,
@@ -222,19 +218,15 @@ class EvolutionInteraction(Interaction):
                 error_msg = f'The {name} probability of {self.label!r} is {value!r}. Give a value in [0, 1].'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown variant, a bad probability, or an invalid count.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The type declares states, a variant is unknown, a probability is outside `[0, 1]`, the mutation is
                 neither a probability nor a function, a count is invalid, or the evaluation is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('selection', self.selection, SELECTIONS, (BaseSpec,))
         self._check_variant('replacement', self.replacement, REPLACEMENTS, (BaseSpec,))
         for name, value, variants in (
@@ -250,6 +242,16 @@ class EvolutionInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_probabilities()
         self._check_counts()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_evolution_laws(context)
 
     def _get_value(self, name: str, system: SystemViewProtocol) -> float:
         """Return a probability.
@@ -555,7 +557,7 @@ class EvolutionInteraction(Interaction):
         strategies, fitness = self._read(agents, system)
         self._write(agents, *self._breed(strategies, fitness, system))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_evolution_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of one generation.
 
         Args:
@@ -566,4 +568,4 @@ class EvolutionInteraction(Interaction):
             laws:
                 The rule that breeds the next generation.
         """
-        return [RuleLaw(self._evolve, phase=self.phase)]
+        return [UpdateLaw(namespace, self._evolve, phase=self.phase)]

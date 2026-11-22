@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import GibratProcessSystem
 
@@ -23,7 +22,7 @@ N_FIRMS, SIZE, MU, SIGMA, STEPS = 1000, 100.0, 1.02, 0.05, 150
 
 system = GibratProcessSystem(n_firms=N_FIRMS, x=SIZE, mu=MU, sigma=SIGMA)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Lognormal sizes

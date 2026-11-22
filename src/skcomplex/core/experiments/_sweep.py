@@ -6,18 +6,18 @@
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
-from ..specs import ObservableSpec
 from ._designs import _get_rows
 from ._results import ExperimentResult
 from ._runs import _run_experiment
-from .types import Bounds, Output, Source
+from ._scenario_spec import ScenarioSpec
+from .types import Bounds, Output, SystemSource
 
 
 def sweep(
-    system: Source,
+    system: SystemSource,
     parameters: Bounds | Sequence[Mapping[str, object]],
     *,
     design: str = 'grid',
@@ -29,36 +29,35 @@ def sweep(
     solver: BaseSolver | None = None,
     outputs: Sequence[Output] | None = None,
     warmup: float = 0.0,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
     """Return the runs of a system over rows of values.
 
-    It is in the role of `validation_curve` of scikit-learn. A name without a dot is a model parameter, set on a copy of
-    the system with `set_params`, or passed to the factory. A dotted path names an initial state or a parameter of a
-    part, such as `population.x` or `growth.r`, which keeps its value for the whole run. The rows come from the design:
+    It runs a copy of the system for every row of values, as `validation_curve` of scikit-learn does, such as
+    `sweep(system, {'r': [0.5, 1.0]})` for two growth rates. A name without a dot, such as `r` or the nested
+    `growth__r`, is set with `set_params` and the copy is prepared again, and a dotted path, such as `population.x`,
+    sets a value of a component on one prepared copy. The rows come from a grid or a random design, and the system
+    passed in is left unchanged. It maps the change of state of a magnet over temperature, the final size of an epidemic
+    over its rate of infection, and the clusters of opinions over the confidence of the voters.
 
-    - `'grid'`: every combination of a sequence of values per name, the last name varying fastest.
-    - `'random'`: `n` independent samples, uniform within a pair `(low, high)` or drawn from a SciPy distribution.
-    - `'latin_hypercube'`: `n` samples of a Latin hypercube, one in every stratum of every name.
-    - `'sobol'`: `n` points of a scrambled Sobol sequence, best with `n` a power of 2.
-
-    A sequence of rows, each a mapping from name to value, runs as it is.
-
-    It appears in many fields. It maps the phase transition of a magnet over temperature, the final size of an epidemic
-    over its rate of infection, and the clusters of an opinion model over its confidence bound.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
-            The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
+            The system, whose clones take parameters through `set_params`, or a factory of systems, such as a
             system class, which takes them as keyword arguments.
 
         parameters:
             What the design reads by name, or the rows to run.
 
         design:
-            The design of the rows, one of the designs above.
+            The design of the rows. `'grid'` runs every combination of a sequence of values per name, the last name
+            varying fastest. `'random'` draws `n` samples, uniform within a pair `(low, high)` or from a SciPy
+            distribution. `'latin_hypercube'` draws `n` samples with one in every stratum of every name. `'sobol'`
+            takes `n` points of a scrambled Sobol sequence, best with `n` a power of 2. A sequence of rows, each a
+            mapping from name to value, runs as it is.
 
         n:
             The number of rows of a sampled design.
@@ -103,18 +102,22 @@ def sweep(
 
     Raises:
         ValidationError:
-            The design is unknown, the values do not fit it, a name is no model parameter, state, or parameter, or a
-            setting is not valid.
+            The design is unknown, the values do not fit it, a name is no parameter of the system and no state or
+            parameter of a component, or a setting is not valid.
 
         ExperimentError:
             The system is a name, or the worker processes stop before finishing.
+
+    See Also:
+        ensemble: Runs a system many times with independent random streams.
+        sensitivity: Ranks the inputs of a system by their effect on an output.
 
     Examples:
         >>> from skcomplex.core.experiments import sweep
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = sweep(LogisticGrowthSystem(), {'r': [0.5, 1.0]}, until=5, outputs=['population.x'])
-        >>> len(result.rows)
-        2
+        >>> result.get_column('r').tolist()
+        [0.5, 1.0]
     """
     rows = _get_rows(parameters, design, n, random_state)
     return _run_experiment(

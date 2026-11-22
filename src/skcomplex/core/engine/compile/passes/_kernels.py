@@ -1,4 +1,4 @@
-"""Lower the laws of every kernel spec into kernels."""
+"""Turn the laws of every component into kernels that evaluate them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,29 +14,50 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.interactions import WienerProcessSpec
+from ....components.laws import BaseLaw, CallSpec, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
+from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws._ordered_rate import _OrderedRateLaw
 from ....errors import PipelineError, ValidationError
-from ....specs import CallSpec, LayoutSpec, NoiseProcessSpec, WienerProcessSpec
 from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
+from ...enums import ReadKind
+from ...problems import LayoutSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._noise_process_spec import _NoiseProcessSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from .._laws import KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
-ASSIGNED_KINDS = (UpdateLaw, BoundaryLaw)
+ASSIGNED_KINDS = (UpdateLaw, _BoundaryLaw)
 
 
 class KernelsPass(BasePass):
-    """A pass that lowers the reduced laws into the kernels of every law kind."""
+    """A pass that turns the laws of every component into kernels that evaluate them.
+
+    A kernel evaluates the laws of one kind of one component for all its members at once, such as the growth rates of
+    every population. The pass builds the kernels of every kind of law.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FunctionsPass: Joins the kernels into the functions of the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).run().compilation_
+        >>> [kernel.owner for kernels in compilation.kernels.kernels.values() for kernel in kernels]
+        ['growth', 'predation', 'death']
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -138,7 +159,7 @@ class KernelsPass(BasePass):
         law sets, whose changes this law adds to. A law of one member of a group meets the laws of every member, and a
         law of every member the laws of each one.
         """
-        kind = type(law).__name__
+        kind = law._get_name()
         combined = set()
         for position, target in enumerate(targets):
             if target.source in {ReadKind.FIRST, ReadKind.SECOND}:
@@ -187,7 +208,7 @@ class KernelsPass(BasePass):
         if (
             spec.rows <= 1
             or spec.pairs is not None
-            or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw)
+            or not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw)
         ):
             return False
         if not all(
@@ -213,7 +234,7 @@ class KernelsPass(BasePass):
     @staticmethod
     def _get_law_outputs(
         spec: KernelSpec,
-        law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
+        law: RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw,
         targets: list[ReferenceSpec],
         declarations: DeclarationsSpec,
         lowered: dict[int, list[OutputSpec]],
@@ -227,11 +248,11 @@ class KernelsPass(BasePass):
             return lowered[id(law)]
         if isinstance(law, NoiseLaw) and law.conserved:
             error_msg = (
-                f'A conserved noise law of {spec.owner} has no lowering. Declare its state on a `Field` of the fields '
-                'formalism, or remove `conserved=True`.'
+                f'A conserved noise law of {spec.owner} drives a state that is not on a lattice. Declare the state on '
+                'an element whose space is a `LatticeSpace`, or remove `conserved=True`.'
             )
             raise ValidationError(error_msg)
-        outputs = KernelsPass._get_outputs_of(law.value, targets, f'{type(law).__name__} of {spec.owner}')
+        outputs = KernelsPass._get_outputs_of(law.value, targets, f'{law._get_name()} of {spec.owner}')
         if isinstance(law, NoiseLaw) and law.process is not None:
             keys = NoisePass._get_process_keys(spec, law, declarations)
             outputs = [
@@ -276,15 +297,21 @@ class KernelsPass(BasePass):
                     laws_of[id(output)] = (spec, law)
                     outputs[(JumpLaw, False, None)].append(output)
                     continue
-                if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
-                    error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
+                if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
+                    error_msg = f'A {law._get_name()} of {spec.owner} reached lowering before it was rewritten.'
                     raise ValidationError(error_msg)
                 targets = spec._get_target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
                 reduced = isinstance(law, UpdateLaw) and spec.reduce is not None
                 phase = law.phase if isinstance(law, UpdateLaw) else None
                 combined = (
-                    KernelsPass._check_assignments(spec, law, targets, assigned[(type(law), phase)], once=once)
+                    KernelsPass._check_assignments(
+                        spec,
+                        law,
+                        targets,
+                        assigned[(KernelsPass._get_kind_of(law), phase)],
+                        once=once,
+                    )
                     if isinstance(law, ASSIGNED_KINDS) and not reduced
                     else set()
                 )
@@ -328,7 +355,10 @@ class KernelsPass(BasePass):
             return vectors * np.sqrt(np.maximum(values, 0.0))
 
     @staticmethod
-    def _get_noise_process(key: ProcessKey | None, wieners: Mapping[str, WienerProcessSpec]) -> NoiseProcessSpec | None:
+    def _get_noise_process(
+        key: ProcessKey | None,
+        wieners: Mapping[str, WienerProcessSpec],
+    ) -> _NoiseProcessSpec | None:
         """Return the named Wiener process of a process key.
 
         It holds the covariance factor of a `WienerProcessSpec`.
@@ -337,16 +367,17 @@ class KernelsPass(BasePass):
             return None
         kind, owner, item = key
         if kind == 'local':
-            return NoiseProcessSpec(key)
+            return _NoiseProcessSpec(key)
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._get_covariance_factor(wiener.covariance)
-        return NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
+        return _NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
-    def _get_kind_of(law: BaseLaw) -> type:
+    def _get_kind_of(law: BaseLaw) -> type[BaseLaw]:
         """Return the class of a law that decides its form.
 
-        Every noise law counts as a noise law.
+        Every noise law counts as a noise law, every rate law and the term of a flow as a rate law, and the increment
+        of a flow in discrete time as an update law.
 
         Args:
             law:
@@ -356,6 +387,10 @@ class KernelsPass(BasePass):
             kind:
                 The class.
         """
+        if isinstance(law, FlowTermLaw):
+            return UpdateLaw if law.increment else RateLaw
+        if isinstance(law, _OrderedRateLaw):
+            return RateLaw
         return NoiseLaw if isinstance(law, NoiseLaw) else type(law)
 
     @staticmethod

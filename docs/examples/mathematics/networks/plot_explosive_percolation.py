@@ -14,21 +14,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import ExplosivePercolationSystem
 
 SYSTEM = 'explosive_percolation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(ExplosivePercolationSystem(), observers=[observer], random_state=0)
+trajectory = ExplosivePercolationSystem().prepare().simulate(observers=[observer], random_state=0)
 
 
 def largest(candidates, n_nodes=2000):
     """Return the share of nodes in the largest component after every edge, by edges per node."""
     system = ExplosivePercolationSystem(n_nodes=n_nodes, candidates=candidates)
-    run = simulate(system, until=int(1.2 * n_nodes), random_state=0)
-    return np.arange(int(1.2 * n_nodes) + 1) / n_nodes, run.get_values('nodes.size').max(axis=1) / n_nodes
+    run = system.prepare().simulate(until=int(1.2 * n_nodes), random_state=0)
+    return np.arange(int(1.2 * n_nodes) + 1) / n_nodes, run.get_values('nodes.cluster_size').max(axis=1) / n_nodes
 
 
 # %%

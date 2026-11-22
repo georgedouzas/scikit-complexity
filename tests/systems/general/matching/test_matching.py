@@ -1,17 +1,20 @@
 """Test the `_matching` module of `skcomplex.systems.general.matching`, and its rule specs."""
 
 import dataclasses
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import PartnerSpec, UpdateLaw
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.matching import (
     BatchMatchingSpec,
     ContinuousMatchingSpec,
@@ -28,36 +31,36 @@ from skcomplex.systems.general.matching import (
 from .conftest import ParticipantElement
 
 
-class RequesterElement(ParticipantElement):
-    """Requester that quotes a random reserve below its value while it still requests a unit."""
+class QuotingInteraction(Interaction):
+    """Quotes of the members of a group in the phase `quote`, by a rule of one member."""
 
-    def _get_laws(self, s):
-        """Return the quoting rule."""
-        return [RuleLaw(self.quote, phase='quote')]
+    def __init__(self, label, *, target: Role, rule=None):
+        super().__init__(label)
+        self.target = target
+        self.rule = rule
 
-    def quote(self, agent, system):
-        """Quote a random reserve below the value."""
-        agent.reserve = system.rng.uniform(0, agent.value) if agent.quantity > 0 else 0.0
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the quoting rule of every member of the target group."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.rule, phase='quote')]
 
 
-class ProviderElement(ParticipantElement):
-    """Provider that quotes a random reserve above its value while it still provides a unit."""
+def _quote_below(agent, system):
+    """Quote a random reserve below the value while the requester still requests a unit."""
+    agent.reserve = system.rng.uniform(0, agent.value) if agent.quantity > 0 else 0.0
 
-    def _get_laws(self, s):
-        """Return the quoting rule."""
-        return [RuleLaw(self.quote, phase='quote')]
 
-    def quote(self, agent, system):
-        """Quote a random reserve above the value."""
-        agent.reserve = system.rng.uniform(agent.value, 200) if agent.quantity > 0 else 200.0
+def _quote_above(agent, system):
+    """Quote a random reserve above the value while the provider still provides a unit."""
+    agent.reserve = system.rng.uniform(agent.value, 200) if agent.quantity > 0 else 200.0
 
 
 def _auction(size, rng):
     """Return the values, the costs, and a uniform price matching of requesters with budgets and providers."""
     values = rng.uniform(50, 200, size)
     costs = rng.uniform(0, 150, size)
-    requesters = GroupElement('buyers', element=RequesterElement, size=size, values={'value': values, 'money': values})
-    providers = GroupElement('sellers', element=ProviderElement, size=size, values={'value': costs})
+    requesters = ParticipantElement('buyers', value=values, money=values, size=size)
+    providers = ParticipantElement('sellers', value=costs, size=size)
     matching = MatchingInteraction(
         'auction',
         requesters='buyers',
@@ -67,10 +70,14 @@ def _auction(size, rng):
         transfers=(('money', -1), ('goods', 1)),
         phase='clear',
     )
-    system = CompositeSystem(
+    quotes = [
+        QuotingInteraction('bids', target='buyers', rule=_quote_below),
+        QuotingInteraction('asks', target='sellers', rule=_quote_above),
+    ]
+    system = System(
         elements=[requesters, providers],
-        interactions=[matching],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('clear')])),
+        interactions=[*quotes, matching],
+        solver=MesaSolver(phases=[PhaseSpec('quote'), PhaseSpec('clear')]),
     )
     return values, costs, system
 
@@ -78,7 +85,7 @@ def _auction(size, rng):
 def test_match_settles_transfers_and_realises_the_surplus():
     """Test that random quotes within budgets realise most of the surplus and the transfers conserve the money."""
     values, costs, system = _auction(50, np.random.default_rng(1))
-    trajectory = simulate(system, until=30, random_state=0)
+    trajectory = system.prepare().simulate(until=30, random_state=0)
     requesters = trajectory.get_agents('buyers', 30).values
     providers = trajectory.get_agents('sellers', 30).values
     bought, sold = requesters['goods'] > 0, providers['goods'] < 0
@@ -92,10 +99,10 @@ def test_match_settles_transfers_and_realises_the_surplus():
 
 def test_match_reads_the_states_named_by_a_pair():
     """Test that a pair of names reads the requesters' reserve from its first state, the providers' from its second."""
-    system = CompositeSystem(
+    system = System(
         elements=[
-            GroupElement('providers', element=ParticipantElement, size=1, values={'reserve': 5.0}),
-            GroupElement('requesters', element=ParticipantElement, size=1, values={'reserve': 1.0, 'value': 9.0}),
+            ParticipantElement('providers', reserve=5.0, size=1),
+            ParticipantElement('requesters', reserve=1.0, value=9.0, size=1),
         ],
         interactions=[
             MatchingInteraction(
@@ -107,7 +114,7 @@ def test_match_reads_the_states_named_by_a_pair():
             ),
         ],
     )
-    trajectory = simulate(system, until=1, random_state=0)
+    trajectory = system.prepare().simulate(until=1, random_state=0)
     assert trajectory.get_values('matching.value')[-1] == 7.0
     assert trajectory.get_values('matching.unmatched')[-1] == 0.0
 
@@ -290,19 +297,13 @@ def test_match_partners_respects_the_capacity_of_providers(clear):
 def test_match_partners_considers_local_cells_and_distances_only():
     """Test that requesters match only with providers in their cell or around it, or within a distance."""
     for candidates, expected in (('local', 1.0), (1.5, 1.0), ('all', 2.0)):
-        requesters = GroupElement(
-            'requesters',
-            element=ParticipantElement,
-            size=2,
-            values={'reserve': 10.0},
-            location=[(0, 0), (4, 4)],
-        )
-        providers = GroupElement(
+        space = LatticeSpace((5, 5), metric='chebyshev', boundary='fixed')
+        requesters = Element('requesters', values={'reserve': 10.0, 'x': [0, 4], 'y': [0, 4]}, size=2, space=space)
+        providers = Element(
             'providers',
-            element=ParticipantElement,
+            values={'reserve': 1.0, 'quantity': 2.0, 'x': [1], 'y': [1]},
             size=1,
-            values={'reserve': 1.0, 'quantity': 2.0},
-            location=[(1, 1)],
+            space=space,
         )
         matching = MatchingInteraction(
             'matching',
@@ -310,9 +311,8 @@ def test_match_partners_considers_local_cells_and_distances_only():
             providers='providers',
             rule=PartnerSpec(candidates),
         )
-        space = LatticeSpace((5, 5), metric='chebyshev', boundary='fixed')
-        system = CompositeSystem(elements=[requesters, providers], interactions=[matching], space=space)
-        trajectory = simulate(system, until=1, random_state=0)
+        system = System(elements=[requesters, providers], interactions=[matching], space=space)
+        trajectory = system.prepare().simulate(until=1, random_state=0)
         assert trajectory.get_values('matching.volume')[-1] == pytest.approx(expected)
 
 
@@ -355,9 +355,9 @@ def test_check_rejects_an_unknown_rule_naming_the_specs_and_functions():
 def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
     """Test that a cap state the requesters lack raises an error naming it instead of leaving them unbounded."""
     _, _, system = _auction(5, np.random.default_rng(1))
-    system.interactions[0].set_params(cap='mony')
+    system.set_params(auction__cap='mony')
     with pytest.raises(ValidationError, match="no state 'mony'"):
-        simulate(system, until=1, random_state=0)
+        system.prepare().simulate(until=1, random_state=0)
 
 
 def test_match_partner_spec_settles_the_pairs_at_the_midpoint(clear):

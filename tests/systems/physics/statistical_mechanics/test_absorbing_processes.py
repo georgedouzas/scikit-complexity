@@ -3,15 +3,18 @@
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import AbsorbingBirthDeathSystem
 
 
 def test_absorbing_birth_death_metastable_and_absorbed():
     """Test that the active state fluctuates around `rho_0` with the width of Bertin and that below `nu` it dies out."""
-    active = simulate(AbsorbingBirthDeathSystem(kappa=2.0), until=1000, dt=0.5, random_state=0, backend=NumbaBackend())
+    active = (
+        AbsorbingBirthDeathSystem(kappa=2.0, backend=NumbaBackend())
+        .prepare()
+        .simulate(until=1000, dt=0.5, random_state=0)
+    )
     density = active.get_values('particles.n')[100:] / 100
     assert abs(density.mean() - 1.0) < 0.05
     assert abs(density.std() / density.mean() - np.sqrt(2.0 / 100)) < 0.02
-    absorbed = simulate(AbsorbingBirthDeathSystem(kappa=0.5), dt=0.5, random_state=0, backend=NumbaBackend())
+    absorbed = AbsorbingBirthDeathSystem(kappa=0.5, backend=NumbaBackend()).prepare().simulate(dt=0.5, random_state=0)
     assert absorbed.get_values('particles.n')[-1] == 0

@@ -1,7 +1,5 @@
 """Test the `_base` module of `skcomplex.core.components.spaces`."""
 
-from types import SimpleNamespace
-
 import networkx as nx
 import numpy as np
 import pytest
@@ -9,14 +7,14 @@ import pytest
 from skcomplex.core.components.spaces import (
     BaseNeighborhood,
     BaseSpace,
-    BaseTime,
     CellComplexSpace,
-    ContinuousTime,
     LatticeSpace,
     NetworkSpace,
     PhaseSpace,
-    StaticTime,
 )
+from skcomplex.core.components.spaces._base import _BaseTime
+from skcomplex.core.components.spaces._continuous_time import _ContinuousTime
+from skcomplex.core.components.spaces._static_time import _StaticTime
 from skcomplex.core.errors import SpaceError
 
 
@@ -61,7 +59,7 @@ class EmptySpace(BaseSpace):
         self.size_ = None
 
 
-class TickTime(BaseTime):
+class TickTime(_BaseTime):
     """Time that takes the frames of the base."""
 
     def __init__(self, *, label='time'):
@@ -89,9 +87,9 @@ def test_space_counts_its_sites_only():
 
 
 def test_space_contributes_no_laws_and_lacks_nothing():
-    """Test that a space contributes no laws when run and lacks no option of lattices by default."""
+    """Test that a prepared space contributes no laws and lacks no option of lattices by default."""
     space = RingSpace().prepare()
-    assert not hasattr(space.run(SimpleNamespace()), 'laws_')
+    assert not hasattr(space, 'laws_')
     assert space._get_lacks() == frozenset()
 
 
@@ -117,16 +115,15 @@ def test_space_without_sites_has_no_parts():
 
 
 def test_neighbourhood_contributes_no_laws():
-    """Test that a neighbourhood checks, prepares, and runs, contributing no laws."""
-    assert not hasattr(SidesNeighborhood().prepare().run(SimpleNamespace()), 'laws_')
+    """Test that a neighbourhood checks and prepares, contributing no laws."""
+    assert not hasattr(SidesNeighborhood().prepare(), 'laws_')
 
 
-def test_base_time_runs_into_no_laws_and_frames_its_ends():
-    """Test that the base time contributes no laws and frames the start and the end of a run."""
+def test_base_time_has_no_laws():
+    """Test that the base time contributes no laws and no schedule."""
     time = TickTime().prepare()
     assert time.schedule_ is None
-    assert not hasattr(time.run(SimpleNamespace()), 'laws_')
-    assert time._get_frames(2.0).tolist() == [0.0, 2.0]
+    assert not hasattr(time, 'laws_')
 
 
 def test_spaces_and_times_give_their_tags():
@@ -137,5 +134,5 @@ def test_spaces_and_times_give_their_tags():
     assert NetworkSpace(ring, hyperedges=[[0, 1, 2]]).get_tags().space == {'hypergraph'}
     assert CellComplexSpace(NetworkSpace(ring)).get_tags().space == {'cell complex'}
     assert PhaseSpace.space_tags == ('phase space',)
-    assert ContinuousTime().get_tags().time == {'continuous'}
-    assert StaticTime().get_tags().laws == frozenset()
+    assert _ContinuousTime().get_tags().time == {'continuous'}
+    assert _StaticTime().get_tags().laws == frozenset()

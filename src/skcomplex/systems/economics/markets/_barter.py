@@ -6,7 +6,7 @@ The barter is in an Edgeworth box and among prisoners with Red Cross parcels.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
+from collections.abc import Sequence
 from typing import Annotated
 
 import numpy as np
@@ -14,11 +14,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver
+from ....core.systems import BaseSystem, System
 from ..common.exchange import ExchangeInteraction, cobb_douglas
 
 GOODS = ('chocolate', 'cigarettes')
@@ -78,9 +79,6 @@ class BartererElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         chocolate:
             The holding of chocolate.
 
@@ -93,42 +91,32 @@ class BartererElement(Element):
         cigarettes_weight:
             The Cobb-Douglas weight of cigarettes.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import BartererElement
-        >>> GroupElement('barterers', element=BartererElement, size=2, values={'chocolate': [8.0, 2.0]}).size
+        >>> BartererElement('barterers', chocolate=[8.0, 2.0], size=2).size
         2
     """
 
-    law_classes = ()
+    visual = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'chocolate_weight', 'color_range': (0.0, 1.0)}),
         *,
-        chocolate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        cigarettes: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        chocolate_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        cigarettes_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        chocolate: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        cigarettes: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        chocolate_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        cigarettes_weight: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.chocolate = chocolate
         self.cigarettes = cigarettes
         self.chocolate_weight = chocolate_weight
         self.cigarettes_weight = cigarettes_weight
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the exchange moves the goods.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 def _get_utility(agent: object) -> float:
@@ -174,13 +162,19 @@ class BarterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             There are fewer than two barterers.
 
     Examples:
         >>> from skcomplex.systems.economics.markets import BarterSystem
-        >>> BarterSystem().prepare().system_.elements[0].prepare().size_
+        >>> BarterSystem().prepare().system_.elements[0].size
         2
     """
 
@@ -189,8 +183,8 @@ class BarterSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016 ch. 5', 'Radford 1945')
     until = 20
     observables = (
-        ObservableSpec('utility', _get_utility, group='barterers', reduce='mean'),
-        *(ObservableSpec(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
+        Observable('utility', _get_utility, group='barterers', reduce='mean'),
+        *(Observable(good, group='barterers', variable=good, reduce='sum') for good in GOODS),
     )
 
     def __init__(
@@ -203,8 +197,10 @@ class BarterSystem(BaseSystem):
         quantity: float = 0.02,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_barterers = n_barterers
         self.chocolate = chocolate
         self.cigarettes = cigarettes
@@ -212,8 +208,9 @@ class BarterSystem(BaseSystem):
         self.quantity = quantity
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.n_barterers < EDGEWORTH_BARTERERS:
             error_msg = f'Barter needs at least two barterers, but got {self.n_barterers}.'
             raise ValueError(error_msg)
@@ -230,24 +227,23 @@ class BarterSystem(BaseSystem):
                 'cigarettes': rng.uniform(min(self.cigarettes), max(self.cigarettes), self.n_barterers),
             }
             shares = rng.uniform(min(self.weights), max(self.weights), self.n_barterers)
-        barterers = GroupElement(
+        barterers = BartererElement(
             'barterers',
-            element=BartererElement,
+            chocolate_weight=shares,
+            cigarettes_weight=1 - shares,
+            **holdings,
             size=self.n_barterers,
-            values={'chocolate_weight': shares, 'cigarettes_weight': 1 - shares, **holdings},
-            variable=True,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[barterers],
             interactions=[
                 ExchangeInteraction(
                     'exchange',
-                    source='barterers',
                     target='barterers',
                     goods=GOODS,
                     quantity=self.quantity,
                 ),
             ],
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade')])),
+            solver=MesaSolver(phases=[PhaseSpec('trade')]),
         )

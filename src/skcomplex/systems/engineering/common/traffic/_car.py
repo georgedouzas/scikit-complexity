@@ -1,33 +1,51 @@
-"""Car on a road whose position `x` advances at its speed `v`."""
+"""Car on a road at the position `x`, whose speed is the derivative `x'`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated
+from collections.abc import Mapping
 
 from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import StateSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
 
 
 class CarElement(Element):
-    """Car on a road whose position `x` advances at its speed `v`."""
+    """Car on a road at the position `x`, whose speed is the derivative `x'`.
 
-    law_classes = (RateLaw,)
+    The interactions that drive the car give the acceleration `x''`, and the speed `x'` starts at zero unless `values`
+    gives it.
+
+    Args:
+        label:
+            The label of the car or the group of cars.
+
+        x:
+            The initial position, one value per car or one for all.
+
+        values:
+            Further values by name, such as the starting speed `"x'"`.
+
+        size:
+            The number of cars, or `None` for one.
+
+        space:
+            The road, a continuous space of one dimension whose axis `x` makes the position of a car its place, or
+            `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.common.traffic import CarElement
+        >>> CarElement('cars', x=[0.0, 10.0], values={"x'": 1.0}, size=2).x
+        [0.0, 10.0]
+    """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
+        x: object = 0.0,
         *,
-        x: Annotated[object, StateSpec(role='position')] = 0.0,
-        v: Annotated[object, StateSpec(role='velocity')] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.x = x
-        self.v = v
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the advance of the position at the speed."""
-        return [RateLaw(s.x, s.v)]

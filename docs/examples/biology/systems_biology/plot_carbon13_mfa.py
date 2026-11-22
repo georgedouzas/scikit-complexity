@@ -14,10 +14,8 @@ the split of 2-oxoglutarate in the TCA example of Antoniewicz et al. (2007).
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.systems_biology import Carbon13MFASystem, tca_labelling_analysis
 
 SYSTEM = 'carbon13_mfa'
@@ -26,11 +24,11 @@ TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0
 system = Carbon13MFASystem().prepare().system_
 labelling = tca_labelling_analysis(noise=0.002, random_state=0)
 result = labelling(system)
-network = system.elements[0]
+network, cell = system.interactions[0], system.elements[0]
 fixed = {f'{bound}_{name}': result.fluxes[name] for name in TRUE for bound in ('lower', 'upper')}
-estimated = CompositeSystem(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
+estimated = System(elements=[type(cell)(cell.label, values=network.get_values() | fixed)], interactions=[network])
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='tca/graph')
-simulate(estimated, until=0.0, observers=[observer])
+estimated.prepare().simulate(until=0.0, observers=[observer])
 
 # %%
 # Estimated fluxes against the true ones

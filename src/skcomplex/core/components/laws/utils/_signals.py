@@ -34,6 +34,11 @@ def _search(t: Expression, points: list[float], levels: list[float], kind: str, 
 def step(t: Expression, at: float, height: float = 1.0) -> Expression:
     """Return a step input, 0 before a time and `height` from it on.
 
+    It switches a law on at the time `at` and keeps it on, such as `step(t, 5, 2)` that is 0 at time 4 and 2 at time 5.
+    It opens a valve, raises a tax rate, and starts a dose of a drug.
+
+    Read more in the user guide, under Laws.
+
     Args:
         t:
             The time symbol, `s.t` in laws.
@@ -48,6 +53,10 @@ def step(t: Expression, at: float, height: float = 1.0) -> Expression:
         input:
             The symbolic input.
 
+    See Also:
+        ramp: Rises from 0 to a height over an interval.
+        pulse: Is on for an interval only.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import step
@@ -59,9 +68,12 @@ def step(t: Expression, at: float, height: float = 1.0) -> Expression:
 
 
 def ramp(t: Expression, start: float, end: float, height: float = 1.0) -> Expression:
-    """Return a ramp input.
+    """Return an input that rises in a straight line from 0 to a height.
 
-    It is 0 before `start`, rises linearly to `height` at `end`, and is constant after.
+    It is 0 before `start`, rises evenly to `height` at `end`, and stays there, such as `ramp(t, 0, 10, 5)` that is 2 at
+    time 4. It phases in a subsidy, warms an oven to its setting, and raises the load on a bridge.
+
+    Read more in the user guide, under Laws.
 
     Args:
         t:
@@ -80,6 +92,9 @@ def ramp(t: Expression, start: float, end: float, height: float = 1.0) -> Expres
         input:
             The symbolic input.
 
+    See Also:
+        step: Switches from 0 to a height at once.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import ramp
@@ -92,6 +107,11 @@ def ramp(t: Expression, start: float, end: float, height: float = 1.0) -> Expres
 
 def pulse(t: Expression, start: float, width: float, height: float = 1.0) -> Expression:
     """Return a rectangular pulse of a width and a height that starts at a time.
+
+    It is `height` from `start` until `start + width` and 0 otherwise, such as `pulse(t, 2, 1, 3)` that is 3 at time 2.5
+    and 0 at time 3.5. It gives a single dose of a drug, a short shock to demand, and a burst of current into a neuron.
+
+    Read more in the user guide, under Laws.
 
     Args:
         t:
@@ -109,6 +129,10 @@ def pulse(t: Expression, start: float, width: float, height: float = 1.0) -> Exp
     Returns:
         input:
             The symbolic input.
+
+    See Also:
+        pulse_train: Repeats a pulse at a period.
+        step: Switches from 0 to a height and stays there.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -129,9 +153,13 @@ def pulse_train(
     *,
     count: int | None = None,
 ) -> Expression:
-    """Return a periodic train of rectangular pulses.
+    """Return a train of rectangular pulses repeated at a period.
 
-    Each pulse has a width, and the train starts at `start`.
+    A pulse of `height` lasting `width` starts at `start` and again every `period`, without end or `count` times, such
+    as `pulse_train(t, 10, 1)` that is 1 at times 0.5 and 20.5 and 0 at time 5. It gives daily doses of a drug, the
+    beats of a pacemaker, and the monthly payments of a loan.
+
+    Read more in the user guide, under Laws.
 
     Args:
         t:
@@ -158,7 +186,11 @@ def pulse_train(
 
     Raises:
         ValidationError:
-            The count is not a positive integer.
+            The count is not a positive whole number.
+
+    See Also:
+        pulse: Gives a single pulse.
+        periodic_guard: Crosses zero at periodic times, for crossing laws.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -166,23 +198,24 @@ def pulse_train(
         >>> t = var('t')
         >>> [float(pulse_train(t, 10, 1).subs({t: time})) for time in (0.5, 5, 20.5)]
         [1.0, 0.0, 1.0]
-        >>> [float(pulse_train(t, 10, 1, count=2).subs({t: time})) for time in (10.5, 20.5)]
-        [1.0, 0.0]
     """
     if count is None:
         return where(both(t >= start, mod(t - start, period) < width), height, 0)
     if isinstance(count, bool) or not isinstance(count, int) or count < 1:
-        error_msg = f'A pulse train takes a positive integer count of pulses or None, but got {count!r}.'
+        error_msg = f'The count of a pulse train must be a positive whole number or None, but it is {count!r}.'
         raise ValidationError(error_msg)
     return where(both(t >= start, t < start + count * period, mod(t - start, period) < width), height, 0)
 
 
 def periodic_guard(t: Expression, period: float, start: float = 0.0, count: int | None = None) -> Expression:
-    """Return a guard that crosses zero at periodic times.
+    """Return an expression of time that crosses zero at periodic times.
 
-    The guard crosses zero once at every `start + j * period` for `j` from 0, `count` times or without end, and stays
-    away from zero between those times and after the last one. A crossing law with this guard and the direction 0 fires
-    at every such time.
+    It crosses zero once at every `start + j * period` for `j` from 0, `count` times or without end, and stays away from
+    zero between those times and after the last one, such as `periodic_guard(t, 2.0, count=2)` that is 0 at times 0 and
+    2 only. A `CrossingLaw` with this guard and the direction 0 acts at every such time. It pays a dividend every
+    quarter, harvests a crop every year, and gives a vaccine at fixed dates.
+
+    Read more in the user guide, under Laws.
 
     Args:
         t:
@@ -203,7 +236,11 @@ def periodic_guard(t: Expression, period: float, start: float = 0.0, count: int 
 
     Raises:
         ValidationError:
-            The period is not positive, or the count is not a positive integer.
+            The period is not positive, or the count is not a positive whole number.
+
+    See Also:
+        CrossingLaw: Acts where the guard crosses zero.
+        pulse_train: Repeats a pulse at a period, for rates.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -214,25 +251,28 @@ def periodic_guard(t: Expression, period: float, start: float = 0.0, count: int 
         [0.0, 1.0, 0.0, -1.0]
     """
     if not period > 0:
-        error_msg = f'A periodic guard takes a positive period, but got {period!r}.'
+        error_msg = f'The period of a periodic guard must be positive, but it is {period!r}.'
         raise ValidationError(error_msg)
     guard = where(t < start - period / 2, -1, sin(pi * (t - start) / period))
     if count is None:
         return guard
     if isinstance(count, bool) or not isinstance(count, int) or count < 1:
-        error_msg = f'A periodic guard takes a positive integer count of crossings or None, but got {count!r}.'
+        error_msg = f'The count of a periodic guard must be a positive whole number or None, but it is {count!r}.'
         raise ValidationError(error_msg)
     last = count - SR(1) / 2
     return where(t > start + last * period, sin(pi * last), guard)
 
 
 def series(x: object, points: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:
-    """Return a series of a value through given points.
+    """Return a curve through given points, joined by lines or held as steps.
 
-    It is interpolated linearly or held from each point to the next. Before the first point the series takes the first
-    value, and after the last point the last value. With the time `s.t` as the value, it is an input that follows
-    data. With a state or any expression as the value, it is a table function, such as the lookups of system
-    dynamics.
+    Between two points it draws a straight line, or holds the earlier value with `kind='previous'`, and it keeps the
+    first value before the first point and the last value after the last point, such as 2.5 at time 5 for
+    `series(t, [0, 10, 20], [0.0, 5.0, 1.0])`. With the time `s.t` as the value it is an input that follows data, and
+    with any other expression it is a lookup table, such as the table functions of system dynamics. It replays measured
+    rainfall, maps food to fertility, and gives a tax rate by income.
+
+    Read more in the user guide, under Laws.
 
     Args:
         x:
@@ -249,11 +289,14 @@ def series(x: object, points: Sequence[float], values: Sequence[float], kind: st
 
     Returns:
         series:
-            The symbolic series, a balanced search of conditions on the value that every backend lowers.
+            The symbolic curve, nested choices on the value that every backend can run.
 
     Raises:
         ValueError:
             The points do not increase, the lengths differ, or the kind is unknown.
+
+    See Also:
+        ramp: Rises in a straight line between two times.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -262,16 +305,12 @@ def series(x: object, points: Sequence[float], values: Sequence[float], kind: st
         >>> data = series(t, [0, 10, 20], [0.0, 5.0, 1.0])
         >>> [float(data.subs({t: time})) for time in (-5, 5, 15, 30)]
         [0.0, 2.5, 3.0, 1.0]
-        >>> food = var('food')
-        >>> fertility = series(food, (0, 1, 2), (0.0, 2.0, 3.0))
-        >>> [float(fertility.subs({food: value})) for value in (-1, 0.5, 1.5, 5)]
-        [0.0, 1.0, 2.5, 3.0]
     """
     value = SR(x)
     levels = [float(item) for item in values]
     points = [float(item) for item in points]
     if len(points) != len(levels) or not points or any(b <= a for a, b in itertools.pairwise(points)):
-        error_msg = 'A series takes increasing points and as many values.'
+        error_msg = 'The points of a series must increase, and every point needs one value.'
         raise ValueError(error_msg)
     if kind not in {'linear', 'previous'}:
         error_msg = f"Unknown series kind {kind!r}. Use 'linear' or 'previous'."

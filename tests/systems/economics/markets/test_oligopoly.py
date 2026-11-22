@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
 
@@ -16,7 +15,7 @@ def _distribution(prices: np.ndarray, alpha: float, beta: float, n_firms: int) -
 @pytest.mark.parametrize(('n_firms', 'alpha'), [(2, 0.25), (3, 0.2)])
 def test_oligopoly_equilibria_mixed_price(n_firms: int, alpha: float) -> None:
     """Test that the static system gives the equilibrium distribution on its support, at the profit `alpha`."""
-    trajectory = simulate(OligopolyEquilibriaSystem(n_firms, alpha=alpha), until=1.0)
+    trajectory = OligopolyEquilibriaSystem(n_firms, alpha=alpha).prepare().simulate(until=1.0)
     beta = 1 - n_firms * alpha
     prices = trajectory.get_values('prices.price')[0]
     assert prices[0] == pytest.approx(alpha / (alpha + beta))
@@ -32,8 +31,8 @@ def test_oligopoly_equilibria_mixed_price(n_firms: int, alpha: float) -> None:
 
 def test_oligopoly_equilibria_cournot_quantities() -> None:
     """Test that the Cournot quantities are the solution of equation 21.6 of Forrest (2018)."""
-    system = OligopolyEquilibriaSystem(demand=10.0, c_i=1.0, c_j=2.0, lambda_i=0.5, lambda_j=0.0).prepare().system_
-    trajectory = simulate(system, until=1.0)
+    system = OligopolyEquilibriaSystem(demand=10.0, c_i=1.0, c_j=2.0, lambda_i=0.5, lambda_j=0.0).prepare()
+    trajectory = system.simulate(until=1.0)
     assert trajectory.get_values('cournot.q_i')[0] == pytest.approx((10.0 - 2 * 1.0 / 1.5 + 2.0) / 3)
     assert trajectory.get_values('cournot.q_j')[0] == pytest.approx((10.0 - 2 * 2.0 + 1.0 / 1.5) / 3)
 
@@ -42,7 +41,8 @@ def test_oligopoly_equilibria_fictitious_play() -> None:
     """Test that the prices of fictitious play are distributed near the equilibrium in the Kolmogorov distance."""
     distances = []
     for seed in range(5):
-        trajectory = simulate(OligopolyEquilibriaSystem(dynamics='fictitious-play'), until=2000, random_state=seed)
+        system = OligopolyEquilibriaSystem(dynamics='fictitious-play').prepare()
+        trajectory = system.simulate(until=2000, random_state=seed)
         charged = np.concatenate([trajectory.get_values('lower_price')[1:], trajectory.get_values('higher_price')[1:]])
         grid = np.unique(charged)
         empirical = np.array([np.mean(charged <= price) for price in grid])

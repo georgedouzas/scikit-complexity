@@ -7,24 +7,26 @@ The sampling uses the local Wilson action of a link.
 # License: MIT
 
 import functools
-from collections.abc import Callable, Mapping, Sequence
+import inspect
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, cos, oo
+from sage.all__sagemath_symbolics import Expression, cos, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import SamplingInteraction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, SampleLaw
+from .....core.base import BaseSpec
+from .....core.components import MatrixGroupSpec
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, ObjectiveLaw, UpdateLaw
 from .....core.components.laws.utils import exterior_derivative, neighbors
 from .....core.components.spaces import BaseSpace, CellComplexSpace, CofaceNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, MatrixGroupSpec, ParameterSpec, RoleSpec
-from .....core.types import Array, ComplexArray, Indices
+from .....core.types import Array, ComplexArray, Indices, Role
 
 HOLONOMY_MOVES = ('rotate', 'random-value')
 HOLONOMY_SCHEDULES = ('colored', 'random-sequential')
@@ -58,7 +60,7 @@ class HolonomyScoreSpec(BaseSpec):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> from skcomplex.core.components import MatrixGroupSpec
         >>> from skcomplex.systems.physics.common.fields import HolonomyScoreSpec
         >>> trace = lambda holonomies: -np.trace(holonomies, axis1=-2, axis2=-1).real
         >>> HolonomyScoreSpec(trace, MatrixGroupSpec('SU', 2), hits=4).hits
@@ -90,19 +92,20 @@ class HolonomyScoreSpec(BaseSpec):
             raise ValidationError(error_msg)
 
 
-class WilsonSamplingInteraction(SamplingInteraction):
-    """Monte Carlo sampling of link variables.
-
-    The sampling uses the local Wilson action of the plaquettes of a link.
+class WilsonSamplingInteraction(Interaction):
+    """Boltzmann weight of link variables under the local Wilson action of the plaquettes of a link.
 
     For link angles the action is `-beta sum_p cos(theta_p)`, where `theta_p` is the oriented sum of the link angles
-    around the plaquette `p`. For the matrices of a group `SU(N)` it is `-(beta / N) sum_p Re tr U_p`, where `U_p` is
-    the path-ordered product of the link matrices around `p`, and the move `'rotate'` multiplies a link by a random
-    matrix of the group near the identity of spread `width`.
+    around the plaquette `p`. It is the objective of every link, which the `MetropolisSolver` of the system moves, such
+    as `MetropolisSolver(moves={'links.theta': 'rotate'}, schedule='colored', width=1.5)` for U(1) or
+    `moves={'links.theta': 'random-value'}` for Z_N. For the matrices of a group `SU(N)` the action is
+    `-(beta / N) sum_p Re tr U_p`, where `U_p` is the path-ordered product of the link matrices around `p`, and the
+    interaction sweeps the links itself: the move `'rotate'` multiplies a link by a random matrix of the group near the
+    identity of spread `width`, and `'random-value'` draws a uniform matrix of the group, `hits` times per link.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the edges of a cell complex.
@@ -111,70 +114,65 @@ class WilsonSamplingInteraction(SamplingInteraction):
             The inverse coupling of the Wilson action.
 
         state:
-            The name of the state that holds the link angles.
-
-        move:
-            `'rotate'` for U(1) or a matrix group, or `'random-value'` for Z_N.
-
-        values:
-            The angles a random-value move draws from.
-
-        width:
-            The largest change of a rotation.
-
-        rule:
-            The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-        schedule:
-            `'colored'` or `'random-sequential'`.
+            The name of the state that holds the link angles or matrices.
 
         group:
             The matrix group of the links, or `None` for link angles.
 
+        move:
+            The move of matrix links, `'rotate'` or `'random-value'`, or a function of the matrices and the random
+            generator.
+
+        width:
+            The spread of a rotation of matrix links.
+
+        rule:
+            The acceptance of the moves of matrix links, `'metropolis'` or `'glauber'`.
+
+        schedule:
+            The order of the moves of matrix links, `'colored'` or `'random-sequential'`.
+
         hits:
-            The number of moves proposed per link and sweep of matrix links.
+            The number of moves proposed per matrix link and sweep.
 
     Examples:
         >>> from skcomplex.systems.physics.common.fields import WilsonSamplingInteraction
         >>> WilsonSamplingInteraction('wilson', target='links', beta=2.0).beta
         2.0
-        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> from skcomplex.core.components import MatrixGroupSpec
         >>> color = WilsonSamplingInteraction('wilson', target='links', state='U', group=MatrixGroupSpec('SU', 3))
-        >>> color.objective.group.degree
+        >>> color.group.degree
         3
     """
-
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (SampleLaw, ArrayUpdateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        target: Role,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
         state: str = 'theta',
-        move: str = 'rotate',
-        values: Sequence[float] = (),
+        group: MatrixGroupSpec | None = None,
+        move: str | Callable[..., object] = 'rotate',
         width: float = 1.5,
         rule: str = 'metropolis',
         schedule: str = 'colored',
-        group: MatrixGroupSpec | None = None,
         hits: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            objective=self._get_action if group is None else HolonomyScoreSpec(self._get_trace_action, group, hits),
-            move=move,
-            rule=rule,
-            schedule=schedule,
-            values=values,
-            width=width,
-        )
+        super().__init__(label)
+        self.target = target
         self.beta = beta
+        self.state = state
         self.group = group
+        self.move = move
+        self.width = width
+        self.rule = rule
+        self.schedule = schedule
         self.hits = hits
+
+    def _get_score(self) -> HolonomyScoreSpec | None:
+        """Return the holonomy score of matrix links, or `None` for link angles."""
+        return None if self.group is None else HolonomyScoreSpec(self._get_trace_action, self.group, self.hits)
 
     def _get_action(self, namespace: SimpleNamespace) -> Expression:
         """Return the terms of the Wilson action that hold the angle of a link."""
@@ -186,17 +184,40 @@ class WilsonSamplingInteraction(SamplingInteraction):
         degree = holonomies.shape[-1]
         return -beta / degree * np.trace(holonomies, axis1=-2, axis2=-1).real
 
-    def _check_move(self) -> None:
-        """Raise an error for an unknown move, with the moves of a matrix group for a holonomy score."""
-        if not isinstance(getattr(self, self._get_parameter('objective')), HolonomyScoreSpec):
-            super()._check_move()
+    @staticmethod
+    def _get_keywords(function: Callable[..., object], parameters: Mapping[str, object]) -> dict[str, object]:
+        """Return the parameters that a function names."""
+        try:
+            names = inspect.signature(function).parameters
+        except (TypeError, ValueError):
+            return {}
+        return {name: value for name, value in parameters.items() if name in names}
 
-    def _check_objective(self, objective: object) -> None:
-        """Raise an error for a holonomy score the sampling cannot run, or an objective that is not callable."""
-        if isinstance(objective, HolonomyScoreSpec):
-            self._check_holonomy_score(objective)
+    def _check_arguments(self) -> None:
+        """Raise an error for options matrix links do not take.
+
+        Raises:
+            ValidationError:
+                The holonomy score of matrix links has a move, a rule, or a schedule they do not take.
+        """
+        super()._check_arguments()
+        score = self._get_score()
+        if score is not None:
+            self._check_holonomy_score(score)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the action or the sweep of the links.
+
+        Args:
+            context:
+                The namespace of the links, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        links = getattr(self._get_member(context, 'target'), self.state)
+        if self._get_score() is None:
+            self.laws_: list[BaseLaw] = [ObjectiveLaw(self._get_action(context), links)]
         else:
-            super()._check_objective(objective)
+            self.laws_ = [UpdateLaw(links, self._sample_holonomies, label=self.label, arrays=True, stochastic=True)]
 
     def _check_holonomy_score(self, score: HolonomyScoreSpec) -> None:
         """Raise an error for a holonomy score with options a matrix group does not take.
@@ -280,7 +301,8 @@ class WilsonSamplingInteraction(SamplingInteraction):
 
         It is the score of the holonomies of its faces that start at it.
         """
-        score = getattr(self, self._get_parameter('objective'))
+        score = self._get_score()
+        assert score is not None
         inverse = np.conj(np.swapaxes(matrices, -1, -2))
         oriented = np.where((orientations > 0)[..., None, None], matrices[:, None], inverse[:, None])
         values = np.asarray(score.function(oriented @ staples, **keywords), dtype=float)
@@ -321,9 +343,10 @@ class WilsonSamplingInteraction(SamplingInteraction):
 
         The sweep makes moves of every edge.
         """
-        score = getattr(self, self._get_parameter('objective'))
+        score = self._get_score()
         if (
-            not isinstance(space, CellComplexSpace)
+            score is None
+            or not isinstance(space, CellComplexSpace)
             or values.ndim != MATRIX_AXES
             or values.shape[0] != len(space.cofaces_[1])
         ):
@@ -331,9 +354,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
                 f'The holonomy score of sampling {self.label!r} reads a group on the edges of a CellComplexSpace.'
             )
             raise ValidationError(error_msg)
-        intensity = float(SR(self._get_intensity(SimpleNamespace(**parameters))))
-        if self.cooling is not None:
-            intensity /= float(SR(self.cooling(time)))
+        intensity = 1.0
         group = score.group
         matrices = group.get_matrices_of(values)
         classes, edges, signs, orientations, real = self._get_staples(space)
@@ -357,19 +378,3 @@ class WilsonSamplingInteraction(SamplingInteraction):
                 matrices[links[accepted]] = proposal[accepted]
                 current = np.where(accepted, proposed, current)
         return group.get_components_of(group.get_projection_of(matrices))
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the heat bath of the matrices with a holonomy score, or the Monte Carlo sweep otherwise.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target`.
-
-        Returns:
-            laws:
-                The law of the sampling.
-        """
-        if isinstance(getattr(self, self._get_parameter('objective')), HolonomyScoreSpec):
-            target = getattr(self._get_member(namespace, 'target'), self.state)
-            return [ArrayUpdateLaw(target, self._sample_holonomies, label=self.label)]
-        return super()._get_laws(namespace)

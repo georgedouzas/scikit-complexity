@@ -9,11 +9,12 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.signal import convolve
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 MIN_SERIES_SIZE = 2
 ZERO_MASS = 1e-10
@@ -23,6 +24,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 @dataclass(frozen=True)
 class KramersMoyalResult:
     """A result of `kramers_moyal`, the drift and diffusion of one series.
+
+    It holds the series, the centres of the bins of values, and the drift and the diffusion in every bin, such as a
+    diffusion of 1 everywhere for a random walk whose steps have the variance `2 dt`. It reports the pull and the noise
+    of wind speeds, heart rates, and exchange rates.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -36,6 +43,16 @@ class KramersMoyalResult:
 
         diffusion:
             The second coefficient `<dx² | x> / (2 dt)` in every bin, so `dx = a dt + sqrt(2 D) dW` gives `D`.
+
+    See Also:
+        kramers_moyal: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import kramers_moyal
+        >>> x = np.cumsum(np.random.default_rng(0).normal(0, np.sqrt(0.02), 100_000))
+        >>> kramers_moyal(x, dt=0.01, bins=21).positions.size
+        21
     """
 
     values: Array
@@ -45,7 +62,7 @@ class KramersMoyalResult:
 
 
 def kramers_moyal(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     dt: float = 1.0,
@@ -54,11 +71,13 @@ def kramers_moyal(
 ) -> KramersMoyalResult:
     """Return the drift and the diffusion of one series.
 
-    They are estimated from the moments of its increments. The increments are binned by the value they start from, and
-    an Epanechnikov kernel smooths the bins. This is the estimator of Lamouroux and Lehnertz.
+    The drift is the mean step from a value per unit time and the diffusion half the mean squared step, so a series
+    that follows `dx = a(x) dt + sqrt(2 D(x)) dW` gives `a` and `D`, such as a diffusion of 1 for a random walk whose
+    steps have the variance `2 dt`. The steps are binned by the value they start from, and an Epanechnikov kernel
+    smooths the bins, the estimator of Lamouroux and Lehnertz. It estimates the pull and the noise of wind speeds,
+    heart rates, and exchange rates from one record.
 
-    It appears in many fields. It estimates the drift and noise of wind speeds, of heart rates, and of exchange rates
-    from one record.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -85,14 +104,15 @@ def kramers_moyal(
             A setting is not positive, the source does not hold one series of at least two values, or the series is
             constant without a bandwidth.
 
+    See Also:
+        sparse_identification: Finds the equations of a series from a library of terms.
+        fit_law: Fits a law to the values of a series.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import kramers_moyal
-        >>> rng = np.random.default_rng(0)
-        >>> x = np.zeros(100_000)
-        >>> for t in range(1, x.size):
-        ...     x[t] = x[t - 1] - x[t - 1] * 0.01 + np.sqrt(0.02) * rng.standard_normal()
-        >>> round(float(kramers_moyal(x, dt=0.01, bins=21).diffusion[10]), 1)
+        >>> x = np.cumsum(np.random.default_rng(0).normal(0, np.sqrt(0.02), 100_000))
+        >>> round(float(np.median(kramers_moyal(x, dt=0.01, bins=21).diffusion)), 1)
         1.0
     """
     if dt <= 0 or bins < 1 or (bandwidth is not None and bandwidth <= 0):

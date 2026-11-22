@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
@@ -25,7 +24,7 @@ SYSTEM = 'graph_ising'
 
 system = GraphIsingSystem(graph=nx.hexagonal_lattice_graph(14, 14), temperature=1.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(system, until=60, observers=[observer], random_state=0)
+simulation = system.prepare().simulate(until=60, observers=[observer], random_state=0)
 
 
 # %%

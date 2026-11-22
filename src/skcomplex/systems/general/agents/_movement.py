@@ -11,13 +11,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
-from ....core.types import ElementKind
+from ....core.types import Role
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -26,7 +25,7 @@ GRID_STEPS = ('neighbor', 'best')
 
 
 type Step = str | Callable[..., object]
-type Cost = TransferInteraction | Callable[[AgentViewProtocol, SystemViewProtocol], None]
+type Cost = Callable[[AgentViewProtocol, SystemViewProtocol], None]
 type Vision = float | Callable[[AgentViewProtocol, SystemViewProtocol], float]
 
 
@@ -48,15 +47,15 @@ class MovementInteraction(Interaction):
     never enters a cell held by another agent of the group. The agents move one after another by `schedule`, and every
     step charges its `cost`.
 
-    Unlike `TopologyInteraction`, which changes the space, it changes where agents stand in it. Choose it when agents
-    walk, forage, or relocate.
+    Unlike an `UpdateLaw` on the edges of a network, which changes the space, it changes where agents stand in it.
+    Choose it when agents walk, forage, or relocate.
 
     It appears in many fields. Sheep wander a pasture, foragers follow Lévy flights, ants climb a pheromone gradient,
     and residents move house in the segregation model of Schelling.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group whose agents move.
@@ -91,8 +90,8 @@ class MovementInteraction(Interaction):
             The tail exponent of the length of a Lévy step.
 
         cost:
-            A `TransferInteraction` that the agent pays to itself or to the environment for every step taken, a function
-            of the agent and the system view run for every step taken, or `None`.
+            A function of the agent and the system view run for every step taken, such as one that takes the energy a
+            step costs from the agent, `def pay(agent, system): agent.energy -= 1.0`, or `None`.
 
         vision:
             The number of cells the step `'best'` looks along every direction of a lattice, a number or a function of
@@ -114,21 +113,19 @@ class MovementInteraction(Interaction):
             the step `'best'` has no score, raised by `prepare`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.systems.general.agents import MovementInteraction
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
-        >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.agents import MovementInteraction
         >>> space = LatticeSpace((5, 5), metric='manhattan')
-        >>> system = CompositeSystem(elements=[walkers], interactions=[walk], space=space)
-        >>> trajectory = simulate(system, until=1, random_state=0)
+        >>> walkers = Element('walkers', values={'x': [2, 2], 'y': [2, 2]}, size=2, space=space)
+        >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
+        >>> trajectory = System(elements=[walkers], interactions=[walk]).prepare().simulate(until=1, random_state=0)
         >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.get_agents('walkers', 1).locations]
         [True, True]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the movement draws.
@@ -145,16 +142,16 @@ class MovementInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
+        target: Role,
         step: Step = 'neighbor',
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         rate: float | None = None,
         condition: Callable[[AgentViewProtocol, SystemViewProtocol], bool] | None = None,
         accept: Callable[[AgentViewProtocol, object, SystemViewProtocol], float] | None = None,
         exclusive: bool = False,
         score: Callable[[AgentViewProtocol, object, SystemViewProtocol], float] | None = None,
-        scale: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        scale: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        exponent: Annotated[float, RealSet.open(0, oo)] = 1.5,
         cost: Cost | None = None,
         vision: Vision | None = None,
         schedule: str = 'random-sequential',
@@ -180,35 +177,26 @@ class MovementInteraction(Interaction):
 
     def _check_functions(self) -> None:
         """Raise an error for a condition, acceptance, score, or cost that is not callable."""
-        for name in ('condition', 'accept', 'score'):
+        for name in ('condition', 'accept', 'score', 'cost'):
             value = getattr(self, name)
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
-        if isinstance(self.cost, TransferInteraction):
-            self.cost.prepare()
-        elif self.cost is not None and not callable(self.cost):
-            error_msg = f'The cost of {self.label!r} is {self.cost!r}. Give a TransferInteraction, a function, or None.'
-            raise ValidationError(error_msg)
 
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a step to a neighbouring cell or node in a continuous space."""
         if isinstance(self.step, str) and self.step in GRID_STEPS:
             self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown step, a rate not positive, or a bad function.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable,
                 or the step `'best'` has no score.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('step', self.step, STEPS, functions=True)
         if self.rate is not None and (isinstance(self.rate, bool) or not self.rate > 0):
             error_msg = f'The rate of {self.label!r} is {self.rate!r}. Give a positive number, or None.'
@@ -225,6 +213,16 @@ class MovementInteraction(Interaction):
             error_msg = f'The step `best` of {self.label!r} maximizes a score. Pass `score(agent, cell, system)`.'
             raise ValidationError(error_msg)
         self._check_functions()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_movement_laws(context)
 
     def _count_attempts(self, system: SystemViewProtocol) -> int:
         """Return the number of steps an agent attempts in one step of time."""
@@ -325,9 +323,7 @@ class MovementInteraction(Interaction):
 
     def _charge(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
         """Charge the cost of one step taken to an agent."""
-        if isinstance(self.cost, TransferInteraction):
-            self.cost.transfer(agent, agent, system)
-        elif self.cost is not None:
+        if self.cost is not None:
             self.cost(agent, system)
 
     def _take(self, agent: AgentViewProtocol, destination: object, occupied: set[object]) -> bool:
@@ -393,7 +389,7 @@ class MovementInteraction(Interaction):
             if agent.alive and (self.condition is None or self.condition(agent, system)):
                 self._move(agent, system, probability, occupied)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_movement_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the movement.
 
         Args:
@@ -405,5 +401,5 @@ class MovementInteraction(Interaction):
                 The rule that moves the agents every step.
         """
         if self.schedule == 'member':
-            return [RuleLaw(self._move_member, phase=self.phase, members=self._get_role('target'))]
-        return [RuleLaw(self._move_all, phase=self.phase)]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._move_member, phase=self.phase)]
+        return [UpdateLaw(namespace, self._move_all, phase=self.phase)]

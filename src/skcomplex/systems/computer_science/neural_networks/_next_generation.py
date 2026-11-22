@@ -9,22 +9,20 @@ It uses lagged variables and the ridge readout of their polynomial features.
 import functools
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.analysis import ReservoirResult, reservoir
-from ....core.components.elements import DeclaredElement, Element
-from ....core.components.interactions import MapInteraction, RateInteraction
-from ....core.components.laws.utils import lag
-from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.runtime import simulate
-from ....core.engine.solvers import ScipyODESolver
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
-from ....core.specs import DeclaredVariableSpec, StateSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 LORENZ_START = (-8.0, 8.0, 27.0)
@@ -62,9 +60,9 @@ class LorenzFlowElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[float, StateSpec()] = LORENZ_START[0],
-        y: Annotated[float, StateSpec()] = LORENZ_START[1],
-        z: Annotated[float, StateSpec()] = LORENZ_START[2],
+        x: float = LORENZ_START[0],
+        y: float = LORENZ_START[1],
+        z: float = LORENZ_START[2],
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -119,6 +117,12 @@ class NextGenerationReservoirSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The result is not that of a next-generation reservoir.
@@ -127,9 +131,8 @@ class NextGenerationReservoirSystem(BaseSystem):
         >>> import numpy as np
         >>> from skcomplex.systems.computer_science.neural_networks import NextGenerationReservoirSystem
         >>> values = np.sin(0.1 * np.arange(200.0))[:, None]
-        >>> system = NextGenerationReservoirSystem(values, variables=['v']).prepare().system_
-        >>> [interaction.mode for interaction in system.interactions]
-        ['increment']
+        >>> NextGenerationReservoirSystem(values, variables=['v']).prepare().states_
+        ('reservoir.v', 'reservoir.v[-1]')
     """
 
     field = 'computer_science/neural_networks'
@@ -151,8 +154,10 @@ class NextGenerationReservoirSystem(BaseSystem):
         samples: int = 403,
         step: float = 0.025,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.series = series
         self.result = result
         self.variables = variables
@@ -180,32 +185,35 @@ class NextGenerationReservoirSystem(BaseSystem):
             'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
             'z': lambda s: s.target.x * s.target.y - beta * s.target.z,
         }
-        system = CompositeSystem(
+        system = System(
             elements=[LorenzFlowElement('flow')],
-            interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
-            time=ContinuousTime(),
+            interactions=[
+                Interaction(
+                    'lorenz',
+                    roles={'target': 'flow'},
+                    laws=lambda s: [RateLaw(getattr(s.target, name), rate(s)) for name, rate in rates.items()],
+                ),
+            ],
+            solver=ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL),
         )
-        solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
-        trajectory = simulate(system, until=LORENZ_TRANSIENT + step * (samples - 1), solver=solver, dt=step)
+        trajectory = system.prepare().simulate(until=LORENZ_TRANSIENT + step * (samples - 1), dt=step)
         values: Array = np.column_stack(
             [np.asarray(trajectory.get_values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
         )
         return values[-samples:]
 
     @staticmethod
-    def _get_reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
-        """Return the element of scalar states with lags.
+    def _get_reservoir_element(initial: Mapping[str, Sequence[float]]) -> Element:
+        """Return the element of scalar states with their past values.
 
-        It is built from the values of every state and of its lags.
+        It is built from the values of every state and of its past values, named `x[-1]`, `x[-2]`, and so on.
         """
-        variables = {
-            name: DeclaredVariableSpec(
-                float(values[0]),
-                StateSpec(lags=len(values) - 1, initial=tuple(float(value) for value in values[1:])),
-            )
-            for name, values in initial.items()
+        values = {
+            f'{name}[-{steps}]' if steps else name: float(value)
+            for name, past in initial.items()
+            for steps, value in enumerate(past)
         }
-        return DeclaredElement('reservoir', variables=variables)
+        return Element('reservoir', values=values)
 
     @staticmethod
     def _increment(
@@ -225,7 +233,7 @@ class NextGenerationReservoirSystem(BaseSystem):
         It is the ridge readout of the monomials of the rescaled lagged variables.
         """
         linear = [
-            (lag(getattr(s.target, name), steps) - mean[index]) / scale[index]
+            (getattr(s.target, name)(t=s.t - steps) - mean[index]) / scale[index]
             for steps in range(delay)
             for index, name in enumerate(names)
         ]
@@ -233,6 +241,17 @@ class NextGenerationReservoirSystem(BaseSystem):
         features = [*linear, *monomials]
         readout = sum(float(weight) * feature for weight, feature in zip(weights, features, strict=True) if weight)
         return spread * (readout + bias)
+
+    @staticmethod
+    def _get_step(
+        s: SimpleNamespace,
+        *,
+        name: str,
+        increment: Callable[[SimpleNamespace], Expression],
+    ) -> list[BaseLaw]:
+        """Return the update that adds the increment of a variable to it."""
+        value = getattr(s.target, name)
+        return [UpdateLaw(value, value + increment(s), increment=True)]
 
     @staticmethod
     def _fit_reservoir(
@@ -263,11 +282,9 @@ class NextGenerationReservoirSystem(BaseSystem):
             dt=step,
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a next-generation reservoir computer.
-
-        Its variables follow the ridge readout of their monomials.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         fitted = self.result or self._fit_reservoir(
             self.series,
             self.variables,
@@ -289,24 +306,26 @@ class NextGenerationReservoirSystem(BaseSystem):
         element = self._get_reservoir_element(initial)
         weights = np.asarray(readout.readout.Wout, dtype=float)
         bias = np.ravel(np.asarray(readout.readout.bias, dtype=float))
-        maps = [
-            MapInteraction(
-                name,
-                target='reservoir',
-                state=name,
-                mode='increment',
-                function=functools.partial(
-                    self._increment,
-                    names=names,
-                    delay=delay,
-                    powers=readout.get_monomials(),
-                    weights=weights[:, index],
-                    bias=float(bias[index]),
-                    mean=readout.mean,
-                    scale=readout.scale,
-                    spread=float(readout.scale[index]),
-                ),
+        increments = {
+            name: functools.partial(
+                self._increment,
+                names=names,
+                delay=delay,
+                powers=readout.get_monomials(),
+                weights=weights[:, index],
+                bias=float(bias[index]),
+                mean=readout.mean,
+                scale=readout.scale,
+                spread=float(readout.scale[index]),
             )
             for index, name in enumerate(names)
+        }
+        maps = [
+            Interaction(
+                name,
+                roles={'target': 'reservoir'},
+                laws=functools.partial(self._get_step, name=name, increment=increments[name]),
+            )
+            for name in names
         ]
-        return CompositeSystem(self.label, elements=[element], interactions=maps, time=DiscreteTime())
+        self.system_ = System(self.label, elements=[element], interactions=maps)

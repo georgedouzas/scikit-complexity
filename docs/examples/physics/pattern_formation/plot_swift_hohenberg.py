@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import domains, spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
 
 SYSTEM = 'swift_hohenberg'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(SwiftHohenbergSystem(random_state=0), observers=[observer], random_state=0)
+trajectory = SwiftHohenbergSystem(random_state=0).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Selected wavelength

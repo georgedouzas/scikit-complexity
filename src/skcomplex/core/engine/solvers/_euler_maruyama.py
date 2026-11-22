@@ -7,11 +7,14 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import NoiseKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._sde import SDESolver
@@ -20,46 +23,40 @@ from ._sde import SDESolver
 class EulerMaruyamaSolver(SDESolver):
     """A solver that steps stochastic differential equations by Euler-Maruyama.
 
-    It takes a fixed internal step.
+    Every step of length `h` sets `x + f(x) h + g(x) dW`, the drift `f` plus the noise `g` times a normal increment `dW`
+    of variance `h`, such as a stock price of 100 that ends near 131 after a year in one run. Choose it as the default
+    for noise in continuous time, in stock prices, diffusing particles, and noisy gene expression.
 
-    Choose it as the default for noise in continuous time. It appears in many fields, such as stock prices, diffusing
-    particles, and noisy gene expression.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The largest internal time step.
 
+    See Also:
+        HeunSolver: Averages the drift over each step.
+        MilsteinSolver: Corrects noise whose size depends on the state.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> system = CompositeSystem(
-        ...     elements=[AssetElement('stock', price=100)],
-        ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
-        ... )
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).prepare(problem)
-        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
-        True
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
+        >>> system = GeometricBrownianMotionSystem(solver=EulerMaruyamaSolver(dt=0.01)).prepare()
+        >>> system.simulate(until=1, dt=1, random_state=0).get_values('asset.price').round(2).tolist()
+        [100.0, 131.0]
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
             laws={
                 JumpLaw,
                 RateLaw,
-                FluxLaw,
-                EquationLaw,
-                CrossingLaw,
-                BoundaryLaw,
-                TransferLaw,
+                ConstraintLaw,
+                EventLaw,
+                _BoundaryLaw,
                 NoiseLaw,
             },
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},

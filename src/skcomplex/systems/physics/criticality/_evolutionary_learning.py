@@ -6,56 +6,95 @@ The module holds the evolutionary Sherrington-Kirkpatrick game of Lesmana et al.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import ZZ, Expression, oo, tanh
+from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import both, minimum, mod, total, uniform, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ....core.types import Array
-
-TEMPERATURE_VISUAL = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class LearnerElement(Element):
-    """Agent of the evolutionary Sherrington-Kirkpatrick game.
+    """Agents of the evolutionary Sherrington-Kirkpatrick game.
 
-    The agent learns a binary action and may be replaced.
-
-    The agent keeps an incentive `Q`, the value of action +1, and plays the action `s = ±1` by the softmax policy at
-    its temperature `T`. Every step the incentive becomes `(1 - alpha) Q + alpha h` for the local field
-    `h = Σ_j J_ij s_j`, and the fitness is `s Q`. When the agent evolves and its fitness is the least of the group,
-    it is replaced by a newcomer with no incentive and a temperature drawn uniformly up to `max_temperature`, who
-    learns from the field at once. The reward `s h` of the last actions is kept.
+    Every agent keeps an incentive `Q`, the value of action +1, an action `s = ±1`, a temperature `T`, a fitness `s Q`,
+    and the reward `s h` of its last action.
 
     Args:
         label:
             The label of the agent or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         incentive:
-            The initial incentive `Q`.
+            The initial incentive `Q`, or one per agent.
 
         spin:
-            The initial action, -1 or 1.
+            The initial action, -1 or 1, or one per agent.
 
         temperature:
-            The initial temperature `T` of the softmax policy.
+            The initial temperature `T` of the softmax policy, or one per agent.
 
         fitness:
-            The initial fitness `s Q`.
+            The initial fitness `s Q`, or one per agent.
 
         reward:
-            The initial reward `s h`.
+            The initial reward `s h`, or one per agent.
+
+        size:
+            The number of agents, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import LearnerElement
+        >>> LearnerElement('agent').temperature
+        1.0
+    """
+
+    visual = VisualSpec('histograms', {'color_by': 'temperature', 'histogram_first': True})
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        incentive: object = 0.0,
+        spin: object = 1.0,
+        temperature: object = 1.0,
+        fitness: object = 0.0,
+        reward: object = 0.0,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.incentive = incentive
+        self.spin = spin
+        self.temperature = temperature
+        self.fitness = fitness
+        self.reward = reward
+
+
+class SKLearningInteraction(Interaction):
+    """Learning of the agents of the Sherrington-Kirkpatrick game, with the replacement of the least fit.
+
+    Every step the incentive of an agent becomes `(1 - alpha) Q + alpha h` for the local field `h = Σ_j J_ij s_j`, the
+    agent plays the action `s = ±1` by the softmax policy at its temperature `T`, and its fitness is `s Q`. When the
+    agents evolve, the least fit one is replaced by a newcomer with no incentive and a temperature drawn uniformly up to
+    `max_temperature`, who learns from the field at once. The reward `s h` of the last actions is kept.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the agents.
 
         memory:
             The weight `alpha` of the latest field in the incentive, so small values keep a long memory.
@@ -74,14 +113,31 @@ class LearnerElement(Element):
             multiple of `settling + 1`.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import LearnerElement
-        >>> LearnerElement('agent').memory
+        >>> from skcomplex.systems.physics.criticality import SKLearningInteraction
+        >>> SKLearningInteraction('learning', target='agents').memory
         0.75
     """
 
-    draws = True
-
     law_classes = (UpdateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        memory: Annotated[float, RealSet.closed_open(0, oo)] = 0.75,
+        max_temperature: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        couplings: npt.ArrayLike | None = None,
+        evolving: bool = True,
+        settling: int = 2,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.memory = memory
+        self.max_temperature = max_temperature
+        self.couplings = couplings
+        self.evolving = evolving
+        self.settling = settling
 
     @staticmethod
     def _get_softmax_action(incentive: Expression, temperature: Expression) -> Expression:
@@ -91,61 +147,29 @@ class LearnerElement(Element):
         """
         return where(uniform('action') < (1 + tanh(incentive / temperature)) / 2, 1, -1)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        incentive: Annotated[float, StateSpec()] = 0.0,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        temperature: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        fitness: Annotated[float, StateSpec()] = 0.0,
-        reward: Annotated[float, StateSpec()] = 0.0,
-        memory: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
-        max_temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        couplings: npt.ArrayLike | None = None,
-        evolving: bool = True,
-        settling: int = 2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.incentive = incentive
-        self.spin = spin
-        self.temperature = temperature
-        self.fitness = fitness
-        self.reward = reward
-        self.memory = memory
-        self.max_temperature = max_temperature
-        self.couplings = couplings
-        self.evolving = evolving
-        self.settling = settling
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the replacement of the least fit agent, the learning, and the action.
-
-        The learning is that of the incentive, and the action follows the softmax policy.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the replacement of the least fit agent, the learning, and the action.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        field = total(s.spin, weights=self.couplings)
-        incentive, temperature = s.incentive, s.temperature
+        super()._prepare(context)
+        s, agents = context, context.target
+        field = total(agents.spin, weights=self.couplings)
+        incentive, temperature = agents.incentive, agents.temperature
         if self.evolving:
-            least = both(s.fitness <= minimum(s.fitness), mod(s.t, self.settling + 1) < 1 / 2)
-            incentive = where(least, 0, s.incentive)
-            temperature = where(least, uniform('newcomer', 0, s.max_temperature), s.temperature)
+            least = both(agents.fitness <= minimum(agents.fitness), mod(s.t, self.settling + 1) < 1 / 2)
+            incentive = where(least, 0, agents.incentive)
+            temperature = where(least, uniform('newcomer', 0, s.max_temperature), agents.temperature)
         learned = (1 - s.memory) * incentive + s.memory * field
-        action = LearnerElement._get_softmax_action(learned, temperature)
-        return [
-            UpdateLaw(s.incentive, learned),
-            UpdateLaw(s.temperature, temperature),
-            UpdateLaw(s.spin, action),
-            UpdateLaw(s.fitness, action * learned),
-            UpdateLaw(s.reward, s.spin * field),
+        action = self._get_softmax_action(learned, temperature)
+        self.laws_ = [
+            UpdateLaw(agents.incentive, learned),
+            UpdateLaw(agents.temperature, temperature),
+            UpdateLaw(agents.spin, action),
+            UpdateLaw(agents.fitness, action * learned),
+            UpdateLaw(agents.reward, agents.spin * field),
         ]
 
 
@@ -184,11 +208,17 @@ class EvolutionarySKGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import EvolutionarySKGameSystem
-        >>> agents = EvolutionarySKGameSystem(16).prepare().system_.elements[0]
-        >>> couplings = agents.values['couplings']
-        >>> agents.size, bool((couplings == couplings.T).all()), float(couplings.trace())
+        >>> system = EvolutionarySKGameSystem(16).prepare().system_
+        >>> couplings = system.interactions[0].couplings
+        >>> system.elements[0].size, bool((couplings == couplings.T).all()), float(couplings.trace())
         (16, True, 0.0)
     """
 
@@ -198,9 +228,9 @@ class EvolutionarySKGameSystem(BaseSystem):
     until = 3000
     dt = 1
     observables = (
-        ObservableSpec('mean_reward', group='agents', variable='reward'),
-        ObservableSpec('mean_temperature', group='agents', variable='temperature'),
-        ObservableSpec('least_fitness', group='agents', variable='fitness', reduce='min'),
+        Observable('mean_reward', group='agents', variable='reward'),
+        Observable('mean_temperature', group='agents', variable='temperature'),
+        Observable('least_fitness', group='agents', variable='fitness', reduce='min'),
     )
 
     def __init__(
@@ -212,8 +242,10 @@ class EvolutionarySKGameSystem(BaseSystem):
         max_temperature: float = 2.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.memory = memory
         self.temperature = temperature
@@ -226,8 +258,14 @@ class EvolutionarySKGameSystem(BaseSystem):
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
         return upper + upper.T
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the agents and their learning, built from the model parameters.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         couplings = self._get_sk_couplings(self.n_agents, rng)
         spins = rng.choice([-1.0, 1.0], size=self.n_agents)
@@ -236,18 +274,13 @@ class EvolutionarySKGameSystem(BaseSystem):
             temperatures = rng.uniform(0.0, self.max_temperature, self.n_agents)
         else:
             temperatures = np.broadcast_to(np.asarray(self.temperature, dtype=float), (self.n_agents,)).copy()
-        agents = GroupElement(
-            'agents',
-            element=LearnerElement,
-            size=self.n_agents,
-            values={
-                'spin': spins,
-                'temperature': temperatures,
-                'memory': self.memory,
-                'max_temperature': self.max_temperature,
-                'couplings': couplings,
-                'evolving': evolving,
-            },
-            visual=TEMPERATURE_VISUAL,
+        agents = LearnerElement('agents', spin=spins, temperature=temperatures, size=self.n_agents)
+        learning = SKLearningInteraction(
+            'learning',
+            target='agents',
+            memory=self.memory,
+            max_temperature=self.max_temperature,
+            couplings=couplings,
+            evolving=evolving,
         )
-        return CompositeSystem(self.label, elements=[agents])
+        self.system_ = System(self.label, elements=[agents], interactions=[learning])

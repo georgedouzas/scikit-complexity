@@ -14,7 +14,6 @@ the higher one, and prices above the higher one blow up in finite time.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import RiccatiPricesSystem
 
@@ -23,7 +22,7 @@ GAMMA = -0.1
 LOW, HIGH = np.sort(np.roots([-GAMMA, -3.0, 9.0]))
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RiccatiPricesSystem(price=25.0), until=4, dt=0.02, observers=[observer])
+trajectory = RiccatiPricesSystem(price=25.0).prepare().simulate(until=4, dt=0.02, observers=[observer])
 
 # %%
 # Phase line and the exact solution
@@ -50,7 +49,7 @@ phase.set_ylabel('dP/dt')
 phase.set_title('Phase line: P1 attracts, P2 repels')
 phase.legend()
 for index, start in enumerate((0.0, 10.0, 20.0, 25.0, 26.5)):
-    run = simulate(RiccatiPricesSystem(price=start), until=4, dt=0.02)
+    run = RiccatiPricesSystem(price=start).prepare().simulate(until=4, dt=0.02)
     paths.plot(run.times[::10], run.get_values('market.P')[::10], 'o', ms=3, color=f'C{index}', label=f'P(0) = {start}')
     paths.plot(run.times, exact(start, run.times), color=f'C{index}', lw=0.8)
 paths.axhline(LOW, color='grey', linestyle=':')

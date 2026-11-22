@@ -6,22 +6,25 @@ The linear program runs at every site of the lattice.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from dataclasses import replace
 
 import numpy as np
 
-from ....core.components.elements import FieldElement, GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import IMEXEulerSolver
-from ....core.specs import VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, IMEXEulerSolver
+from ....core.systems import BaseSystem, System
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
+    FluxBalanceInteraction,
     GrowthInteraction,
-    MetabolicNetworkElement,
     SubstrateElement,
     load_network,
 )
@@ -32,6 +35,18 @@ STEP = 0.1
 SECONDS_PER_HOUR = 3600.0
 MMOL_PER_MOL = 1000.0
 GLUCOSE_MOLAR_MASS = 180.16
+
+
+class ColonyCellElement(Element):
+    """Cell of a colony, whose values hold the fluxes of its network, drawn as an image of its growth flux.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import ColonyCellElement
+        >>> ColonyCellElement('cells', values={'v_grow': 0.0}).values
+        {'v_grow': 0.0}
+    """
+
+    visual = VisualSpec('image', {'states': [FluxBalanceInteraction.get_flux_name(GROWTH)]})
 
 
 class CometsSystem(BaseSystem):
@@ -98,6 +113,12 @@ class CometsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra is not installed.
@@ -113,7 +134,6 @@ class CometsSystem(BaseSystem):
     references = ('Raman 2021', 'Harcombe et al. 2014')
     until = 14.0
     dt = STEP
-    solver = IMEXEulerSolver(dt=STEP)
 
     def __init__(
         self,
@@ -129,8 +149,10 @@ class CometsSystem(BaseSystem):
         km: float = 0.01,
         interval: float = STEP,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.box = box
         self.inoculum = inoculum
@@ -142,42 +164,37 @@ class CometsSystem(BaseSystem):
         self.km = km
         self.interval = interval
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of an expanding colony of the E. coli core system on a lattice."""
-        source = load_network('textbook', 'cell', needed_by='comets')
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of an expanding colony of the E. coli core system on a lattice.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        source = load_network('textbook', 'cells', needed_by='comets')
         plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
+        network = source.set_params(
+            reactions=plain,
+            name='ColonyCell',
+            infeasible='zero',
+            biomass='biomass',
+            threshold=0.0,
+        )
         concentration = self.glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL
         volume = self.plate_glucose * self.box**2 / concentration
         initial = np.zeros(self.shape)
         initial[self.shape[0] // 2, self.shape[1] // 2] = self.inoculum / volume
         space = LatticeSpace(self.shape, spacing=self.box)
-        images = VisualSpec('image', {'states': [MetabolicNetworkElement.get_flux_name(GROWTH)]})
-        cells = {
-            'name': 'ColonyCell',
-            'reactions': plain,
-            'default_objective': source.default_objective,
-            'infeasible': 'zero',
-        }
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'cells',
-                    element=MetabolicNetworkElement,
-                    values=cells,
-                    on='sites',
-                    space=space,
-                    visual=images,
-                ),
-                FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
-                FieldElement(
-                    'glucose',
-                    element=SubstrateElement,
-                    space=space,
-                    values={'c': np.full(self.shape, concentration)},
-                ),
+                ColonyCellElement('cells', values=network.get_values(), space=space),
+                BiomassElement('biomass', x=initial, space=space),
+                SubstrateElement('glucose', c=np.full(self.shape, concentration), space=space),
             ],
             interactions=[
+                network,
                 ExchangeInteraction(
                     'uptake',
                     cell='cells',
@@ -187,21 +204,23 @@ class CometsSystem(BaseSystem):
                     vmax=self.vmax,
                     km=self.km,
                     interval=self.interval,
-                    threshold=0.0,
                 ),
                 GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
-                RateInteraction(
+                Interaction(
                     'biomass_spread',
-                    target='biomass',
-                    state='x',
-                    rate=lambda s: self.biomass_diffusion * SECONDS_PER_HOUR * laplacian(s.target.x),
+                    roles={'target': 'biomass'},
+                    laws=lambda s: [
+                        RateLaw(s.target.x, self.biomass_diffusion * SECONDS_PER_HOUR * laplacian(s.target.x)),
+                    ],
                 ),
-                RateInteraction(
+                Interaction(
                     'glucose_spread',
-                    target='glucose',
-                    state='c',
-                    rate=lambda s: self.glucose_diffusion * SECONDS_PER_HOUR * laplacian(s.target.c),
+                    roles={'target': 'glucose'},
+                    laws=lambda s: [
+                        RateLaw(s.target.c, self.glucose_diffusion * SECONDS_PER_HOUR * laplacian(s.target.c)),
+                    ],
                 ),
             ],
             space=space,
+            solver=IMEXEulerSolver(dt=STEP),
         )

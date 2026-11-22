@@ -9,18 +9,20 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.all__sagemath_symbolics import SR, Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 from scipy import stats
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import logistic, mean
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.excitable import ThetaNeuronElement
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.excitable import ThetaNeuronElement, ThetaNeuronInteraction
 from ._leaky_integration import LeakyIntegrationInteraction
 
 
@@ -38,9 +40,6 @@ class PolyhomeostaticNeuronElement(Element):
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial membrane potential.
@@ -81,20 +80,19 @@ class PolyhomeostaticNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        a: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        b: Annotated[float, StateSpec()] = 0.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
-        eps_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        eps_b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        Gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        I0: Annotated[float, ParameterSpec()] = 0.0,
-        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: float = 0.0,
+        a: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        b: float = 0.0,
+        mu: Annotated[float, RealSet.open(0, oo)] = 0.2,
+        eps_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        eps_b: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        Gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        I0: float = 0.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        omega: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.a = a
         self.b = b
@@ -108,16 +106,13 @@ class PolyhomeostaticNeuronElement(Element):
 
 
 class RateUnitElement(Element):
-    """Neural unit of a competitive network, `tau x' = x (I - x)`.
+    """Neural unit of a competitive network, whose activity grows with its input and saturates.
 
-    Its activity grows with its input and saturates.
+    A `SaturatingGrowthInteraction` grows it as `tau x' = x (I - x)`.
 
     Args:
         label:
             The label of the unit.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial activity.
@@ -134,34 +129,54 @@ class RateUnitElement(Element):
         1.2
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        I: Annotated[float, ParameterSpec()] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        I: float = 1.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.I = I
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the self-limited growth of the activity.
+
+class SaturatingGrowthInteraction(Interaction):
+    """Self-limited growth of the activity of a neural unit, `tau x' = x (I - x)`.
+
+    The input `I` and the time constant `tau` are values of the unit, a `RateUnitElement`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the unit.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import SaturatingGrowthInteraction
+        >>> SaturatingGrowthInteraction('growth', target='unit').target
+        'unit'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the self-limited growth of the activity.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the unit.
         """
-        return [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
+        super()._prepare(context)
+        s = context.target
+        self.laws_: list[BaseLaw] = [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
 
 
 class WilsonCowanElement(Element):
@@ -177,9 +192,6 @@ class WilsonCowanElement(Element):
     Args:
         label:
             The label of the populations.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial excitatory activity.
@@ -238,26 +250,25 @@ class WilsonCowanElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.0,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        a_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        theta_e: Annotated[float, ParameterSpec()] = 4.0,
-        a_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        theta_i: Annotated[float, ParameterSpec()] = 3.7,
-        r_e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        P: Annotated[float, ParameterSpec()] = 1.25,
-        Q: Annotated[float, ParameterSpec()] = 0.0,
-        tau_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        I: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 16.0,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 12.0,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        c4: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        a_e: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        theta_e: float = 4.0,
+        a_i: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        theta_i: float = 3.7,
+        r_e: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        r_i: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        P: float = 1.25,
+        Q: float = 0.0,
+        tau_e: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        tau_i: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.I = I
         self.c1 = c1
@@ -276,20 +287,19 @@ class WilsonCowanElement(Element):
         self.tau_i = tau_i
 
 
-class MutualInhibitionInteraction(CouplingInteraction):
+class MutualInhibitionInteraction(Interaction):
     """Inhibition of every unit by the summed activity of all the other units.
 
     The inhibition is `-beta x_i sum_{j != i} x_j / tau_i`.
 
-    It is the coupling of the units to each other, as separate elements or as the members of a group, with the term
-    `-beta x_i x_j / tau_i` of every other unit `j`.
+    It is the coupling of separate units to each other, with the term `-beta x_i x_j / tau_i` of every other unit `j`.
 
     Args:
         label:
             The label of the interaction.
 
         units:
-            The paths of the units, an element set, or the path of a group of units.
+            The paths of the units.
 
         beta:
             The strength of the inhibition.
@@ -300,22 +310,34 @@ class MutualInhibitionInteraction(CouplingInteraction):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        units: Annotated[str | Sequence[str], RoleSpec()],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        units: tuple[Role, ...],
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
-        super().__init__(label, target=units, function=self._get_inhibition, mode='group')
+        super().__init__(label)
         self.units = units
         self.beta = beta
 
-    @staticmethod
-    def _get_inhibition(namespace: SimpleNamespace) -> Target:
-        """Return the inhibition of the unit by one other unit, `-beta x_i x_j / tau_i`."""
-        member = namespace.member
-        return -namespace.beta * member.x * namespace.other.x / member.tau
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the inhibition of every unit by the other units, term by term.
+
+        Args:
+            context:
+                The namespace of the units.
+        """
+        super()._prepare(context)
+        laws: list[BaseLaw] = []
+        for unit in context.units:
+            parts = [
+                SR(1) * (-context.beta * unit.x * other.x / unit.tau) for other in context.units if other is not unit
+            ]
+            laws.append(RateLaw(unit.x, sum(parts[1:], parts[0])))
+        self.laws_ = laws
 
 
 class PulseCouplingInteraction(Interaction):
@@ -352,8 +374,8 @@ class PulseCouplingInteraction(Interaction):
         self,
         label: str,
         *,
-        neurons: Annotated[str, RoleSpec()],
-        kappa: Annotated[float, ParameterSpec()] = 1.0,
+        neurons: Role,
+        kappa: float = 1.0,
         n: int = 2,
     ) -> None:
         super().__init__(label)
@@ -361,21 +383,19 @@ class PulseCouplingInteraction(Interaction):
         self.kappa = kappa
         self.n = n
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the current of the mean pulse into every neuron.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the current of the mean pulse into every neuron.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
+        super()._prepare(context)
+        s = context
         theta = s.neurons.theta
         normalization = 2**self.n * math.factorial(self.n) ** 2 / math.factorial(2 * self.n)
         pulses = mean(normalization * (1 - cos(theta)) ** self.n)
-        return [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
+        self.laws_: list[BaseLaw] = [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
 
 
 class WilsonCowanSystem(BaseSystem):
@@ -414,6 +434,12 @@ class WilsonCowanSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import WilsonCowanSystem
         >>> WilsonCowanSystem(P=0.0).prepare().system_.elements[0].P
@@ -438,8 +464,10 @@ class WilsonCowanSystem(BaseSystem):
         c3: float = 15.0,
         c4: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.I = I
         self.P = P
@@ -484,8 +512,14 @@ class WilsonCowanSystem(BaseSystem):
         )
         return inhibition
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Wilson-Cowan system of interacting excitatory and inhibitory populations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         cortex = WilsonCowanElement(
             'cortex',
             E=self.E,
@@ -513,7 +547,7 @@ class WilsonCowanSystem(BaseSystem):
                 time=lambda s: s.target.tau_i,
             ),
         ]
-        return CompositeSystem(self.label, elements=[cortex], interactions=relaxations)
+        self.system_ = System(self.label, elements=[cortex], interactions=relaxations)
 
 
 class ThetaNeuronsSystem(BaseSystem):
@@ -549,9 +583,15 @@ class ThetaNeuronsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import ThetaNeuronsSystem
-        >>> ThetaNeuronsSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> ThetaNeuronsSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -571,8 +611,10 @@ class ThetaNeuronsSystem(BaseSystem):
         n: int = 2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_neurons = n_neurons
         self.eta = eta
         self.delta = delta
@@ -586,22 +628,28 @@ class ThetaNeuronsSystem(BaseSystem):
         levels = (np.arange(size) + 0.5) / size
         return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a network of theta neurons."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a network of theta neurons.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         phases = np.random.default_rng(self.random_state).uniform(0.0, 2 * math.pi, self.n_neurons)
-        neurons = GroupElement(
+        neurons = ThetaNeuronElement(
             'neurons',
-            element=ThetaNeuronElement,
+            theta=phases,
+            eta=np.asarray(self._get_lorentzian_quantiles(self.eta, self.delta, self.n_neurons)),
             size=self.n_neurons,
-            values={
-                'theta': phases,
-                'eta': np.asarray(self._get_lorentzian_quantiles(self.eta, self.delta, self.n_neurons)),
-            },
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[neurons],
-            interactions=[PulseCouplingInteraction('coupling', neurons='neurons', kappa=self.kappa, n=self.n)],
+            interactions=[
+                ThetaNeuronInteraction('phases', target='neurons'),
+                PulseCouplingInteraction('coupling', neurons='neurons', kappa=self.kappa, n=self.n),
+            ],
         )
 
 
@@ -633,10 +681,16 @@ class WinnersTakeAllSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import WinnersTakeAllSystem
-        >>> len(WinnersTakeAllSystem((1.0, 2.0, 3.0)).prepare().system_.interactions)
-        1
+        >>> [interaction.label for interaction in WinnersTakeAllSystem((1.0, 2.0)).prepare().system_.interactions]
+        ['growth_unit_0', 'growth_unit_1', 'inhibition']
     """
 
     field = 'biology/neuroscience'
@@ -653,23 +707,33 @@ class WinnersTakeAllSystem(BaseSystem):
         tau: float = 1.0,
         x: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.inputs = inputs
         self.beta = beta
         self.tau = tau
         self.x = x
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a winner-take-all network of units.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a winner-take-all network of units.
 
-        The units have self-limited growth and mutual inhibition.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         units = [
             RateUnitElement(f'unit_{index}', x=self.x, I=value, tau=self.tau) for index, value in enumerate(self.inputs)
         ]
-        inhibition = MutualInhibitionInteraction('inhibition', units=[unit.label for unit in units], beta=self.beta)
-        return CompositeSystem(self.label, elements=units, interactions=[inhibition])
+        growth = [SaturatingGrowthInteraction(f'growth_{unit.label}', target=unit.label) for unit in units]
+        inhibition = MutualInhibitionInteraction(
+            'inhibition',
+            units=tuple(unit.label for unit in units),
+            beta=self.beta,
+        )
+        self.system_ = System(self.label, elements=units, interactions=[*growth, inhibition])
 
 
 class PolyhomeostaticNeuronSystem(BaseSystem):
@@ -704,6 +768,12 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import PolyhomeostaticNeuronSystem
         >>> PolyhomeostaticNeuronSystem(mu=0.1).prepare().system_.elements[0].mu
@@ -726,8 +796,10 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         A: float = 1.0,
         omega: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.mu = mu
         self.eps_a = eps_a
         self.eps_b = eps_b
@@ -746,8 +818,14 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         gradient: Expression = 1 - (2 + 1 / neuron.mu) * rate + rate**2 / neuron.mu
         return gradient
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a neuron."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a neuron.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         neuron = PolyhomeostaticNeuronElement(
             'neuron',
             mu=self.mu,
@@ -765,17 +843,20 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
                 goal=lambda s: s.target.I0 + s.target.A * sin(s.target.omega * s.t),
                 time=lambda s: 1 / s.target.Gamma,
             ),
-            RateInteraction(
+            Interaction(
                 'gain_plasticity',
-                target='neuron',
-                state='a',
-                rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._get_kl_gradient(s)),
+                roles={'target': 'neuron'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.a,
+                        s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * self._get_kl_gradient(s)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'threshold_plasticity',
-                target='neuron',
-                state='b',
-                rate=lambda s: -s.target.eps_b * s.target.a * self._get_kl_gradient(s),
+                roles={'target': 'neuron'},
+                laws=lambda s: [RateLaw(s.target.b, -s.target.eps_b * s.target.a * self._get_kl_gradient(s))],
             ),
         ]
-        return CompositeSystem(self.label, elements=[neuron], interactions=interactions)
+        self.system_ = System(self.label, elements=[neuron], interactions=interactions)

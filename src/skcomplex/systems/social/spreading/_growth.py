@@ -3,22 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class GrowingWordView(AgentView):
+class GrowingWordView(AgentViewProtocol, Protocol):
     """View of a word of the Simon system.
 
     Its states and parameters are attributes.
@@ -37,42 +41,33 @@ class GrowingWordElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         count:
-            The number of occurrences.
+            The number of occurrences, one per word or shared.
 
         innovation:
             The probability that the next word of the text is new.
 
+        size:
+            The number of words, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.spreading import GrowingWordElement
-        >>> group = GroupElement('words', element=GrowingWordElement, size=1, values={'count': 1.0})
-        >>> group.label, group.element.__name__, group.size
-        ('words', 'GrowingWordElement', 1)
+        >>> group = GrowingWordElement('words', count=1.0, size=1)
+        >>> group.label, group.count, group.size
+        ('words', 1.0, 1)
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        count: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        innovation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        count: Annotated[object, NN] = 1.0,
+        innovation: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.count = count
         self.innovation = innovation
-
-    @classmethod
-    def _get_view(cls) -> type[GrowingWordView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return GrowingWordView
 
 
 class WritingInteraction(Interaction):
@@ -99,31 +94,28 @@ class WritingInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         words_per_step: int = 100,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.words_per_step = words_per_step
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the writing rule.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the writing as the rule of the system.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.write)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.write)]
 
     def write(self, system: SystemView) -> None:
         """Write the words of one step.
@@ -132,7 +124,7 @@ class WritingInteraction(Interaction):
             system:
                 The system.
         """
-        words = system.get_agents(self.target, GrowingWordView)
+        words = cast(list[GrowingWordView], system.get_agents('target'))
         if not words:
             return
         innovation = words[0].innovation
@@ -147,7 +139,7 @@ class WritingInteraction(Interaction):
         for word, count in zip(words, counts, strict=False):
             word.count = float(count)
         for count in counts[len(words) :]:
-            system.create(self.target, count=float(count))
+            system.create('target', count=float(count))
 
 
 class SimonYuleSystem(BaseSystem):
@@ -166,9 +158,15 @@ class SimonYuleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.spreading import SimonYuleSystem
-        >>> SimonYuleSystem().prepare().system_.elements[0].prepare().size_
+        >>> SimonYuleSystem().prepare().system_.elements[0].size
         1
     """
 
@@ -183,21 +181,18 @@ class SimonYuleSystem(BaseSystem):
         innovation: float = 0.1,
         words_per_step: int = 100,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.innovation = innovation
         self.words_per_step = words_per_step
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        words = GroupElement(
-            'words',
-            element=GrowingWordElement,
-            size=1,
-            values={'count': 1.0, 'innovation': self.innovation},
-            variable=True,
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
+        words = GrowingWordElement('words', count=1.0, innovation=self.innovation, size=1)
+        self.system_ = System(
             self.label,
             elements=[words],
             interactions=[WritingInteraction('writing', target='words', words_per_step=self.words_per_step)],

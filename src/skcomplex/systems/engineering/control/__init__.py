@@ -4,23 +4,28 @@ It also holds the controllers that close them.
 """
 
 from ._control import (
-    THERMAL,
-    ConvectionElement,
-    HeatCapacityElement,
+    ConvectionInteraction,
+    HeatCapacityInteraction,
     HeatedRoomSystem,
-    HeatingResistorElement,
+    HeatingResistorInteraction,
     PendulumSwingUpSystem,
     PidLoopSystem,
     SatelliteTransferSystem,
-    ThermalConductorElement,
+    SwitchInteraction,
+    ThermalConductorInteraction,
     ThermostatSystem,
 )
-from ._koopman import ControlInputElement, KoopmanModelPredictiveControlSystem, PlantStateElement
-from ._minimum_time_control import BangBangPlantElement, MinimumTimeControlSystem
+from ._koopman import (
+    ControlInputElement,
+    KoopmanModelPredictiveControlSystem,
+    PlantInteraction,
+    PlantStateElement,
+    PredictiveControlInteraction,
+)
+from ._minimum_time_control import BangBangPlantElement, BangBangPlantInteraction, MinimumTimeControlSystem
 from ._regulation import (
-    CartPendulumElement,
-    DrivenOscillatorElement,
-    IntegratorElement,
+    CartPendulumInteraction,
+    DrivenOscillatorInteraction,
     LqrOscillatorSystem,
     PIDInteraction,
     PidInvertedPendulumSystem,
@@ -28,16 +33,15 @@ from ._regulation import (
 )
 
 __all__: list[str] = [
-    'THERMAL',
     'BangBangPlantElement',
-    'CartPendulumElement',
+    'BangBangPlantInteraction',
+    'CartPendulumInteraction',
     'ControlInputElement',
-    'ConvectionElement',
-    'DrivenOscillatorElement',
-    'HeatCapacityElement',
+    'ConvectionInteraction',
+    'DrivenOscillatorInteraction',
+    'HeatCapacityInteraction',
     'HeatedRoomSystem',
-    'HeatingResistorElement',
-    'IntegratorElement',
+    'HeatingResistorInteraction',
     'KoopmanModelPredictiveControlSystem',
     'LqrOscillatorSystem',
     'MinimumTimeControlSystem',
@@ -45,9 +49,12 @@ __all__: list[str] = [
     'PendulumSwingUpSystem',
     'PidInvertedPendulumSystem',
     'PidLoopSystem',
+    'PlantInteraction',
     'PlantStateElement',
+    'PredictiveControlInteraction',
     'SatelliteTransferSystem',
     'StateFeedbackInteraction',
-    'ThermalConductorElement',
+    'SwitchInteraction',
+    'ThermalConductorInteraction',
     'ThermostatSystem',
 ]

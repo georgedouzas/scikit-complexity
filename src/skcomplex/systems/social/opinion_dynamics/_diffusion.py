@@ -3,7 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 import numpy.typing as npt
@@ -11,15 +13,17 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TransitionInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import MovementInteraction
 
 MODES = ('infection', 'influence')
@@ -28,7 +32,8 @@ PASSIONATE = 3
 INNOVATORS = 0.025
 
 
-class BelieverView(AgentView):
+@runtime_checkable
+class BelieverView(AgentViewProtocol, Protocol):
     """View of an agent of the influentials system.
 
     Its states and parameters are attributes.
@@ -45,16 +50,12 @@ class BelieverElement(Element):
 
     It holds the weights it gives to four levels of caring about an issue. The levels are not caring at all, caring
     less, caring a bit, and caring passionately. An agent cares at the level of its largest weight. In
-    `InfluentialsSystem`, a `MapInteraction` of the vector of weights adds every step `learning` times the influence of
-    every neighbour to the weight of the level the neighbour cares at, a tie broken at random, and a second one sets the
-    level of caring.
+    `InfluentialsSystem`, an agent rule adds every step `learning` times the influence of every neighbour to the weight
+    of the level the neighbour cares at, a tie broken at random, and a second one sets the level of caring.
 
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         belief:
             The initial weights of the four levels.
@@ -68,42 +69,45 @@ class BelieverElement(Element):
         learning:
             The increment per neighbour and step.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import BelieverElement
-        >>> group = GroupElement('people', element=BelieverElement, size=4, values={'belief': [1.0, 0.0, 0.0, 0.0]})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = BelieverElement('people', belief=[1.0, 0.0, 0.0, 0.0], size=4)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'BelieverElement', 4)
     """
 
-    draws = True
+    visual = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'caring', 'color_range': (0.0, 3.0)}),
         *,
-        belief: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        caring: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        influence: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        learning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        belief: npt.ArrayLike = 0.0,
+        caring: Annotated[object, NN] = 0.0,
+        influence: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        learning: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.belief = belief
         self.caring = caring
         self.influence = influence
         self.learning = learning
 
-    @classmethod
-    def _get_view(cls) -> type[BelieverView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return BelieverView
-
-
-class AdopterView(AgentView):
+@runtime_checkable
+class AdopterView(AgentViewProtocol, Protocol):
     """View of an agent of the threshold adoption system.
 
     Its states and parameters are attributes.
@@ -121,9 +125,6 @@ class AdopterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         adopted:
             Whether the agent starts as an adopter.
 
@@ -133,38 +134,42 @@ class AdopterElement(Element):
         reach:
             The distance within which other agents form an agent's social circle.
 
+        values:
+            Further values by name, such as the position `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The plane whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import AdopterElement
-        >>> group = GroupElement('people', element=AdopterElement, size=10, values={'threshold': 50.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = AdopterElement('people', threshold=50.0, size=10)
+        >>> group.label, type(group).__name__, group.size
         ('people', 'AdopterElement', 10)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)}),
         *,
-        adopted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        adopted: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 50.0,
+        reach: Annotated[object, RealSet.open(0, oo)] = 15.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.adopted = adopted
         self.threshold = threshold
         self.reach = reach
 
-    @classmethod
-    def _get_view(cls) -> type[AdopterView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return AdopterView
-
-
-class AdoptionInteraction(TransitionInteraction):
+class AdoptionInteraction(Interaction):
     """Synchronous adoption of the threshold system.
 
     Every agent adopts for good from its social circle. In the infection mode an agent adopts once anyone in its social
@@ -195,35 +200,46 @@ class AdoptionInteraction(TransitionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         mode: str = 'infection',
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='adopted',
-            source=0.0,
-            destination=1.0,
-            condition=self._adopts,
-            form='agent',
-        )
+        super().__init__(label)
+        self.target = target
         self.mode = mode
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an unknown mode.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The mode is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.mode not in MODES:
             error_msg = f'Unknown adoption mode {self.mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the adoptions of every step as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the adopters.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.adopt)]
+
+    def adopt(self, system: SystemViewProtocol) -> None:
+        """Let every agent that has not adopted adopt, from the adoptions at the start of the step.
+
+        Args:
+            system:
+                The system view of the adoptions.
+        """
+        agents = [agent for agent in system.get_agents('target') if isinstance(agent, AdopterView)]
+        adopting = [agent for agent in agents if float(agent.adopted) == 0.0 and self._adopts(agent, system)]
+        for agent in adopting:
+            agent.adopted = 1.0
 
     def _adopts(self, agent: AdopterView, system: SystemViewProtocol) -> bool:
         """Return whether an agent adopts from the adopters in its social circle.
@@ -269,9 +285,15 @@ class InfluentialsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import InfluentialsSystem
-        >>> InfluentialsSystem(5, 4, n_influentials=2, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> InfluentialsSystem(5, 4, n_influentials=2, random_state=0).prepare().system_.elements[0].size
         20
     """
 
@@ -290,8 +312,10 @@ class InfluentialsSystem(BaseSystem):
         news_report: bool = False,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_influentials = n_influentials
@@ -313,12 +337,19 @@ class InfluentialsSystem(BaseSystem):
         return belief
 
     @staticmethod
-    def _get_care(agent: BelieverView, system: SystemViewProtocol) -> float:
-        """Return the level an agent cares at, the index of its largest weight."""
-        return float(np.argmax(agent.belief))
+    def _update_belief(agent: BelieverView, system: SystemViewProtocol) -> None:
+        """Add to the weights of an agent the influence of every neighbour."""
+        agent.belief = InfluentialsSystem._learn(agent, system)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _update_care(agent: BelieverView, system: SystemViewProtocol) -> None:
+        """Set the level an agent cares at, the index of its largest weight."""
+        del system
+        agent.caring = float(np.argmax(agent.belief))
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
         belief = rng.integers(0, 5, (size, N_LEVELS)).astype(float)
@@ -327,35 +358,28 @@ class InfluentialsSystem(BaseSystem):
         belief[chosen, PASSIONATE] = belief[chosen].max(axis=1) + 1
         weights = np.ones(size)
         weights[chosen] = self.influence
-        people = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', capacity=1)
+        x, y = np.array([(column, row) for column in range(self.width) for row in range(self.height)]).T
+        people = BelieverElement(
             'people',
-            element=BelieverElement,
+            belief=belief,
+            caring=belief.argmax(axis=1).astype(float),
+            influence=weights,
+            values={'x': x, 'y': y},
             size=size,
-            values={'belief': belief, 'caring': belief.argmax(axis=1).astype(float), 'influence': weights},
-            location=[(column, row) for column in range(self.width) for row in range(self.height)],
+            space=space,
         )
-        learning = MapInteraction(
+        learning = Interaction(
             'learning',
-            target='people',
-            state='belief',
-            function=self._learn,
-            schedule='member',
-            form='agent',
+            roles={'target': 'people'},
+            laws=lambda s: [UpdateLaw(s.target, self._update_belief)],
         )
-        caring = MapInteraction(
+        caring = Interaction(
             'caring',
-            target='people',
-            state='caring',
-            function=self._get_care,
-            schedule='member',
-            form='agent',
+            roles={'target': 'people'},
+            laws=lambda s: [UpdateLaw(s.target, self._update_care)],
         )
-        return CompositeSystem(
-            self.label,
-            elements=[people],
-            interactions=[learning, caring],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
-        )
+        self.system_ = System(self.label, elements=[people], interactions=[learning, caring], space=space)
 
 
 class ThresholdAdoptionSystem(BaseSystem):
@@ -389,9 +413,15 @@ class ThresholdAdoptionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ThresholdAdoptionSystem
-        >>> ThresholdAdoptionSystem(40, size=60.0, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> ThresholdAdoptionSystem(40, size=60.0, random_state=0).prepare().system_.elements[0].size
         40
     """
 
@@ -411,8 +441,10 @@ class ThresholdAdoptionSystem(BaseSystem):
         shifting: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.size = size
         self.reach = reach
@@ -431,8 +463,9 @@ class ThresholdAdoptionSystem(BaseSystem):
         position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
         return np.mod(position, size)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         drawn = (
             rng.uniform(1, 100, self.n_agents)
@@ -442,14 +475,18 @@ class ThresholdAdoptionSystem(BaseSystem):
         innovators = np.argsort(drawn)[: max(1, round(INNOVATORS * self.n_agents))]
         adopted = np.zeros(self.n_agents)
         adopted[innovators] = 1.0
-        people = GroupElement(
+        space = ContinuousSpace(extent=(self.size, self.size), boundary='periodic')
+        x, y = rng.uniform(0, self.size, (self.n_agents, 2)).T
+        people = AdopterElement(
             'people',
-            element=AdopterElement,
+            adopted=adopted,
+            threshold=drawn,
+            reach=self.reach,
+            values={'x': x, 'y': y},
             size=self.n_agents,
-            values={'adopted': adopted, 'threshold': drawn, 'reach': self.reach},
-            location=rng.uniform(0, self.size, (self.n_agents, 2)),
+            space=space,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[people],
             interactions=[
@@ -461,5 +498,5 @@ class ThresholdAdoptionSystem(BaseSystem):
                 ),
                 AdoptionInteraction('adoption', target='people', mode=self.mode),
             ],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            space=space,
         )

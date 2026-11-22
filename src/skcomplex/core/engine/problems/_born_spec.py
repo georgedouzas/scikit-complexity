@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._base_spec import BaseSpec
-from ...specs._compiled_flow_spec import _CompiledFlowSpec
+from ...base import BaseSpec
+from ._compiled_flow_spec import _CompiledFlowSpec
 from ._kernel_spec import KernelSpec
 
 

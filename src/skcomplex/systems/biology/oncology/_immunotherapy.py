@@ -6,18 +6,21 @@ The therapies are adoptive therapy, vaccines, cytokines, and checkpoints.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import delayed, hill, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import hill, where
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -43,9 +46,6 @@ class CheckpointTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial activated T cells.
@@ -125,33 +125,32 @@ class CheckpointTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3968,
-        UAP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ENC: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.81,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        C1_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5e-10,
-        C2_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.37e-11,
-        C1_ss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-10,
-        C2_ss: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.37e-11,
-        psi_pp: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.365e-18,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1 / 0.8,
-        a_rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 57.5,
-        a_rl: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4908500.0,
-        rho_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.19e-07,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.033,
-        sigma_l: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.56e-07,
-        c_l: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        u_ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-10,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.006,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.3968,
+        UAP: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ENC: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 8.81,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        C1_50: Annotated[float, RealSet.open(0, oo)] = 1.5e-10,
+        C2_50: Annotated[float, RealSet.open(0, oo)] = 2.37e-11,
+        C1_ss: Annotated[float, RealSet.closed_open(0, oo)] = 1.5e-10,
+        C2_ss: Annotated[float, RealSet.closed_open(0, oo)] = 2.37e-11,
+        psi_pp: Annotated[float, RealSet.open(0, oo)] = 1.365e-18,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        r3: Annotated[float, RealSet.open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1 / 0.8,
+        a_rho: Annotated[float, RealSet.closed_open(0, oo)] = 57.5,
+        a_rl: Annotated[float, RealSet.closed_open(0, oo)] = 4908500.0,
+        rho_r: Annotated[float, RealSet.closed_open(0, oo)] = 3.19e-07,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        du2: Annotated[float, RealSet.open(0, oo)] = 0.033,
+        sigma_l: Annotated[float, RealSet.closed_open(0, oo)] = 3.56e-07,
+        c_l: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        u_ap: Annotated[float, RealSet.closed_open(0, oo)] = 1e-10,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.UAP = UAP
@@ -194,9 +193,6 @@ class DelayedVaccinatedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour cells.
@@ -384,69 +380,68 @@ class DelayedVaccinatedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 500000.0,
-        ENK: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 44000.0,
-        ENC: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 120000.0,
-        E: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        ED: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 48.0,
-        ER: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1100000.0,
-        ENH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 126000.0,
-        E1H: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.16,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5000000000.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.9,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.5,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 7.13e-10,
-        s1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 13200.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0412,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0668,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 25000.0,
-        psi1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
-        s2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 500000.0,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.2,
-        g3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10**5.4,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        rho3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.98e-07,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.38,
-        rho4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.19,
-        g4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6250000.0,
-        psi2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.3e-07,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.237,
-        kappa1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 24380.0,
-        g5: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        s3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 280.5,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.5,
-        rho5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.1,
-        g6: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000000000.0,
-        rho6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.99,
-        g7: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        s4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 321200.0,
-        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        rho7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        g8: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.5e17,
-        rho8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.399,
-        g9: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10**4.4,
-        s5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 550000.0,
-        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho9: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.05,
-        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.44,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.45,
-        psi3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8e-07,
-        rho10: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.4,
-        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.26,
-        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.45,
-        tau3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.47,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000000.0,
+        A: Annotated[float, RealSet.open(0, oo)] = 500000.0,
+        ENK: Annotated[float, RealSet.closed_open(0, oo)] = 44000.0,
+        ENC: Annotated[float, RealSet.closed_open(0, oo)] = 120000.0,
+        E: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        ED: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 48.0,
+        ER: Annotated[float, RealSet.closed_open(0, oo)] = 1100000.0,
+        ENH: Annotated[float, RealSet.closed_open(0, oo)] = 126000.0,
+        E1H: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.16,
+        b: Annotated[float, RealSet.open(0, oo)] = 5000000000.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 6.9,
+        g1: Annotated[float, RealSet.open(0, oo)] = 3.5,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 7.13e-10,
+        s1: Annotated[float, RealSet.closed_open(0, oo)] = 13200.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0412,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0668,
+        g2: Annotated[float, RealSet.open(0, oo)] = 25000.0,
+        psi1: Annotated[float, RealSet.closed_open(0, oo)] = 1e-07,
+        s2: Annotated[float, RealSet.closed_open(0, oo)] = 500000.0,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 1.2,
+        g3: Annotated[float, RealSet.open(0, oo)] = 10**5.4,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        rho3: Annotated[float, RealSet.closed_open(0, oo)] = 8.98e-07,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.38,
+        rho4: Annotated[float, RealSet.closed_open(0, oo)] = 0.19,
+        g4: Annotated[float, RealSet.open(0, oo)] = 6250000.0,
+        psi2: Annotated[float, RealSet.closed_open(0, oo)] = 4.3e-07,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 0.237,
+        kappa1: Annotated[float, RealSet.closed_open(0, oo)] = 24380.0,
+        g5: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        s3: Annotated[float, RealSet.closed_open(0, oo)] = 280.5,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 5.5,
+        rho5: Annotated[float, RealSet.closed_open(0, oo)] = 1.1,
+        g6: Annotated[float, RealSet.open(0, oo)] = 100000000000.0,
+        rho6: Annotated[float, RealSet.closed_open(0, oo)] = 4.99,
+        g7: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        s4: Annotated[float, RealSet.closed_open(0, oo)] = 321200.0,
+        d6: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        rho7: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        g8: Annotated[float, RealSet.open(0, oo)] = 4.5e17,
+        rho8: Annotated[float, RealSet.closed_open(0, oo)] = 0.399,
+        g9: Annotated[float, RealSet.open(0, oo)] = 10**4.4,
+        s5: Annotated[float, RealSet.closed_open(0, oo)] = 550000.0,
+        d7: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho9: Annotated[float, RealSet.closed_open(0, oo)] = 1.05,
+        d8: Annotated[float, RealSet.closed_open(0, oo)] = 0.44,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 0.45,
+        psi3: Annotated[float, RealSet.closed_open(0, oo)] = 8e-07,
+        rho10: Annotated[float, RealSet.closed_open(0, oo)] = 1.4,
+        tau1: Annotated[float, RealSet.open(0, oo)] = 1.26,
+        tau2: Annotated[float, RealSet.open(0, oo)] = 0.45,
+        tau3: Annotated[float, RealSet.open(0, oo)] = 0.47,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 1000000.0,
         period: float = 7.0,
         width: float = 1.0,
         start: float = 0.0,
         doses: int = 4,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.ENK = ENK
         self.ENC = ENC
@@ -522,9 +517,6 @@ class KirschnerPanettaTumourElement(Element):
         label:
             The label of the tumour site.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         E:
             The initial effector cells.
 
@@ -588,28 +580,27 @@ class KirschnerPanettaTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20000000.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-09,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        alpha3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 500.0,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 70000000.0,
-        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1245,
+        alpha1: Annotated[float, RealSet.open(0, oo)] = 20000000.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1e-09,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha2: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        alpha3: Annotated[float, RealSet.open(0, oo)] = 1000.0,
+        du: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 500.0,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 70000000.0,
+        u1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.C = C
@@ -649,9 +640,6 @@ class SuppressedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour cells.
@@ -836,68 +824,67 @@ class SuppressedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        EUD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        ED: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EPC: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EPH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        EPR: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        ER: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1e-05,
-        C1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.333,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 333.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2 / 3,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 11.0,
-        g3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        C3_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.5,
-        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        C2_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
-        ER_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20000000.0,
-        lambda_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.14,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 23.0,
-        g4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.33,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        EC1_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        EC3_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.9,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        a4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.9,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.9,
-        a6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.022,
-        g5: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.7,
-        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        a7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.1,
-        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.1,
-        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        a9: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.7e-05,
-        CC2_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.75,
-        CC3_50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.9,
-        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.4e-08,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.3e-10,
-        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.8e-08,
-        r6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.1e-07,
-        tau3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.07,
-        EMC: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10000.0,
-        EMH: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        EMR: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10000.0,
+        A: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        EUD: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        ED: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EPC: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EPH: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EH: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        EPR: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        ER: Annotated[float, RealSet.closed_open(0, oo)] = 1e-05,
+        C1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.333,
+        r2: Annotated[float, RealSet.open(0, oo)] = 333.0,
+        n: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        p: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        q: Annotated[float, RealSet.open(0, oo)] = 2 / 3,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        g1: Annotated[float, RealSet.open(0, oo)] = 1.2,
+        g2: Annotated[float, RealSet.open(0, oo)] = 11.0,
+        g3: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        C3_50: Annotated[float, RealSet.open(0, oo)] = 3.5,
+        alpha_a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        C2_50: Annotated[float, RealSet.open(0, oo)] = 0.4,
+        ER_50: Annotated[float, RealSet.open(0, oo)] = 20000000.0,
+        lambda_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.14,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 23.0,
+        g4: Annotated[float, RealSet.open(0, oo)] = 0.33,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 16.0,
+        EC1_50: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        EC3_50: Annotated[float, RealSet.open(0, oo)] = 2.9,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        a4: Annotated[float, RealSet.closed_open(0, oo)] = 9.9,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a5: Annotated[float, RealSet.closed_open(0, oo)] = 1.9,
+        a6: Annotated[float, RealSet.closed_open(0, oo)] = 0.022,
+        g5: Annotated[float, RealSet.open(0, oo)] = 1.7,
+        d6: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        a7: Annotated[float, RealSet.closed_open(0, oo)] = 5.1,
+        d7: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a8: Annotated[float, RealSet.closed_open(0, oo)] = 2.1,
+        d8: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        a9: Annotated[float, RealSet.closed_open(0, oo)] = 1.7e-05,
+        CC2_50: Annotated[float, RealSet.open(0, oo)] = 0.75,
+        CC3_50: Annotated[float, RealSet.open(0, oo)] = 0.9,
+        tau1: Annotated[float, RealSet.open(0, oo)] = 0.08,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 1.4e-08,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 1.3e-10,
+        tau2: Annotated[float, RealSet.open(0, oo)] = 0.05,
+        r5: Annotated[float, RealSet.closed_open(0, oo)] = 1.8e-08,
+        r6: Annotated[float, RealSet.closed_open(0, oo)] = 1.1e-07,
+        tau3: Annotated[float, RealSet.open(0, oo)] = 0.07,
+        EMC: Annotated[float, RealSet.closed_open(0, oo)] = 10000.0,
+        EMH: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        EMR: Annotated[float, RealSet.closed_open(0, oo)] = 10000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.EUD = EUD
         self.ED = ED
@@ -974,9 +961,6 @@ class VaccinatedTumourElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         EH:
             The initial helper T cells.
@@ -1068,37 +1052,36 @@ class VaccinatedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        EH: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        ED: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        s1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        s2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        EH: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        ED: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        s1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        s2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        r3: Annotated[float, RealSet.open(0, oo)] = 0.02,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        b1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 1e-07,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         period: float = 168.0,
         width: float = 1.0,
         start: float = 0.0,
         doses: int = 8,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.EH = EH
         self.E = E
         self.A = A
@@ -1174,6 +1157,12 @@ class KirschnerPanettaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import KirschnerPanettaSystem
         >>> KirschnerPanettaSystem(u1=1.0).prepare().system_.elements[0].u1
@@ -1185,7 +1174,6 @@ class KirschnerPanettaSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Kirschner and Panetta 1998')
     until = 1000.0
     dt = 1.0
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1201,8 +1189,10 @@ class KirschnerPanettaSystem(BaseSystem):
         u1: float = 0.0,
         u2: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.C = C
@@ -1214,8 +1204,14 @@ class KirschnerPanettaSystem(BaseSystem):
         self.u1 = u1
         self.u2 = u2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Kirschner-Panetta system of effector cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Kirschner-Panetta system of effector cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = KirschnerPanettaTumourElement(
             'site',
             E=self.E,
@@ -1230,7 +1226,11 @@ class KirschnerPanettaSystem(BaseSystem):
             u2=self.u2,
         )
         interactions = [
-            RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha_a * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.alpha_a * s.target.A)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
@@ -1247,11 +1247,10 @@ class KirschnerPanettaSystem(BaseSystem):
                 km=lambda s: s.target.alpha1,
                 modifiers={'E': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -1279,7 +1278,7 @@ class KirschnerPanettaSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.C,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class DendriticCellVaccineSystem(BaseSystem):
@@ -1323,6 +1322,12 @@ class DendriticCellVaccineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DendriticCellVaccineSystem
         >>> DendriticCellVaccineSystem(dose=0.0).prepare().system_.elements[0].dose
@@ -1334,7 +1339,6 @@ class DendriticCellVaccineSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Castiglione and Piccoli 2006')
     until = 2880.0
     dt = 2.0
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1348,8 +1352,10 @@ class DendriticCellVaccineSystem(BaseSystem):
         start: float = 0.0,
         doses: int = 8,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A = A
         self.rho2 = rho2
         self.r4 = r4
@@ -1359,8 +1365,14 @@ class DendriticCellVaccineSystem(BaseSystem):
         self.start = start
         self.doses = doses
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of helper and cytotoxic T cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of helper and cytotoxic T cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = VaccinatedTumourElement(
             'site',
             A=self.A,
@@ -1374,15 +1386,15 @@ class DendriticCellVaccineSystem(BaseSystem):
         )
         interactions = [
             DosingInteraction('helper_influx', target='site', state='EH', dose=lambda s: s.target.s1),
-            RateInteraction(
+            Interaction(
                 'helper_proliferation',
-                target='site',
-                state='EH',
-                rate=lambda s: s.target.rho1
-                * s.target.ED
-                * s.target.r1
-                * s.target.EH
-                * (1 - s.target.b1 * s.target.EH),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EH,
+                        s.target.rho1 * s.target.ED * s.target.r1 * s.target.EH * (1 - s.target.b1 * s.target.EH),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'helper_death',
@@ -1391,16 +1403,20 @@ class DendriticCellVaccineSystem(BaseSystem):
                 propensity=lambda s: s.target.d1 * s.target.EH,
             ),
             DosingInteraction('cytotoxic_influx', target='site', state='E', dose=lambda s: s.target.s2),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_proliferation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.rho2
-                * s.target.C
-                * (s.target.A + s.target.ED)
-                * s.target.r2
-                * s.target.E
-                * (1 - s.target.b2 * s.target.E),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.rho2
+                        * s.target.C
+                        * (s.target.A + s.target.ED)
+                        * s.target.r2
+                        * s.target.E
+                        * (1 - s.target.b2 * s.target.E),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'cytotoxic_death',
@@ -1408,11 +1424,10 @@ class DendriticCellVaccineSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d2 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r3 * s.target.A * (1 - s.target.b3 * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r3 * s.target.A * (1 - s.target.b3 * s.target.A))],
             ),
             ReactionInteraction(
                 'kill',
@@ -1438,11 +1453,10 @@ class DendriticCellVaccineSystem(BaseSystem):
                 modifiers={'E': 1},
                 propensity=lambda s: s.target.c2 * s.target.E * s.target.ED,
             ),
-            RateInteraction(
+            Interaction(
                 'il2_production',
-                target='site',
-                state='C',
-                rate=lambda s: s.target.r4 * s.target.EH * s.target.ED,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C, s.target.r4 * s.target.EH * s.target.ED)],
             ),
             ReactionInteraction(
                 'il2_consumption',
@@ -1458,7 +1472,7 @@ class DendriticCellVaccineSystem(BaseSystem):
                 propensity=lambda s: s.target.d3 * s.target.C,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class AntiPD1CheckpointSystem(BaseSystem):
@@ -1503,6 +1517,12 @@ class AntiPD1CheckpointSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import AntiPD1CheckpointSystem
         >>> AntiPD1CheckpointSystem(u_ap=0.0).prepare().system_.elements[0].u_ap
@@ -1514,7 +1534,6 @@ class AntiPD1CheckpointSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Nikolopoulou et al. 2018')
     until = 150.0
     dt = 0.5
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1528,8 +1547,10 @@ class AntiPD1CheckpointSystem(BaseSystem):
         b: float = 1 / 0.8,
         c_l: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.u_ap = u_ap
@@ -1539,8 +1560,14 @@ class AntiPD1CheckpointSystem(BaseSystem):
         self.b = b
         self.c_l = c_l
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of activated T cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of activated T cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = CheckpointTumourElement(
             'site',
             E=self.E,
@@ -1563,22 +1590,26 @@ class AntiPD1CheckpointSystem(BaseSystem):
             return receptor
 
         interactions = [
-            RateInteraction(
+            Interaction(
                 'activation',
-                target='site',
-                state='E',
-                rate=lambda s: (
-                    s.target.r1 * s.target.ENC * hill(s.target.C1_ss, s.target.C1_50)
-                    + s.target.r2 * s.target.E * hill(s.target.C2_ss, s.target.C2_50)
-                )
-                / (
-                    1
-                    + s.target.sigma
-                    * free_receptor(s)
-                    * s.target.sigma_l
-                    * (s.target.E + s.target.c_l * s.target.A)
-                    / s.target.psi_pp
-                ),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        (
+                            s.target.r1 * s.target.ENC * hill(s.target.C1_ss, s.target.C1_50)
+                            + s.target.r2 * s.target.E * hill(s.target.C2_ss, s.target.C2_50)
+                        )
+                        / (
+                            1
+                            + s.target.sigma
+                            * free_receptor(s)
+                            * s.target.sigma_l
+                            * (s.target.E + s.target.c_l * s.target.A)
+                            / s.target.psi_pp
+                        ),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'effector_death',
@@ -1586,11 +1617,10 @@ class AntiPD1CheckpointSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r3 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r3 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             ReactionInteraction(
                 'kill',
@@ -1614,7 +1644,7 @@ class AntiPD1CheckpointSystem(BaseSystem):
                 propensity=lambda s: s.target.du2 * s.target.UAP,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class DelayedDCVaccineSystem(BaseSystem):
@@ -1661,6 +1691,12 @@ class DelayedDCVaccineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DelayedDCVaccineSystem
         >>> DelayedDCVaccineSystem(tau2=0.5).prepare().system_.elements[0].tau2
@@ -1672,7 +1708,6 @@ class DelayedDCVaccineSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Qomlaqi et al. 2017')
     until = 30.0
     dt = 0.1
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1686,8 +1721,10 @@ class DelayedDCVaccineSystem(BaseSystem):
         tau2: float = 0.45,
         tau3: float = 0.47,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.dose = dose
         self.period = period
         self.width = width
@@ -1697,8 +1734,14 @@ class DelayedDCVaccineSystem(BaseSystem):
         self.tau2 = tau2
         self.tau3 = tau3
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour and eight innate and adaptive immune populations."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour and eight innate and adaptive immune populations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = DelayedVaccinatedTumourElement(
             'site',
             dose=self.dose,
@@ -1711,11 +1754,10 @@ class DelayedDCVaccineSystem(BaseSystem):
             tau3=self.tau3,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * log(s.target.b / s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * log(s.target.b / s.target.A))],
             ),
             ReactionInteraction(
                 'cytotoxic_kill',
@@ -1741,14 +1783,18 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'ENK': 1},
                 propensity=lambda s: s.target.d1 * s.target.ENK,
             ),
-            RateInteraction(
+            Interaction(
                 'nk_proliferation',
-                target='site',
-                state='ENK',
-                rate=lambda s: s.target.rho1
-                * delayed(s.target.ENK, s.target.tau1)
-                * delayed(s.target.C, s.target.tau1)
-                / (s.target.g2 + delayed(s.target.C, s.target.tau1)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ENK,
+                        s.target.rho1
+                        * s.target.ENK(t=s.t - s.target.tau1)
+                        * s.target.C(t=s.t - s.target.tau1)
+                        / (s.target.g2 + s.target.C(t=s.t - s.target.tau1)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'nk_suppression',
@@ -1779,32 +1825,44 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d3 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'primed_expansion',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.rho3
-                * delayed(s.target.ENC, 7 * s.target.tau2, 7 * self.tau2)
-                * delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)
-                / (s.target.g3 + delayed(s.target.ED, 7 * s.target.tau2, 7 * self.tau2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.rho3
+                        * s.target.ENC(t=s.t - 7 * s.target.tau2)
+                        * s.target.ED(t=s.t - 7 * s.target.tau2)
+                        / (s.target.g3 + s.target.ED(t=s.t - 7 * s.target.tau2)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'dendritic_expansion',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.m1
-                * delayed(s.target.ED, s.target.tau2)
-                * delayed(s.target.E, s.target.tau2)
-                / (s.target.g3 + delayed(s.target.ED, s.target.tau2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.m1
+                        * s.target.ED(t=s.t - s.target.tau2)
+                        * s.target.E(t=s.t - s.target.tau2)
+                        / (s.target.g3 + s.target.ED(t=s.t - s.target.tau2)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'il2_expansion',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.rho4
-                * delayed(s.target.E, s.target.tau2)
-                * delayed(s.target.C, s.target.tau2) ** 2
-                / (s.target.g4 + delayed(s.target.C, s.target.tau2) ** 2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.rho4
+                        * s.target.E(t=s.t - s.target.tau2)
+                        * s.target.C(t=s.t - s.target.tau2) ** 2
+                        / (s.target.g4 + s.target.C(t=s.t - s.target.tau2) ** 2),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'cytotoxic_suppression',
@@ -1844,11 +1902,12 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'C': 1},
                 propensity=lambda s: s.target.d5 * s.target.C,
             ),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_secretion',
-                target='site',
-                state='C',
-                rate=lambda s: s.target.rho5 * s.target.E**2 * s.target.C / (s.target.g6 + s.target.E**2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(s.target.C, s.target.rho5 * s.target.E**2 * s.target.C / (s.target.g6 + s.target.E**2)),
+                ],
             ),
             MichaelisMentenInteraction(
                 'helper_secretion',
@@ -1866,23 +1925,31 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'ER': 1},
                 propensity=lambda s: s.target.d6 * s.target.ER,
             ),
-            RateInteraction(
+            Interaction(
                 'antigen_expansion',
-                target='site',
-                state='ER',
-                rate=lambda s: s.target.rho7
-                * delayed(s.target.ER, s.target.tau3)
-                * delayed(s.target.A, s.target.tau3) ** 2
-                / (s.target.g8 + delayed(s.target.A, s.target.tau3) ** 2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ER,
+                        s.target.rho7
+                        * s.target.ER(t=s.t - s.target.tau3)
+                        * s.target.A(t=s.t - s.target.tau3) ** 2
+                        / (s.target.g8 + s.target.A(t=s.t - s.target.tau3) ** 2),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'il2_regulatory_expansion',
-                target='site',
-                state='ER',
-                rate=lambda s: s.target.rho8
-                * delayed(s.target.ER, s.target.tau3)
-                * delayed(s.target.C, s.target.tau3)
-                / (s.target.g9 + delayed(s.target.C, s.target.tau3)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ER,
+                        s.target.rho8
+                        * s.target.ER(t=s.t - s.target.tau3)
+                        * s.target.C(t=s.t - s.target.tau3)
+                        / (s.target.g9 + s.target.C(t=s.t - s.target.tau3)),
+                    ),
+                ],
             ),
             DosingInteraction('naive_helper_influx', target='site', state='ENH', dose=lambda s: s.target.s5),
             ReactionInteraction(
@@ -1906,14 +1973,18 @@ class DelayedDCVaccineSystem(BaseSystem):
                 reactants={'E1H': 1},
                 propensity=lambda s: s.target.d8 * s.target.E1H,
             ),
-            RateInteraction(
+            Interaction(
                 'primed_helper_expansion',
-                target='site',
-                state='E1H',
-                rate=lambda s: s.target.m2
-                * delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)
-                * delayed(s.target.ENH, 2 * s.target.tau3, 2 * self.tau3)
-                / (s.target.g3 + delayed(s.target.ED, 2 * s.target.tau3, 2 * self.tau3)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E1H,
+                        s.target.m2
+                        * s.target.ED(t=s.t - 2 * s.target.tau3)
+                        * s.target.ENH(t=s.t - 2 * s.target.tau3)
+                        / (s.target.g3 + s.target.ED(t=s.t - 2 * s.target.tau3)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'helper_suppression',
@@ -1922,17 +1993,21 @@ class DelayedDCVaccineSystem(BaseSystem):
                 modifiers={'ER': 1},
                 propensity=lambda s: s.target.psi3 * s.target.ER * s.target.E1H,
             ),
-            RateInteraction(
+            Interaction(
                 'helper_expansion',
-                target='site',
-                state='E1H',
-                rate=lambda s: s.target.rho10
-                * delayed(s.target.ED, s.target.tau3)
-                * delayed(s.target.E, s.target.tau3)
-                / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E1H,
+                        s.target.rho10
+                        * s.target.ED(t=s.t - s.target.tau3)
+                        * s.target.E(t=s.t - s.target.tau3)
+                        / (s.target.g3 + s.target.ED(t=s.t - s.target.tau3)),
+                    ),
+                ],
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)
 
 
 class TumourImmuneSuppressionSystem(BaseSystem):
@@ -1973,6 +2048,12 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TumourImmuneSuppressionSystem
         >>> TumourImmuneSuppressionSystem(alpha_a=1.0).prepare().system_.elements[0].alpha_a
@@ -1984,7 +2065,6 @@ class TumourImmuneSuppressionSystem(BaseSystem):
     references = (BOOK_REFERENCE, 'Robertson-Tessi, El-Kareh, and Goriely 2012')
     until = 200.0
     dt = 0.5
-    solver = STIFF_SOLVER
 
     def __init__(
         self,
@@ -1996,8 +2076,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         EMH: float = 1e4,
         EMR: float = 1e4,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.alpha_a = alpha_a
         self.r1 = r1
         self.r2 = r2
@@ -2005,8 +2087,14 @@ class TumourImmuneSuppressionSystem(BaseSystem):
         self.EMH = EMH
         self.EMR = EMR
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour against dendritic."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour against dendritic.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = SuppressedTumourElement(
             'site',
             alpha_a=self.alpha_a,
@@ -2033,13 +2121,20 @@ class TumourImmuneSuppressionSystem(BaseSystem):
             return factor
 
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.A
-                / ((1 / s.target.r1) ** s.target.p + (s.target.A ** (1 - s.target.n) / s.target.r2) ** s.target.p)
-                ** (1 / s.target.p),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.A,
+                        s.target.A
+                        / (
+                            (1 / s.target.r1) ** s.target.p
+                            + (s.target.A ** (1 - s.target.n) / s.target.r2) ** s.target.p
+                        )
+                        ** (1 / s.target.p),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'kill',
@@ -2052,13 +2147,17 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 / (s.target.E + accessible(s) / s.target.g1 + s.target.ER / s.target.g2)
                 / (1 + s.target.C3 / s.target.C3_50),
             ),
-            RateInteraction(
+            Interaction(
                 'antigen_uptake',
-                target='site',
-                state='EUD',
-                rate=lambda s: s.target.alpha_a
-                * accessible(s)
-                / ((1 + s.target.C2 / s.target.C2_50) * (1 + s.target.ER / s.target.ER_50)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EUD,
+                        s.target.alpha_a
+                        * accessible(s)
+                        / ((1 + s.target.C2 / s.target.C2_50) * (1 + s.target.ER / s.target.ER_50)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'licensing',
@@ -2079,14 +2178,18 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'ED': 1},
                 propensity=lambda s: s.target.d2 * s.target.ED,
             ),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_priming',
-                target='site',
-                state='EPC',
-                rate=lambda s: s.target.a2
-                * s.target.EMC
-                * s.target.ED
-                / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EPC,
+                        s.target.a2
+                        * s.target.EMC
+                        * s.target.ED
+                        / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'cytotoxic_precursor_death',
@@ -2094,11 +2197,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EPC': 1},
                 propensity=lambda s: s.target.d3 * s.target.EPC,
             ),
-            RateInteraction(
+            Interaction(
                 'cytotoxic_maturation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.a3 * s.target.EPC * maturation(s),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a3 * s.target.EPC * maturation(s))],
             ),
             ReactionInteraction(
                 'cytotoxic_death',
@@ -2106,14 +2208,18 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d4 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'helper_priming',
-                target='site',
-                state='EPH',
-                rate=lambda s: s.target.a4
-                * s.target.EMH
-                * (s.target.ED + s.target.EUD)
-                / (s.target.ED + s.target.EUD + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EPH,
+                        s.target.a4
+                        * s.target.EMH
+                        * (s.target.ED + s.target.EUD)
+                        / (s.target.ED + s.target.EUD + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'helper_precursor_death',
@@ -2121,11 +2227,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EPH': 1},
                 propensity=lambda s: s.target.d5 * s.target.EPH,
             ),
-            RateInteraction(
+            Interaction(
                 'helper_maturation',
-                target='site',
-                state='EH',
-                rate=lambda s: s.target.a5 * s.target.EPH * maturation(s),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.EH, s.target.a5 * s.target.EPH * maturation(s))],
             ),
             ReactionInteraction(
                 'conversion',
@@ -2141,14 +2246,18 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EH': 1},
                 propensity=lambda s: s.target.d6 * s.target.EH,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_priming',
-                target='site',
-                state='EPR',
-                rate=lambda s: s.target.a7
-                * s.target.EMR
-                * s.target.ED
-                / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.EPR,
+                        s.target.a7
+                        * s.target.EMR
+                        * s.target.ED
+                        / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'regulatory_precursor_death',
@@ -2156,11 +2265,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'EPR': 1},
                 propensity=lambda s: s.target.d7 * s.target.EPR,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_maturation',
-                target='site',
-                state='ER',
-                rate=lambda s: s.target.a8 * s.target.EPR * hill(s.target.C1, s.target.EC1_50),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.ER, s.target.a8 * s.target.EPR * hill(s.target.C1, s.target.EC1_50))],
             ),
             ReactionInteraction(
                 'regulatory_death',
@@ -2168,13 +2276,17 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'ER': 1},
                 propensity=lambda s: s.target.d8 * s.target.ER,
             ),
-            RateInteraction(
+            Interaction(
                 'il2_secretion',
-                target='site',
-                state='C1',
-                rate=lambda s: s.target.a9
-                * s.target.EPH
-                / ((1 + s.target.C3 / s.target.CC3_50) * (1 + s.target.C2 / s.target.CC2_50)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.C1,
+                        s.target.a9
+                        * s.target.EPH
+                        / ((1 + s.target.C3 / s.target.CC3_50) * (1 + s.target.C2 / s.target.CC2_50)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'il2_loss',
@@ -2182,17 +2294,15 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'C1': 1},
                 propensity=lambda s: s.target.C1 / s.target.tau1,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_il10',
-                target='site',
-                state='C2',
-                rate=lambda s: s.target.r3 * s.target.ER,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C2, s.target.r3 * s.target.ER)],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_il10',
-                target='site',
-                state='C2',
-                rate=lambda s: s.target.r4 * s.target.A,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C2, s.target.r4 * s.target.A)],
             ),
             ReactionInteraction(
                 'il10_loss',
@@ -2200,17 +2310,15 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 reactants={'C2': 1},
                 propensity=lambda s: s.target.C2 / s.target.tau2,
             ),
-            RateInteraction(
+            Interaction(
                 'regulatory_tgf_beta',
-                target='site',
-                state='C3',
-                rate=lambda s: s.target.r5 * s.target.ER,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C3, s.target.r5 * s.target.ER)],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_tgf_beta',
-                target='site',
-                state='C3',
-                rate=lambda s: s.target.r6 * s.target.A,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.C3, s.target.r6 * s.target.A)],
             ),
             ReactionInteraction(
                 'tgf_beta_loss',
@@ -2219,4 +2327,4 @@ class TumourImmuneSuppressionSystem(BaseSystem):
                 propensity=lambda s: s.target.C3 / s.target.tau3,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions, solver=STIFF_SOLVER)

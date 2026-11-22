@@ -6,21 +6,25 @@ They assemble watches with and without stable subassemblies.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class WatchmakerView(AgentView):
+class WatchmakerView(AgentViewProtocol, Protocol):
     """View of a watchmaker of the Hora and Tempus fable.
 
     Its states and parameters are attributes.
@@ -42,9 +46,6 @@ class WatchmakerElement(Element):
         label:
             The label of the watchmaker or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         progress:
             The number of actions done on the task in hand, which an interruption undoes.
 
@@ -60,6 +61,9 @@ class WatchmakerElement(Element):
         tasks:
             The number of tasks of a watch.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import WatchmakerElement
         >>> WatchmakerElement('tempus', task_size=1000.0, tasks=1.0).task_size
@@ -69,28 +73,20 @@ class WatchmakerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        progress: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        done: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        watches: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        task_size: Annotated[float, StateSpec(domain=NN)] = 10.0,
-        tasks: Annotated[float, StateSpec(domain=NN)] = 111.0,
+        progress: Annotated[object, NN] = 0.0,
+        done: Annotated[object, NN] = 0.0,
+        watches: Annotated[object, NN] = 0.0,
+        task_size: Annotated[object, NN] = 10.0,
+        tasks: Annotated[object, NN] = 111.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.progress = progress
         self.done = done
         self.watches = watches
         self.task_size = task_size
         self.tasks = tasks
-
-    @classmethod
-    def _get_view(cls) -> type[WatchmakerView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return WatchmakerView
 
 
 class AssemblyInteraction(Interaction):
@@ -116,31 +112,28 @@ class AssemblyInteraction(Interaction):
         0.01
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        interruption: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
+        target: Role,
+        interruption: Annotated[float, RealSet.closed(0, 1)] = 0.01,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.interruption = interruption
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the assembly rule.
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the assembly rule.
 
         Args:
             s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.assemble)]
+        super()._prepare(s)
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.assemble)]
 
     def assemble(self, system: SystemView) -> None:
         """Take one action of every watchmaker.
@@ -151,7 +144,7 @@ class AssemblyInteraction(Interaction):
             system:
                 The system.
         """
-        for watchmaker in system.get_agents(self.target, WatchmakerView):
+        for watchmaker in cast(list[WatchmakerView], system.get_agents(self.target)):
             if system.rng.random() < self.interruption:
                 watchmaker.progress = 0.0
                 continue
@@ -192,9 +185,15 @@ class WatchmakersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import WatchmakersSystem
-        >>> WatchmakersSystem().prepare().system_.elements[0].prepare().size_
+        >>> WatchmakersSystem().prepare().system_.elements[0].size
         2
     """
 
@@ -210,22 +209,25 @@ class WatchmakersSystem(BaseSystem):
         subassembly: int = 10,
         interruption: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.parts = parts
         self.subassembly = subassembly
         self.interruption = interruption
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the elements and interactions of the system."""
+        super()._prepare(context)
         hora_tasks = (self.parts - 1) // (self.subassembly - 1)
-        group = GroupElement(
+        group = WatchmakerElement(
             'watchmakers',
-            element=WatchmakerElement,
+            task_size=[float(self.subassembly), float(self.parts)],
+            tasks=[float(hora_tasks), 1.0],
             size=2,
-            values={'task_size': [float(self.subassembly), float(self.parts)], 'tasks': [float(hora_tasks), 1.0]},
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[group],
             interactions=[AssemblyInteraction('assembly', target='watchmakers', interruption=self.interruption)],

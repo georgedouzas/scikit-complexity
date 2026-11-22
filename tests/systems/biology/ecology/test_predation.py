@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.ecology import (
     LotkaVolterraWithHarvestingSystem,
@@ -25,7 +24,7 @@ def test_rosenzweig_macarthur_tips_only_at_fast_rates():
 
 def test_rosenzweig_macarthur_prey_return_after_a_deep_collapse():
     """Test that the registered run follows the prey through a collapse far below any absolute tolerance and back."""
-    trajectory = simulate(RosenzweigMacarthurSystem())
+    trajectory = RosenzweigMacarthurSystem().prepare().simulate()
     reference = _run_until(
         RosenzweigMacarthurSystem(),
         RosenzweigMacarthurSystem.until,

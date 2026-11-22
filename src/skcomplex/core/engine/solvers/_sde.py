@@ -8,7 +8,8 @@ from abc import abstractmethod
 
 import numpy as np
 
-from ...types import Array, FormKind
+from ...enums import FormKind
+from ...types import Array
 from ..types import Interpolant
 from ._base import BaseSolver
 from ._history import History
@@ -16,10 +17,14 @@ from ._solver import Solver
 
 
 class SDESolver(Solver):
-    """An abstract solver of fixed-step schemes of stochastic differential equations.
+    """An abstract solver of stochastic differential equations with a fixed step.
 
-    They take one increment per step. Subclasses set `supports` and implement `_increment`. The steps stop at
-    breakpoints, read delays by linear interpolation of the steps, and locate events in them.
+    Each step of length `dt` adds the drift and one random increment of the noise, such as the daily shocks of a stock
+    price. The steps stop at breakpoints, read delays by straight lines between steps, and find events within them. A
+    subclass sets `supports` and writes the private method `_increment`. It is the base of the solvers of stock prices,
+    diffusing particles, and noisy genes.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -30,6 +35,16 @@ class SDESolver(Solver):
 
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
+    See Also:
+        EulerMaruyamaSolver: The default solver of noise in continuous time.
+        HeunSolver: Averages the drift over each step.
+        MilsteinSolver: Corrects noise whose size depends on the state.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import HeunSolver, SDESolver
+        >>> isinstance(HeunSolver(dt=0.01), SDESolver)
+        True
     """
 
     @classmethod

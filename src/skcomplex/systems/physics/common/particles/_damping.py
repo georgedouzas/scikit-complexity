@@ -12,66 +12,65 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import RateInteraction
-from .....core.specs import ParameterSpec, RoleSpec
-from ._utils import velocity_of
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
+from .....core.types import Role
 
 
-class DampingInteraction(RateInteraction):
-    """Linear damping, a force `-gamma * v` opposite to the velocity `v` of a target.
+class DampingInteraction(Interaction):
+    """Linear damping, a force `-gamma x'` against the velocity `x'` of a particle of mass `m`.
 
-    The force is proportional to the velocity.
-
-    The velocity is the first derivative of the position, a state of order 2, whose second derivative changes by
-    `-gamma * v / m` with the mass as divisor. The LAMMPS backend runs it as `fix viscous`.
+    The position follows `x'' = -gamma x' / m`, component by component for a vector. It is the viscous drag on a bead
+    in water, the friction of a sliding block, or the loss of a damped spring. The LAMMPS solver runs it as
+    `fix viscous`.
 
     Args:
         label:
             The label of the interaction.
 
         target:
-            The path of the element or group whose velocity is damped.
+            The path of the particle or the group of particles.
 
         gamma:
             The damping coefficient.
 
         state:
-            The name of the state of order 2 that holds the position of the target.
+            The name of the position of the target.
 
-        divisor:
-            The name of the state or parameter that holds the mass of the target.
 
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.particles import DampingInteraction
-        >>> target = SimpleNamespace(x=var('x'), m=2)
-        >>> damping = DampingInteraction('air', target='ball', gamma=0.1).prepare()
-        >>> [law.value for law in damping.run(SimpleNamespace(target=target, gamma=var('gamma'))).laws_]
-        [-1/2*gamma*derivative(x, 1)]
+        >>> ball = Element('ball', values={'x': 0.0, "x'": 1.0, 'm': 1.0})
+        >>> system = System(elements=[ball], interactions=[DampingInteraction('air', target='ball', gamma=0.5)])
+        >>> round(float(system.prepare().simulate(until=2.0, dt=1.0).get_values("ball.x'")[-1]), 3)
+        0.368
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         state: str = 'x',
-        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=target, state=state, divisor=divisor)
+        super().__init__(label)
+        self.target = target
         self.gamma = gamma
+        self.state = state
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the drag `-gamma * v`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the position of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The drag, before the division by the mass.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return -namespace.gamma * velocity_of(getattr(namespace.target, self.state))
+        super()._prepare(context)
+        t, target = context.t, context.target
+        x = getattr(target, self.state)
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.gamma * x.diff(t) / target.m)]

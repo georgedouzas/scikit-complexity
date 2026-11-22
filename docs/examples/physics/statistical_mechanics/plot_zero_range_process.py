@@ -18,15 +18,14 @@ import numpy as np
 from scipy.special import gammaln
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import ZeroRangeProcessSystem
 
 SYSTEM = 'zero_range_process'
 
-system = ZeroRangeProcessSystem(n_sites=50, density=3.0, b=4.0)
+system = ZeroRangeProcessSystem(n_sites=50, density=3.0, b=4.0, backend=NumbaBackend())
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=3000, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend())
+trajectory = system.prepare().simulate(until=3000, dt=12.0, observers=[observer], random_state=0)
 
 # %%
 # Condensate and fluid

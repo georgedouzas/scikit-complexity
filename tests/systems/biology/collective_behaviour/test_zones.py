@@ -1,49 +1,30 @@
 """Test the `_zones` module of `skcomplex.systems.biology.collective_behaviour`."""
 
 import math
-from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import ClampSpec, RadiusSpec, ZoneCouplingInteraction
-
-
-class HeadingElement(Element):
-    """Agent with a velocity of two components and no rules of its own."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        vx: Annotated[object, StateSpec()] = 0.0,
-        vy: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.vx = vx
-        self.vy = vy
 
 
 def _velocities(locations, velocities, **arguments):
     """Return the velocities of agents after one step of an agent coupling over radii."""
-    agents = GroupElement(
-        'agents',
-        element=HeadingElement,
-        size=len(locations),
-        values={'vx': [item[0] for item in velocities], 'vy': [item[1] for item in velocities]},
-        location=locations,
-    )
-    coupling = ZoneCouplingInteraction('coupling', target='agents', write=('vx', 'vy'), **arguments)
     space = ContinuousSpace(extent=(10.0, 10.0))
-    system = CompositeSystem(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
-    snapshot = simulate(system, until=1, random_state=0).get_agents('agents', 1)
+    values = {
+        'x': np.array([item[0] for item in locations]),
+        'y': np.array([item[1] for item in locations]),
+        'vx': np.array([item[0] for item in velocities], dtype=float),
+        'vy': np.array([item[1] for item in velocities], dtype=float),
+    }
+    agents = Element('agents', values=values, size=len(locations), space=space)
+    coupling = ZoneCouplingInteraction('coupling', target='agents', write=('vx', 'vy'), **arguments)
+    system = System(elements=[agents], interactions=[coupling], space=space)
+    snapshot = system.prepare().simulate(until=1, random_state=0).get_agents('agents', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 
@@ -96,3 +77,15 @@ def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
     """Test that a radius or a clamp with an invalid setting raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
         spec._check()
+
+
+def test_coupling_agents_writes_primed_values():
+    """Test that the agent coupling writes the velocities `x'` and `y'` named with a prime."""
+    space = ContinuousSpace(extent=(10.0, 10.0))
+    values = {'x': np.array([1.0, 1.5]), 'y': np.array([1.0, 1.0]), "x'": np.zeros(2), "y'": np.zeros(2)}
+    agents = Element('agents', values=values, size=2, space=space)
+    radii = (RadiusSpec(1.0, lambda agent, other, system: (1.0, -1.0)),)
+    coupling = ZoneCouplingInteraction('coupling', target='agents', write=("x'", "y'"), radii=radii)
+    system = System(elements=[agents], interactions=[coupling], space=space)
+    snapshot = system.prepare().simulate(until=1, random_state=0).get_agents('agents', 1)
+    np.testing.assert_allclose(np.stack([snapshot.values["x'"], snapshot.values["y'"]], axis=1), [[1.0, -1.0]] * 2)

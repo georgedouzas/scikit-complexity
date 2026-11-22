@@ -6,48 +6,42 @@ per site.
 
 ## A field on a lattice
 
-This section spreads heat from a hot spot along a rod. A
-[`FieldElement`](../core_components/elements.md#fieldelement) places one member of an element class on every site of
-a space and gives the members their initial values. Here the class `HeatElement` returns a
-[`RateLaw`](../core_components/laws.md#ratelaw) whose rate is `D` times the Laplacian of the temperature `u`, the
-heat equation. The rod is a [`LatticeSpace`](../core_components/spaces.md#latticespace) of 400 sites, 0.05 apart, with
-insulated ends, and it starts at zero except for 20 units of heat at its middle site.
+This section spreads heat from a hot spot along a rod. An [`Element`](../core_components/elements.md#element) with
+`space=` places one member on every site of a space, and its values hold one entry per site. The space says how the
+field becomes numbers: its discretization, the edge of each state, and the symmetry of each state. Here the rod is a
+[`LatticeSpace`](../core_components/spaces.md#latticespace) of 400 sites, 0.05 apart, whose temperature `u` has insulated
+ends, `boundary={'u': 'zero-flux'}`. It starts at zero except for 20 units of heat at its middle site, and the
+interaction `Conduction` gives the temperature the rate `D` times its Laplacian, the heat equation.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class HeatElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec()] = 1.0,
-    ):
+class Conduction(Interaction):
+    def __init__(self, label, *, target: Role = 'rod', D=1.0):
         super().__init__(label)
-        self.u = u
+        self.target = target
         self.D = D
 
-    def _get_laws(self, s):
-        return [RateLaw(s.u, s.D * laplacian(s.u))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        u = s.target.u
+        self.laws_ = [RateLaw(u.diff(s.t), s.D * laplacian(u))]
 
 
 initial = np.zeros(400)
 initial[200] = 20.0
-space = LatticeSpace(400, spacing=0.05)
-rod = FieldElement('rod', element=HeatElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = simulate(CompositeSystem(elements=[rod]), until=0.5, dt=0.1)
+space = LatticeSpace(400, spacing=0.05, boundary={'u': 'zero-flux'})
+rod = Element('rod', values={'u': initial}, space=space)
+trajectory = System(elements=[rod], interactions=[Conduction('conduction')]).prepare().simulate(until=0.5, dt=0.1)
 heat = trajectory.get_values('rod.u')
 round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist()
 ```
@@ -55,7 +49,7 @@ round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist()
 The peak falls from 20 to 0.399 after half a unit of time, and the total heat stays at 20.0, because no heat leaves
 through insulated ends.
 
-The laws of the class are written for one site and read the neighbouring sites through differential operators of
+The laws are written for one site and read the neighbouring sites through differential operators of
 `skcomplex.core.components.laws.utils`. The method of lines turns the field into one ordinary differential equation per
 site, so every ODE [solver](../glossary.md#solver) and every backend runs it.
 
@@ -65,11 +59,18 @@ site, so every ODE [solver](../glossary.md#solver) and every backend runs it.
   differences.
 - An operator applies to any expression of the states and parameters of the field, and operators nest.
 
-The argument `boundary` sets the edges of each state, as `'periodic'`, `'zero-flux'`, or `('fixed', value)`. Zero flux
-mirrors the field at the edge and conserves its total, as the run above shows. A fixed edge reads the given value. A
-state without an entry takes the `boundary` of the lattice. The equations keep the operators, such as
-`diff(u(t), t) == D*laplacian(u(t))`, and the backends evaluate the stencils. On Numba, the stencils of a lattice fuse
-into one compiled loop.
+The `boundary` of a lattice is either one edge for every state, `'periodic'`, `'fixed'`, or `'reflecting'`, or the
+edge of each state by name, such as `boundary={'T': ('fixed', 0.0), 'c': 'zero-flux'}`.
+
+- `'periodic'` joins opposite edges, as on a ring or a torus.
+- `'zero-flux'` mirrors the field at the edge and conserves its total, as the run above shows.
+- `('fixed', value)` holds the edge at a value, so a rod whose ends are held at 0 loses its heat through them.
+- A state the mapping does not name joins periodically.
+
+The equations keep the operators. The `equations_` of the prepared system read
+`{'rod.u[i]': 'conduction.D*laplacian(rod.u[i])'}`, one equation for every site `i`, and the backends evaluate the
+stencils.
+On Numba, the stencils of a lattice fuse into one compiled loop.
 
 Explicit steps stay stable only below the diffusive limit `h^2 / (2 d D)`, where `h` is the spacing. A trajectory
 holds this limit as `trajectory.problem.stable_step`, and a solver of fixed step whose `dt` exceeds it warns before the
@@ -87,61 +88,63 @@ as `from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem`.
 
 This section runs the same laws on another discretization and takes long steps through stiff equations. The
 Kuramoto-Sivashinsky equation `u_t = -u u_x - u_xx - u_xxxx` grows waves at long wavelengths and damps them at short
-ones, and its fourth derivative makes it stiff. Below it runs spectrally on a periodic line of 128 sites, and
-`ETDRK4Solver` steps it by 0.25, far beyond the explicit limit.
+ones, and its fourth derivative makes it stiff. Below it runs spectrally on a periodic line of 128 sites,
+`LatticeSpace(128, discretization='spectral')`, and `ETDRK4Solver` steps it by 0.25, far beyond the explicit limit.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import divergence, laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class ChaosElement(Element):
-    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+class Front(Interaction):
+    def __init__(self, label, *, target: Role = 'line'):
         super().__init__(label)
-        self.u = u
+        self.target = target
 
-    def _get_laws(self, s):
-        return [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        u = s.target.u
+        self.laws_ = [RateLaw(u.diff(s.t), -divergence([u**2 / 2]) - laplacian(u) - laplacian(laplacian(u)))]
 
 
 positions = np.arange(1, 129) * 32 * np.pi / 128
-line = FieldElement(
-    'line',
-    element=ChaosElement,
-    space=LatticeSpace(128, spacing=32 * np.pi / 128),
-    values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
-    discretization='spectral',
-)
-trajectory = simulate(CompositeSystem(elements=[line]), until=100, dt=10, solver=ETDRK4Solver(dt=0.25))
+space = LatticeSpace(128, spacing=32 * np.pi / 128, discretization='spectral')
+line = Element('line', values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}, space=space)
+system = System(elements=[line], interactions=[Front('front')], solver=ETDRK4Solver(dt=0.25))
+trajectory = system.prepare().simulate(until=100, dt=10)
 round(float(np.abs(trajectory.get_values('line.u')[-1]).max()), 1)
 ```
 
 After 100 units of time the largest amplitude of the chaotic field is 2.4.
 
-The argument `discretization` of `FieldElement` chooses how space is discretized.
+The argument `discretization` of `LatticeSpace` chooses how space is discretized, and every field on the lattice
+follows it.
 
+- `'finite-difference'`, the default, uses the stencils above.
 - `'spectral'` fields on periodic lattices multiply Fourier modes, and the two-thirds rule removes aliasing from every
-  operator, so `laplacian(u)` is exact for smooth fields. `inverse_helmholtz(u)` solves Poisson equations.
-  `symmetry={'u': (None, 'odd')}` keeps a state odd or even along an axis, which represents walls on a doubled lattice.
-  `LatticeSpace(spacing=(dx, dy))` sets a spacing per axis.
-- `'finite-volume'` fields take a [`FluxLaw`](../core_components/laws.md#fluxlaw) per state, the conservation law
-  `du/dt + divergence(flux) = 0`. They update with MUSCL reconstruction, minmod or van Leer limiters, and Rusanov or
-  exact Godunov fluxes. `SSPRKSolver` steps them by the CFL condition and by the stability limit of their Laplacian
-  rates at the current parameters, and it conserves their totals.
-- `'finite-element'` fields live on a [`MeshSpace`](../core_components/spaces.md#meshspace) of the points and cells of
-  a scikit-fem mesh, such as `MeshSpace(grid.p, grid.t)` for `grid = skfem.MeshTri.init_lshaped().refined(3)`. Their
-  stiffness and mass matrices come from scikit-fem, and their boundary values can be functions of the coordinates. They
-  stream to Rerun as colored meshes.
+  operator, so `laplacian(u)` is exact for smooth fields. `inverse_helmholtz(u)` solves Poisson equations. The lattice
+  argument `symmetry={'u': (None, 'odd')}` keeps a state odd or even along an axis, which represents walls on a doubled
+  lattice, as `RayleighBenardSystem` does. `LatticeSpace(spacing=(dx, dy))` sets a spacing per axis.
+- `'finite-volume'` fields read a rate `RateLaw(u, -divergence(flux))` of a state as the conservation law
+  `du/dt + divergence(flux) = 0`, and its other terms as sources. They update with MUSCL reconstruction, minmod or van
+  Leer limiters, and Rusanov or exact Godunov fluxes, which the lattice argument `scheme`, a `FiniteVolumeSpec`, chooses,
+  such as `LatticeSpace(200, discretization='finite-volume', scheme=FiniteVolumeSpec(riemann='godunov'))`.
+  `SSPRKSolver` steps them by the CFL condition and by the stability limit of their Laplacian rates at the current
+  parameters, and it conserves their totals. A [`PhaseSpace`](../core_components/spaces.md#phasespace) takes the
+  discretization of its position lattice.
+- Finite-element fields live on a [`CellComplexSpace`](../core_components/spaces.md#cellcomplexspace) of the points and
+  cells of a scikit-fem mesh, such as `CellComplexSpace(points=grid.p, cells=grid.t, boundary={'u': ('fixed', 0.0)})`
+  for `grid = skfem.MeshTri.init_lshaped().refined(3)`. Their stiffness and mass matrices come from scikit-fem, and
+  their fixed values can be functions of the coordinates, as `HeatLShapeSystem` shows. A state without an edge of its
+  own has zero flux through the edge of the mesh. They stream to Rerun as colored meshes.
 
 A stiff equation has rates that decay on very different time scales, so explicit steps must follow the fastest one.
 Implicit and exponential steps do not. The compiler splits the rate of every field into a linear part with constant
@@ -157,11 +160,10 @@ the split steppers of fixed step, they control the error and adapt the step. Bel
 a spreading population on 400 sites.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 
-stiff = simulate(FisherKPPSystem(length=400, D=1.0, spacing=0.05), until=5, dt=1.0, solver=ScipyODESolver(method='BDF'))
+stiff = FisherKPPSystem(length=400, D=1.0, spacing=0.05).set_params(solver=ScipyODESolver(method='BDF')).prepare().simulate(until=5, dt=1.0)
 pattern = ScipyODESolver(method='BDF').prepare(stiff.problem).jacobian_pattern_
 pattern.nnz, stiff.get_values('line.u')[-1].max().round(3)
 ```
@@ -198,43 +200,28 @@ holds `KuramotoSivashinskySystem`, `ComplexGinzburgLandauSystem`, `SwiftHohenber
 
 This section reads a field beyond the nearest sites. A rate can smooth the field against a kernel, solve for a
 potential, or look ahead by a distance. Each rate below changes a Gaussian bump on a line of 128 sites, through a
-[`RateInteraction`](../core_components/interactions.md#rateinteraction) on the field, and the block returns the total of
-the field after 0.2 units of time.
+one-off [`Interaction`](../core_components/interactions.md#interaction) on the field, and the block returns the total
+of the field after 0.2 units of time.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 from sage.all__sagemath_symbolics import exp, pi, sqrt
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import convolve, displacement, inverse_helmholtz, partial, shifted
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
-
-
-class SiteElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        k: Annotated[float, ParameterSpec()] = 2.0,
-    ):
-        super().__init__(label)
-        self.u = u
-        self.k = k
+from skcomplex.core.systems import System
 
 
 def rate_of(rate):
     centers = np.arange(128) * 0.1
-    values = {'u': np.exp(-((centers - 6.4) ** 2))}
-    line = FieldElement('line', element=SiteElement, space=LatticeSpace(128, spacing=0.1), values=values)
-    interaction = RateInteraction('rate', target='line', state='u', rate=rate)
-    return simulate(CompositeSystem(elements=[line], interactions=[interaction]), until=0.2, dt=0.05).get_values('line.u')
+    values = {'u': np.exp(-((centers - 6.4) ** 2)), 'k': 2.0}
+    line = Element('line', values=values, space=LatticeSpace(128, spacing=0.1))
+    interaction = Interaction('rate', roles={'target': 'line'}, laws=lambda s: [RateLaw(s.target.u, rate(s))])
+    system = System(elements=[line], interactions=[interaction])
+    return system.prepare().simulate(until=0.2, dt=0.05).get_values('line.u')
 
 
 def smoothing(s):
@@ -285,7 +272,7 @@ pattern of the Jacobian marks a convolution as coupling the sites within its rad
 solvers therefore stay correct but slow, and explicit or exponential solvers suit these laws best. An observable may
 use the operators too, which streams a streamfunction as an image.
 
-`simulate` rejects four misuses with a `ValidationError` that names each issue with the path of the law and a fix.
+`prepare` rejects four misuses with a `ValidationError` that names each issue with the path of the law and a fix.
 
 - `law-space` for a convolution or a shifted read on a network or a mesh, and for a spectral operator on a lattice
   without periodic edges.
@@ -295,48 +282,38 @@ use the operators too, which streams a streamfunction as an image.
 
 ## Coupling through a function of both ends
 
-This section couples the sites of a field without an operator. A
-[`CouplingInteraction`](../core_components/interactions.md#couplinginteraction) on a field sums a function of each site
-and one neighbour over the neighbours of every site, and reads a fixed boundary value as `laplacian` does. Here each
-cell of a periodic ring of 32 exchanges a fifth of its difference with each neighbour, starting from one unit at cell
-16.
+This section couples the sites of a field without an operator. `neighbors(expression)` of
+`skcomplex.core.components.laws.utils` sums a function of each site and one neighbour over the neighbours of every
+site, and reads a fixed boundary value as `laplacian` does. In the expression, `s.target.u` is the value of the site
+and `s.target.other.u` that of the neighbour. Here each cell of a periodic ring of 32 exchanges a fifth of its
+difference with each neighbour, starting from one unit at cell 16.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class CellElement(Element):
-    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.u = u
+def exchange_laws(s):
+    u = s.target.u
+    return [RateLaw(u, neighbors(0.2 * (s.target.other.u - u)))]
 
 
-cells = FieldElement('cells', element=CellElement, space=LatticeSpace(32), values={'u': np.eye(32)[16]})
-exchange = CouplingInteraction(
-    'exchange',
-    target='cells',
-    read='u',
-    write='u',
-    function=lambda s: 0.2 * (s.other.u - s.member.u),
-)
-system = CompositeSystem(elements=[cells], interactions=[exchange])
-trajectory = simulate(system, until=2.0, dt=0.5)
+cells = Element('cells', values={'u': np.eye(32)[16]}, space=LatticeSpace(32))
+exchange = Interaction('exchange', roles={'target': 'cells'}, laws=exchange_laws)
+trajectory = System(elements=[cells], interactions=[exchange]).prepare().simulate(until=2.0, dt=0.5)
 trajectory.get_values('cells.u')[-1].sum().round(6)
 ```
 
 The total stays at 1.0 after two units of time, since each exchange moves as much into one cell as out of the other.
 
-A constant times `s.other.u - s.member.u` becomes `laplacian`, so spectral and finite-element fields keep their own
-operator.
+A constant times `s.target.other.u - s.target.u` becomes `laplacian`, so spectral and finite-element fields keep their
+own operator.
 
 The catalog uses these operators in its models. `AmariNeuralFieldSystem` holds a bump of neural activity with a
 convolution, `DoubleGyreSystem` streams the streamfunction of a closed basin, `GktTrafficSystem` brakes on the traffic

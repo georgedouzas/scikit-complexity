@@ -1,39 +1,23 @@
 """Test the `_phase_space_density` module of `skcomplex.systems.physics.common.fields`."""
 
+import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.fields import PhaseSpaceDensityElement
 
 
-def test_phase_space_density_is_a_nonnegative_element_with_the_state_x():
-    """Test that the realization subclasses the core atom and keeps its one state `x` in `[0, oo)`."""
-    element = PhaseSpaceDensityElement('a', x=0.5)
-    assert isinstance(element, NonnegativeElement)
-    assert element.get_params() == {'label': 'a', 'visual': None, 'x': 0.5}
-    assert element.get_states()['x'].domain == RealSet.closed_open(0, oo)
-
-
-def test_phase_space_density_group_has_one_member_per_class():
-    """Test that a group of the realization on a lattice of classes has one member per class."""
-    group = GroupElement(
-        'density',
-        element=PhaseSpaceDensityElement,
-        space=LatticeSpace(4, boundary='fixed'),
-        on='sites',
-        values={'x': 0.25},
-    )
-    assert group.prepare().size_ == 4
+def test_phase_space_density_holds_one_value_per_point_of_its_phase_space():
+    """Test that a density on a phase space of 4 positions and 3 velocities keeps its 12 values without laws."""
+    space = PhaseSpace(LatticeSpace(4, discretization='finite-volume'), [AxisSpec('v', 3, -1.0, 1.0)])
+    density = np.linspace(0.1, 1.2, 12)
+    trajectory = System(elements=[PhaseSpaceDensityElement('gas', x=density, space=space)]).prepare().simulate(1, dt=1)
+    np.testing.assert_allclose(trajectory.get_values('gas.x')[-1], density)
 
 
 def test_phase_space_density_rejects_a_negative_value():
-    """Test that a run rejects a negative value."""
+    """Test that preparing a system rejects a negative density."""
     with pytest.raises(ValidationError):
-        simulate(CompositeSystem(elements=[PhaseSpaceDensityElement('a', x=-1.0)]), until=1, dt=1.0)
+        System(elements=[PhaseSpaceDensityElement('a', x=-1.0)]).prepare()

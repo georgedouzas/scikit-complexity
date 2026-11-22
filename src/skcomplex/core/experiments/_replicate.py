@@ -8,39 +8,35 @@ from collections.abc import Mapping
 
 import numpy as np
 import numpy.typing as npt
+from sklearn.base import clone
 
-from ..components.elements import DeclaredElement, Element, GroupElement
-from ..components.laws import (
-    BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ..components.systems import CompositeSystem
+from ..components._parameter_spec import _ParameterSpec
+from ..components._state_spec import _StateSpec
+from ..components.elements import BaseElement, Element
+from ..components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ..components.laws._boundary import _BoundaryLaw
 from ..engine._utils import declared_variables, probe_laws
-from ..engine.runtime import Trajectory, simulate
+from ..engine.problems import BaseProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
+from ..engine.problems._declared_element import _DeclaredElement
+from ..engine.problems._group_element import _GroupElement
+from ..engine.problems._variable_spec import _VariableSpec
+from ..engine.runtime import Trajectory, run_problem
+from ..enums import VariableKind
 from ..errors import ValidationError
-from ..specs import VariableSpec
-from ..types import VariableKind
+from ..systems import BaseSystem, System
 from ._runs import _check_source
-from ._utils import build_system
-from .types import Source
+from ._utils import build_system, get_problem
+from .types import SystemSource
 
 PLAIN_LAWS = (
     RateLaw,
     NoiseLaw,
     JumpLaw,
     UpdateLaw,
-    BoundaryLaw,
-    CrossingLaw,
-    TransitionLaw,
-    TransferLaw,
-    EquationLaw,
+    _BoundaryLaw,
+    EventLaw,
+    ConstraintLaw,
 )
 
 
@@ -52,7 +48,7 @@ def _has_formalism_laws(element: Element) -> bool:
     return any(not isinstance(law, PLAIN_LAWS) for law in probe_laws(element) or [])
 
 
-def _check_plain(system: CompositeSystem) -> None:
+def _check_plain(system: _CompositeSystem) -> None:
     """Raise an error for a system that is not only plain elements and interactions.
 
     The elements must be plain single elements.
@@ -69,12 +65,13 @@ def _check_plain(system: CompositeSystem) -> None:
     if system.systems or not plain:
         error_msg = (
             f'Only systems of plain single elements and their interactions replicate, but {system.label!r} has child '
-            'systems, groups, fields, or agents. Build the ensemble as a GroupElement with per-member values instead.'
+            'systems, groups, fields, or agents. Build the ensemble as one element with `size=` and per-member values '
+            'instead.'
         )
         raise ValidationError(error_msg)
 
 
-def _is_declared_companion(element: Element, variable: VariableSpec) -> bool:
+def _is_declared_companion(element: Element, variable: _VariableSpec) -> bool:
     """Return whether a variable is a companion of a state declared from data."""
     state = variable.derivative_of or variable.lag_of
     return state is not None and state in element._get_declared()
@@ -98,7 +95,7 @@ def _member_settings(element: Element) -> dict[str, object]:
 
     It takes its values, and the arguments that declare its variables.
     """
-    if isinstance(element, DeclaredElement):
+    if isinstance(element, _DeclaredElement):
         settings = element.get_params(deep=False)
         return {name: value for name, value in settings.items() if name not in {'label', 'visual'}}
     return {name: getattr(element, name) for name in _value_names(element)}
@@ -106,7 +103,7 @@ def _member_settings(element: Element) -> dict[str, object]:
 
 def _member_values(
     values: Mapping[str, npt.ArrayLike],
-    system: CompositeSystem,
+    system: _CompositeSystem,
     size: int,
 ) -> dict[str, dict[str, object]]:
     """Return the per-member values of every element by its label.
@@ -135,7 +132,7 @@ def _member_values(
     names = {element.label: set(_value_names(element)) for element in system.elements}
     for path, value in values.items():
         label, _, name = path.partition('.')
-        if label not in names or name not in names[label]:
+        if label not in names or name.rstrip("'") not in names[label]:
             available = ', '.join(f'{item}.{field}' for item, fields in names.items() for field in sorted(fields))
             error_msg = f'{path} is not a state or parameter of the system. Available paths are: {available}.'
             raise ValidationError(error_msg)
@@ -148,10 +145,10 @@ def _member_values(
 
 
 def _replicate(
-    system: CompositeSystem,
+    system: _CompositeSystem | System,
     size: int,
     values: Mapping[str, npt.ArrayLike] | None = None,
-) -> CompositeSystem:
+) -> _CompositeSystem:
     """Return a system whose single elements become groups of members.
 
     The members are of the same types and labels. Every member starts from the values of its element, except the dotted
@@ -163,7 +160,8 @@ def _replicate(
 
     Args:
         system:
-            The system of single elements and their interactions, without child systems.
+            The system of single elements and their interactions, without child systems. A `System` replicates as
+            `_replicate_prepared` does, into the composite the engine compiles.
 
         size:
             The number of members of every group.
@@ -180,19 +178,20 @@ def _replicate(
             The system has child systems, groups, fields, or agents, a path is not a state or parameter of an element,
             or its values do not have one row per member.
     """
+    if isinstance(system, System):
+        return _replicate_prepared(system, size, values)._get_composite()
     _check_plain(system)
     by_label = _member_values(values or {}, system, size)
     groups = [
-        GroupElement(
+        _GroupElement(
             element.label,
             element=type(element),
             size=size,
             values={**_member_settings(element), **by_label[element.label]},
-            visual=element.visual,
         )
         for element in system.elements
     ]
-    return CompositeSystem(
+    return _CompositeSystem(
         system.label,
         elements=groups,
         interactions=[copy.copy(interaction) for interaction in system.interactions],
@@ -201,14 +200,110 @@ def _replicate(
     )
 
 
+def _declares(element: Element) -> bool:
+    """Return whether an element declares its states and parameters."""
+    specs = type(element)._get_specs().values()
+    return isinstance(element, _DeclaredElement) or any(isinstance(spec, _StateSpec | _ParameterSpec) for spec in specs)
+
+
+def _get_value_names(element: Element) -> set[str]:
+    """Return the names of the values of a single element.
+
+    They are its value arguments and the entries of `values`.
+    """
+    if _declares(element):
+        return set(_value_names(element))
+    return set(element._get_hints()) | set(element.values or {})
+
+
+def _get_members(element: Element, size: int, values: Mapping[str, object]) -> BaseElement:
+    """Return `size` members of a single element.
+
+    The given values hold one value per member. A plain element becomes an element of many members of its class,
+    with the per-member values as its arguments or entries of `values`, so the allowed values and periods of its
+    class still hold. A class that does not take `size`, such as a population of one value, keeps the number of
+    members in the `size` that every element holds. An element that declares its states becomes a group of members
+    of its class.
+    """
+    if _declares(element):
+        settings = {**_member_settings(element), **values}
+        return _GroupElement(element.label, element=type(element), size=size, values=settings)
+    arguments = {name: value for name, value in values.items() if name in element._get_hints()}
+    entries = {name: value for name, value in values.items() if name not in arguments}
+    members = clone(element).set_params(**arguments)
+    members.size = size
+    members.values = {**(element.values or {}), **entries}
+    return members
+
+
+def _replicate_prepared(system: System, size: int, values: Mapping[str, npt.ArrayLike] | None = None) -> System:
+    """Return a system whose single elements become elements of many members.
+
+    It is the replication of `_replicate` for a `System`. Every element takes `size` members, which start from the
+    values of the element, except the dotted paths given in `values`, which take one value per member.
+
+    Args:
+        system:
+            The system of single elements and their interactions, without nested systems.
+
+        size:
+            The number of members of every element.
+
+        values:
+            A mapping from dotted path of a value of an element, or of its starting derivative such as `"ball.x'"`,
+            to its per-member values, one row per member.
+
+    Returns:
+        system:
+            The replicated system, with clones of the interactions of the original.
+
+    Raises:
+        ValidationError:
+            The system has nested systems or elements of many members, a path is not a value of an element, or its
+            values do not have one row per member.
+    """
+    plain = all(
+        isinstance(element, Element) and element.size is None and element.space is None and element.on is None
+        for element in system.elements
+    )
+    if system.systems or not plain:
+        error_msg = (
+            f'Only systems of single elements and their interactions replicate, but {system.label!r} has nested '
+            'systems or elements of many members. Build the ensemble as an element with `size=` instead.'
+        )
+        raise ValidationError(error_msg)
+    names = {element.label: _get_value_names(element) for element in system.elements}
+    by_label: dict[str, dict[str, object]] = {label: {} for label in names}
+    for path, value in (values or {}).items():
+        label, _, name = path.partition('.')
+        if label not in names or name.rstrip("'") not in names[label]:
+            available = ', '.join(f'{item}.{field}' for item, fields in names.items() for field in sorted(fields))
+            error_msg = f'{path} is not a value of an element of the system. Available paths are: {available}.'
+            raise ValidationError(error_msg)
+        array = np.asarray(value)
+        if array.ndim == 0 or array.shape[0] != size:
+            error_msg = f'The values of {path} have shape {array.shape}, but they need one row per member, {size} rows.'
+            raise ValidationError(error_msg)
+        by_label[label][name] = array
+    elements = [_get_members(element, size, by_label[element.label]) for element in system.elements]
+    return System(
+        system.label,
+        elements=elements,
+        interactions=[clone(interaction) for interaction in system.interactions],
+        space=system.space,
+        solver=system.solver,
+        backend=system.backend,
+    )
+
+
 def _run_replicated(
-    source: Source,
+    source: SystemSource,
     values: Mapping[str, npt.ArrayLike],
     until: float | None,
     dt: float | None,
     random_state: int | None,
-) -> tuple[Trajectory, CompositeSystem]:
-    """Return one run of a replicated system, and the composite of the system.
+) -> tuple[Trajectory, BaseProblemSpec]:
+    """Return one run of a replicated system, and the problem of the original.
 
     The system is replicated once per value of every path.
 
@@ -232,21 +327,32 @@ def _run_replicated(
         trajectory:
             The trajectory of the replicated system.
 
-        system:
-            The composite of the original system.
+        problem:
+            The compiled problem of the original system, which reads one member of the trajectory.
 
     Raises:
         ValidationError:
             The system has no tuned end time and none is given.
     """
     system = build_system(_check_source(source), {})
-    settings = system.get_run_settings()
-    composite = system.prepare().system_
-    end = until if until is not None else settings['until']
+    size = len(np.asarray(next(iter(values.values()))))
+    if isinstance(system, BaseSystem):
+        end, step = (system.until if until is None else until), (system.dt if dt is None else dt)
+    else:
+        settings = system.get_run_settings()
+        end, step = (settings['until'] if until is None else until), (settings['dt'] if dt is None else dt)
     if end is None:
         error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
         raise ValidationError(error_msg)
-    size = len(np.asarray(next(iter(values.values()))))
-    replicated = _replicate(composite, size, values)
-    step = dt if dt is not None else settings['dt']
-    return simulate(replicated, until=end, dt=step, random_state=random_state), composite
+    if isinstance(system, BaseSystem):
+        original = system.prepare().system_
+        if not isinstance(original, System):
+            error_msg = f'{type(system).__name__} prepares no System, so it does not replicate.'
+            raise ValidationError(error_msg)
+        replicated = _replicate_prepared(original, size, values)
+        trajectory = replicated.prepare().simulate(end, dt=step, random_state=random_state)
+        return trajectory, get_problem(original)
+    composite = system.prepare().system_
+    replicated_composite = _replicate(composite, size, values)
+    trajectory = run_problem(replicated_composite, None, until=end, dt=step, random_state=random_state)
+    return trajectory, get_problem(composite)

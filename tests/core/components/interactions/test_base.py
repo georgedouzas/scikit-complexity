@@ -1,47 +1,40 @@
 """Test the `_base` module of `skcomplex.core.components.interactions`."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import I, function, oo, sqrt, var
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.components import interactions
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.interactions import (
-    BaseInteraction,
-    CouplingInteraction,
-    CrossingInteraction,
-    GradientInteraction,
-    GroupingInteraction,
-    HyperedgeInteraction,
-    Interaction,
-    JumpInteraction,
-    LocalRuleInteraction,
-    MapInteraction,
-    NeighborInteraction,
-    PairInteraction,
-    RateInteraction,
-    SamplingInteraction,
-    TopologyInteraction,
-    TransferInteraction,
-    TransitionInteraction,
+from skcomplex.core.base import BaseSpec
+from skcomplex.core.components import RoleSpec, interactions
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import BaseInteraction, Interaction, TrainingInteraction, WienerProcessSpec
+from skcomplex.core.components.laws import (
+    BaseLaw,
+    CallSpec,
+    NoiseLaw,
+    ObjectiveLaw,
+    PartnerSpec,
+    RateLaw,
+    TotalisticSpec,
+    UpdateLaw,
 )
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.laws.utils import clip
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
     ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
     LatticeSpace,
+    RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
-from skcomplex.core.types import ElementKind
+from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
+from skcomplex.core.errors import ParameterShapeError, SpaceError, ValidationError
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import (
     BirthDeathInteraction,
     ChoiceInteraction,
@@ -49,78 +42,36 @@ from skcomplex.systems.general.agents import (
     ImitationInteraction,
     MovementInteraction,
 )
+from skcomplex.systems.general.gradients import GradientInteraction
 from skcomplex.systems.general.matching import MatchingInteraction
 from skcomplex.systems.general.reactions import ReactionInteraction
 from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 
-from ....conftest import NodeElement
-
 RENAMED = {
-    'rate': (RateInteraction, lambda role: {'rate': lambda n: -getattr(n, role).x}, False),
-    'jump': (JumpInteraction, lambda role: {'changes': {'x': 1.0}, 'rate': lambda n: getattr(n, role).x + 1}, False),
-    'crossing': (
-        CrossingInteraction,
-        lambda role: {'guard': lambda n: n.t - 0.5, 'reset': {'x': lambda n: getattr(n, role).x + 2}},
-        False,
-    ),
-    'map': (MapInteraction, lambda role: {'state': 'x', 'function': lambda n: getattr(n, role).x / 2 + 1}, True),
-    'transition': (TransitionInteraction, lambda role: {'state': 'x', 'rate': lambda n: 1.0}, False),
-    'local_rule': (
-        LocalRuleInteraction,
-        lambda role: {
-            'state': 'x',
-            'rule': lambda *values: 1.0 - values[0],
-            'neighborhood': BallNeighborhood(metric='manhattan'),
-        },
-        True,
-    ),
     'choice': (
         ChoiceInteraction,
-        lambda role: {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda n, option: option},
-        True,
-    ),
-    'sampling': (
-        SamplingInteraction,
-        lambda role: {'state': 'x', 'objective': lambda n: -getattr(n, role).x * neighbors(getattr(n, role).other.x)},
+        lambda role: {'state': 's', 'options': (0.0, 1.0), 'utility': lambda n, option: option},
         True,
     ),
 }
 AGENTS = {
     'choice': (
         ChoiceInteraction,
-        {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda agent, system, option: option},
+        {'state': 's', 'options': (0.0, 1.0), 'utility': lambda agent, system, option: option},
     ),
-    'reaction': (ReactionInteraction, {'reactants': {'x': 1}, 'products': {}}),
-    'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
+    'imitation': (ImitationInteraction, {'state': 's', 'payoff': 's', 'probability': 0.5}),
 }
 AGENT_ALIASES = {
     'choice-intensity': ('choice', 'intensity', 2.0),
     'choice-activity': ('choice', 'activity', 0.5),
-    'reaction-k': ('reaction', 'k', 0.4),
     'imitation-probability': ('imitation', 'probability', 0.5),
 }
 SYMBOLIC_ALIASES = {
     'choice-intensity': (ChoiceInteraction, 'intensity', 2.0, RENAMED['choice'][1]('target'), True),
     'choice-activity': (ChoiceInteraction, 'activity', 0.5, RENAMED['choice'][1]('target'), True),
-    'sampling-intensity': (SamplingInteraction, 'intensity', 2.0, RENAMED['sampling'][1]('target'), True),
-    'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
-    'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),
 }
 GRID_ONLY = {
-    'transfer': (
-        TransferInteraction(
-            'trade',
-            source='agents',
-            target='agents',
-            state='x',
-            amount=1.0,
-            pairing='cell',
-            form='agent',
-        ),
-        'pairing',
-    ),
     'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
-    'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
     'life cycle': (BirthDeathInteraction('life', target='agents', placement='neighbor'), 'placement'),
     'matching': (
         MatchingInteraction(
@@ -132,19 +83,34 @@ GRID_ONLY = {
         'candidates',
     ),
 }
+SPEC_VARIANTS = {
+    'choice rule': lambda spec: ChoiceInteraction(
+        'choice',
+        target='members',
+        state='s',
+        options=(0, 1),
+        utility=lambda s, o: o,
+        rule=spec,
+    ),
+    'imitation rule': lambda spec: ImitationInteraction('imitation', target='players', rule=spec),
+    'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
+    'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
+    'cascade mode': lambda spec: TopplingInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
+}
 
 
 class GrowthInteraction(BaseInteraction):
     """Interaction with a role and a parameter."""
 
-    def __init__(self, label, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0):
+    def __init__(self, label, target: Role, r: float = 1.0):
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set no laws on a namespace."""
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = []
 
 
 def _get_fixed(interaction):
@@ -153,7 +119,7 @@ def _get_fixed(interaction):
     class FixedInteraction(interaction):
         """Interaction that declares no parameter."""
 
-        def __init__(self, label, *, target: Annotated[str, RoleSpec()], **arguments):
+        def __init__(self, label, *, target: Role, **arguments):
             super().__init__(label, target=target, **arguments)
 
     return FixedInteraction
@@ -169,9 +135,9 @@ def _get_aliased(interaction):
             self,
             label,
             *,
-            target: Annotated[str, RoleSpec()],
+            target: Role,
             renamed: str,
-            alias: Annotated[float, ParameterSpec()],
+            alias: float,
             **arguments,
         ):
             super().__init__(label, target=target, **arguments)
@@ -186,21 +152,11 @@ def _get_aliased(interaction):
 
 
 def _run_agents(interaction):
-    """Return the final values of the state `x` of four agents on a lattice driven by an agent form."""
-    agents = GroupElement(
-        'nodes',
-        element=NodeElement,
-        size=4,
-        location=[(0, 0), (0, 1), (1, 0), (1, 1)],
-        values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
-    )
-    system = CompositeSystem(
-        elements=[agents],
-        interactions=[interaction],
-        space=LatticeSpace((2, 2)),
-        time=DiscreteTime(),
-    )
-    return simulate(system, until=5, random_state=0).get_agents('nodes', 5).values['x']
+    """Return the final values of the state `s` of four agents on a lattice driven by an agent form."""
+    values = {'s': np.array([0.0, 1.0, 0.0, 1.0]), 'x': [0, 0, 1, 1], 'y': [0, 1, 0, 1]}
+    agents = Element('nodes', values=values, size=4, space=LatticeSpace((2, 2)))
+    system = System(elements=[agents], interactions=[interaction]).prepare()
+    return system.simulate(until=5, random_state=0).get_agents('nodes', 5).values['s']
 
 
 def _get_renamed(interaction):
@@ -209,7 +165,7 @@ def _get_renamed(interaction):
     class StockInteraction(interaction):
         """Interaction that binds its target as `stock`."""
 
-        def __init__(self, label, *, stock: Annotated[str, RoleSpec()], **arguments):
+        def __init__(self, label, *, stock: Role, **arguments):
             super().__init__(label, target=stock, **arguments)
             self.stock = stock
 
@@ -220,43 +176,11 @@ def _get_renamed(interaction):
     return StockInteraction
 
 
-def _run_nodes(interaction, discrete):
-    """Return the trajectory of the state `x` of four lattice nodes driven by an interaction."""
-    nodes = GroupElement(
-        'nodes',
-        element=NodeElement,
-        space=LatticeSpace((2, 2)),
-        values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
-        on='sites',
-    )
-    system = CompositeSystem(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
-    return simulate(system, until=5 if discrete else 1.0, dt=1 if discrete else 0.1, random_state=0).get_values(
-        'nodes.x',
-    )
-
-
-class WeightedInteraction(BaseInteraction):
-    """Interaction that declares a state, which interactions do not hold."""
-
-    def __init__(self, label, weight: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.weight = weight
-
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
-
-
-class PolicyInteraction(BaseInteraction):
-    """Interaction that declares an adaptive parameter, which interactions do not hold."""
-
-    def __init__(self, label, rate: Annotated[float, ParameterSpec(adaptive=True)] = 1.0):
-        super().__init__(label)
-        self.rate = rate
-
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
+def _run_nodes(interaction):
+    """Return the trajectory of the state `s` of four lattice nodes driven by an interaction in discrete time."""
+    nodes = Element('nodes', values={'s': np.array([0.0, 1.0, 0.0, 1.0])}, space=LatticeSpace((2, 2)))
+    system = System(elements=[nodes], interactions=[interaction]).prepare()
+    return system.simulate(until=5, dt=1, random_state=0).get_values('nodes.s')
 
 
 def test_interaction_stores_its_roles_and_parameters():
@@ -268,31 +192,52 @@ def test_interaction_stores_its_roles_and_parameters():
     }
 
 
+class CheckedDecayInteraction(Interaction):
+    """Decay `x' = -k x` that rejects a negative rate and reads its namespace without testing it."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', k: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _check_arguments(self) -> None:
+        """Raise an error for a negative rate."""
+        super()._check_arguments()
+        if self.k < 0:
+            error_msg = f'The rate of {self.label!r} is negative.'
+            raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the decay of the target."""
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.x, -context.k * context.target.x)]
+
+
+def test_prepare_checks_arguments_on_every_context_and_learns_laws_on_a_namespace():
+    """Test that `prepare` checks the arguments always and reaches `_prepare` only with a namespace."""
+    x = var('x')
+    namespace = SimpleNamespace(target=SimpleNamespace(x=x), t=var('t'), k=2.0)
+    assert not hasattr(CheckedDecayInteraction('decay').prepare(), 'laws_')
+    assert not hasattr(CheckedDecayInteraction('decay').prepare(LatticeSpace((2,))), 'laws_')
+    assert [law.value for law in CheckedDecayInteraction('decay').prepare(namespace).laws_] == [-2.0 * x]
+    for context in (None, LatticeSpace((2,)), namespace):
+        with pytest.raises(ValidationError, match='negative'):
+            CheckedDecayInteraction('decay', k=-1.0).prepare(context)
+
+
 def test_interaction_prepares_into_itself():
-    """Test that a checked interaction has nothing to prepare and runs into its laws."""
+    """Test that a checked interaction has nothing to prepare and sets its laws when prepared on a namespace."""
     growth = GrowthInteraction('growth', target='rabbits')
     assert growth.prepare() is growth
-    assert growth.run(SimpleNamespace()).laws_ == []
-
-
-def test_state_on_an_interaction_is_rejected():
-    """Test that checking an interaction that declares a state raises an error that suggests a group on edges."""
-    with pytest.raises(ValidationError, match='on="edges"'):
-        WeightedInteraction('w').prepare()
-
-
-def test_adaptive_parameter_on_an_interaction_is_rejected():
-    """Test that checking an interaction that declares an adaptive parameter raises an error that names it."""
-    with pytest.raises(ValidationError, match='adaptive parameters rate'):
-        PolicyInteraction('policy').prepare()
+    assert growth.prepare(SimpleNamespace()).laws_ == []
 
 
 @pytest.mark.parametrize('name', RENAMED)
 def test_get_member_reads_a_renamed_target_in_the_symbolic_form(name):
     """Test that a subclass that binds its target as `stock` and fixes its parameters gives the plain trajectory."""
-    interaction, arguments, discrete = RENAMED[name]
-    plain = _run_nodes(interaction(name, target='nodes', **arguments('target')), discrete)
-    renamed = _run_nodes(_get_renamed(interaction)(name, stock='nodes', **arguments('stock')), discrete)
+    interaction, arguments, _ = RENAMED[name]
+    plain = _run_nodes(interaction(name, target='nodes', **arguments('target')))
+    renamed = _run_nodes(_get_renamed(interaction)(name, stock='nodes', **arguments('stock')))
     np.testing.assert_allclose(renamed, plain)
 
 
@@ -300,8 +245,8 @@ def test_get_member_reads_a_renamed_target_in_the_symbolic_form(name):
 def test_get_parameter_value_reads_the_attributes_of_undeclared_parameters(name):
     """Test that the agent form of a subclass that declares no parameter runs as the plain interaction."""
     interaction, arguments = AGENTS[name]
-    plain = _run_agents(interaction(name, target='nodes', form='agent', **arguments))
-    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', form='agent', **arguments))
+    plain = _run_agents(interaction(name, target='nodes', schedule='synchronous', **arguments))
+    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', schedule='synchronous', **arguments))
     np.testing.assert_array_equal(fixed, plain)
 
 
@@ -310,18 +255,25 @@ def test_get_parameter_value_reads_a_renamed_parameter_in_the_agent_form(case):
     """Test that the agent form of a subclass that reads a parameter as `alias` runs as the plain interaction."""
     name, parameter, value = AGENT_ALIASES[case]
     interaction, arguments = AGENTS[name]
-    plain = _run_agents(interaction(name, target='nodes', form='agent', **{**arguments, parameter: value}))
-    aliased = _get_aliased(interaction)(name, target='nodes', form='agent', renamed=parameter, alias=value, **arguments)
+    plain = _run_agents(interaction(name, target='nodes', schedule='synchronous', **{**arguments, parameter: value}))
+    aliased = _get_aliased(interaction)(
+        name,
+        target='nodes',
+        schedule='synchronous',
+        renamed=parameter,
+        alias=value,
+        **arguments,
+    )
     np.testing.assert_array_equal(_run_agents(aliased), plain)
 
 
 @pytest.mark.parametrize('case', SYMBOLIC_ALIASES)
 def test_get_parameter_symbol_reads_a_renamed_parameter_in_the_symbolic_form(case):
     """Test that the symbolic form of a subclass that reads a parameter as `alias` gives the plain trajectory."""
-    interaction, parameter, value, arguments, discrete = SYMBOLIC_ALIASES[case]
-    plain = _run_nodes(interaction(case, target='nodes', **{**arguments, parameter: value}), discrete)
+    interaction, parameter, value, arguments, _ = SYMBOLIC_ALIASES[case]
+    plain = _run_nodes(interaction(case, target='nodes', **{**arguments, parameter: value}))
     aliased = _get_aliased(interaction)(case, target='nodes', renamed=parameter, alias=value, **arguments)
-    np.testing.assert_allclose(_run_nodes(aliased, discrete), plain)
+    np.testing.assert_allclose(_run_nodes(aliased), plain)
 
 
 @pytest.mark.parametrize('case', list(GRID_ONLY))
@@ -340,51 +292,14 @@ class FixedSpec(BaseSpec):
     value: float = 1.0
 
 
-class PruningInteraction(TopologyInteraction):
-    """Topology change whose `FixedSpec` action its dispatch method lowers to the removal of edges."""
-
-    def _get_requests(self):
-        """Return the removal of an edge for a `FixedSpec` action, or the requests of a named action."""
-        if isinstance(self.action, FixedSpec):
-            return [TopologyRequestSpec('remove-edge', self.edges, self.toward, self.keep, self.layer, ())]
-        return super()._get_requests()
-
-
-SPEC_VARIANTS = {
-    'choice rule': lambda spec: ChoiceInteraction(
-        'choice',
-        target='members',
-        state='s',
-        options=(0, 1),
-        utility=lambda s, o: o,
-        rule=spec,
-    ),
-    'imitation rule': lambda spec: ImitationInteraction('imitation', target='players', rule=spec),
-    'grouping groups': lambda spec: GroupingInteraction('groups', target='voters', groups=spec, act=print),
-    'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
-    'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
-    'topology action': lambda spec: PruningInteraction('change', target='nodes', action=spec),
-    'cascade mode': lambda spec: TopplingInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
-    'coupling mode': lambda spec: CouplingInteraction('coupling', target='nodes', read='x', write='x', mode=spec),
-    'map mode': lambda spec: MapInteraction('map', target='nodes', state='x', function=lambda s: 1, mode=spec),
-}
-
-
 @pytest.mark.parametrize('case', list(SPEC_VARIANTS))
 def test_check_accepts_a_spec_for_a_variant_and_rejects_an_unknown_name(case):
     """Test that a variant argument takes a spec a subclass defines, and an unknown name lists the named values."""
     assert SPEC_VARIANTS[case](FixedSpec()).prepare() is not None
-    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*, or a spec that the part handles\.') as error:
+    match = r'Unknown .* Use one of .*, or a spec that the component handles\.'
+    with pytest.raises(ValidationError, match=match) as error:
         SPEC_VARIANTS[case]('unknown').prepare()
     assert 'BaseSpec' not in str(error.value)
-
-
-def test_unknown_mode_of_a_map_names_only_the_accepted_values():
-    """Test that an unknown mode of a map names the value given and the accepted names, and no base class."""
-    with pytest.raises(ValidationError) as error:
-        MapInteraction('m', target='a', state='x', function=lambda s: s.target.x, mode='add').prepare()
-    message = str(error.value)
-    assert message == "Unknown mode 'add' of 'm'. Use one of 'replace', 'increment', or a spec that the part handles."
 
 
 class FixedChoiceInteraction(ChoiceInteraction):
@@ -399,113 +314,76 @@ class FixedChoiceInteraction(ChoiceInteraction):
 
 def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
     """Test that a choice subclass whose dispatch method handles a spec rule sets every agent to its value."""
-    group = GroupElement('members', element=NodeElement, size=3)
+    group = Element('members', values={'s': np.zeros(3)}, size=3)
     choice = FixedChoiceInteraction(
         'choice',
         target='members',
-        state='x',
+        state='s',
         options=(0, 1, 2),
         utility=print,
         rule=FixedSpec(2.0),
-        form='agent',
+        schedule='synchronous',
     )
-    system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
-    trajectory = simulate(system, until=1, random_state=0)
-    assert trajectory.get_agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
+    trajectory = System(elements=[group], interactions=[choice]).prepare().simulate(until=1, random_state=0)
+    assert trajectory.get_agents('members', 1).values['s'].tolist() == [2.0, 2.0, 2.0]
 
 
-def _run_variant(*interactions, space=None, time=None):
-    """Run three members under interactions, on a lattice of three sites when a space is not given."""
-    group = GroupElement('nodes', element=NodeElement, size=3)
-    system = CompositeSystem(
-        elements=[group],
-        interactions=list(interactions),
-        space=LatticeSpace((3,)) if space is None else space,
-        time=DiscreteTime() if time is None else time,
-    )
-    simulate(system, until=2, random_state=0)
+def _run_variant(*interactions):
+    """Run three members under interactions, on a lattice of three sites."""
+    group = Element('nodes', values={'s': np.zeros(3)}, size=3)
+    system = System(elements=[group], interactions=list(interactions), space=LatticeSpace((3,)))
+    system.prepare().simulate(until=2, random_state=0)
 
 
-def _choice(form):
+def _choice(schedule):
     """Return a choice with an unhandled spec rule."""
-    utility = (lambda agent, system, option: option) if form == 'agent' else (lambda namespace, option: option)
+    utility = (lambda namespace, option: option) if schedule is None else (lambda agent, system, option: option)
     return ChoiceInteraction(
         'choice',
         target='nodes',
-        state='x',
+        state='s',
         options=(0, 1),
         utility=utility,
         rule=FixedSpec(),
-        form=form,
+        schedule=schedule,
     )
 
 
-def _imitation(form):
+def _imitation(schedule, probability):
     """Return an imitation with an unhandled spec rule."""
     return ImitationInteraction(
         'imitation',
         target='nodes',
-        state='x',
+        state='s',
         options=(0, 1),
-        payoff='x',
-        probability=1.0,
+        payoff='s',
+        probability=probability,
         rule=FixedSpec(),
-        form=form,
+        schedule=schedule,
     )
 
 
 UNHANDLED_VARIANTS = {
-    'choice agent': (lambda: _run_variant(_choice('agent')), '_draw_agent'),
-    'choice symbolic': (lambda: _run_variant(_choice('symbolic')), '_draw_symbolic'),
-    'imitation agent': (lambda: _run_variant(_imitation('agent')), '_choose'),
-    'imitation rate': (lambda: _run_variant(_imitation('rate'), time=ContinuousTime()), '_get_jumps'),
-    'imitation probability': (lambda: _run_variant(_imitation('probability')), '_get_update'),
-    'map agent': (
-        lambda: _run_variant(
-            MapInteraction(
-                'map',
-                target='nodes',
-                state='x',
-                function=lambda agent, system: 1.0,
-                mode=FixedSpec(),
-                form='agent',
-            ),
-        ),
-        '_apply_mode',
-    ),
-    'map symbolic': (
-        lambda: _run_variant(
-            MapInteraction('map', target='nodes', state='x', function=lambda namespace: 1.0, mode=FixedSpec()),
-        ),
-        '_apply_mode',
-    ),
-    'grouping': (
-        lambda: _run_variant(GroupingInteraction('groups', target='nodes', groups=FixedSpec(), act=print)),
-        '_get_groups',
-    ),
+    'choice agent': (lambda: _run_variant(_choice('synchronous')), '_draw_agent'),
+    'choice symbolic': (lambda: _run_variant(_choice(None)), '_draw_symbolic'),
+    'imitation agent': (lambda: _run_variant(_imitation('synchronous', 1.0)), '_choose'),
+    'imitation rate': (lambda: _run_variant(_imitation(None, None)), '_get_jumps'),
+    'imitation probability': (lambda: _run_variant(_imitation(None, 1.0)), '_get_update'),
     'evolution selection': (
         lambda: _run_variant(
-            EvolutionInteraction('evolution', target='nodes', strategy='x', fitness=None, selection=FixedSpec()),
+            EvolutionInteraction('evolution', target='nodes', strategy='s', fitness=None, selection=FixedSpec()),
         ),
         '_select',
     ),
     'evolution replacement': (
         lambda: _run_variant(
-            EvolutionInteraction('evolution', target='nodes', strategy='x', fitness=None, replacement=FixedSpec()),
+            EvolutionInteraction('evolution', target='nodes', strategy='s', fitness=None, replacement=FixedSpec()),
         ),
         '_breed',
     ),
-    'topology': (
-        lambda: TopologyInteraction('change', target='nodes', action=FixedSpec()).prepare(),
-        '_get_requests',
-    ),
     'cascade': (
-        lambda: _run_variant(TopplingInteraction('cascade', target='nodes', state='x', threshold=4, mode=FixedSpec())),
+        lambda: _run_variant(TopplingInteraction('cascade', target='nodes', state='s', threshold=4, mode=FixedSpec())),
         '_relax',
-    ),
-    'coupling': (
-        lambda: _run_variant(CouplingInteraction('coupling', target='nodes', read='x', write='x', mode=FixedSpec())),
-        '_get_reduction',
     ),
 }
 
@@ -514,22 +392,8 @@ UNHANDLED_VARIANTS = {
 def test_dispatch_raises_for_a_spec_variant_without_an_override(case):
     """Test that a spec variant no subclass handles raises an error naming the method to override."""
     run, method = UNHANDLED_VARIANTS[case]
-    with pytest.raises(ValidationError, match=f'Override `{method}`'):
+    with pytest.raises(ValidationError, match=f'method `{method}` runs it'):
         run()
-
-
-def test_check_refuses_a_spec_of_groups_in_the_symbolic_form():
-    """Test that the symbolic form of a grouping refuses a spec of groups, since it compiles the named ones."""
-    grouping = GroupingInteraction(
-        'groups',
-        target='nodes',
-        groups=FixedSpec(),
-        write='x',
-        function=lambda s: 1.0,
-        form='symbolic',
-    )
-    with pytest.raises(ValidationError, match='compiles the named groups'):
-        grouping.prepare()
 
 
 def _interaction_classes() -> list[type[BaseInteraction]]:
@@ -538,51 +402,30 @@ def _interaction_classes() -> list[type[BaseInteraction]]:
     return [item for item in named if isinstance(item, type) and issubclass(item, BaseInteraction)]
 
 
-def test_get_requirements_names_the_state_of_an_argument():
-    """Test that the requirements name the role, its element kinds, the state its argument holds, and the laws."""
-    rate = RateInteraction('growth', target='rabbits', state='n', rate=1.0)
-    needs = rate.get_requirements()
-    assert needs.roles['target'].states == ('n',)
-    assert needs.roles['target'].accepts(ElementKind.ELEMENT)
-    assert needs.roles['process'].noise
-    assert RateLaw in needs.laws
-    assert needs.time == (ContinuousTime,)
-
-
-def test_get_requirements_reads_names_from_sequences_and_mappings():
-    """Test that an argument that holds several names, in a sequence or as the keys of a mapping, gives them all."""
+def test_get_requirements_reads_the_names_of_a_tuple_of_states():
+    """Test that an argument typed `tuple[str, ...]` names the states its role reads, and a mapping names none."""
     gradient = GradientInteraction('flow', target='a', states=('x', 'y'), potential=lambda s: 0.0)
     assert gradient.get_requirements().roles['target'].states == ('x', 'y')
     reaction = ReactionInteraction('r', target='a', reactants={'S': 1, ('b', 'n'): 1}, products={'P': 1})
-    assert reaction.get_requirements().roles['target'].states == ('S', 'P')
+    assert reaction.get_requirements().roles['target'].states == ()
 
 
-def test_get_requirements_leaves_unknown_the_laws_a_subclass_writes():
-    """Test that a subclass that writes its own laws lists none, since only running it shows them."""
-
-    class OwnLawsInteraction(RateInteraction):
-        """Interaction that returns its own laws."""
-
-        def _get_laws(self, namespace):
-            """Return no law."""
-            return []
-
-    needs = OwnLawsInteraction('own', target='a').get_requirements()
+def test_get_requirements_leaves_unknown_the_laws_a_subclass_sets():
+    """Test that a subclass that sets its laws in `_prepare` without listing them lists none."""
+    needs = PullInteraction('pull').get_requirements()
     assert needs.laws == ()
     assert needs.time == ()
 
 
 def test_get_requirements_accepts_any_space_when_a_law_does():
-    """Test that laws that include one running in any space state no space, and laws that all need one state them."""
-    assert RateInteraction('rate', target='a').get_requirements().space == ()
-    sampling = SamplingInteraction('sample', target='a', state='s', objective=lambda s: 0.0)
-    assert LatticeSpace in sampling.get_requirements().space
+    """Test that laws that include one running in any space state no space."""
+    assert ReactionInteraction('decay', target='a', reactants={'x': 1}).get_requirements().space == ()
 
 
 def test_every_core_interaction_declares_its_roles():
     """Test that every role of every interaction of the core names the kinds of element it accepts."""
     found = _interaction_classes()
-    assert {kind.__name__ for kind in found} == set(interactions.__all__) - {'OPTIMIZERS', 'SCHEDULES'}
+    assert {kind.__name__ for kind in found} == {name for name in interactions.__all__ if name.endswith('Interaction')}
     for kind in found:
         for name, spec in kind._get_specs().items():
             if isinstance(spec, RoleSpec) and not spec.noise:
@@ -590,17 +433,18 @@ def test_every_core_interaction_declares_its_roles():
 
 
 def test_every_core_interaction_with_laws_lists_them():
-    """Test that every interaction of the core lists its laws, apart from the bases a subclass writes laws for."""
-    bases = {BaseInteraction, Interaction, NeighborInteraction, PairInteraction, HyperedgeInteraction}
-    for kind in set(_interaction_classes()) - bases:
+    """Test that every interaction of the core lists its laws.
+
+    The bases a subclass writes laws for and the training, whose solver reads its settings, state none.
+    """
+    bases = {BaseInteraction, Interaction}
+    for kind in set(_interaction_classes()) - bases - {TrainingInteraction}:
         assert kind.law_classes, kind.__name__
 
 
 @pytest.mark.parametrize(
     ('interaction', 'laws', 'randomness'),
     [
-        (RateInteraction('growth', target='a', rate=1.0), {'rate'}, 'deterministic'),
-        (RateInteraction('growth', target='a', rate=1.0, noise=0.1), {'rate', 'noise'}, 'stochastic'),
         (ReactionInteraction('decay', target='a', reactants={'x': 1}), {'rate'}, 'deterministic'),
         (ReactionInteraction('decay', target='a', reactants={'x': 1}, mode='jump'), {'jump'}, 'stochastic'),
         (
@@ -608,8 +452,6 @@ def test_every_core_interaction_with_laws_lists_them():
             {'rate', 'noise'},
             'stochastic',
         ),
-        (JumpInteraction('flip', target='a', changes={'x': 1.0}, probability=lambda s: 0.5), {'update'}, 'stochastic'),
-        (MapInteraction('map', target='a', state='x', function=lambda s: s.target.x), {'update'}, 'deterministic'),
     ],
 )
 def test_interaction_tags_follow_its_arguments(interaction, laws, randomness):
@@ -620,20 +462,448 @@ def test_interaction_tags_follow_its_arguments(interaction, laws, randomness):
 
 def test_interaction_tags_give_the_times_and_structure_of_the_chosen_laws():
     """Test that an interaction gives the times its chosen laws run in, and how they change the structure."""
-    assert MapInteraction('map', target='a', state='x', function=lambda s: s.target.x).get_tags().time == {'discrete'}
-    assert RateInteraction('growth', target='a', rate=1.0).get_tags().time == {'continuous'}
-    assert TopologyInteraction('rewire').get_tags().structure == {'changing topology'}
+    assert ReactionInteraction('decay', target='a', reactants={'x': 1}).get_tags().time == {'continuous'}
+    assert TopplingInteraction('cascade', target='a', state='h', threshold=4).get_tags().time == {'discrete'}
 
 
-def test_interaction_that_writes_unlisted_laws_has_unknown_law_kinds():
-    """Test that a subclass that writes its laws without listing them leaves its law kinds and randomness unknown."""
-
-    class CustomRateInteraction(RateInteraction):
-        """Rate interaction with laws of its own."""
-
-        def _get_laws(self, namespace):
-            return []
-
-    tags = CustomRateInteraction('growth', target='a', rate=1.0).get_tags()
+def test_interaction_that_sets_unlisted_laws_has_unknown_law_kinds():
+    """Test that a subclass that sets its laws without listing them leaves its law kinds and randomness unknown."""
+    tags = PullInteraction('pull').get_tags()
     assert (tags.laws, tags.randomness) == (None, None)
     assert Interaction('free').get_tags().laws is None
+
+
+class PullInteraction(Interaction):
+    """Interaction that learns a constant pull on its target when it is prepared."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'ball',
+        g: float = 9.81,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.g = g
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the pull as the law of the interaction."""
+        super()._prepare(context)
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.g)]
+
+
+def test_prepare_sets_laws_from_a_namespace():
+    """Preparing an interaction on a namespace of states as functions of time sets its laws."""
+    t, g = var('t g')
+    x = function('x')(t)
+    pull = PullInteraction('pull').prepare(SimpleNamespace(target=SimpleNamespace(x=x), g=g, t=t))
+    assert [(law.target, law.value) for law in pull.laws_] == [(x.diff(t, 2), -g)]
+
+
+def test_prepare_keeps_parameters_symbolic_in_a_system():
+    """The laws a system learns from an interaction read its parameters as symbols."""
+    system = System(elements=[Element('ball', values={'x': 10.0})], interactions=[PullInteraction('pull')]).prepare()
+    assert system.equations_["ball.x'"] == '-pull.g'
+
+
+def test_prepare_leaves_the_user_interaction_unchanged():
+    """The engine prepares a clone of an interaction for every binding, so the object the user gave has no laws."""
+    pull = PullInteraction('pull', target='bodies')
+    bodies = Element('bodies', values={'x': [1.0, 2.0]}, size=2)
+    System(elements=[bodies], interactions=[pull]).prepare().simulate(until=1.0, dt=0.5)
+    assert not hasattr(pull, 'laws_')
+
+
+class RuleInteraction(Interaction):
+    """Interaction whose law is an update of the group of its target with a given value."""
+
+    def __init__(self, label, *, target: Role, rule=None, bound=True):
+        super().__init__(label)
+        self.target = target
+        self.rule = rule
+        self.bound = bound
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the bound group, or of a namespace no role binds."""
+        super()._prepare(context)
+        target = context.target if self.bound else SimpleNamespace()
+        self.laws_ = [UpdateLaw(target, self.rule, phase='move')]
+
+
+def _shift(agent, system):
+    """Add one to the value of an agent."""
+    agent.x += 1
+
+
+def test_update_of_a_group_with_a_function_is_an_agent_rule():
+    """Test that an update law whose target is a bound group runs its function for every member of the role."""
+    walkers = SimpleNamespace(x=var('x'))
+    laws = RuleInteraction('shift', target='walkers', rule=_shift)._get_laws_of(SimpleNamespace(target=walkers))
+    assert [(law.function, law.members, law.phase) for law in laws] == [(_shift, 'target', 'move')]
+
+
+@pytest.mark.parametrize('rule', [3.0, 'move'])
+def test_rule_that_is_no_function_of_an_agent_and_the_system_raises(rule):
+    """Test that the value of an update law of a group must be a function, whose signature goes unread."""
+    interaction = RuleInteraction('shift', target='walkers', rule=rule)
+    with pytest.raises(ValidationError, match='A rule is a function of one agent and the system'):
+        interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+
+
+class ParityInteraction(Interaction):
+    """Interaction whose law sets every cell to the parity of its neighbourhood."""
+
+    def __init__(self, label, *, target: Role = 'cells', phase=None):
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the parity of the cells as a local rule."""
+        super()._prepare(context)
+        parity = TotalisticSpec(lambda total: total % 2)
+        neighborhood = RadiusNeighborhood(1, center=True)
+        self.laws_ = [UpdateLaw(context.target.alive, parity, neighborhood=neighborhood, phase=self.phase)]
+
+
+def test_update_with_a_neighborhood_is_a_local_rule():
+    """Test that an update law with a neighbourhood runs as a local rule of the states of the cells."""
+    alive = var('alive')
+    laws = ParityInteraction('parity')._get_laws_of(SimpleNamespace(target=SimpleNamespace(alive=alive)))
+    assert [(law.targets, law.label) for law in laws] == [(alive, '')]
+    assert isinstance(laws[0].rule, TotalisticSpec)
+
+
+def test_local_rule_with_a_setting_of_one_member_raises():
+    """Test that a local rule rejects a phase, which only an update of one member takes."""
+    interaction = ParityInteraction('parity', phase='move')
+    with pytest.raises(ValidationError, match='neighbourhood and phase'):
+        interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(alive=var('alive'))))
+
+
+def test_rule_on_a_namespace_no_role_binds_raises():
+    """Test that an update law targets the group of a role, not a namespace of its own."""
+    interaction = RuleInteraction('shift', target='walkers', rule=_shift, bound=False)
+    with pytest.raises(ValidationError, match='which no role binds'):
+        interaction._get_laws_of(SimpleNamespace(target=SimpleNamespace(x=var('x'))))
+
+
+class DecayInteraction(Interaction):
+    """Decay `x' = -k x` at a positive rate."""
+
+    def __init__(self, label, *, target: Role = 'p', k: Annotated[float, RealSet.open(0, oo)] = 1.0):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t), -context.k * x)]
+
+
+def test_allowed_values_of_an_argument_come_from_annotated():
+    """Test that `Annotated[float, RealSet.open(0, oo)]` gives the rate its domain, which a system checks."""
+    assert DecayInteraction('decay')._get_declared()['k'].spec.domain == RealSet.open(0, oo)
+    system = System(elements=[Element('p', values={'x': 1.0})], interactions=[DecayInteraction('decay', k=-1.0)])
+    with pytest.raises(ValidationError, match=r'decay\.k'):
+        system.prepare()
+
+
+class HalvingInteraction(Interaction):
+    """Update `x <- f(x)` through a function of the state."""
+
+    def __init__(self, label, *, target: Role = 'p'):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_ = [UpdateLaw(x, CallSpec(_halve, (x,)))]
+
+
+def _halve(t, x):
+    """Return half of a value."""
+    return x / 2
+
+
+def test_call_of_a_function_reads_the_states_of_its_arguments():
+    """Test that the arguments of a `CallSpec` in a law read the states, as the rest of the law does."""
+    system = System(elements=[Element('p', values={'x': 8.0})], interactions=[HalvingInteraction('halve')]).prepare()
+    assert system.simulate(until=2, dt=1).get_values('p.x').tolist() == [8.0, 4.0, 2.0]
+
+
+class TrapInteraction(Interaction):
+    """Trap `x' = -k x` with one stiffness per axis, written before a label setting and a tuple setting."""
+
+    def __init__(self, label, *, target: Role = 'bead', k=None, name='trap', axes=(0, 1)):
+        super().__init__(label)
+        self.target = target
+        self.k = [1.0, 2.0] if k is None else k
+        self.name = name
+        self.axes = axes
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_ = [RateLaw(x, -context.k.pairwise_product(x))]
+
+
+def test_list_argument_is_a_vector_parameter_that_a_schedule_drives():
+    """Test that a list of numbers is a vector parameter of its length, which a schedule changes during a run."""
+    declared = TrapInteraction('trap')._get_declared()
+    assert list(declared) == ['k']
+    assert declared['k'].spec.vector
+    assert declared['k'].spec.n_dim == 2
+    bead = Element('bead', values={'x': [1.0, 1.0]})
+    system = System(elements=[bead], interactions=[TrapInteraction('trap')]).prepare()
+    assert system.parameters_ == ('trap.k[0]', 'trap.k[1]')
+    final = system.simulate(until=1.0, dt=0.5).get_values('bead.x')[-1]
+    assert final == pytest.approx(np.exp([-1.0, -2.0]), rel=1e-4)
+    driven = system.simulate(until=1.0, dt=0.5, schedule={'trap.k': lambda t: [3.0, 0.0]})
+    assert driven.get_values('bead.x')[-1] == pytest.approx(np.exp([-3.0, 0.0]), rel=1e-4)
+
+
+def test_matrix_argument_is_a_matrix_parameter():
+    """Test that a square matrix of numbers is a parameter that laws read as a matrix."""
+    rotation = np.array([[0.0, -1.0], [1.0, 0.0]])
+    declared = TrapInteraction('trap', k=rotation)._get_declared()['k']
+    assert declared.spec.tensor == 'full'
+    assert np.asarray(declared.value).tolist() == [0.0, -1.0, 1.0, 0.0]
+
+
+class SpringInteraction(Interaction):
+    """Spring `x'' = -k (x - a)` whose stiffness comes before its rest position."""
+
+    def __init__(self, label, *, target: Role = 'p', k=1.0, a=0.0):
+        super().__init__(label)
+        self.target = target
+        self.k = k
+        self.a = a
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -context.k * (x - context.a))]
+
+
+def test_parameters_of_an_interaction_keep_the_order_of_its_arguments():
+    """Test that the parameters come in the order of the arguments, not the alphabetical one."""
+    system = System(elements=[Element('p', values={'x': 1.0})], interactions=[SpringInteraction('spring')]).prepare()
+    assert system.parameters_ == ('spring.k', 'spring.a')
+
+
+def langevin(noise):
+    """Return a damped particle whose velocity `x'` is driven by the given noise law."""
+
+    def laws(s):
+        x, t = s.target.x, s.t
+        return [RateLaw(x.diff(t, 2), -x.diff(t)), noise(x, t)]
+
+    interaction = Interaction('kick', roles={'target': 'p'}, laws=laws)
+    return System(elements=[Element('p', values={'x': 0.0})], interactions=[interaction]).prepare()
+
+
+def test_noise_on_a_derivative_is_written_in_sage():
+    """Test that `NoiseLaw(x.diff(t, 2), g)` drives the velocity `x'` as a noise on a velocity state `v` does."""
+    sage = langevin(lambda x, t: NoiseLaw(x.diff(t, 2), 0.5)).simulate(until=1.0, dt=0.1, random_state=0)
+
+    def laws(s):
+        x, v, t = s.target.x, s.target.v, s.t
+        return [RateLaw(x.diff(t), v), RateLaw(v.diff(t), -v), NoiseLaw(v.diff(t), 0.5)]
+
+    kick = Interaction('kick', roles={'target': 'p'}, laws=laws)
+    first = System(elements=[Element('p', values={'x': 0.0, 'v': 0.0})], interactions=[kick]).prepare()
+    explicit = first.simulate(until=1.0, dt=0.1, random_state=0)
+    assert np.ptp(sage.get_values("p.x'")) > 0
+    assert sage.get_values("p.x'") == pytest.approx(explicit.get_values('p.v'))
+
+
+def test_noise_of_a_lower_order_names_the_derivative_to_write():
+    """Test that a noise on `x` of a state of order 2 asks for `x.diff(t, 2)`."""
+    with pytest.raises(ValidationError, match=r'x\.diff\(t, 2\)'):
+        langevin(lambda x, t: NoiseLaw(x, 0.5))
+
+
+class _SharedNoiseInteraction(Interaction):
+    """Noise of one value driven by the Wiener processes it is given."""
+
+    def __init__(self, label, *, target: Role, process=None):
+        super().__init__(label)
+        self.target = target
+        self.process = process
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        self.laws_ = [NoiseLaw(context.target.x, 1.0, process=context.process.dW)]
+
+
+def test_an_argument_holding_wiener_processes_binds_them():
+    """Two interactions given the same processes, with no annotation, share their increments."""
+    market = WienerProcessSpec('market')
+    system = System(
+        elements=[Element('a', values={'x': 0.0}), Element('b', values={'x': 0.0})],
+        interactions=[
+            _SharedNoiseInteraction('first', target='a', process=market),
+            _SharedNoiseInteraction('second', target='b', process=market),
+        ],
+    )
+    trajectory = system.prepare().simulate(until=1.0, dt=0.1, random_state=0)
+    assert np.ptp(trajectory.get_values('a.x')) > 0
+    np.testing.assert_allclose(trajectory.get_values('a.x'), trajectory.get_values('b.x'))
+
+
+def _get_delayed_decay(shift):
+    """Return the run of a decay that reads its value a shift of time before."""
+    decay = Interaction(
+        'decay',
+        roles={'target': 'n'},
+        laws=lambda s: [
+            RateLaw(s.target.x.diff(s.t), -s.target.x(t=s.t - shift(s.target))),
+            RateLaw(s.target.tau.diff(s.t), -0.1 * s.target.tau),
+        ],
+    )
+    neuron = Element('n', values={'x': 1.0, 'tau': 0.5})
+    system = System(elements=[neuron], interactions=[decay], solver=RK4Solver(dt=0.01)).prepare()
+    return system, system.simulate(until=2.0).get_values('n.x')
+
+
+def test_a_delay_that_reads_the_state_is_bounded_by_its_clip():
+    """Test that a delay of the state clipped from below compiles, and runs as the fixed delay of its bound."""
+    system, clipped = _get_delayed_decay(lambda target: clip(target.tau * target.x, low=0.6))
+    assert 'where(n.tau*n.x < 0.6, 0.6, n.tau*n.x)' in system.equations_['n.x']
+    _, fixed = _get_delayed_decay(lambda target: 0.6)
+    np.testing.assert_allclose(clipped, fixed, rtol=1e-12)
+
+
+def _get_rotated(target: Callable[[SimpleNamespace], object]) -> object:
+    """Return the last value of a complex point whose derivative of an order is `i z`."""
+    rotate = Interaction(
+        'rotate',
+        roles={'point': 'point'},
+        laws=lambda s: [RateLaw(target(s), I * s.point.z)],
+    )
+    system = System(elements=[Element('point', values={'z': 1.0 + 0.0j})], interactions=[rotate]).prepare()
+    return system.simulate(until=1.0).get_values('point.z')[-1]
+
+
+def test_rate_of_the_derivative_of_a_complex_state_is_its_rate():
+    """Test that `RateLaw(z.diff(t), f)` of a complex state turns it as `RateLaw(z, f)` does, by `exp(i t)`."""
+    by_derivative = _get_rotated(lambda s: s.point.z.diff(s.t))
+    assert by_derivative == pytest.approx(_get_rotated(lambda s: s.point.z))
+    assert by_derivative == pytest.approx(np.exp(1j), rel=1e-5)
+
+
+def test_second_derivative_of_a_complex_state_gives_it_a_second_order():
+    """Test that `z'' = i z` from rest at one gives `cosh(sqrt(i) t)` at the end."""
+    assert _get_rotated(lambda s: s.point.z.diff(s.t, 2)) == pytest.approx(np.cosh(np.sqrt(1j)), rel=1e-5)
+
+
+class HarvestLaw(RateLaw):
+    """A rate law of a harvest, a subclass that adds nothing to `RateLaw`."""
+
+
+def test_subclass_of_a_rate_law_on_a_derivative_moves_the_state():
+    """Test that a subclass of `RateLaw` on `x.diff(t)` decays the state as `RateLaw` does."""
+
+    def run(law):
+        harvest = Interaction(
+            'harvest',
+            roles={'target': 'hares'},
+            laws=lambda s: [law(s.target.x.diff(s.t), -s.target.x)],
+        )
+        system = System(elements=[Element('hares', values={'x': 1.0})], interactions=[harvest]).prepare()
+        return system.simulate(until=1.0, dt=0.5).get_values('hares.x')
+
+    np.testing.assert_allclose(run(HarvestLaw), run(RateLaw))
+    assert run(HarvestLaw)[-1] == pytest.approx(np.exp(-1.0), rel=1e-4)
+
+
+class Contraction(Interaction):
+    """Decay `x' = -a[0, 0, 0] x` of one element at a rate read from a tensor."""
+
+    def __init__(self, label: str, *, target: Role = 'ball', a: object = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.a = a
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the decay at the first entry of the tensor."""
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.x, -context.a[0][0][0] * context.target.x)]
+
+
+def test_array_argument_no_group_shapes_is_an_issue_of_the_shape_of_a_parameter():
+    """Test that a tensor argument read by the laws of one element is named as an issue, not an attribute error."""
+    contraction = Contraction('contraction', a=np.ones((2, 2, 2)))
+    system = System(elements=[Element('ball', values={'x': 1.0})], interactions=[contraction])
+    with pytest.raises(
+        ParameterShapeError,
+        match=r'contraction\.a is an array of shape \(2, 2, 2\).*\[parameter-shape\]',
+    ):
+        system.prepare()
+
+
+def _distance(s):
+    """Return the separation and the distance of the two members of a pair."""
+    separation = s.first.x - s.second.x
+    return separation, sqrt(separation.dot_product(separation))
+
+
+def _lennard_jones_energy(s):
+    """Return the Lennard-Jones energy `4 * (r**-12 - r**-6)` of a pair."""
+    _, r = _distance(s)
+    return [ObjectiveLaw(4 * (r**-12 - r**-6))]
+
+
+def _lennard_jones_forces(s, mass=1.0):
+    """Return the Lennard-Jones accelerations of a pair of a mass, derived by hand."""
+    separation, r = _distance(s)
+    force = 24 * (2 * r**-12 - r**-6) / r**2 * separation / mass
+    return [RateLaw(s.first.x.diff(s.t, 2), force), RateLaw(s.second.x.diff(s.t, 2), -force)]
+
+
+def _lennard_jones_gas(laws, backend, masses=None):
+    """Return the positions of a run of a Lennard-Jones gas of 16 atoms on a jittered lattice."""
+    rng = np.random.default_rng(0)
+    grid = np.stack(np.meshgrid(np.arange(4), np.arange(4)), axis=-1).reshape(-1, 2) * 1.2
+    space = ContinuousSpace(n_dim=2)
+    values = {'x': grid + rng.normal(0, 0.05, (16, 2)), "x'": rng.normal(0, 0.5, (16, 2))} | (masses or {})
+    gas = Element('gas', values=values, size=16, space=space)
+    pairs = Interaction('lj', roles={'first': 'gas', 'second': 'gas'}, within=RadiusNeighborhood(2.5), laws=laws)
+    solver = VelocityVerletSolver(dt=0.005)
+    system = System(elements=[gas], interactions=[pairs], space=space, solver=solver, backend=backend())
+    return system.prepare().simulate(until=0.5, dt=0.05).get_values('gas.x')
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_pair_energy_gives_the_trajectory_of_its_forces(backend):
+    """Test that a Lennard-Jones energy of pairs moves a gas as the Lennard-Jones forces derived by hand do."""
+    energy = _lennard_jones_gas(_lennard_jones_energy, backend)
+    forces = _lennard_jones_gas(_lennard_jones_forces, backend)
+    assert np.abs(energy[-1] - energy[0]).max() > 0.1
+    assert energy == pytest.approx(forces, abs=1e-9)
+
+
+def test_pair_energy_divides_the_forces_by_the_mass():
+    """Test that atoms of mass 4 under a Lennard-Jones energy move as the forces divided by 4."""
+    energy = _lennard_jones_gas(_lennard_jones_energy, NumpyBackend, {'m': 4.0})
+    forces = _lennard_jones_gas(lambda s: _lennard_jones_forces(s, 4.0), NumpyBackend)
+    assert energy == pytest.approx(forces, abs=1e-9)
+
+
+def test_pair_energy_with_targets_is_rejected():
+    """Test that a pair energy naming targets raises an error, since it acts on the positions of both members."""
+    space = ContinuousSpace(n_dim=1)
+    gas = Element('gas', values={'x': np.array([[0.0], [1.0]])}, size=2, space=space)
+    pairs = Interaction(
+        'soft',
+        roles={'first': 'gas', 'second': 'gas'},
+        within=RadiusNeighborhood(2.0),
+        laws=lambda s: [ObjectiveLaw(_distance(s)[1] ** 2, s.first.x[0])],
+    )
+    with pytest.raises(ValidationError, match='names targets or controls'):
+        System(elements=[gas], interactions=[pairs], space=space).prepare()

@@ -2,71 +2,47 @@
 
 This page builds stocks that change only through flows, as in system dynamics, checks that what flows is conserved, and
 finds the feedback loops that drive them. A stock is an amount that accumulates, such as the people of a town or the
-water in a bath, and a flow is a rate at which an amount enters or leaves a stock. In the library a stock is a state
-tagged with a quantity, such as `StateSpec(quantity='people')`.
+water in a bath, and a flow is a rate at which an amount enters or leaves a stock. In the library a stock is a value
+tagged with a quantity, such as `Annotated[float, Quantity('people')]`, and a flow is one rate law whose target maps
+each stock to the sign of its change, such as `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`.
 
 ## Stocks and their flows
 
 This section builds a population whose only changes are births and deaths. A
-[`TransferLaw`](../core_components/laws.md#transferlaw) moves an amount of the quantity from one stock to another, and
-it exchanges the quantity with the environment through a [`Source`](../core_components/laws.md#source) and a
-[`Sink`](../core_components/laws.md#sink). The population is an [`Element`](../core_components/elements.md#element)
-with ten people, a birth rate of 3 percent a year and a death rate of 1 percent. The birth rate falls to zero between
-100 and 200 people through `series(x, points, values)`, a table function that is piecewise linear between its points
-and flat outside them.
+[`FlowInteraction`](../core_components/general.md#flowinteraction) moves an amount from one stock to another. A flow
+from outside the system names only the stock it enters, and a flow out of it only the stock it leaves. The population
+is an [`AnnotatedElement`](../core_components/general.md#annotatedelement) with ten people of the quantity `people`, a
+birth rate of 3 percent a year and a death rate of 1 percent. The birth rate falls to zero between 100 and 200 people
+through `series(x, points, values)`, a table function that is piecewise linear between its points and flat outside
+them.
 
 ```python
-from typing import Annotated
-
-from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import Sink, Source, TransferLaw
+from skcomplex.core.components import Observable
 from skcomplex.core.components.laws.utils import series
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.general.dynamics import AnnotatedElement, FlowInteraction
 
 
 def birth_rate(s):
     return s.b * s.n * series(s.n, (0, 100, 200), (1.0, 1.0, 0.0))
 
 
-class PeopleElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        n: Annotated[float, StateSpec(quantity='people')] = 10.0,
-        b: Annotated[float, ParameterSpec()] = 0.03,
-        d: Annotated[float, ParameterSpec()] = 0.01,
-    ):
-        super().__init__(label)
-        self.n = n
-        self.b = b
-        self.d = d
-
-    def _get_laws(self, s):
-        return [
-            TransferLaw(Source(), s.n, birth_rate(s), label='births'),
-            TransferLaw(s.n, Sink(), s.d * s.n, label='deaths'),
-        ]
-
-
-crowd = CompositeSystem(elements=[PeopleElement('crowd')])
-observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
-trajectory = simulate(crowd, until=10, dt=1.0, observables=observed)
+people = AnnotatedElement('crowd', values={'n': 10.0, 'b': 0.03, 'd': 0.01}, quantities={'n': 'people'})
+births = FlowInteraction('births', target='crowd', enters='n', amount=lambda s: birth_rate(s.target))
+deaths = FlowInteraction('deaths', target='crowd', leaves='n', amount=lambda s: s.target.d * s.target.n)
+crowd = System(elements=[people], interactions=[births, deaths]).prepare()
+observed = [Observable('birth_rate', birth_rate, element='crowd')]
+trajectory = crowd.simulate(until=10, dt=1.0, observables=observed)
 round(float(trajectory.get_values('crowd.births')[-1]), 3), round(float(trajectory.get_values('crowd.deaths')[-1]), 3)
 ```
 
-After ten years the births run at 0.366 people a year and the deaths at 0.122. Trajectories record every flow under
-`<element path>.<label>`, such as `crowd.births`. What the amount of a `TransferLaw` means depends on the laws around
-it.
-
-- In a system of rate laws the amount is a rate.
-- In a system of update laws it is moved once per step.
-- With `rate=...` it is the size of a jump with that propensity.
+After ten years the births run at 0.366 people a year and the deaths at 0.122. A `FlowInteraction` sets one rate law
+whose target maps each stock to the sign of its change, such as `RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths')`,
+and an interaction of your own may set it directly. The trajectory records every flow `f` under its label, after the element of its stocks, such as
+`crowd.births`, or after the interaction when its stocks belong to several elements.
 
 An intermediate expression, such as the birth rate, is a function of the namespace that the laws call.
-`ObservableSpec(label, function, element=element)` records the same function as the observable `<element>.<label>`,
+`Observable(label, function, element=element)` records the same function as the observable `<element>.<label>`,
 which Rerun logs under the element.
 
 ```python continuation
@@ -96,12 +72,12 @@ and the observer `ConservationObserver` checks at every frame that each total ch
 one row per flow and one column per holder.
 
 ```python continuation
-monitored = simulate(crowd, until=10, dt=1.0, observers=[ConservationObserver()])
+monitored = crowd.simulate(until=10, dt=1.0, observers=[ConservationObserver()])
 loops(monitored, kind='flow-matrix').matrix.sum(axis=1).tolist()
 ```
 
 The rows of the matrix sum to `[0.0, 0.0]`, since every flow leaves one holder and enters another, the environment
-included.
+included. A flow with only one stock is booked against the column `environment`.
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order. It is a chain of hidden
 stocks in series, and it returns their outflow. With `conserved=False` it is an information smoothing. It adds hidden
@@ -122,7 +98,8 @@ feedback = loops(crowd)
 [(polarity, ' -> '.join(nodes)) for nodes, polarity in zip(feedback.loops, feedback.polarities, strict=True)]
 ```
 
-The population has a reinforcing loop through its births and a balancing loop through its deaths.
+The population has a reinforcing loop through its births, `crowd.n -> crowd.births`, and a balancing loop through
+its deaths.
 `loops(trajectory, kind='dominance')` ranks the loops by their gains at every frame of a trajectory.
 
 ```python continuation
@@ -133,8 +110,9 @@ dominance.polarities[int(dominance.dominant[-1])]
 The reinforcing loop dominates at the last frame, since the births still outrun the deaths at ten years.
 
 An edge of the graph goes from one state to another when the rate of the second depends on the first, with the sign of
-the entry of the Jacobian. In systems that declare flows, the edges also go through the flows. They go from a state to
-every flow it drives, and from a flow to its sink with sign `+` and to its source with sign `-`.
+the entry of the Jacobian. In systems that declare flows, the edges also go through the flows, the rate laws whose
+targets map stocks to signs. They go from a state to every flow it drives, and from a flow to the stock it maps to `+1`
+with sign `+` and to the stock it maps to `-1` with sign `-`.
 
 The graph is that of any system with a vector field or a map, not only of stocks and flows. At one prey and one
 predator, prey growth closes a reinforcing self-loop, predator death a balancing one, and predation a balancing loop
@@ -154,20 +132,21 @@ The loops read `('prey.x',)` reinforcing, `('predators.x',)` balancing, and `('p
 This section moves money and claims between agents so that the totals stay constant, and lets the run check it. Agents
 move conserved quantities between each other inside rules. `transfer(source, sink, amount, state)` moves an amount
 between two agents at once. A negative holding is an amount owed, and the total holdings stay constant. Here three
-traders in a [`GroupElement`](../core_components/elements.md#groupelement) each hold 10 units of cash, and at every
-step each one lends a unit to the first trader in exchange for a claim, through a
-[`RuleLaw`](../core_components/laws.md#rulelaw). A run checks that an expression keeps its first value with
-`simulate(system, invariants={name: tolerance})`, where the name is an observable of the run, here the total net worth.
+traders, an [`Element`](../core_components/elements.md#element) with `size=3`, each hold 10 units of cash, and at every
+step each one lends a unit to the first trader in exchange for a claim, through a rule, an
+[`UpdateLaw`](../core_components/laws.md#updatelaw) whose value is a function. A run checks that an expression keeps
+its first value with `simulate(invariants={name: tolerance})`, where the name is an observable of the run, here the
+total net worth.
 
 ```python
 from typing import Annotated
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element, Quantity
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import transfer
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec, StateSpec
+from skcomplex.core.systems import System
 
 
 def net_worth(agent):
@@ -181,27 +160,25 @@ def lend(agent, system):
         transfer(borrower, agent, 1.0, 'claims')
 
 
-class TraderElement(Element):
+class Trader(Element):
     def __init__(
         self,
         label,
-        *,
-        cash: Annotated[float, StateSpec(quantity='money')] = 10.0,
-        claims: Annotated[float, StateSpec(quantity='claims')] = 0.0,
-        equity: Annotated[float, StateSpec()] = 10.0,
+        cash: Annotated[float, Quantity('money')] = 10.0,
+        claims: Annotated[float, Quantity('claims')] = 0.0,
+        equity=10.0,
+        size=None,
     ):
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.cash = cash
         self.claims = claims
         self.equity = equity
 
-    def _get_laws(self, s):
-        return [RuleLaw(lend)]
 
-
-balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
-market = CompositeSystem(elements=[GroupElement('traders', element=TraderElement, size=3)])
-traders = simulate(market, until=3, observables=[balance], invariants={'net_worth': 1e-9})
+lending = Interaction('lending', roles={'target': 'traders'}, laws=lambda s: [UpdateLaw(s.target, lend)])
+balance = Observable('net_worth', net_worth, group='traders', reduce='sum')
+market = System(elements=[Trader('traders', size=3)], interactions=[lending]).prepare()
+traders = market.simulate(until=3, observables=[balance], invariants={'net_worth': 1e-9})
 float(traders.get_agents('traders', 3).values['cash'].sum())
 ```
 
@@ -225,7 +202,6 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.engine.translators import SystemDynamicsTranslator
 
@@ -264,7 +240,7 @@ The class runs like any system, with its constants as model parameters.
 
 ```python continuation
 system = module.PeopleSystem(birth_fraction=0.04)
-trajectory = simulate(system)
+trajectory = system.prepare().simulate()
 trajectory.get_values('people.births')[0], trajectory.get_values('people.doubling_share')[0]
 ```
 
@@ -284,25 +260,27 @@ from skcomplex.systems.general.dynamics import StockFlowSystem
 issubclass(module.PeopleSystem, StockFlowSystem), list(system.get_params())
 ```
 
-The block returns `True` and the parameters `['birth_fraction', 'label', 'lifetime']`. A file whose stocks also change
-outside flow variables, or are subscripted, keeps the shape of a custom system. It gets one element class, whose states
+The block returns `True` and the parameters `birth_fraction`, `label`, and `lifetime`, with the settings `backend`
+and `solver`. A file whose stocks also change outside flow variables, or are subscripted, keeps the shape of a custom
+system. It gets one element class, whose states
 are the stocks and whose parameters are the constants, and a system class on
 [`BaseSystem`](../core_components/systems.md#basesystem) that builds the element and its interactions.
 
-Time in the module runs from zero, and `Time` in the file becomes `t + START`. The parts of the file become these.
+Time in the module runs from zero, and `Time` in the file becomes `t + START`. The variables of the file become these.
 
-- A flow variable that leaves one stock and enters another is a flow between them. A flow variable of one stock is a
-  flow with the environment, a [`TransferInteraction`](../core_components/interactions.md#transferinteraction) with
-  `Source()` or `Sink()`. The trajectory reports each flow as `<element>.<flow>`.
-- The rest of the net rate of a stock is a [`RateInteraction`](../core_components/interactions.md#rateinteraction).
+- A flow variable that leaves one stock and enters another is a flow between them, a
+  [`FlowInteraction`](../core_components/general.md#flowinteraction) labelled with the name of the flow. A
+  flow variable of one stock is a flow with the environment, with only the stock it enters or leaves. The trajectory
+  reports each flow as `<element>.<flow>`.
+- The rest of the net rate of a stock is a [`RateLaw`](../core_components/laws.md#ratelaw) of an interaction.
   When it has the form `(goal - stock) / time` or `(goal - stock) * rate`, its rate is `(goal - stock) / time` of a
   goal function and a time function.
-- An auxiliary is a private function `_name(s, t)` of the module that the laws call, and an `ObservableSpec` under its
+- An auxiliary is a private function `_name(s, t)` of the module that the laws call, and an `Observable` under its
   snake-case name.
 - A lookup is a `series` of its input through its points. The built-in functions are `where`, `step`, `ramp`, `pulse`,
   `pulse_train`, `distributed_delay` for the delays and smoothings, `delayed`, `minimum`, `maximum`, `clip`, and the
   draws `uniform` and `normal`.
-- A system whose stocks are all subscripted over one range is a `GroupElement` with one member per subscript. `SUM`
+- A system whose stocks are all subscripted over one range is an `Element` with `size=`, one member per subscript. `SUM`
   over the range is `total`, and a read of one subscript is a `total` over that member.
 
 The default solver finds the exact solution. Vensim and Stella integrate with Euler steps by default. A run with
@@ -310,7 +288,7 @@ The default solver finds the exact solution. Vensim and Stella integrate with Eu
 differs from it by the Euler error of the time step of the file.
 
 ```python continuation
-stepped = simulate(system, until=module.UNTIL, dt=module.DT, solver=EulerSolver(dt=module.DT))
+stepped = system.set_params(solver=EulerSolver(dt=module.DT)).prepare().simulate(until=module.UNTIL, dt=module.DT)
 final = stepped.get_values('people.population')[-1]
 round(float(final), 3)
 ```

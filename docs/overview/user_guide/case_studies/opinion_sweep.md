@@ -36,21 +36,19 @@ tags = opinions_model.get_tags()
 [element.label for element in opinions_model.prepare().system_.elements], sorted(tags.time), tags.randomness
 ```
 
-`prepare` builds the parts and checks that they fit together. The model has one element, the group `people` that holds
-the agents. Time is discrete, since the model steps through rounds of encounters, and the model is stochastic, since the
-pairs meet at random. A run therefore needs a seed, and a study needs several runs per setting.
+`prepare` builds the components and checks that they fit together. The model has one element, the group `people` that
+holds the agents. Time is discrete, since the model steps through rounds of encounters, and the model is stochastic,
+since the pairs meet at random. A run therefore needs a seed, and a study needs several runs per setting.
 
 ## One run and its clusters
 
-`simulate` runs the model for its tuned number of steps, 50 rounds of encounters. The agents of a group are read at a
+`simulate` runs the prepared model for its tuned number of steps, 50 rounds of encounters. The agents of a group are read at a
 frame with `get_agents`, which returns their states.
 
 ```python continuation
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-
-trajectory = simulate(opinions_model, random_state=0)
+trajectory = opinions_model.simulate(random_state=0)
 final = trajectory.get_agents('people', len(trajectory.times) - 1).values['opinion']
 initial = trajectory.get_agents('people', 0).values['opinion']
 round(float(initial.std()), 3), round(float(final.std()), 3)
@@ -106,7 +104,7 @@ within one cluster of these values at every bound, as the known result predicts.
 ## Sensitivity of the final consensus
 
 The variance of the opinions measures the final consensus. It is zero when every agent holds the same opinion and grows
-as the opinions split into clusters far apart. An [ObservableSpec][skcomplex.core.specs.ObservableSpec] computes it at
+as the opinions split into clusters far apart. An [Observable][skcomplex.core.components.Observable] computes it at
 every frame, as it reduces the variable `opinion` of the group `people` with `'var'`.
 [sensitivity][skcomplex.core.experiments.sensitivity] then varies the bound and the convergence rate within their bounds
 and measures the effect of each on the last value of the observable. The method `'morris'` runs Morris trajectories,
@@ -115,9 +113,9 @@ an input, and ranks the inputs.
 
 ```python continuation
 from skcomplex.core.experiments import sensitivity
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
-spread = ObservableSpec('spread', group='people', variable='opinion', reduce='var')
+spread = Observable('spread', group='people', variable='opinion', reduce='var')
 ranges = {'confidence': (0.1, 0.5), 'convergence': (0.1, 0.5)}
 effects = sensitivity(
     DeffuantSystem(100), ranges, output='spread', method='morris', n=10, until=100, observables=[spread], random_state=0

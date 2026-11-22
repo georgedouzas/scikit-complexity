@@ -1,4 +1,4 @@
-"""Pass that writes operators back into the equations and adds field terms."""
+"""Write the operators of fields back into the equations and add the field terms."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,34 +12,49 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, I, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, FluxLaw
+from ....components.laws import BaseLaw
 from ....components.laws.utils._phase import COORDINATE_PREFIX
-from ....components.spaces import LatticeSpace, MeshSpace, PhaseSpace, SimplexSpace
+from ....components.spaces import CellComplexSpace, LatticeSpace, PhaseSpace
+from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import LayoutSpec, RunStateSpec
-from ....types import Array, VariableKind, VectorFunction
+from ....types import Array, VectorFunction
 from ..._utils import declarations_of
+from ...enums import ReadKind
+from ...problems import LayoutSpec, RunStateSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
+from ...problems._field_element import _FieldElement
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._symmetry_spec import SymmetrySpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
+from .._flux_law import _FluxLaw
 
 PAIR = 2
 
 
 class FieldFunctionsPass(BasePass):
-    """A pass that writes operators back into the equations and adds field terms.
+    """A pass that writes the operators back into the equations and adds field terms.
 
-    It adds flux differences, symmetries, and fixed nodes.
+    The equations show `laplacian(u)` as written, not its sum over neighbours. The pass also adds the flux differences
+    of finite volumes, the mirror symmetries of fields, and the fixed nodes of meshes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        LowerFieldsPass: Rewrites the operators first.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).run().compilation_
+        >>> compilation.functions.equations
+        {'plate.u[i]': D_plate*laplacian(u_plate)}
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -99,21 +114,21 @@ class FieldFunctionsPass(BasePass):
         They come from the flux laws of all its components. The flux laws of one field, from its element and from any
         interaction, form one system, whose wave speeds come from the Jacobian of all its fluxes.
         """
-        found: dict[str, list[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
+        found: dict[str, list[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
         for spec, laws in specs:
             for law in laws:
-                if not isinstance(law, FluxLaw):
+                if not isinstance(law, _FluxLaw):
                     continue
                 reference = spec._get_target_references(law._get_targets()[0])[0]
                 owner = reference.entry.name.rpartition('.')[0]
-                if not isinstance(declarations.blocks[owner].node.component, FieldElement):
+                if not isinstance(declarations.blocks[owner].node.component, _FieldElement):
                     error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
                     raise ValidationError(error_msg)
                 found.setdefault(owner, []).append((law, reference, spec.references))
         volumes = []
         for owner in sorted(found):
             place = declarations.blocks[owner].node.component
-            if not isinstance(place, FieldElement):
+            if not isinstance(place, _FieldElement):
                 error_msg = f'{owner} declares fluxes, but it is not a field.'
                 raise ValidationError(error_msg)
             volumes.append(FieldFunctionsPass._compile_volumes(found[owner], place, owner, declarations))
@@ -129,7 +144,11 @@ class FieldFunctionsPass(BasePass):
         values: list[npt.NDArray[np.float64]] = []
         for block in blocks:
             place = block.node.component
-            if not isinstance(place, FieldElement) or not isinstance(place.space, MeshSpace):
+            if (
+                not isinstance(place, _FieldElement)
+                or not isinstance(place.space, CellComplexSpace)
+                or not place.space._is_mesh()
+            ):
                 continue
             if place.discretization != 'finite-element':
                 error_msg = f'Field {block.node.path} lives on a mesh, which needs the finite-element discretization.'
@@ -137,7 +156,7 @@ class FieldFunctionsPass(BasePass):
             nodes = place.space.boundary_nodes_
             coordinates = place.space.positions_[nodes]
             for variable, entry in block.entries.items():
-                if variable not in declarations_of(place.get_declaring_part(), VariableKind.STATE):
+                if variable not in declarations_of(place.get_declaring_element(), VariableKind.STATE):
                     continue
                 kind, value = place._get_boundary(variable)
                 if kind != 'fixed':
@@ -172,10 +191,10 @@ class FieldFunctionsPass(BasePass):
         found = []
         for block in blocks:
             place = block.node.component
-            if not isinstance(place, FieldElement) or not place.symmetry:
+            if not isinstance(place, _FieldElement) or not place.symmetry:
                 continue
             space = place.space
-            if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
+            if not isinstance(space, LatticeSpace) or space._get_edges() != 'periodic':
                 error_msg = f'Field {block.node.path} declares symmetries, which need a periodic lattice.'
                 raise ValidationError(error_msg)
             for variable, parities, column in FieldFunctionsPass._get_component_parities(place.symmetry):
@@ -282,7 +301,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _get_canonical(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         owner: str,
     ) -> tuple[list[list[Expression]], list[Expression], list[ReferenceSpec]]:
         """Return the flux components in shared symbols, the state symbols, and parameters.
@@ -294,7 +313,7 @@ class FieldFunctionsPass(BasePass):
         """
         names = [reference.entry.name for _, reference, _ in laws]
         if len(set(names)) != len(names):
-            error_msg = f'Two flux laws conserve the same state of {owner}. Give one flux per state.'
+            error_msg = f'Two conservation laws transport the same state of {owner}. Give one flux per state.'
             raise ValidationError(error_msg)
         states = [SR.var(f'_volume_state_{index}') for index in range(len(names))]
         parameters: dict[tuple[str, int, object, int], tuple[Expression, ReferenceSpec]] = {}
@@ -373,7 +392,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _get_function_speeds(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         parameters: Sequence[ReferenceSpec],
         n_dim: int,
         owner: str,
@@ -584,8 +603,8 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _compile_volumes(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
-        place: FieldElement,
+        laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        place: _FieldElement,
         owner: str,
         declarations: DeclarationsSpec,
     ) -> FiniteVolumeKernel:
@@ -687,6 +706,6 @@ class FieldFunctionsPass(BasePass):
                 FieldFunctionsPass._get_function_speeds(laws, parameters, n_dim, owner)
                 or FieldFunctionsPass._compile_speeds(columns, states, printer, owner)
             ),
-            volumes=space.volumes_ if isinstance(space, SimplexSpace) else None,
-            apertures=space.apertures_ if isinstance(space, SimplexSpace) else (),
+            volumes=space._get_volumes(),
+            apertures=space._get_apertures(),
         ).prepare()

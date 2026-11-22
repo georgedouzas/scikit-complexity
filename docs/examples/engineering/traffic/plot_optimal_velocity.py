@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = OptimalVelocitySystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Instability of uniform flow
@@ -45,10 +44,10 @@ trajectory = simulate(system, observers=[observer])
 # `b = hc = 2`, `V'(b) = V0 = 1 > 0.5`, so the spread of speeds should grow from the initial disturbance and saturate
 # in a stop-and-go wave. A ring with a larger headway, where `V'(b) < a / 2`, should instead return to uniform flow.
 
-stable = simulate(OptimalVelocitySystem(length=80.0))
+stable = OptimalVelocitySystem(length=80.0).prepare().simulate()
 fig, (spread, cycle) = plt.subplots(1, 2, figsize=(10, 4))
-spread.semilogy(trajectory.times, trajectory.get_values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
-spread.semilogy(stable.times, stable.get_values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')
+spread.semilogy(trajectory.times, trajectory.get_values("cars.x'").std(axis=1) + 1e-12, label='headway 2, unstable')
+spread.semilogy(stable.times, stable.get_values("cars.x'").std(axis=1) + 1e-12, label='headway 4, stable')
 spread.set_xlabel('time')
 spread.set_ylabel('spread of speeds')
 spread.set_title('The disturbance grows or decays')
@@ -57,7 +56,7 @@ headways = np.mod(np.roll(trajectory.get_values('cars.x'), -1, axis=1) - traject
 late = trajectory.times > 150
 cycle.plot(
     headways[late].ravel(),
-    trajectory.get_values('cars.v')[late].ravel(),
+    trajectory.get_values("cars.x'")[late].ravel(),
     '.',
     markersize=2,
     label='all cars, t > 150',

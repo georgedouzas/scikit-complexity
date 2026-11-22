@@ -10,12 +10,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ...components.specs import ScenarioSpec
+from ...base import BaseSpec
+from ...components import Observable
 from ...engine.runtime import Trajectory
 from ...engine.solvers import BaseSolver
-from ...specs._base_spec import BaseSpec
-from ...specs._observable_spec import ObservableSpec
-from ..types import Output, Row, Source
+from .._scenario_spec import ScenarioSpec
+from ..types import Output, Row, SystemSource
 
 
 @dataclass(frozen=True)
@@ -64,7 +64,7 @@ class _TaskSpec(BaseSpec):
     """
 
     index: int
-    source: Source
+    source: SystemSource
     row: Row
     scenario: ScenarioSpec
     replicate: int
@@ -74,5 +74,5 @@ class _TaskSpec(BaseSpec):
     solver: BaseSolver | None
     outputs: Sequence[Output] | None
     warmup: float
-    observables: Sequence[ObservableSpec]
+    observables: Sequence[Observable]
     analyses: tuple[tuple[str, Callable[[Trajectory], object]], ...]

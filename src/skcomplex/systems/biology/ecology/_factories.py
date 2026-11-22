@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.laws.utils import lag, series
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import series
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.populations import (
@@ -67,26 +71,24 @@ class RickerGrowthInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        target: Role,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next generation `r x exp(-x)`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next generation `r x exp(-x)`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         n = s.target.x
-        return [UpdateLaw(n, s.r * n * exp(-n))]
+        self.laws_ = [UpdateLaw(n, s.r * n * exp(-n))]
 
 
 class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
@@ -123,11 +125,11 @@ class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        amplitude: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        period: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label, target=target, r=r, K=K)
         self.amplitude = amplitude
@@ -166,6 +168,12 @@ class ExponentialGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
         >>> ExponentialGrowthSystem(r=0.2).prepare().system_.interactions[0].r
@@ -184,17 +192,24 @@ class ExponentialGrowthSystem(BaseSystem):
         r: float = 0.1,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a population that grows at a constant per-capita rate.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a population that grows at a constant per-capita rate.
 
         The population grows or declines.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[ExponentialGrowthInteraction('growth', target='population', r=self.r)],
@@ -219,6 +234,12 @@ class LogisticGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> LogisticGrowthSystem(K=500.0).prepare().system_.interactions[0].K
@@ -238,18 +259,25 @@ class LogisticGrowthSystem(BaseSystem):
         K: float = 100.0,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a population that grows logistically.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a population that grows logistically.
 
         It grows towards its carrying capacity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K)],
@@ -283,6 +311,12 @@ class VaryingCapacityLogisticSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import VaryingCapacityLogisticSystem
         >>> VaryingCapacityLogisticSystem(amplitude=0.2).prepare().system_.interactions[0].amplitude
@@ -304,17 +338,25 @@ class VaryingCapacityLogisticSystem(BaseSystem):
         amplitude: float = 0.5,
         period: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.K = K
         self.amplitude = amplitude
         self.period = period
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of logistic growth under a seasonal carrying capacity."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of logistic growth under a seasonal carrying capacity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[
@@ -353,6 +395,12 @@ class HutchinsonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import HutchinsonSystem
         >>> HutchinsonSystem(tau=1.0).prepare().system_.interactions[0].tau
@@ -373,16 +421,24 @@ class HutchinsonSystem(BaseSystem):
         K: float = 100.0,
         tau: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.K = K
         self.tau = tau
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of Hutchinson's delayed logistic equation."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Hutchinson's delayed logistic equation.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[LogisticGrowthInteraction('growth', target='population', r=self.r, K=self.K, tau=self.tau)],
@@ -419,6 +475,12 @@ class LotkaVolterraSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
         >>> [element.label for element in LotkaVolterraSystem().prepare().system_.elements]
@@ -442,8 +504,10 @@ class LotkaVolterraSystem(BaseSystem):
         d: float = 0.4,
         K: float | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.prey = prey
         self.predators = predators
         self.r = r
@@ -452,17 +516,22 @@ class LotkaVolterraSystem(BaseSystem):
         self.d = d
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators whose populations oscillate.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of prey and predators whose populations oscillate.
 
         Their populations oscillate through predation.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         growth: BaseInteraction = (
             ExponentialGrowthInteraction('growth', target='prey', r=self.r)
             if self.K is None
             else LogisticGrowthInteraction('growth', target='prey', r=self.r, K=self.K)
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
@@ -491,9 +560,15 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import FibonacciRabbitsSystem
-        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].get_value('pairs')
+        >>> FibonacciRabbitsSystem().prepare().system_.elements[0].values['pairs']
         1.0
     """
 
@@ -509,8 +584,10 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         previous: float = 0.0,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.pairs = pairs
         self.previous = previous
 
@@ -522,19 +599,21 @@ class FibonacciRabbitsSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'pairs': DeclaredVariableSpec(
-                self.pairs,
-                StateSpec(domain=RealSet.closed_open(0, oo), lags=1, initial=(0.0,)),
-            ),
+            'pairs': self.pairs,
+            'pairs[-1]': 0.0,
         }
 
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {}
+
     def _get_equations(self) -> Equations:
-        """Return the parts of Fibonacci's rabbits."""
+        """Return the components of Fibonacci's rabbits."""
         return {
-            'pairs': lambda s: s.target.pairs + lag(s.target.pairs, 1),
+            'pairs': lambda s: s.target.pairs + s.target.pairs(t=s.t - 1),
         }
 
 
@@ -557,6 +636,12 @@ class RickerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import RickerSystem
         >>> RickerSystem(r=12.0).prepare().system_.interactions[0].r
@@ -575,14 +660,22 @@ class RickerSystem(BaseSystem):
         *,
         r: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of Ricker's map of a population in discrete generations."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Ricker's map of a population in discrete generations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('population', x=self.n)],
             interactions=[RickerGrowthInteraction('growth', target='population', r=self.r)],
@@ -627,9 +720,15 @@ class PenaeidShrimpSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import PenaeidShrimpSystem
-        >>> PenaeidShrimpSystem().prepare().system_.elements[0].get_value('K')
+        >>> PenaeidShrimpSystem().prepare().system_.elements[0].values['K']
         0.013
     """
 
@@ -649,8 +748,10 @@ class PenaeidShrimpSystem(DynamicalSystem):
         L_inf: float = 29.9,
         K: float = 0.013,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.gut = gut
         self.biomass = biomass
         self.ration = ration
@@ -662,22 +763,27 @@ class PenaeidShrimpSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'shrimp'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'gut': DeclaredVariableSpec(self.gut, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'biomass': DeclaredVariableSpec(self.biomass, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'gonads': DeclaredVariableSpec(0.0001, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'length': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'ration': DeclaredVariableSpec(self.ration, ParameterSpec(domain=RealSet.open(0, oo))),
-            'k': DeclaredVariableSpec(0.12, ParameterSpec(domain=RealSet.open(0, oo))),
-            'assimilation': DeclaredVariableSpec(0.8, ParameterSpec(domain=RealSet.open(0, oo))),
-            'respiration': DeclaredVariableSpec(self.respiration, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'phi': DeclaredVariableSpec(5.0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'gsi': DeclaredVariableSpec(0.05, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'egg_weight': DeclaredVariableSpec(2.0e-6, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'L_inf': DeclaredVariableSpec(self.L_inf, ParameterSpec(domain=RealSet.open(0, oo))),
-            'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.open(0, oo))),
+            'gut': self.gut,
+            'biomass': self.biomass,
+            'gonads': 0.0001,
+            'length': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'ration': self.ration,
+            'k': 0.12,
+            'assimilation': 0.8,
+            'respiration': self.respiration,
+            'phi': 5.0,
+            'gsi': 0.05,
+            'egg_weight': 2.0e-6,
+            'L_inf': self.L_inf,
+            'K': self.K,
         }
 
     def _get_equations(self) -> Equations:

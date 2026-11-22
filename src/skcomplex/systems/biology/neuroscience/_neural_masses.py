@@ -6,19 +6,22 @@ The neural masses are those of quadratic integrate-and-fire populations.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import cos, oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.laws import RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 FIELDS = ('r', 's')
 SETUPS = ('ping', 'ing')
@@ -32,15 +35,12 @@ class NeuralMassElement(Element):
     The excitabilities of the neurons follow a Lorentzian distribution of median `H` and half-width `delta`, so the
     firing rate `r` and the mean membrane potential `v` of the population follow `dr/dt = delta / (tau^2 pi) + 2 r v
     / tau` and `dv/dt = (v^2 + H) / tau - tau (pi r)^2` exactly, with the membrane time constant `tau`. The synaptic
-    field `s` filters the rate with exponential synapses, `ds/dt = (r - s) / tau_d`. Couplings and inputs add to the
-    rate of `v`.
+    field `s` filters the rate with exponential synapses, `ds/dt = (r - s) / tau_d`. The element holds the states and
+    parameters, a `NeuralMassInteraction` gives these laws, and couplings and inputs add to the rate of `v`.
 
     Args:
         label:
             The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         r:
             The initial firing rate, in spikes per millisecond.
@@ -69,22 +69,19 @@ class NeuralMassElement(Element):
         20.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        v: Annotated[float, StateSpec()] = -1.0,
-        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        H: Annotated[float, ParameterSpec()] = -5.0,
-        tau_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        v: float = -1.0,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        delta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        H: float = -5.0,
+        tau_d: Annotated[float, RealSet.open(0, oo)] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.r = r
         self.v = v
         self.s = s
@@ -93,21 +90,46 @@ class NeuralMassElement(Element):
         self.H = H
         self.tau_d = tau_d
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the mean-field rate, potential, and synaptic field.
+
+class NeuralMassInteraction(Interaction):
+    """Exact mean-field dynamics of one population of quadratic integrate-and-fire neurons.
+
+    It gives the population of its target the rate `dr/dt = delta / (tau^2 pi) + 2 r v / tau`, the potential
+    `dv/dt = (v^2 + H) / tau - tau (pi r)^2`, and the synaptic field `ds/dt = (r - s) / tau_d`, with the parameters of
+    the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the population.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import NeuralMassInteraction
+        >>> NeuralMassInteraction('mean_field', target='e').target
+        'e'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the mean-field rate, potential, and synaptic field of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.r, s.delta / (s.tau**2 * pi) + 2 * s.r * s.v / s.tau),
-            RateLaw(s.v, (s.v**2 + s.H) / s.tau - s.tau * (pi * s.r) ** 2),
-            RateLaw(s.s, (s.r - s.s) / s.tau_d),
+        super()._prepare(context)
+        p = context.target
+        self.laws_ = [
+            RateLaw(p.r, p.delta / (p.tau**2 * pi) + 2 * p.r * p.v / p.tau),
+            RateLaw(p.v, (p.v**2 + p.H) / p.tau - p.tau * (pi * p.r) ** 2),
+            RateLaw(p.s, (p.r - p.s) / p.tau_d),
         ]
 
 
@@ -151,9 +173,9 @@ class SynapticDriveInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        J: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        source: Role,
+        J: float = 1.0,
         field: str = 'r',
     ) -> None:
         super().__init__(label)
@@ -162,34 +184,28 @@ class SynapticDriveInteraction(Interaction):
         self.J = J
         self.field = field
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Check the field.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The field is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.field not in FIELDS:
             error_msg = f'The field must be one of {", ".join(FIELDS)}, not {self.field!r}.'
             raise ValidationError(error_msg)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drive of the potential of the target.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drive of the potential of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target and the source, the time `t`, and the parameters.
         """
-        return [RateLaw(s.target.v, s.J * getattr(s.source, self.field))]
+        super()._prepare(context)
+        s = context
+        self.laws_ = [RateLaw(s.target.v, s.J * getattr(s.source, self.field))]
 
 
 class ThetaForcingInteraction(Interaction):
@@ -225,28 +241,26 @@ class ThetaForcingInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        I0: Annotated[float, ParameterSpec()] = 10.0,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        target: Role,
+        I0: float = 10.0,
+        nu: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.I0 = I0
         self.nu = nu
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the forcing current of the potential.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the forcing current of the potential.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         current = s.I0 / 2 * (1 - cos(2 * pi * s.nu * s.t / 1000))
-        return [RateLaw(s.target.v, current / s.target.tau)]
+        self.laws_ = [RateLaw(s.target.v, current / s.target.tau)]
 
 
 class NextGenerationNeuralMassSystem(BaseSystem):
@@ -297,6 +311,12 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The setup is unknown.
@@ -327,8 +347,10 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         I0: float | None = None,
         nu: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.setup = setup
         self.H_e = H_e
         self.H_i = H_i
@@ -340,8 +362,14 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         self.I0 = I0
         self.nu = nu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the exact quadratic integrate-and-fire neural mass."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the exact quadratic integrate-and-fire neural mass.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.setup not in SETUPS:
             error_msg = f'The setup must be one of {", ".join(SETUPS)}, not {self.setup!r}.'
             raise ValidationError(error_msg)
@@ -352,10 +380,11 @@ class NextGenerationNeuralMassSystem(BaseSystem):
                 delta=0.3 if self.delta is None else self.delta,
                 H=2.0 if self.H_i is None else self.H_i,
             )
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 elements=[population],
                 interactions=[
+                    NeuralMassInteraction('inhibitory_mean_field', target='inhibitory'),
                     SynapticDriveInteraction(
                         'ii',
                         target='inhibitory',
@@ -371,14 +400,17 @@ class NextGenerationNeuralMassSystem(BaseSystem):
                     ),
                 ],
             )
+            return
         width = 1.0 if self.delta is None else self.delta
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 NeuralMassElement('excitatory', tau=20.0, delta=width, H=self.H_e),
                 NeuralMassElement('inhibitory', tau=10.0, delta=width, H=-5.0 if self.H_i is None else self.H_i),
             ],
             interactions=[
+                NeuralMassInteraction('excitatory_mean_field', target='excitatory'),
+                NeuralMassInteraction('inhibitory_mean_field', target='inhibitory'),
                 SynapticDriveInteraction('ee', target='excitatory', source='excitatory', J=self.J_ee),
                 SynapticDriveInteraction('ie', target='excitatory', source='inhibitory', J=-self.J_ie),
                 SynapticDriveInteraction('ei', target='inhibitory', source='excitatory', J=self.J_ei),

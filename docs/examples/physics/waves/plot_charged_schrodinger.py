@@ -16,7 +16,6 @@ the field and then runs along a straight line, while its real part alternates in
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.waves import ChargedSchrodingerSystem
 
@@ -24,7 +23,7 @@ SYSTEM = 'charged_schrodinger'
 
 system = ChargedSchrodingerSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Acceleration by the field, not by a gauge
@@ -39,7 +38,7 @@ times = trajectory.times
 density = trajectory.get_values('packet.u') ** 2 + trajectory.get_values('packet.w') ** 2
 centres = density @ positions / density.sum(axis=1)
 expected = np.where(times < 2.0, 0.5 * times**2, 2.0 + 2.0 * (times - 2.0))
-gauge = simulate(ChargedSchrodingerSystem(E=0.0, A_x=1.0, momentum=1.0))
+gauge = ChargedSchrodingerSystem(E=0.0, A_x=1.0, momentum=1.0).prepare().simulate()
 gauge_density = gauge.get_values('packet.u') ** 2 + gauge.get_values('packet.w') ** 2
 
 fig, (motion, norm) = plt.subplots(1, 2, figsize=(10, 4))

@@ -6,6 +6,7 @@ It is a supply chain of four echelons with delays.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from itertools import pairwise
 from types import SimpleNamespace
 from typing import Annotated
@@ -13,12 +14,15 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction, TransferInteraction
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
@@ -26,18 +30,15 @@ ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 class EchelonElement(Element):
     """Echelon of a supply chain.
 
-    It ships its backlog from its inventory and orders by anchoring and adjustment. It ships its backlog over the
-    dispatch time, limited by its inventory. Its expected demand adapts to incoming orders at the rate `theta`, and it
-    orders its expected demand plus `alpha` times the gap between its desired stock and its effective inventory, the
-    inventory less the backlog, less `beta` times its supply line, never negative. Its orders reach its supplier after
-    the mail delay, and the beer its supplier ships arrives after the shipping delay.
+    It ships its backlog from its inventory and orders by anchoring and adjustment, by the laws of `EchelonInteraction`.
+    It ships its backlog over the dispatch time, limited by its inventory. Its expected demand adapts to incoming orders
+    at the rate `theta`, and it orders its expected demand plus `alpha` times the gap between its desired stock and its
+    effective inventory, the inventory less the backlog, less `beta` times its supply line, never negative. Its orders
+    reach its supplier after the mail delay, and the beer its supplier ships arrives after the shipping delay.
 
     Args:
         label:
             The label of the echelon.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial inventory, in cases.
@@ -81,27 +82,24 @@ class EchelonElement(Element):
         10.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[float, ParameterSpec()] = 13.44,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        inventory: Annotated[float, RealSet.closed_open(0, oo), Quantity('beer')] = 12.0,
+        in_transit: Annotated[float, RealSet.closed_open(0, oo), Quantity('beer')] = 8.0,
+        backlog: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        expected: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        supply_line: Annotated[float, RealSet.closed_open(0, oo)] = 16.0,
+        desired: float = 13.44,
+        theta: Annotated[float, RealSet.closed_open(0, oo)] = 0.36,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.34,
+        dispatch_time: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        mail_delay: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        shipping_delay: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.inventory = inventory
         self.in_transit = in_transit
         self.backlog = backlog
@@ -115,19 +113,6 @@ class EchelonElement(Element):
         self.mail_delay = mail_delay
         self.shipping_delay = shipping_delay
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shipping of the backlog and the decay of the expected demand.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return EchelonElement._get_echelon_laws(s)
-
     @staticmethod
     def _get_shipments(echelon: SimpleNamespace) -> Expression:
         """Return the shipments of an echelon.
@@ -135,17 +120,6 @@ class EchelonElement(Element):
         They are its backlog limited by its inventory over the dispatch time.
         """
         return minimum(echelon.backlog, echelon.inventory) / echelon.dispatch_time
-
-    @staticmethod
-    def _get_echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of an echelon.
-
-        They are the shipping of its backlog and the decay of its expectation.
-        """
-        return [
-            RateLaw(s.backlog, -EchelonElement._get_shipments(s)),
-            RateLaw(s.expected, -s.theta * s.expected),
-        ]
 
 
 class FactoryElement(EchelonElement):
@@ -156,9 +130,6 @@ class FactoryElement(EchelonElement):
     Args:
         label:
             The label of the factory.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial inventory, in cases.
@@ -208,25 +179,23 @@ class FactoryElement(EchelonElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[float, ParameterSpec()] = 13.44,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        production_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        inventory: Annotated[float, RealSet.closed_open(0, oo), Quantity('beer')] = 12.0,
+        in_transit: Annotated[float, RealSet.closed_open(0, oo), Quantity('beer')] = 8.0,
+        backlog: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        expected: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        supply_line: Annotated[float, RealSet.closed_open(0, oo)] = 16.0,
+        desired: float = 13.44,
+        theta: Annotated[float, RealSet.closed_open(0, oo)] = 0.36,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.34,
+        dispatch_time: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        mail_delay: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        shipping_delay: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        production_delay: Annotated[float, RealSet.open(0, oo)] = 3.0,
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             inventory=inventory,
             in_transit=in_transit,
             backlog=backlog,
@@ -251,9 +220,6 @@ class RetailerElement(EchelonElement):
     Args:
         label:
             The label of the retailer.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial inventory, in cases.
@@ -309,27 +275,25 @@ class RetailerElement(EchelonElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[float, ParameterSpec()] = 13.44,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        demand_step: Annotated[float, ParameterSpec()] = 4.0,
-        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        inventory: Annotated[float, RealSet.closed_open(0, oo), Quantity('beer')] = 12.0,
+        in_transit: Annotated[float, RealSet.closed_open(0, oo), Quantity('beer')] = 8.0,
+        backlog: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        expected: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        supply_line: Annotated[float, RealSet.closed_open(0, oo)] = 16.0,
+        desired: float = 13.44,
+        theta: Annotated[float, RealSet.closed_open(0, oo)] = 0.36,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.34,
+        dispatch_time: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        mail_delay: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        shipping_delay: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        demand: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
+        demand_step: float = 4.0,
+        step_time: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             inventory=inventory,
             in_transit=in_transit,
             backlog=backlog,
@@ -348,11 +312,51 @@ class RetailerElement(EchelonElement):
         self.step_time = step_time
 
 
-class BreweryInteraction(TransferInteraction):
+class EchelonInteraction(Interaction):
+    """Shipping of the backlog of an echelon of a supply chain and the decay of its expected demand.
+
+    The echelon ships its backlog over the dispatch time, limited by its inventory, and its expected demand decays at
+    the rate `theta`, while the orders that reach it raise both.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the echelon.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import EchelonInteraction
+        >>> EchelonInteraction('retailer_shipping', target='retailer').target
+        'retailer'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shipping of the backlog and the decay of the expectation as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        echelon = context.target
+        self.laws_: list[BaseLaw] = [
+            RateLaw(echelon.backlog, -EchelonElement._get_shipments(echelon)),
+            RateLaw(echelon.expected, -echelon.theta * echelon.expected),
+        ]
+
+
+class BreweryInteraction(Interaction):
     """Brewery of a supply chain.
 
-    It brews the orders of the factory over its production delay. The brewing is a transfer from the brewery into the
-    beer in production at the factory and on to its inventory.
+    It brews the orders of the factory over its production delay. The brewing is a flow `starts` into the beer in
+    production at the factory and a flow `completions` on to its inventory.
 
     Args:
         label:
@@ -371,23 +375,28 @@ class BreweryInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        factory: Annotated[str, RoleSpec()],
+        factory: Role,
     ) -> None:
-        super().__init__(
-            label,
-            source=factory,
-            target=factory,
-            state=Source('brewery'),
-            into='in_transit',
-            amount=lambda s: BreweryInteraction._get_orders(s.factory),
-            flow='starts',
-            legs=[('in_transit', 'inventory', lambda s: BreweryInteraction._get_completions(s.factory), 'completions')],
-        )
+        super().__init__(label)
         self.factory = factory
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the factory, whose beer in production and inventory the brewery fills."""
-        return [(namespace.factory, namespace.factory)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the starts and the completions of the brews as the flows.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        factory = context.factory
+        self.laws_: list[BaseLaw] = [
+            RateLaw({factory.in_transit: +1}, BreweryInteraction._get_orders(factory), label='starts'),
+            RateLaw(
+                {factory.in_transit: -1, factory.inventory: +1},
+                BreweryInteraction._get_completions(factory),
+                label='completions',
+            ),
+        ]
 
     @staticmethod
     def _get_orders(echelon: SimpleNamespace) -> Expression:
@@ -408,10 +417,10 @@ class BreweryInteraction(TransferInteraction):
         return distributed_delay(BreweryInteraction._get_orders(factory), order=3, time=factory.production_delay)
 
 
-class RetailDemandInteraction(TransferInteraction):
+class RetailDemandInteraction(Interaction):
     """Customers of a supply chain, who take the shipments of the retailer.
 
-    The sales are a transfer from the inventory of the retailer to the customers.
+    The sales are a flow out of the inventory of the retailer.
 
     Args:
         label:
@@ -430,30 +439,31 @@ class RetailDemandInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        retailer: Annotated[str, RoleSpec()],
+        retailer: Role,
     ) -> None:
-        super().__init__(
-            label,
-            source=retailer,
-            target=retailer,
-            state='inventory',
-            into=Sink('customers'),
-            amount=lambda s: EchelonElement._get_shipments(s.retailer),
-            flow='sales',
-        )
+        super().__init__(label)
         self.retailer = retailer
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the retailer, whose inventory the customers take."""
-        return [(namespace.retailer, namespace.retailer)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sales out of the inventory of the retailer as the flow.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        retailer = context.retailer
+        self.laws_: list[BaseLaw] = [
+            RateLaw({retailer.inventory: -1}, EchelonElement._get_shipments(retailer), label='sales'),
+        ]
 
 
-class SupplyLinkInteraction(TransferInteraction):
+class SupplyLinkInteraction(Interaction):
     """Link of a supply chain.
 
-    It ships beer from the upstream echelon to the downstream echelon. The shipments and their arrivals, after a
-    third-order delay of the shipping delay of the downstream echelon, are the legs of one transfer, from the inventory
-    of the upstream echelon to the beer in transit to the downstream echelon and on to its inventory.
+    It ships beer from the upstream echelon to the downstream echelon. The shipments flow from the inventory of the
+    upstream echelon to the beer in transit to the downstream echelon, and the arrivals, after a third-order delay of
+    the shipping delay of the downstream echelon, flow on to its inventory.
 
     Args:
         label:
@@ -475,35 +485,34 @@ class SupplyLinkInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        downstream: Annotated[str, RoleSpec()],
-        upstream: Annotated[str, RoleSpec()],
+        downstream: Role,
+        upstream: Role,
     ) -> None:
-        super().__init__(
-            label,
-            source=upstream,
-            target=downstream,
-            state='inventory',
-            into='in_transit',
-            amount=lambda s: EchelonElement._get_shipments(s.upstream),
-            flow='shipments',
-            legs=[
-                (
-                    'downstream.in_transit',
-                    'downstream.inventory',
-                    lambda s: SupplyLinkInteraction._get_arrivals(s.upstream, s.downstream),
-                    'arrivals',
-                ),
-            ],
-        )
+        super().__init__(label)
         self.downstream = downstream
         self.upstream = upstream
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the upstream echelon and the downstream echelon.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shipments and their arrivals as the flows.
 
-        The upstream echelon ships, and the downstream echelon receives.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [(namespace.upstream, namespace.downstream)]
+        super()._prepare(context)
+        upstream, downstream = context.upstream, context.downstream
+        self.laws_: list[BaseLaw] = [
+            RateLaw(
+                {upstream.inventory: -1, downstream.in_transit: +1},
+                EchelonElement._get_shipments(upstream),
+                label='shipments',
+            ),
+            RateLaw(
+                {downstream.in_transit: -1, downstream.inventory: +1},
+                SupplyLinkInteraction._get_arrivals(upstream, downstream),
+                label='arrivals',
+            ),
+        ]
 
     @staticmethod
     def _get_arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:
@@ -544,11 +553,12 @@ class BeerGameSystem(BaseSystem):
 
     The system has the stocks `<echelon>.inventory`, `<echelon>.in_transit`, `<echelon>.backlog`, `<echelon>.expected`,
     and `<echelon>.supply_line` of the echelons `retailer`, `wholesaler`, `distributor`, and `factory`, and the flows
-    `<upstream>_to_<downstream>.shipments` and `<upstream>_to_<downstream>.arrivals` of the links, `customers.sales`,
-    and `brewery.starts` and `brewery.completions`. The rates `<echelon>_backlog` and `<echelon>_expected` add the
-    orders that reach every echelon and adapt its expectation, and the rates `<echelon>_supply_line` keep its supply
-    line. The observables of the system are the orders `<echelon>.orders` and the shipments `<echelon>.shipments` of
-    every echelon, and the orders of the customers `customers.orders`.
+    `<upstream>_to_<downstream>.shipments` between the echelons, `<downstream>.arrivals` at every echelon a link
+    supplies, `retailer.sales`, and `factory.starts` and `factory.completions`. The interactions `<echelon>_shipping`
+    ship the backlog of every echelon and decay its expectation, the rates `<echelon>_backlog` and `<echelon>_expected`
+    add the orders that reach every echelon and adapt its expectation, and the rates `<echelon>_supply_line` keep its
+    supply line. The observables of the system are the orders `<echelon>.orders` and the shipments `<echelon>.shipments`
+    of every echelon, and the orders of the customers `customers.orders`.
 
     Args:
         inventory:
@@ -587,6 +597,12 @@ class BeerGameSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import BeerGameSystem
         >>> [element.label for element in BeerGameSystem().prepare().system_.elements]
@@ -599,9 +615,9 @@ class BeerGameSystem(BaseSystem):
     until = 36.0
     dt = 0.5
     observables = (
-        *(ObservableSpec('orders', BreweryInteraction._get_orders, element=label) for label in ECHELONS),
-        *(ObservableSpec('shipments', EchelonElement._get_shipments, element=label) for label in ECHELONS),
-        ObservableSpec('customers.orders', _get_customer_orders),
+        *(Observable('orders', BreweryInteraction._get_orders, element=label) for label in ECHELONS),
+        *(Observable('shipments', EchelonElement._get_shipments, element=label) for label in ECHELONS),
+        Observable('customers.orders', _get_customer_orders),
     )
 
     @staticmethod
@@ -627,8 +643,10 @@ class BeerGameSystem(BaseSystem):
         shipping_delay: float = 2.0,
         production_delay: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.inventory = inventory
         self.demand = demand
         self.demand_step = demand_step
@@ -642,72 +660,74 @@ class BeerGameSystem(BaseSystem):
         self.production_delay = production_delay
 
     @staticmethod
-    def _get_link_rates(downstream: str, upstream: str) -> list[RateInteraction]:
+    def _get_link_rates(downstream: str, upstream: str) -> list[Interaction]:
         """Return the rates of a link.
 
         They are the supply line of the downstream echelon and the incoming orders upstream.
         """
         return [
-            RateInteraction(
+            Interaction(
                 f'{downstream}_supply_line',
-                target=downstream,
-                state='supply_line',
-                sources=[upstream],
-                rate=lambda s: BreweryInteraction._get_orders(s.target)
-                - SupplyLinkInteraction._get_arrivals(s.sources[0], s.target),
+                roles={'target': downstream, 'source': upstream},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.supply_line,
+                        BreweryInteraction._get_orders(s.target)
+                        - SupplyLinkInteraction._get_arrivals(s.source, s.target),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 f'{upstream}_backlog',
-                target=upstream,
-                state='backlog',
-                sources=[downstream],
-                rate=lambda s: BeerGameSystem._get_received(s.sources[0]),
+                roles={'target': upstream, 'source': downstream},
+                laws=lambda s: [RateLaw(s.target.backlog, BeerGameSystem._get_received(s.source))],
             ),
-            RateInteraction(
+            Interaction(
                 f'{upstream}_expected',
-                target=upstream,
-                state='expected',
-                sources=[downstream],
-                rate=lambda s: s.target.theta * BeerGameSystem._get_received(s.sources[0]),
+                roles={'target': upstream, 'source': downstream},
+                laws=lambda s: [RateLaw(s.target.expected, s.target.theta * BeerGameSystem._get_received(s.source))],
             ),
         ]
 
     @staticmethod
-    def _get_customer_rates() -> list[RateInteraction]:
+    def _get_customer_rates() -> list[Interaction]:
         """Return the rates of the customers.
 
         They are the demand that reaches the retailer and its expectation.
         """
         return [
-            RateInteraction(
+            Interaction(
                 'retailer_backlog',
-                target='retailer',
-                state='backlog',
-                rate=lambda s: _get_demand(s.target, s.t),
+                roles={'target': 'retailer'},
+                laws=lambda s: [RateLaw(s.target.backlog, _get_demand(s.target, s.t))],
             ),
-            RateInteraction(
+            Interaction(
                 'retailer_expected',
-                target='retailer',
-                state='expected',
-                rate=lambda s: s.target.theta * _get_demand(s.target, s.t),
+                roles={'target': 'retailer'},
+                laws=lambda s: [RateLaw(s.target.expected, s.target.theta * _get_demand(s.target, s.t))],
             ),
         ]
 
     @staticmethod
-    def _get_brewery_rate() -> RateInteraction:
+    def _get_brewery_rate() -> Interaction:
         """Return the rate of the supply line of the factory.
 
         It is its orders less the brews completed.
         """
-        return RateInteraction(
+        return Interaction(
             'factory_supply_line',
-            target='factory',
-            state='supply_line',
-            rate=lambda s: BreweryInteraction._get_orders(s.target) - BreweryInteraction._get_completions(s.target),
+            roles={'target': 'factory'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.supply_line,
+                    BreweryInteraction._get_orders(s.target) - BreweryInteraction._get_completions(s.target),
+                ),
+            ],
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         throughput = self.demand * self.dispatch_time
         echelons: list[EchelonElement] = []
         for label in ECHELONS:
@@ -734,6 +754,7 @@ class BeerGameSystem(BaseSystem):
                 values.update(production_delay=self.production_delay)
             kind = {'retailer': RetailerElement, 'factory': FactoryElement}.get(label, EchelonElement)
             echelons.append(kind(label).set_params(**values))
+        shipping = [EchelonInteraction(f'{label}_shipping', target=label) for label in ECHELONS]
         links = [
             interaction
             for downstream, upstream in pairwise(ECHELONS)
@@ -744,4 +765,4 @@ class BeerGameSystem(BaseSystem):
         ]
         customers = [*self._get_customer_rates(), RetailDemandInteraction('customers', retailer='retailer')]
         brewery = [self._get_brewery_rate(), BreweryInteraction('brewery', factory='factory')]
-        return CompositeSystem(self.label, elements=echelons, interactions=[*links, *customers, *brewery])
+        self.system_ = System(self.label, elements=echelons, interactions=[*shipping, *links, *customers, *brewery])

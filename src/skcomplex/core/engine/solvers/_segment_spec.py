@@ -1,0 +1,24 @@
+"""Define the segment spec."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from ...base import BaseSpec
+from ...types import Array
+
+
+@dataclass(frozen=True)
+class _SegmentSpec(BaseSpec):
+    """Accepted step of an integrator.
+
+    It holds its states at both ends and its dense output.
+    """
+
+    start: float
+    end: float
+    before: Array
+    after: Array
+    dense: Callable[[float], Array]

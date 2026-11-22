@@ -6,23 +6,26 @@ Foragers live on a landscape of regrowing sugar.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.base import BaseSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 from ..common.resources import RegrowthInteraction
@@ -32,7 +35,8 @@ BOUNDS = (21, 16, 11, 6)
 DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
-class ForagerView(AgentView):
+@runtime_checkable
+class ForagerView(AgentViewProtocol, Protocol):
     """Forager as the rules see it.
 
     It holds its wealth `sugar`, its `vision`, and its `metabolism`.
@@ -55,9 +59,6 @@ class ForagerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The wealth of the forager.
 
@@ -67,34 +68,42 @@ class ForagerElement(Element):
         metabolism:
             The sugar the forager burns in a step.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ForagerElement
-        >>> GroupElement('foragers', element=ForagerElement, size=3, values={'vision': 2.0}).size
+        >>> ForagerElement('foragers', vision=2.0, size=3).size
         3
     """
+
+    visual = VisualSpec('agents', {'color_by': 'sugar'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar'}),
         *,
-        sugar: Annotated[float, StateSpec()] = 10.0,
-        vision: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        metabolism: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        sugar: object = 10.0,
+        vision: Annotated[object, NN] = 1.0,
+        metabolism: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.sugar = sugar
         self.vision = vision
         self.metabolism = metabolism
 
-    @classmethod
-    def _get_view(cls) -> type[ForagerView]:
-        """Return the view of a forager, with its sugar, vision, and metabolism."""
-        return ForagerView
 
-
-class SugarPatchView(AgentView):
+@runtime_checkable
+class SugarPatchView(AgentViewProtocol, Protocol):
     """Patch as the rules see it: its `sugar`, its `capacity`, and its `growback`."""
 
     sugar: float
@@ -125,9 +134,6 @@ class SugarPatchElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         sugar:
             The sugar on the patch.
 
@@ -137,31 +143,38 @@ class SugarPatchElement(Element):
         growback:
             The sugar that grows back in a step.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import SugarPatchElement
-        >>> GroupElement('patches', element=SugarPatchElement, size=4, values={'capacity': 2.0}).size
+        >>> SugarPatchElement('patches', capacity=2.0, size=4).size
         4
     """
+
+    visual = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)}),
         *,
-        sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        growback: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        sugar: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        capacity: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        growback: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.sugar = sugar
         self.capacity = capacity
         self.growback = growback
-
-    @classmethod
-    def _get_view(cls) -> type[SugarPatchView]:
-        """Return the view of a patch, with its sugar, capacity, and growback."""
-        return SugarPatchView
 
 
 def _get_gini(wealth: object) -> float:
@@ -211,6 +224,12 @@ class SugarscapeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import SugarscapeSystem
         >>> [group.size for group in SugarscapeSystem(10, 10, n_foragers=20).prepare().system_.elements]
@@ -222,8 +241,8 @@ class SugarscapeSystem(BaseSystem):
     references = ('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9')
     until = 100
     observables = (
-        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
-        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_get_gini),
+        Observable('population', group='foragers', variable='sugar', reduce='count'),
+        Observable('gini', group='foragers', variable='sugar', reduce=_get_gini),
     )
 
     @staticmethod
@@ -257,14 +276,21 @@ class SugarscapeSystem(BaseSystem):
         return float(agent.vision) if isinstance(agent, ForagerView) else 0.0
 
     @staticmethod
-    def _get_harvest(patch: AgentViewProtocol, forager: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the whole sugar of the patch of a forager."""
-        return float(patch.sugar) if isinstance(patch, SugarPatchView) else 0.0
+    def _harvest(forager: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Move the whole sugar of the patch of a forager to the forager."""
+        groups = set(system.get_groups('patches'))
+        for patch in [other for other in forager.get_agents_here() if other.group in groups]:
+            if forager.alive and patch.alive and isinstance(patch, SugarPatchView) and isinstance(forager, ForagerView):
+                amount = float(patch.sugar)
+                patch.sugar -= amount
+                forager.sugar += amount
 
     @staticmethod
-    def _get_metabolism(forager: AgentViewProtocol, other: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the sugar a forager burns in a step."""
-        return float(forager.metabolism) if isinstance(forager, ForagerView) else 0.0
+    def _burn(forager: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Burn the sugar a forager needs in a step."""
+        del system
+        if forager.alive and isinstance(forager, ForagerView):
+            forager.sugar -= float(forager.metabolism)
 
     @staticmethod
     def _is_starved(forager: AgentViewProtocol, system: SystemViewProtocol) -> bool:
@@ -297,8 +323,10 @@ class SugarscapeSystem(BaseSystem):
         growback: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.n_foragers = n_foragers
@@ -310,7 +338,7 @@ class SugarscapeSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _get_foraging() -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction]:
+    def _get_foraging() -> list[MovementInteraction | Interaction | BirthDeathInteraction]:
         """Return the member interactions of a forager.
 
         They move to the best cell in sight, harvest, burn, and starve.
@@ -326,28 +354,15 @@ class SugarscapeSystem(BaseSystem):
                 schedule='member',
                 phase='foraging',
             ),
-            TransferInteraction(
+            Interaction(
                 'harvest',
-                source='patches',
-                target='foragers',
-                state='sugar',
-                amount=SugarscapeSystem._get_harvest,
-                pairing='cell',
-                form='agent',
-                actor='target',
-                schedule='member',
-                phase='foraging',
+                roles={'target': 'foragers', 'patches': 'patches'},
+                laws=lambda s: [UpdateLaw(s.target, SugarscapeSystem._harvest, phase='foraging')],
             ),
-            TransferInteraction(
+            Interaction(
                 'metabolism',
-                source='foragers',
-                target='foragers',
-                state='sugar',
-                into=Sink(),
-                amount=SugarscapeSystem._get_metabolism,
-                form='agent',
-                schedule='member',
-                phase='foraging',
+                roles={'target': 'foragers'},
+                laws=lambda s: [UpdateLaw(s.target, SugarscapeSystem._burn, phase='foraging')],
             ),
             BirthDeathInteraction(
                 'starvation',
@@ -358,38 +373,40 @@ class SugarscapeSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         capacity = self._get_landscape(self.width, self.height).ravel()
         cells = [(x, y) for x in range(self.width) for y in range(self.height)]
-        patches = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan')
+        xs, ys = np.array(cells).T
+        patches = SugarPatchElement(
             'patches',
-            element=SugarPatchElement,
+            sugar=capacity,
+            capacity=capacity,
+            growback=self.growback,
+            values={'x': xs, 'y': ys},
             size=len(cells),
-            values={'sugar': capacity, 'capacity': capacity, 'growback': self.growback},
-            location=cells,
+            space=space,
         )
         occupied = rng.choice(len(cells), size=min(self.n_foragers, len(cells)), replace=False)
-        foragers = GroupElement(
+        foragers = ForagerElement(
             'foragers',
-            element=ForagerElement,
+            sugar=rng.uniform(self.low_sugar, self.high_sugar, len(occupied)),
+            vision=rng.integers(1, self.max_vision + 1, len(occupied)).astype(float),
+            metabolism=rng.uniform(1.0, self.max_metabolism, len(occupied)),
+            values={'x': xs[occupied], 'y': ys[occupied]},
             size=len(occupied),
-            values={
-                'sugar': rng.uniform(self.low_sugar, self.high_sugar, len(occupied)),
-                'vision': rng.integers(1, self.max_vision + 1, len(occupied)).astype(float),
-                'metabolism': rng.uniform(1.0, self.max_metabolism, len(occupied)),
-            },
-            variable=True,
-            location=[cells[index] for index in occupied],
+            space=space,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patches, foragers],
             interactions=[
                 *self._get_foraging(),
                 RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='fixed', metric='manhattan'),
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
+            space=space,
+            solver=MesaSolver(phases=[PhaseSpec('foraging'), PhaseSpec('growth')]),
         )

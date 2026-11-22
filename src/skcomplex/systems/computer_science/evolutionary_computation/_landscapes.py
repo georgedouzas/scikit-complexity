@@ -3,23 +3,25 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, Protocol
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import EvolutionInteraction
 
 
-class BitStringView(AgentView):
+class BitStringView(AgentViewProtocol, Protocol):
     """View of an individual of a fitness landscape, with its states as attributes."""
 
     genome: float
@@ -35,42 +37,35 @@ class BitStringElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         genome:
             The initial genome, an integer whose binary digits are the bits.
 
         fitness:
             The initial fitness.
 
+        size:
+            The number of agents, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.computer_science.evolutionary_computation import BitStringElement
-        >>> group = GroupElement('genomes', element=BitStringElement, size=4, values={'genome': [0, 1, 2, 3]})
-        >>> group.label, group.element.__name__, group.size
-        ('genomes', 'BitStringElement', 4)
+        >>> group = BitStringElement('genomes', genome=[0, 1, 2, 3], size=4)
+        >>> group.label, group.size
+        ('genomes', 4)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'fitness'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness'}),
         *,
-        genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        genome: Annotated[object, NN] = 0.0,
+        fitness: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.genome = genome
         self.fitness = fitness
-
-    @classmethod
-    def _get_view(cls) -> type[BitStringView]:
-        """Return the view of the individuals.
-
-        It types their states.
-        """
-        return BitStringView
 
 
 class ReproductionInteraction(EvolutionInteraction):
@@ -112,9 +107,9 @@ class ReproductionInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
+        target: Role,
+        death: Annotated[float, RealSet.closed(0, 1)] = 0.1,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.05,
         zero_values: tuple[float, ...] = (),
         one_values: tuple[float, ...] = (),
     ) -> None:
@@ -215,6 +210,12 @@ class BitStringEvolutionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import BitStringEvolutionSystem
         >>> BitStringEvolutionSystem(10, n_bits=4).prepare().system_.interactions[0].target
@@ -235,19 +236,19 @@ class BitStringEvolutionSystem(BaseSystem):
         mutation: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.n_bits = n_bits
         self.death = death
         self.mutation = mutation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a population of bit strings on a random additive fitness landscape.
-
-        The population evolves on the landscape.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         zero_values, one_values = rng.random(self.n_bits), rng.random(self.n_bits)
         genomes = rng.integers(0, 2**self.n_bits, size=self.n_agents).astype(float)
@@ -260,15 +261,8 @@ class BitStringEvolutionSystem(BaseSystem):
             zero_values=tuple(zero_values.tolist()),
             one_values=tuple(one_values.tolist()),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'genomes',
-                    element=BitStringElement,
-                    size=self.n_agents,
-                    values={'genome': genomes, 'fitness': fitness},
-                ),
-            ],
+            elements=[BitStringElement('genomes', genome=genomes, fitness=fitness, size=self.n_agents)],
             interactions=[reproduction],
         )

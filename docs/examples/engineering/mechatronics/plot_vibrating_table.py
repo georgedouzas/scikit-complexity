@@ -14,14 +14,13 @@ vibrates steadily at the frequency of the supply. The linearized model of Trzask
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.mechatronics import VibratingTableSystem
 
 SYSTEM = 'vibrating_table'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-trajectory = simulate(VibratingTableSystem(), observers=[observer])
+trajectory = VibratingTableSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Nonlinear and linearized models
@@ -31,7 +30,7 @@ trajectory = simulate(VibratingTableSystem(), observers=[observer])
 
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 for linear in (False, True):
-    trajectory = simulate(VibratingTableSystem(linear=linear))
+    trajectory = VibratingTableSystem(linear=linear).prepare().simulate()
     times = trajectory.times
     x, current = np.ravel(trajectory.get_values('shaker.x')), np.ravel(trajectory.get_values('shaker.i2'))
     label = 'linearized' if linear else 'nonlinear'

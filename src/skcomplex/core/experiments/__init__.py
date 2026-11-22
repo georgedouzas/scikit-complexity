@@ -2,7 +2,9 @@
 
 They are sweeps, ensembles, scenarios, sensitivity, basin stability, orbit diagrams, calibration, posterior coverage,
 identifiability, virtual populations, and the calibration of individuals. Each is a function of a system, as the model
-selection functions of scikit-learn are, and returns a frozen result.
+selection functions of scikit-learn are, and returns a frozen result. As `cross_val_score` fits clones of an
+estimator, an experiment clones the system, sets parameters with `set_params`, prepares the clone, and simulates it,
+and it prepares once when only initial states or random streams change.
 """
 
 from ._basin_stability import BasinStabilityResult, basin_stability
@@ -13,6 +15,7 @@ from ._identifiability import IdentifiabilityResult, identifiability
 from ._individuals import IndividualCalibrationResult, calibrate_individuals
 from ._orbit_diagram import OrbitDiagramResult, orbit_diagram
 from ._results import ExperimentResult
+from ._scenario_spec import ScenarioSpec
 from ._scenarios import compare_scenarios
 from ._sensitivity import SensitivityResult, sensitivity
 from ._sweep import sweep
@@ -26,6 +29,7 @@ __all__: list[str] = [
     'IdentifiabilityResult',
     'IndividualCalibrationResult',
     'OrbitDiagramResult',
+    'ScenarioSpec',
     'SensitivityResult',
     'VirtualPopulationResult',
     'basin_stability',

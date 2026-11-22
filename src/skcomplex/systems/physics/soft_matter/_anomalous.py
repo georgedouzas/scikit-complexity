@@ -6,41 +6,63 @@ The module covers random walks with power-law waiting times and flights, heterog
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt, vector
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import JumpInteraction, MapInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import draw, normal
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-
-POINTS = VisualSpec('points', {'position': 'x'})
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class ContinuousTimeWalkerElement(Element):
-    """Walker that waits a power-law time, then jumps by a Gaussian step.
-
-    The waiting time is `tau0 r^(-1 / alpha)` for `r` uniform.
-
-    The jumps are a jump interaction of the system, which resets the position after every waiting time.
+    """Walkers at the positions `x` that wait and jump.
 
     Args:
         label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one row per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeWalkerElement
+        >>> ContinuousTimeWalkerElement('walkers', x=(1.0, 0.0), size=10).x
+        (1.0, 0.0)
+    """
+
+    def __init__(self, label: str, *, x: object = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class WaitingJumpInteraction(Interaction):
+    """Jumps by Gaussian steps after power-law waiting times.
+
+    The waiting time is `tau0 r^(-1 / alpha)` for `r` uniform, and every jump adds a normal step of standard deviation
+    `sigma` to every coordinate of the position `x`. It is a tracer trapped in a porous rock, a charge carrier in an
+    amorphous semiconductor, or a molecule in a crowded cell.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
 
         alpha:
             The tail exponent of the waiting times, below 1 for waiting times without a mean.
@@ -52,42 +74,78 @@ class ContinuousTimeWalkerElement(Element):
             The standard deviation of the jumps along every axis.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeWalkerElement
-        >>> ContinuousTimeWalkerElement('walker', alpha=0.7).alpha
+        >>> from skcomplex.systems.physics.soft_matter import WaitingJumpInteraction
+        >>> WaitingJumpInteraction('jumps', target='walkers', alpha=0.7).alpha
         0.7
     """
+
+    law_classes = (JumpLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        tau0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label)
+        self.target = target
         self.alpha = alpha
         self.tau0 = tau0
         self.sigma = sigma
 
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the jumps of the positions of the target after the waiting times.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        waiting = draw('wait', 'pareto', b=s.alpha, scale=s.tau0)
+        reset = {item: item + normal(f'jump{index}', 0, s.sigma) for index, item in enumerate(s.target.x)}
+        self.laws_ = [JumpLaw(waiting=waiting, reset=reset, label=self.label)]
+
 
 class FractionalWalkerElement(Element):
-    """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
-
-    The increments are correlated in time.
+    """Walkers at the positions `x`, driven by fractional Brownian motion.
 
     Args:
         label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one row per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import FractionalWalkerElement
+        >>> FractionalWalkerElement('walkers', x=(1.0, 0.0), size=10).x
+        (1.0, 0.0)
+    """
+
+    def __init__(self, label: str, *, x: object = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class FractionalNoiseInteraction(Interaction):
+    """Fractional Brownian noise, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
+
+    The increments of the position `x` anticorrelate for a Hurst index `H < 1/2` and correlate for `H > 1/2`. It is a
+    monomer of a long polymer, a tracer in a viscoelastic gel, or the level of a river over the years.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
 
         D:
             The diffusion coefficient.
@@ -96,40 +154,73 @@ class FractionalWalkerElement(Element):
             The Hurst index of the driving fractional Brownian motion.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import FractionalWalkerElement
-        >>> FractionalWalkerElement('walker', H=0.3).H
-        0.3
+        >>> from skcomplex.systems.physics.soft_matter import FractionalNoiseInteraction
+        >>> FractionalNoiseInteraction('noise', target='walkers', H=0.7).H
+        0.7
     """
+
+    law_classes = (NoiseLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        H: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.3,
+        target: Role,
+        D: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        H: Annotated[float, RealSet.open(0, 1)] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label)
+        self.target = target
         self.D = D
         self.H = H
 
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fractional noise of the positions of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [NoiseLaw(context.target.x, sqrt(2 * context.D), hurst=context.H)]
+
 
 class LevyFlierElement(Element):
-    """Walker that jumps at every step in a random direction.
-
-    The length of a jump has the power-law tail `l^(-1 - mu)`.
+    """Walkers at the positions `x` that jump at every step.
 
     Args:
         label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one row per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import LevyFlierElement
+        >>> LevyFlierElement('walkers', x=(1.0, 0.0), size=10).x
+        (1.0, 0.0)
+    """
+
+    def __init__(self, label: str, *, x: object = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class LevyJumpInteraction(Interaction):
+    """Jumps at every step in a random direction, with lengths of the power-law tail `l^(-1 - mu)`.
+
+    The length of a jump is `l0 r^(-1 / mu)` for `r` uniform, and its direction is uniform. It is an albatross that
+    forages, a photon in a hot gas, or a bank note passed between towns.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
 
         mu:
             The tail exponent of the jump lengths, below 2 for jumps of infinite variance.
@@ -138,46 +229,88 @@ class LevyFlierElement(Element):
             The shortest jump length.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import LevyFlierElement
-        >>> LevyFlierElement('walker', mu=1.2).mu
-        1.2
+        >>> from skcomplex.systems.physics.soft_matter import LevyJumpInteraction
+        >>> LevyJumpInteraction('flights', target='walkers', mu=1.5).mu
+        1.5
     """
+
+    law_classes = (UpdateLaw,)
+    draws = True
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        mu: Annotated[float, RealSet.open(0, oo)] = 1.2,
+        l0: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label)
+        self.target = target
         self.mu = mu
         self.l0 = l0
 
+    def _get_direction(self, size: int) -> list[Expression]:
+        """Return a unit vector of uniformly random direction, drawn from standard normal components."""
+        components = [normal(f'direction{index}') for index in range(size)]
+        length = sqrt(sum(component**2 for component in components))
+        return [component / length for component in components]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the position after a jump in a random direction.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        x = context.target.x
+        length = draw('length', 'pareto', b=context.mu, scale=context.l0)
+        steps = self._get_direction(len(list(x)))
+        self.laws_ = [UpdateLaw(x, vector(SR, [item + length * step for item, step in zip(x, steps, strict=True)]))]
+
 
 class LevyWalkerElement(Element):
-    """Walker that flies at constant speed in a random direction, then turns.
-
-    Every flight lasts a power-law flight time.
-
-    The flight is a rate interaction of the position, and the turns a jump interaction that resets the velocity after
-    every flight time.
+    """Walkers at the positions `x` that fly with the velocities `v`.
 
     Args:
         label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one row per walker or shared.
 
         v:
-            The initial velocity.
+            The initial velocity, one row per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import LevyWalkerElement
+        >>> LevyWalkerElement('walkers', v=(1.0, 0.0), size=10).v
+        (1.0, 0.0)
+    """
+
+    def __init__(self, label: str, *, x: object = (0.0, 0.0), v: object = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+        self.v = v
+
+
+class LevyFlightTimeInteraction(Interaction):
+    """Flights at constant speed in random directions that last power-law flight times.
+
+    The position `x` moves with the velocity `v`, and after a flight time `tau0 r^(-1 / sigma)` for `r` uniform the
+    velocity turns to a uniformly random direction at the speed `speed`. It is a bacterium that runs and tumbles, a
+    tracer in a turbulent flow, or the gaze of an eye that scans a scene.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
 
         sigma:
             The tail exponent of the flight times, between 1 and 2 for superdiffusion.
@@ -189,50 +322,92 @@ class LevyWalkerElement(Element):
             The speed of every flight.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import LevyWalkerElement
-        >>> LevyWalkerElement('walker', speed=2.0).speed
+        >>> from skcomplex.systems.physics.soft_matter import LevyFlightTimeInteraction
+        >>> LevyFlightTimeInteraction('turns', target='walkers', speed=2.0).speed
         2.0
     """
+
+    law_classes = (RateLaw, JumpLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
-        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 1.5,
+        tau0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        speed: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.v = v
+        super().__init__(label)
+        self.target = target
         self.sigma = sigma
         self.tau0 = tau0
         self.speed = speed
 
+    def _get_direction(self, size: int) -> list[Expression]:
+        """Return a unit vector of uniformly random direction, drawn from standard normal components."""
+        components = [normal(f'direction{index}') for index in range(size)]
+        length = sqrt(sum(component**2 for component in components))
+        return [component / length for component in components]
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flight of the positions and the turns of the velocities of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        x, v = s.target.x, s.target.v
+        waiting = draw('flight', 'pareto', b=s.sigma, scale=s.tau0)
+        directions = self._get_direction(len(list(v)))
+        reset = {item: s.speed * direction for item, direction in zip(v, directions, strict=True)}
+        self.laws_ = [RateLaw(x, v), JumpLaw(waiting=waiting, reset=reset, label=self.label)]
+
 
 class TransientWalkerElement(Element):
-    """Brownian walker whose diffusion coefficient `D` is redrawn at random times.
-
-    The waiting times have the mean `D^(-gamma)`.
-
-    The coefficient takes values of density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so
-    slow walkers wait long before they change.
+    """Brownian walkers at the positions `x` with the diffusion coefficients `D`.
 
     Args:
         label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the walkers.
 
         x:
-            The initial position.
+            The initial position, one row per walker or shared.
 
         D:
-            The initial diffusion coefficient.
+            The initial diffusion coefficient, one per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import TransientWalkerElement
+        >>> TransientWalkerElement('walkers', D=0.2, size=10).D
+        0.2
+    """
+
+    def __init__(self, label: str, *, x: object = (0.0, 0.0), D: object = 0.5, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+        self.D = D
+
+
+class TransientDiffusionInteraction(Interaction):
+    """Brownian motion whose diffusion coefficient `D` is redrawn at random times.
+
+    The position `x` diffuses with `D`, and after an exponential waiting time of mean `D^(-gamma)` the coefficient is
+    redrawn from the density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so slow walkers
+    wait long before they change. It is a protein that binds and unbinds in a cell membrane, or a tracer in a
+    heterogeneous gel.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
 
         sigma:
             The exponent of the density of diffusion coefficients near zero.
@@ -241,26 +416,39 @@ class TransientWalkerElement(Element):
             The exponent of the mean waiting time `D^(-gamma)`.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import TransientWalkerElement
-        >>> TransientWalkerElement('walker', gamma=2.0).gamma
+        >>> from skcomplex.systems.physics.soft_matter import TransientDiffusionInteraction
+        >>> TransientDiffusionInteraction('changes', target='walkers', gamma=2.0).gamma
         2.0
     """
+
+    law_classes = (NoiseLaw, JumpLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)}),
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        D: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.5,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.D = D
+        super().__init__(label)
+        self.target = target
         self.sigma = sigma
         self.gamma = gamma
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the noise of the positions of the target and the changes of their diffusion coefficients.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        x, D = s.target.x, s.target.D
+        waiting = draw('wait', 'expon', scale=D ** (-s.gamma))
+        reset = {D: draw('coefficient', 'beta', a=s.sigma, b=1)}
+        self.laws_ = [NoiseLaw(x, sqrt(2 * D)), JumpLaw(waiting=waiting, reset=reset, label=self.label)]
 
 
 class ContinuousTimeRandomWalkSystem(BaseSystem):
@@ -291,9 +479,15 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
-        >>> ContinuousTimeRandomWalkSystem(10, alpha=0.7).prepare().system_.elements[0].values['alpha']
+        >>> ContinuousTimeRandomWalkSystem(10, alpha=0.7).prepare().system_.interactions[0].alpha
         0.7
     """
 
@@ -312,38 +506,27 @@ class ContinuousTimeRandomWalkSystem(BaseSystem):
         sigma: float = 1.0,
         n_dim: int = 2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.alpha = alpha
         self.tau0 = tau0
         self.sigma = sigma
         self.n_dim = n_dim
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        walkers = GroupElement(
-            'walkers',
-            element=ContinuousTimeWalkerElement,
-            size=self.n_walkers,
-            values={
-                'x': np.zeros((self.n_walkers, self.n_dim)),
-                'alpha': self.alpha,
-                'tau0': self.tau0,
-                'sigma': self.sigma,
-            },
-        )
-        jumps = JumpInteraction(
-            'jumps',
-            target='walkers',
-            waiting=lambda s: draw('wait', 'pareto', b=s.target.alpha, scale=s.target.tau0),
-            reset={
-                'x': lambda s: [
-                    item + normal(f'jump{index}', 0, s.target.sigma) for index, item in enumerate(s.target.x)
-                ],
-            },
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers that wait power-law times and jump by Gaussian steps.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        walkers = ContinuousTimeWalkerElement('walkers', x=np.zeros((self.n_walkers, self.n_dim)), size=self.n_walkers)
+        jumps = WaitingJumpInteraction('jumps', target='walkers', alpha=self.alpha, tau0=self.tau0, sigma=self.sigma)
+        self.system_ = System(
             self.label,
             elements=[walkers],
             interactions=[jumps],
@@ -382,9 +565,15 @@ class LevyWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import LevyWalkSystem
-        >>> LevyWalkSystem(10, sigma=1.2).prepare().system_.elements[0].values['sigma']
+        >>> LevyWalkSystem(10, sigma=1.2).prepare().system_.interactions[0].sigma
         1.2
     """
 
@@ -393,17 +582,6 @@ class LevyWalkSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Zaburdaev, Denisov, and Klafter 2015', 'Shlesinger, West, and Klafter 1987')
     until = 500.0
     dt = 2.5
-    solver = RK4Solver(dt=0.5)
-
-    @staticmethod
-    def _get_direction(name: str, size: int) -> list[Expression]:
-        """Return a unit vector of uniformly random direction.
-
-        The vector is drawn from standard normal components.
-        """
-        components = [normal(f'{name}{index}') for index in range(size)]
-        length = sqrt(sum(component**2 for component in components))
-        return [component / length for component in components]
 
     def __init__(
         self,
@@ -415,8 +593,10 @@ class LevyWalkSystem(BaseSystem):
         n_dim: int = 2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.sigma = sigma
         self.tau0 = tau0
@@ -424,38 +604,35 @@ class LevyWalkSystem(BaseSystem):
         self.n_dim = n_dim
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers that fly at constant speed for power-law flight times.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         directions = np.random.default_rng(self.random_state).standard_normal((self.n_walkers, self.n_dim))
         velocities = self.speed * directions / np.linalg.norm(directions, axis=1, keepdims=True)
-        walkers = GroupElement(
+        walkers = LevyWalkerElement(
             'walkers',
-            element=LevyWalkerElement,
+            x=np.zeros((self.n_walkers, self.n_dim)),
+            v=velocities,
             size=self.n_walkers,
-            values={
-                'x': np.zeros((self.n_walkers, self.n_dim)),
-                'v': velocities,
-                'sigma': self.sigma,
-                'tau0': self.tau0,
-                'speed': self.speed,
-            },
         )
-        flight = RateInteraction('flight', target='walkers', state='x', rate=lambda s: s.target.v)
-        turns = JumpInteraction(
+        turns = LevyFlightTimeInteraction(
             'turns',
             target='walkers',
-            waiting=lambda s: draw('flight', 'pareto', b=s.target.sigma, scale=s.target.tau0),
-            reset={
-                'v': lambda s: [
-                    s.target.speed * item for item in LevyWalkSystem._get_direction('direction', len(list(s.target.v)))
-                ],
-            },
+            sigma=self.sigma,
+            tau0=self.tau0,
+            speed=self.speed,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[walkers],
-            interactions=[flight, turns],
+            interactions=[turns],
             space=ContinuousSpace(n_dim=self.n_dim),
+            solver=RK4Solver(dt=0.5),
         )
 
 
@@ -488,9 +665,15 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import AnnealedTransientTimeMotionSystem
-        >>> AnnealedTransientTimeMotionSystem(10, gamma=2.0).prepare().system_.elements[0].values['gamma']
+        >>> AnnealedTransientTimeMotionSystem(10, gamma=2.0).prepare().system_.interactions[0].gamma
         2.0
     """
 
@@ -499,7 +682,6 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Massignan et al. 2014')
     until = 500.0
     dt = 2.5
-    solver = EulerMaruyamaSolver(dt=0.5)
 
     def __init__(
         self,
@@ -510,40 +692,38 @@ class AnnealedTransientTimeMotionSystem(BaseSystem):
         n_dim: int = 2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.sigma = sigma
         self.gamma = gamma
         self.n_dim = n_dim
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers whose diffusion coefficient changes at random times.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         coefficients = np.random.default_rng(self.random_state).beta(self.sigma, 1.0, self.n_walkers)
-        walkers = GroupElement(
+        walkers = TransientWalkerElement(
             'walkers',
-            element=TransientWalkerElement,
+            x=np.zeros((self.n_walkers, self.n_dim)),
+            D=coefficients,
             size=self.n_walkers,
-            values={
-                'x': np.zeros((self.n_walkers, self.n_dim)),
-                'D': coefficients,
-                'sigma': self.sigma,
-                'gamma': self.gamma,
-            },
         )
-        noise = RateInteraction('noise', target='walkers', noise=lambda s: sqrt(2 * s.target.D))
-        changes = JumpInteraction(
-            'changes',
-            target='walkers',
-            waiting=lambda s: draw('wait', 'expon', scale=s.target.D ** (-s.target.gamma)),
-            reset={'D': lambda s: draw('coefficient', 'beta', a=s.target.sigma, b=1)},
-        )
-        return CompositeSystem(
+        changes = TransientDiffusionInteraction('changes', target='walkers', sigma=self.sigma, gamma=self.gamma)
+        self.system_ = System(
             self.label,
             elements=[walkers],
-            interactions=[noise, changes],
+            interactions=[changes],
             space=ContinuousSpace(n_dim=self.n_dim),
+            solver=EulerMaruyamaSolver(dt=0.5),
         )
 
 
@@ -572,9 +752,15 @@ class FractionalBrownianMotionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
-        >>> FractionalBrownianMotionSystem(10, H=0.7).prepare().system_.elements[0].values['H']
+        >>> FractionalBrownianMotionSystem(10, H=0.7).prepare().system_.interactions[0].H
         0.7
     """
 
@@ -583,7 +769,6 @@ class FractionalBrownianMotionSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Mandelbrot and Van Ness 1968')
     until = 10.0
     dt = 0.05
-    solver = FractionalEulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -593,35 +778,30 @@ class FractionalBrownianMotionSystem(BaseSystem):
         D: float = 1.0,
         n_dim: int = 2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.H = H
         self.D = D
         self.n_dim = n_dim
 
-    def _build_system(self) -> CompositeSystem:
-        """Return fractional Brownian motion, `dx = sqrt(2 D) dB_H`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers driven by fractional Brownian motion.
 
-        Along every axis `<x^2> = 2 D t^(2 H)`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        walkers = GroupElement(
-            'walkers',
-            element=FractionalWalkerElement,
-            size=self.n_walkers,
-            values={'x': np.zeros((self.n_walkers, self.n_dim)), 'D': self.D, 'H': self.H},
-        )
-        noise = RateInteraction(
-            'noise',
-            target='walkers',
-            noise=lambda s: sqrt(2 * s.target.D),
-            hurst=lambda s: s.target.H,
-        )
-        return CompositeSystem(
+        super()._prepare(context)
+        walkers = FractionalWalkerElement('walkers', x=np.zeros((self.n_walkers, self.n_dim)), size=self.n_walkers)
+        self.system_ = System(
             self.label,
             elements=[walkers],
-            interactions=[noise],
+            interactions=[FractionalNoiseInteraction('noise', target='walkers', D=self.D, H=self.H)],
             space=ContinuousSpace(n_dim=self.n_dim),
+            solver=FractionalEulerMaruyamaSolver(dt=0.01),
         )
 
 
@@ -650,9 +830,15 @@ class LevyFlightSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import LevyFlightSystem
-        >>> LevyFlightSystem(10, mu=1.5).prepare().system_.elements[0].values['mu']
+        >>> LevyFlightSystem(10, mu=1.5).prepare().system_.interactions[0].mu
         1.5
     """
 
@@ -672,38 +858,27 @@ class LevyFlightSystem(BaseSystem):
         l0: float = 1.0,
         n_dim: int = 2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.mu = mu
         self.l0 = l0
         self.n_dim = n_dim
 
-    @staticmethod
-    def _get_flight(s: SimpleNamespace) -> object:
-        """Return the position after a jump in a random direction.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers that jump with power-law lengths in random directions.
 
-        The jump has the power-law length `l0 r^(-1 / mu)`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
-        steps = LevyWalkSystem._get_direction('direction', len(list(s.target.x)))
-        return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the Lévy flight.
-
-        The walk jumps in random directions by lengths with the tail `l^(-1 - mu)`.
-        """
-        walkers = GroupElement(
-            'walkers',
-            element=LevyFlierElement,
-            size=self.n_walkers,
-            values={'x': np.zeros((self.n_walkers, self.n_dim)), 'mu': self.mu, 'l0': self.l0},
-        )
-        flights = MapInteraction('flights', target='walkers', state='x', function=self._get_flight)
-        return CompositeSystem(
+        super()._prepare(context)
+        walkers = LevyFlierElement('walkers', x=np.zeros((self.n_walkers, self.n_dim)), size=self.n_walkers)
+        self.system_ = System(
             self.label,
             elements=[walkers],
-            interactions=[flights],
+            interactions=[LevyJumpInteraction('flights', target='walkers', mu=self.mu, l0=self.l0)],
             space=ContinuousSpace(n_dim=self.n_dim),
         )

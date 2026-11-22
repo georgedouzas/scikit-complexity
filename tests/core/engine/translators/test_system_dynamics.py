@@ -9,14 +9,13 @@ import pysd
 import pytest
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.components.interactions import RateInteraction, TransferInteraction
-from skcomplex.core.components.systems import BaseSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components import Observable
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.engine.solvers import EulerSolver
-from skcomplex.core.engine.translators import SystemDynamicsTranslator
+from skcomplex.core.engine.translators import RunSettingsSpec, SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
-from skcomplex.core.specs import ObservableSpec, RunSettingsSpec
-from skcomplex.systems.general.dynamics import StockFlowSystem
+from skcomplex.core.systems import BaseSystem
+from skcomplex.systems.general.dynamics import FlowInteraction, StockFlowSystem
 
 REFERENCES = {
     'teacup.mdl': 'teacup_mdl.csv',
@@ -54,14 +53,20 @@ def _create(module, **params):
     return system_class(**params)
 
 
-def _parts(module):
+def _run(system, solver=None, **run):
+    """Return the trajectory of a system, prepared and simulated with a solver if given."""
+    system = system if solver is None else system.set_params(solver=solver)
+    return system.prepare().simulate(**run)
+
+
+def _composite_of(module):
     """Return the prepared composite of the system of a translated module."""
     return _create(module).prepare().system_
 
 
 def _simulate(module):
     """Return the trajectory of a translated module with the integration and the time step of its file."""
-    return simulate(_create(module), solver=EulerSolver(dt=module.DT), dt=module.DT)
+    return _run(_create(module), solver=EulerSolver(dt=module.DT), dt=module.DT)
 
 
 def _at_saved_times(trajectory, values, module, reference):
@@ -134,7 +139,7 @@ def test_run_reads_saving_interval_from_the_time_step(fixtures_folder):
 def test_run_default_solver_finds_the_exact_solution(translate):
     """Test that the adaptive default solver follows the exact teacup and not the Euler error of the file's step."""
     module = translate('teacup.mdl')
-    trajectory = simulate(_create(module), dt=module.DT)
+    trajectory = _run(_create(module), dt=module.DT)
     exact = 70.0 + 110.0 * np.exp(-np.asarray(trajectory.times) / 10.0)
     assert np.max(np.abs(trajectory.get_values('teacup.teacup_temperature') - exact)) < 1e-3
 
@@ -144,7 +149,7 @@ def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
     vensim = SystemDynamicsTranslator(fixtures_folder / 'sir.mdl').prepare().run().source_
     xmile = SystemDynamicsTranslator(fixtures_folder / 'sir.xmile').prepare().run().source_
     assert vensim == xmile
-    first, second = _parts(translate('sir.mdl')), _parts(translate('sir.xmile'))
+    first, second = _composite_of(translate('sir.mdl')), _composite_of(translate('sir.xmile'))
     assert first.elements[0].get_params().keys() == second.elements[0].get_params().keys()
     assert first.elements[0].get_params() == second.elements[0].get_params()
     assert [type(item) for item in first.interactions] == [type(item) for item in second.interactions]
@@ -157,12 +162,11 @@ def test_run_module_has_one_shape(translate):
     system = module.SirSystem(contact_rate=2.0)
     assert issubclass(module.SirSystem, StockFlowSystem)
     assert not any(name.endswith('Element') for name in vars(module))
-    assert system.prepare().system_.elements[0].get_value('contact_rate') == 2.0
+    assert system.prepare().system_.elements[0].get_params()['values']['contact_rate'] == 2.0
     assert system.get_params()['contact_rate'] == 2.0
     assert module.SirSystem().get_params()['contact_rate'] != 2.0
-    settings = system.get_run_settings()
-    assert all(isinstance(spec, ObservableSpec) for spec in settings['observables'])
-    assert (settings['until'], settings['dt']) == (module.UNTIL, module.SAVE_EVERY)
+    assert all(isinstance(spec, Observable) for spec in system.observables)
+    assert (system.until, system.dt) == (module.UNTIL, module.SAVE_EVERY)
     assert (module.START, module.UNTIL, module.DT, module.SAVE_EVERY) == (0.0, 40.0, 0.125, 0.125)
 
 
@@ -180,15 +184,15 @@ def test_run_auxiliaries_are_observables(fixtures_folder, translate):
         assert np.max(np.abs(values - reference[column].to_numpy())) < TOLERANCE
 
 
-def test_run_sir_flows_are_named_transfers(translate):
-    """Test that the infection is a transfer named after the flow, reported under the element, with people conserved."""
+def test_run_sir_flows_are_named_flows(translate):
+    """Test that the infection is a flow named after the flow variable, recorded under the element, keeping people."""
     module = translate('sir.mdl')
     system = _create(module)
     infection = next(item for item in system.prepare().system_.interactions if item.label == 'infection')
-    assert isinstance(infection, TransferInteraction)
-    assert (infection.state, infection.into, infection.flow) == ('susceptible', 'infected', 'infection')
-    total = ObservableSpec('people', _total, element='sir')
-    trajectory = simulate(
+    assert isinstance(infection, FlowInteraction)
+    assert (infection.leaves, infection.enters) == ('susceptible', 'infected')
+    total = Observable('people', _total, element='sir')
+    trajectory = _run(
         system,
         solver=EulerSolver(dt=module.DT),
         dt=module.DT,
@@ -202,11 +206,11 @@ def test_run_invariant_catches_a_total_that_changes(translate):
     """Test that an invariant on a stock with births and deaths fails, so the conserved total of SIR means something."""
     module = translate('population.mdl')
     with pytest.raises(ConservationError, match=r'population\.people'):
-        simulate(
+        _run(
             _create(module),
             solver=EulerSolver(dt=module.DT),
             dt=module.DT,
-            observables=[ObservableSpec('people', _growing_total, element='population')],
+            observables=[Observable('people', _growing_total, element='population')],
             invariants={'population.people': 1e-6},
         )
 
@@ -221,20 +225,20 @@ def test_run_loops_of_a_translated_system(translate):
     }
 
 
-def test_run_flows_with_the_environment_use_source_and_sink(translate):
-    """Test that a flow of one stock moves from `Source()` when it enters and into `Sink()` when it leaves."""
-    interactions = {item.label: item for item in _parts(translate('population.mdl')).interactions}
-    assert type(interactions['births'].state).__name__ == 'Source'
-    assert type(interactions['deaths'].into).__name__ == 'Sink'
+def test_run_flows_with_the_environment_have_one_stock(translate):
+    """Test that a flow into a stock leaves no stock, and a flow out of a stock enters none."""
+    interactions = {item.label: item for item in _composite_of(translate('population.mdl')).interactions}
+    assert (interactions['births'].leaves, interactions['births'].enters) == (None, 'population')
+    assert (interactions['deaths'].leaves, interactions['deaths'].enters) == ('population', None)
 
 
 def test_run_goal_seeking_becomes_relaxation(fixtures_folder, translate):
     """Test that a stock changed by the gap to its target over a time relaxes at a rate, and runs like PySD."""
     module = translate('goal_seeking.mdl')
-    system = _parts(module)
-    assert [type(item) for item in system.interactions] == [RateInteraction]
+    system = _composite_of(module)
+    assert [type(item) for item in system.interactions] == [Interaction]
     relaxation = system.interactions[0]
-    assert (relaxation.state, relaxation.rate.__name__) == ('stock', '_rate__stock')
+    assert (relaxation.roles, relaxation.laws.__name__) == ({'target': 'goal_seeking'}, '_laws__stock')
     source = SystemDynamicsTranslator(fixtures_folder / 'goal_seeking.mdl').prepare().run().source_
     assert '(_goal__stock(namespace) - namespace.target.stock) / _time__stock(namespace)' in source
     reference = _load_reference(fixtures_folder, 'goal_seeking.mdl')
@@ -258,10 +262,10 @@ def test_run_gap_times_a_rate_becomes_relaxation(tmp_path):
     ['(Level - Goal) / Speed', '-(Goal - Level) / Speed', '(Goal - Level) / Level', 'Level / Speed + Goal'],
 )
 def test_run_other_remaining_rates_become_rates(tmp_path, equation):
-    """Test that a remaining rate of any other form becomes a rate interaction."""
+    """Test that a remaining rate of any other form becomes an interaction that returns its rate law."""
     text = f'Level = INTEG({equation}, 1) ~ ~ |\nGoal = 2 ~ ~ |\nSpeed = 0.5 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert 'RateInteraction(' in source
+    assert 'return [RateLaw(namespace.target.level, _rate__level(namespace))]' in source
     assert 'def _goal__level(' not in source
     assert 'class SystemElement(Element)' in source
     assert 'StockFlowSystem' not in source
@@ -271,8 +275,8 @@ def test_run_flow_of_several_stocks_stays_in_the_rates(tmp_path):
     """Test that a variable that enters two stocks stays in their remaining rates."""
     text = 'A = INTEG(Inflow, 1) ~ ~ |\nB = INTEG(Inflow, 1) ~ ~ |\nInflow = A + B ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert 'TransferInteraction(' not in source
-    assert source.count('RateInteraction(') == 2
+    assert 'FlowInteraction(' not in source
+    assert source.count('laws=_laws__') == 2
 
 
 def test_run_third_order_delay(fixtures_folder, translate):
@@ -310,7 +314,7 @@ def test_run_maps_min_of_max_to_clip(fixtures_folder):
     for name in ('series', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'distributed_delay'):
         assert f'{name}(' in source
     assert 'conserved=False)' in source
-    assert 'delayed(s.level, 2)' in source
+    assert 's.level(t=t - 2)' in source
     assert 'minimum(' in source
     assert 'maximum(' in source
 
@@ -329,13 +333,13 @@ def test_run_random_functions_become_draws_that_rate_laws_reject(tmp_path, monke
     monkeypatch.syspath_prepend(tmp_path)
     module = importlib.import_module('translated_noisy')
     with pytest.raises(IncompatibleLawsError, match='random draw'):
-        simulate(_create(module), until=0, dt=0.25)
+        _run(_create(module), until=0, dt=0.25)
 
 
 def test_run_regional_populations(fixtures_folder, translate):
     """Test that the trajectory holds one row per region for each stock, equal to PySD's run within the tolerance."""
     module = translate('regions.mdl')
-    assert _parts(module).elements[0].get_params()['size'] == 3
+    assert _composite_of(module).elements[0].get_params()['size'] == 3
     reference = _load_reference(fixtures_folder, 'regions.mdl')
     trajectory = _simulate(module)
     values = _at_saved_times(trajectory, trajectory.get_values('regions.population'), module, reference)
@@ -402,7 +406,7 @@ def test_run_unsupported_functions(fixtures_folder):
         ('Label = INTEG(1, 0) ~ ~ |\n', ['Label', 'clashes']),
         ('Member = INTEG(1, 0) ~ ~ |\n', ['Member', 'clashes']),
         ('Level = INTEG(Solver, 0) ~ ~ |\nSolver = 2 ~ ~ |\n', ['Solver', 'clashes']),
-        ('Contact Rate = INTEG(1, 0) ~ ~ |\n"Contact-Rate" = 2 ~ ~ |\n', ['share the snake-case name']),
+        ('Contact Rate = INTEG(1, 0) ~ ~ |\n"Contact-Rate" = 2 ~ ~ |\n', ['both become contact_rate in Python']),
         (':MACRO: DOUBLE(x)\nDOUBLE = 2 * x ~ ~ |\n:END OF MACRO:\nLevel = INTEG(1, 0) ~ ~ |\n', ['double', 'macro']),
     ],
 )
@@ -434,7 +438,7 @@ def test_run_reports_a_file_name_that_is_no_identifier(tmp_path):
 
 
 def test_run_reports_an_element_named_like_a_flow(tmp_path):
-    """Test that a file named like an auxiliary asks for a name, since labels are unique among parts."""
+    """Test that a file named like an auxiliary asks for a name, since labels are unique among components."""
     translator = _translate_text(tmp_path, 'Level = INTEG(Flow, 0) ~ ~ |\nFlow = Level + 1 ~ ~ |\n', 'flow.mdl')
     with pytest.raises(ValidationError, match='Give `name`'):
         translator.run()
@@ -459,8 +463,8 @@ def test_run_leaves_out_delays_no_law_reads(tmp_path):
     """Test that the observables hold no delay that no law reads, which a run cannot record."""
     text = 'Level = INTEG(1, 0) ~ ~ |\nWatched = SMOOTH(Level, 2) ~ ~ |\nShown = Level * 2 ~ ~ |\n'
     source = _translate_text(tmp_path, text).run().source_
-    assert "ObservableSpec('watched'" not in source
-    assert "ObservableSpec('shown'" in source
+    assert "Observable('watched'" not in source
+    assert "Observable('shown'" in source
 
 
 def test_run_keeps_the_values_of_initial_expressions(tmp_path):
@@ -472,12 +476,12 @@ def test_run_keeps_the_values_of_initial_expressions(tmp_path):
     )
     source = _translate_text(tmp_path, text).run().source_
     for declaration in (
-        'a: Annotated[float, StateSpec()] = 9.0',
-        'b: Annotated[float, StateSpec()] = 5.0',
-        'c: Annotated[float, StateSpec()] = 18.0',
-        'd: Annotated[float, StateSpec()] = 1.0',
-        'e: Annotated[float, StateSpec()] = 10.0',
-        'f: Annotated[float, StateSpec()] = -10.0',
+        'a: float = 9.0',
+        'b: float = 5.0',
+        'c: float = 18.0',
+        'd: float = 1.0',
+        'e: float = 10.0',
+        'f: float = -10.0',
     ):
         assert declaration in source
 

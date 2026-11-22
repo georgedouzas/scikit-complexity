@@ -4,16 +4,19 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import delayed
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -35,9 +38,6 @@ class CellCycleElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A1:
             The initial cells in G0 and G1.
@@ -72,18 +72,17 @@ class CellCycleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.8,
-        A3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.197,
-        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.395,
-        l3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.107,
-        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        A1: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        A2: Annotated[float, RealSet.closed_open(0, oo)] = 3.8,
+        A3: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        l1: Annotated[float, RealSet.open(0, oo)] = 0.197,
+        l2: Annotated[float, RealSet.open(0, oo)] = 0.395,
+        l3: Annotated[float, RealSet.open(0, oo)] = 0.107,
+        u1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A1 = A1
         self.A2 = A2
         self.A3 = A3
@@ -110,9 +109,6 @@ class DormantCellCycleElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A0:
             The initial dormant cells.
@@ -153,20 +149,19 @@ class DormantCellCycleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 6.5,
-        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        v: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        A0: Annotated[float, RealSet.closed_open(0, oo)] = 6.5,
+        A1: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        A2: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        l0: Annotated[float, RealSet.open(0, oo)] = 0.05,
+        l1: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        l2: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        b0: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        b1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        v: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A0 = A0
         self.A1 = A1
         self.A2 = A2
@@ -199,9 +194,6 @@ class ErythropoiesisElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         L:
             The initial mature red cells.
@@ -260,26 +252,25 @@ class ErythropoiesisElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        L: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.84,
-        Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 19.6,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.16,
-        MCV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 85.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.00139,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0071,
-        a0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00022,
-        tau_h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.68,
-        MCV_h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 85.0,
-        MCV0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 85.0,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0317,
-        m0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.01,
-        Q50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.027,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        lifespan: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 120.0,
-        U: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        L: Annotated[float, RealSet.closed_open(0, oo)] = 3.84,
+        Q: Annotated[float, RealSet.closed_open(0, oo)] = 19.6,
+        P: Annotated[float, RealSet.closed_open(0, oo)] = 2.16,
+        MCV: Annotated[float, RealSet.closed_open(0, oo)] = 85.0,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.00139,
+        d1: Annotated[float, RealSet.open(0, oo)] = 0.0071,
+        a0: Annotated[float, RealSet.closed_open(0, oo)] = 0.00022,
+        tau_h: Annotated[float, RealSet.open(0, oo)] = 0.68,
+        MCV_h: Annotated[float, RealSet.open(0, oo)] = 85.0,
+        MCV0: Annotated[float, RealSet.open(0, oo)] = 85.0,
+        g1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0317,
+        m0: Annotated[float, RealSet.open(0, oo)] = 1.01,
+        Q50: Annotated[float, RealSet.open(0, oo)] = 0.027,
+        n: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        lifespan: Annotated[float, RealSet.open(0, oo)] = 120.0,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.L = L
         self.Q = Q
         self.P = P
@@ -330,6 +321,12 @@ class CellCycleChemotherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import CellCycleChemotherapySystem
         >>> type(CellCycleChemotherapySystem(dormant=True).prepare().system_.elements[0]).__name__
@@ -350,15 +347,23 @@ class CellCycleChemotherapySystem(BaseSystem):
         u2: float = 0.0,
         v: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.dormant = dormant
         self.u1 = u1
         self.u2 = u2
         self.v = v
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of tumour cells in cell-cycle compartments under killing."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of tumour cells in cell-cycle compartments under killing.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.dormant:
             dormant_interactions = [
                 ReactionInteraction(
@@ -381,24 +386,27 @@ class CellCycleChemotherapySystem(BaseSystem):
                     reactants={'A2': 1},
                     propensity=lambda s: s.target.l2 * s.target.A2,
                 ),
-                RateInteraction(
+                Interaction(
                     'dormant_daughters',
-                    target='tumour',
-                    state='A0',
-                    rate=lambda s: s.target.b0 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
+                    roles={'target': 'tumour'},
+                    laws=lambda s: [
+                        RateLaw(s.target.A0, s.target.b0 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2),
+                    ],
                 ),
-                RateInteraction(
+                Interaction(
                     'cycling_daughters',
-                    target='tumour',
-                    state='A1',
-                    rate=lambda s: s.target.b1 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
+                    roles={'target': 'tumour'},
+                    laws=lambda s: [
+                        RateLaw(s.target.A1, s.target.b1 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2),
+                    ],
                 ),
             ]
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 elements=[DormantCellCycleElement('tumour', u=self.u1, v=self.v)],
                 interactions=dormant_interactions,
             )
+            return
         interactions = [
             ReactionInteraction(
                 'g1_exit',
@@ -428,7 +436,7 @@ class CellCycleChemotherapySystem(BaseSystem):
                 propensity=lambda s: s.target.u1 * s.target.l3 * s.target.A3,
             ),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[CellCycleElement('tumour', u1=self.u1, u2=self.u2)],
             interactions=interactions,
@@ -473,6 +481,12 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ErythropoiesisMercaptopurineSystem
         >>> ErythropoiesisMercaptopurineSystem(U=0.0).prepare().system_.elements[0].MCV
@@ -495,8 +509,10 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         Q50: float = 0.027,
         n: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.U = U
         self.r1 = r1
         self.d1 = d1
@@ -504,11 +520,16 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         self.Q50 = Q50
         self.n = n
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the production of red cells under 6-mercaptopurine.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the production of red cells under 6-mercaptopurine.
 
         The level of the drug is constant.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         Q = self.Q50 * (self.m0 / self.r1 - 1) ** (1 / self.n)
         patient = ErythropoiesisElement(
             'patient',
@@ -573,35 +594,39 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
                 reactants={'P': 1},
                 propensity=lambda s: s.target.a0 * s.target.U * s.target.P,
             ),
-            RateInteraction(
+            Interaction(
                 'senescence',
-                target='patient',
-                state='L',
-                rate=lambda s: -s.target.d1 * delayed(s.target.L, s.target.lifespan),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.L, -s.target.d1 * s.target.L(t=s.t - s.target.lifespan))],
             ),
-            RateInteraction(
+            Interaction(
                 'new_volume',
-                target='patient',
-                state='MCV',
-                rate=lambda s: (s.target.g1 * s.target.U + s.target.MCV0) * s.target.r1 * s.target.Q,
-                divisor='L',
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.MCV,
+                        (s.target.g1 * s.target.U + s.target.MCV0) * s.target.r1 * s.target.Q / s.target.L,
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'senescent_volume',
-                target='patient',
-                state='MCV',
-                rate=lambda s: -0.85
-                * delayed(s.target.MCV, s.target.lifespan)
-                * s.target.d1
-                * delayed(s.target.L, s.target.lifespan),
-                divisor='L',
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.MCV,
+                        -0.85
+                        * s.target.MCV(t=s.t - s.target.lifespan)
+                        * s.target.d1
+                        * s.target.L(t=s.t - s.target.lifespan)
+                        / s.target.L,
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'random_volume',
-                target='patient',
-                state='MCV',
-                rate=lambda s: -0.15 * s.target.MCV * s.target.d1 * s.target.L,
-                divisor='L',
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.MCV, -0.15 * s.target.MCV * s.target.d1 * s.target.L / s.target.L)],
             ),
         ]
-        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
+        self.system_ = System(self.label, elements=[patient], interactions=interactions)

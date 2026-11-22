@@ -9,22 +9,25 @@ The pricing duopoly is discretised.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import EquationLaw
-from ....core.components.spaces import DiscreteTime, StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.base import BaseSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, ConstraintLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
-from ....core.types import Array
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import ChoiceInteraction
 from ..common.learning import PayoffLearningInteraction
 
@@ -33,11 +36,9 @@ DUOPOLY = 2
 
 
 class CournotBestResponseElement(Element):
-    """Quantities of two firms at the best responses of a Cournot game.
+    """Quantities of two firms of a Cournot game, with the demand and the costs of the firms.
 
-    Each firm holds a share of the other. The conditions are `alpha - 2 q_i - q_j = c_i / (1 + lambda_i)` and its mirror
-    (Forrest 2018 Eq. 21.5), whose solution is `q_i = (alpha - 2 c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3` (Eq.
-    21.6).
+    Each firm holds a share of the other. `CournotBestResponseInteraction` sets the quantities at the best responses.
 
     Args:
         label:
@@ -70,19 +71,17 @@ class CournotBestResponseElement(Element):
         8.0
     """
 
-    law_classes = (EquationLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        q_i: Annotated[float, StateSpec()] = 0.0,
-        q_j: Annotated[float, StateSpec()] = 0.0,
-        demand: Annotated[float, ParameterSpec()] = 10.0,
-        c_i: Annotated[float, ParameterSpec()] = 1.0,
-        c_j: Annotated[float, ParameterSpec()] = 2.0,
-        lambda_i: Annotated[float, ParameterSpec()] = 0.0,
-        lambda_j: Annotated[float, ParameterSpec()] = 0.0,
+        q_i: float = 0.0,
+        q_j: float = 0.0,
+        demand: float = 10.0,
+        c_i: float = 1.0,
+        c_j: float = 2.0,
+        lambda_i: float = 0.0,
+        lambda_j: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.q_i = q_i
@@ -93,31 +92,52 @@ class CournotBestResponseElement(Element):
         self.lambda_i = lambda_i
         self.lambda_j = lambda_j
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the two conditions of the best responses.
+
+class CournotBestResponseInteraction(Interaction):
+    """Best responses of the two firms of a Cournot game.
+
+    The conditions are `alpha - 2 q_i - q_j = c_i / (1 + lambda_i)` and its mirror (Forrest 2018 Eq. 21.5), whose
+    solution is `q_i = (alpha - 2 c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3` (Eq. 21.6).
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The duopoly whose quantities the conditions set.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import CournotBestResponseInteraction
+        >>> CournotBestResponseInteraction('best_responses').target
+        'cournot'
+    """
+
+    law_classes = (ConstraintLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'cournot') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the two conditions of the best responses.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The equations of the two quantities.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [
-            EquationLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
-            EquationLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
+        super()._prepare(context)
+        s = context.target
+        self.laws_: list[BaseLaw] = [
+            ConstraintLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
+            ConstraintLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
         ]
 
 
 class PricePointElement(Element):
-    """Equilibrium distribution of prices at one price.
+    """Distribution of prices at one price of a pricing game.
 
-    It makes a firm indifferent among its prices. A firm that charges `P` sells to its loyal share `alpha`, and to the
-    switchers `beta` when it undercuts all its `m - 1` rivals, each with the probability `1 - F(P)`, for the expected
-    profit `P (alpha + beta (1 - F)^(m - 1))`. In equilibrium every price gives the profit `alpha` of selling to the
-    loyal share at the highest price 1, which `F(P) = 1 - (alpha (1 - P) / (beta P))^(1 / (m - 1))` solves (Forrest 2018
-    Lemma 20.1).
+    `IndifferenceInteraction` sets it at the equilibrium. A firm that charges `P` sells to its loyal share `alpha`, and
+    to the switchers `beta` when it undercuts all its `m - 1` rivals, each with the probability `1 - F(P)`.
 
     Args:
         label:
@@ -138,25 +158,27 @@ class PricePointElement(Element):
         n_firms:
             The number of firms `m`.
 
+        size:
+            The number of prices, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import PricePointElement
         >>> PricePointElement('point', price=0.5).price
         0.5
     """
 
-    law_classes = (EquationLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        distribution: Annotated[float, StateSpec()] = 0.5,
-        price: Annotated[float, StateSpec(domain=RealSet.open_closed(0, 1))] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        n_firms: Annotated[float, ParameterSpec(domain=RealSet.closed_open(2, oo))] = 2.0,
+        distribution: object = 0.5,
+        price: Annotated[object, RealSet.open_closed(0, 1)] = 1.0,
+        alpha: Annotated[object, RealSet.open(0, oo)] = 0.25,
+        beta: Annotated[object, RealSet.open(0, oo)] = 0.5,
+        n_firms: Annotated[object, RealSet.closed_open(2, oo)] = 2.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.distribution = distribution
         self.price = price
         self.alpha = alpha
@@ -179,22 +201,48 @@ class PricePointElement(Element):
         """
         return member.price * (member.alpha + member.beta * (1 - member.distribution) ** (member.n_firms - 1))
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the equation of the distribution.
+
+class IndifferenceInteraction(Interaction):
+    """Equilibrium distribution of prices that makes a firm indifferent among its prices.
+
+    A firm that charges `P` has the expected profit `P (alpha + beta (1 - F)^(m - 1))`. In equilibrium every price gives
+    the profit `alpha` of selling to the loyal share at the highest price 1, which
+    `F(P) = 1 - (alpha (1 - P) / (beta P))^(1 / (m - 1))` solves (Forrest 2018 Lemma 20.1). The condition holds at
+    every price of the group it binds.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The prices whose distribution the condition sets.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import IndifferenceInteraction
+        >>> IndifferenceInteraction('indifference').target
+        'prices'
+    """
+
+    law_classes = (ConstraintLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'prices') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equation of the distribution at every price.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The equation of the distribution.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(context)
+        s = context.target
         distribution = 1 - (s.alpha * (1 - s.price) / (s.beta * s.price)) ** (1 / (s.n_firms - 1))
-        return [EquationLaw(s.distribution == distribution, target=s.distribution)]
+        self.laws_: list[BaseLaw] = [ConstraintLaw(s.distribution == distribution, target=s.distribution)]
 
 
-class PricingFirmView(AgentView):
+class PricingFirmView(AgentViewProtocol, Protocol):
     """View of a firm of a pricing game, with its states as attributes."""
 
     price: float
@@ -289,30 +337,25 @@ class PricingFirmElement(Element):
         scores:
             The sum of the payoffs of every price of the grid against the prices of the rival so far.
 
+        size:
+            The number of firms, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import PricingFirmElement
-        >>> GroupElement('firms', element=PricingFirmElement, size=2).size
+        >>> PricingFirmElement('firms', size=2).size
         2
     """
 
     def __init__(
         self,
         label: str,
-        price: Annotated[float, StateSpec()] = 1.0,
-        scores: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        price: object = 1.0,
+        scores: npt.ArrayLike = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.price = price
         self.scores = scores
-
-    @classmethod
-    def _get_view(cls) -> type[PricingFirmView]:
-        """Return the view of the firms.
-
-        It types their states.
-        """
-        return PricingFirmView
 
 
 class OligopolyEquilibriaSystem(BaseSystem):
@@ -360,14 +403,19 @@ class OligopolyEquilibriaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The dynamics are unknown, or fictitious play has other than two firms.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
-        >>> trajectory = simulate(OligopolyEquilibriaSystem(), until=1.0)
+        >>> trajectory = OligopolyEquilibriaSystem().prepare().simulate(until=1.0)
         >>> round(float(trajectory.get_values('cournot.q_i')[0]), 6)
         3.333333
     """
@@ -376,21 +424,20 @@ class OligopolyEquilibriaSystem(BaseSystem):
     topics = ('oligopoly', 'equilibrium', 'static', 'game theory')
     references = ('Forrest 2018', 'Brown 1951')
 
-    @staticmethod
-    def _get_price_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_price_observables(self) -> list[Observable]:
         """Return the lowest and the highest expected profit over the prices.
 
         Under learning, it returns the prices charged.
         """
-        if isinstance(system.time, StaticTime):
+        if self.dynamics == 'static':
             profit = PricePointElement.get_profit
             return [
-                ObservableSpec('lowest_profit', profit, group='prices', reduce='min'),
-                ObservableSpec('highest_profit', profit, group='prices', reduce='max'),
+                Observable('lowest_profit', profit, group='prices', reduce='min'),
+                Observable('highest_profit', profit, group='prices', reduce='max'),
             ]
         return [
-            ObservableSpec('lower_price', group='firms', variable='price', reduce='min'),
-            ObservableSpec('higher_price', group='firms', variable='price', reduce='max'),
+            Observable('lower_price', group='firms', variable='price', reduce='min'),
+            Observable('higher_price', group='firms', variable='price', reduce='max'),
         ]
 
     def __init__(
@@ -406,8 +453,10 @@ class OligopolyEquilibriaSystem(BaseSystem):
         lambda_j: float = 0.0,
         dynamics: str = 'static',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_firms = n_firms
         self.alpha = alpha
         self.n_prices = n_prices
@@ -419,17 +468,17 @@ class OligopolyEquilibriaSystem(BaseSystem):
         self.dynamics = dynamics
 
     @staticmethod
-    def _get_fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> CompositeSystem:
+    def _get_fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> System:
         """Return two firms that best respond to the payoffs of every price so far.
 
         The payoffs are summed against the rival.
         """
         game = PricingGameSpec(prices, alpha, beta)
-        firms = GroupElement(
+        firms = PricingFirmElement(
             'firms',
-            element=PricingFirmElement,
+            price=np.full(DUOPOLY, prices[-1]),
+            scores=np.zeros((DUOPOLY, prices.size)),
             size=DUOPOLY,
-            values={'price': np.full(DUOPOLY, prices[-1]), 'scores': np.zeros((DUOPOLY, prices.size))},
         )
         choice = ChoiceInteraction(
             'choice',
@@ -438,7 +487,7 @@ class OligopolyEquilibriaSystem(BaseSystem):
             options=tuple(prices.tolist()),
             utility=game.get_utility,
             rule='best',
-            form='agent',
+            schedule='synchronous',
             phase='choose',
         )
         beliefs = PayoffLearningInteraction(
@@ -447,19 +496,19 @@ class OligopolyEquilibriaSystem(BaseSystem):
             scores='scores',
             payoff=game.get_payoff,
             rule='cumulative',
-            form='agent',
+            schedule='synchronous',
             phase='learn',
         )
-        schedule = PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('learn')])
-        return CompositeSystem(
+        return System(
             label,
             elements=[firms],
             interactions=[choice, beliefs],
-            time=DiscreteTime(schedule=schedule),
+            solver=MesaSolver(phases=[PhaseSpec('choose'), PhaseSpec('learn')]),
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters, with the observables of its dynamics."""
+        super()._prepare(context)
         if self.dynamics not in DYNAMICS or (self.dynamics == 'fictitious-play' and self.n_firms != DUOPOLY):
             error_msg = (
                 f'OligopolyEquilibriaSystem has dynamics={self.dynamics!r} and n_firms={self.n_firms!r}. Use one of '
@@ -468,13 +517,17 @@ class OligopolyEquilibriaSystem(BaseSystem):
             raise ValidationError(error_msg)
         beta = 1 - self.n_firms * self.alpha
         prices = np.linspace(self.alpha / (self.alpha + beta), 1.0, self.n_prices)
+        self.observables_ = (*self.observables_, *self._get_price_observables())
         if self.dynamics == 'fictitious-play':
-            return self._get_fictitious_play(self.label, prices, self.alpha, beta)
-        points = GroupElement(
+            self.system_ = self._get_fictitious_play(self.label, prices, self.alpha, beta)
+            return
+        points = PricePointElement(
             'prices',
-            element=PricePointElement,
+            price=prices,
+            alpha=self.alpha,
+            beta=beta,
+            n_firms=float(self.n_firms),
             size=self.n_prices,
-            values={'price': prices, 'alpha': self.alpha, 'beta': beta, 'n_firms': float(self.n_firms)},
         )
         cournot = CournotBestResponseElement(
             'cournot',
@@ -484,13 +537,8 @@ class OligopolyEquilibriaSystem(BaseSystem):
             lambda_i=self.lambda_i,
             lambda_j=self.lambda_j,
         )
-        return CompositeSystem(self.label, elements=[cournot, points], time=StaticTime())
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = OligopolyEquilibriaSystem._get_price_observables(self._get_pass_parameters())
-        return settings
+        self.system_ = System(
+            self.label,
+            elements=[cournot, points],
+            interactions=[CournotBestResponseInteraction('best_responses'), IndifferenceInteraction('indifference')],
+        )

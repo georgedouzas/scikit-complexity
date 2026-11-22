@@ -16,14 +16,13 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import GeneralizedLogicalNetworkSystem
 
 SYSTEM = 'generalized_logical_network'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(GeneralizedLogicalNetworkSystem(), observers=[observer], random_state=0)
+trajectory = GeneralizedLogicalNetworkSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The asynchronous state graph

@@ -12,9 +12,9 @@ import numpy as np
 import qutip
 from sage.all__sagemath_symbolics import CC
 
-from .....core.components.elements import Element
+from .....core.components.elements import Element, VisualSpec
 from .....core.errors import ValidationError
-from .....core.specs import HilbertSpec, StateSpec, VisualSpec
+from ._hilbert_spec import HilbertSpec
 
 
 def mode_space(quanta: int = 4) -> HilbertSpec:
@@ -66,23 +66,21 @@ class ModeElement(Element):
         hilbert:
             The Hilbert space, `mode_space(quanta)`.
 
-        visual:
-            How the mode is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.common.quantum import ModeElement, mode_space
         >>> ModeElement('cavity', hilbert=mode_space(4)).hilbert.dimension
         5
     """
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 0,
+        psi: Annotated[object, CC] = 0,
         *,
         hilbert: HilbertSpec | None = None,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert

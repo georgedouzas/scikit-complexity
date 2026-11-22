@@ -4,15 +4,17 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
-from ..spaces import DiscreteTime
+from ..spaces._discrete_time import _DiscreteTime
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 
-class RuleLaw(BaseLaw):
+@dataclass(frozen=True)
+class _RuleLaw(BaseLaw):
     """A law of behaviour written as Python code and run once per step.
 
     A rule runs for every member of an agent group, or once for a system. A rule of an element receives the agent and
@@ -39,29 +41,20 @@ class RuleLaw(BaseLaw):
 
         label:
             The name of the law, or the empty string for a law without one.
-
-    Examples:
-        >>> from skcomplex.core.components.laws import RuleLaw
-        >>> moved = []
-        >>> RuleLaw(lambda agent, system: moved.append(agent)).prepare().run(('walker', None)).value_
-        >>> moved
-        ['walker']
     """
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        function: Callable[..., object],
-        phase: str | None = None,
-        *,
-        members: str | None = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.function = function
-        self.phase = phase
-        self.members = members
+    function: Callable[..., object]
+    phase: str | None = None
+    _: KW_ONLY
+    members: str | None = None
+    label: str = ''
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'UpdateLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states, since a rule changes the agents it receives in place."""
@@ -70,29 +63,28 @@ class RuleLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the rule requires of a system: discrete time."""
-        return RequirementSpec(time=(DiscreteTime,))
+        return RequirementSpec(time=(_DiscreteTime,))
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an uncallable function, or members that name no role.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for an uncallable function, or members that name no role."""
+        super()._check()
         if not callable(self.function):
             error_msg = f'The function of a rule must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
         if self.members is not None and not (isinstance(self.members, str) and self.members):
-            error_msg = f'The members of a rule name a role, but they are {self.members!r}.'
+            error_msg = f'The members of a rule are the name of a role, such as `target`, not {self.members!r}.'
             raise ValidationError(error_msg)
 
-    def _run(self, inputs: object) -> None:
-        """Run the rule on its arguments, the agent and the system, or the system alone.
+    def _get_value(self, inputs: object) -> object:
+        """Return the result of the rule on the agent and the system, or the system alone.
 
         Args:
             inputs:
                 The arguments of the function, a sequence such as `(agent, system)`.
+
+        Returns:
+            result:
+                What the function of the rule returns.
         """
         arguments = tuple(inputs) if isinstance(inputs, Sequence) else (inputs,)
-        self.value_ = self.function(*arguments)
+        return self.function(*arguments)

@@ -4,13 +4,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
 from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction, XYSamplingInteraction
 
 from ..common.spins.conftest import _run
+from ..conftest import _run_default
 from .conftest import magnetization
 
 CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
@@ -20,14 +21,20 @@ def test_potts_spins_take_only_their_states_and_order_cold():
     """Test that Potts spins stay within their `q` states and order into one state at a low temperature."""
     colors = np.random.default_rng(1).integers(0, 3, (12, 12)).astype(float)
     sampling = PottsSamplingInteraction('potts', target='sites', q=3)
-    values = _run(sampling, 'color', {'color': colors, 'temperature': 0.1})
+    solver = MetropolisSolver(
+        moves={'sites.color': 'random-value'},
+        rule='heat-bath',
+        values={'sites.color': (0.0, 1.0, 2.0)},
+    )
+    values = _run(sampling, 'color', {'color': colors, 'temperature': 0.1}, solver)
     assert set(np.unique(values)) <= {0.0, 1.0, 2.0}
     assert np.bincount(values[-1].astype(int).ravel()).max() > 0.6 * values[-1].size
 
 
 def test_aligned_xy_spins_stay_aligned_when_cold():
     """Test that aligned planar spins keep a large magnetization at a low temperature."""
-    angles = _run(XYSamplingInteraction('xy', target='sites', width=0.5), 'theta', {'temperature': 0.1})
+    solver = MetropolisSolver(moves={'sites.theta': 'rotate'}, width=0.5)
+    angles = _run(XYSamplingInteraction('xy', target='sites'), 'theta', {'temperature': 0.1}, solver)
     assert np.abs(np.exp(1j * angles[-1]).mean()) > 0.9
 
 
@@ -47,7 +54,7 @@ def test_ising_transition():
     """Test that the ensemble magnetisation of a 64 x 64 Ising lattice drops below one half between 2.2 and 2.4."""
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]
     result = sweep(
-        lambda temperature: IsingSystem(64, temperature=temperature, initial='up').prepare().system_,
+        lambda temperature: IsingSystem(64, temperature=temperature, initial='up'),
         {'temperature': temperatures},
         replicates=4,
         until=1000,
@@ -66,7 +73,8 @@ def test_ising_transition():
 @pytest.mark.parametrize('factory', [PottsSystem, XYSystem])
 def test_cold_spin_systems_order(factory):
     """Test that the Potts and XY systems order at low temperature."""
-    trajectory = simulate(factory(16, temperature=0.2).prepare().system_, until=300, dt=100, random_state=0)
+    system = factory(16, temperature=0.2)
+    trajectory = _run_default(system, until=300, dt=100, solver=system.prepare().system_.solver)
     values = trajectory.states[-1]
     if factory is PottsSystem:
         assert np.bincount(values.astype(int)).max() > 0.8 * values.size
@@ -77,7 +85,7 @@ def test_cold_spin_systems_order(factory):
 def test_lattices_log_images():
     """Test that a lattice state is logged as an image of the lattice shape."""
     recording = Images()
-    trajectory = simulate(IsingSystem(8, initial='up').prepare().system_, until=1, dt=1)
+    trajectory = IsingSystem(8, initial='up').prepare().simulate(until=1, dt=1)
     frame = FrameSpec(0, 0.0, trajectory.states[-1], trajectory.parameters[-1], trajectory.problem)
     (
         ImageVisual(low=-1, high=1, path=trajectory.problem.elements[0].path, recording=recording)
@@ -92,6 +100,6 @@ def test_lattices_log_images():
 def test_lattice_recording_is_saved(tmp_path):
     """Test that a lattice system streams to a recording with one image per frame."""
     observer = RerunObserver('ising', save_path=tmp_path / 'ising.rrd')
-    simulate(IsingSystem(16), until=5, observers=[observer])
+    IsingSystem(16).prepare().simulate(until=5, observers=[observer])
     assert observer.logged_frames_ == 6
     assert (tmp_path / 'ising.rrd').stat().st_size > 0

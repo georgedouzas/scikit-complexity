@@ -23,25 +23,27 @@ susceptibility, and `nu = 1` for the correlation length, the distance over which
 
 ## Selecting and checking the model
 
-The catalog holds the model as [IsingSystem](../../../systems/physics/statistical_mechanics/ising.md). One unit of
+The catalog holds the model as [IsingSystem](../../../systems/physics/statistical_mechanics/ising.md). It is the
+same model as the Ising system of the [running examples](../index.md#the-running-examples): an element with a spin on
+every site of a `LatticeSpace`, an interaction that gives the energy of each spin over the temperature, and a
+`MetropolisSolver` that flips the spins. The class adds a magnetic field `h` and a choice of the starting spins. One unit of
 time is one sweep, an attempt to flip every spin once by the Metropolis rule. An
-[ObservableSpec][skcomplex.core.specs.ObservableSpec] records the magnetization at every sweep, the mean of the variable
+[Observable][skcomplex.core.components.Observable] records the magnetization at every sweep, the mean of the variable
 `spin` over the group `spins`.
 
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-magnetization = ObservableSpec('magnetization', group='spins', variable='spin', reduce='mean')
+magnetization = Observable('magnetization', group='spins', variable='spin', reduce='mean')
 lattice = IsingSystem(16, temperature=1.8, initial='up')
 tags = lattice.get_tags()
 order = []
 for temperature in (1.8, 3.0):
     lattice.set_params(temperature=temperature)
-    run = simulate(lattice, until=500, observables=[magnetization], random_state=0)
+    run = lattice.prepare().simulate(until=500, observables=[magnetization], random_state=0)
     order.append(round(float(np.abs(run.get_values('magnetization')[100:]).mean()), 2))
 sorted(tags.space), tags.randomness, order
 ```
@@ -61,10 +63,10 @@ An output function returns the moments of `|m|` of a run after 300 sweeps of war
 import numpy as np
 
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-magnetization = ObservableSpec('magnetization', group='spins', variable='spin', reduce='mean')
+magnetization = Observable('magnetization', group='spins', variable='spin', reduce='mean')
 
 
 def moments(trajectory):

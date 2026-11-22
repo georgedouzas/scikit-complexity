@@ -6,6 +6,7 @@ The infections spread along partnerships that overlap in time.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,37 +15,40 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TopologyInteraction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import delayed
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw, RateLaw, TopologyRequestSpec
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.networks import HostElement, SpreadingInteraction
 
 FRACTION = RealSet.closed(0, 1)
 
 
+class PersonElement(HostElement):
+    """Person of a partnership network, drawn by whether it is infected."""
+
+    visual = VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1})
+
+
+class PartnershipEdgeElement(Element):
+    """Partnership between two people, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
+
+
 class PartnershipEpidemicElement(Element):
-    """Population of Watts and May whose infections pass along lasting partnerships.
+    """Population of Watts and May, as fractions of susceptible, exposed, infectious, and removed people.
 
-    The population has a fixed exposed period.
-
-    Susceptible people `S` acquire new partners at the rate `c`, each infecting with the probability `beta` over the
-    partnership, and are infected at the rate `pi = c beta (I / A + J)` with the active population `A = S + E + I`. The
-    first term is the infection by a new partner who is infectious, and the memory `J` is the infection by a current
-    partner who turned infectious after the partnership formed, `dJ/dt = pi(t - T) S(t - T) / A - J / tau`, where
-    partnerships last a mean time `tau`. The exposed `E` turn infectious after the fixed time `T`, and the infectious
-    `I` develop the disease, which ends their sexual activity, at the rate `nu`, into `R`. The infection starts at time
-    zero, so the infectious and the memory are zero before it.
+    The infection memory `J` is the infection by current partners who turned infectious after the partnership formed.
 
     Args:
         label:
             The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial fraction of susceptible people.
@@ -60,6 +64,51 @@ class PartnershipEpidemicElement(Element):
 
         J:
             The initial infection memory of current partnerships.
+
+        values:
+            Further values by name, such as the infectious before the start `'I[-1]'`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import PartnershipEpidemicElement
+        >>> PartnershipEpidemicElement('population').S
+        0.99
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        S: Annotated[float, FRACTION] = 0.99,
+        E: Annotated[float, FRACTION] = 0.0,
+        I: Annotated[float, FRACTION] = 0.01,
+        R: Annotated[float, FRACTION] = 0.0,
+        J: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, values=values)
+        self.S = S
+        self.E = E
+        self.I = I
+        self.R = R
+        self.J = J
+
+
+class PartnershipInfectionInteraction(Interaction):
+    """Infection of Watts and May along lasting partnerships, with a fixed exposed period.
+
+    Susceptible people `S` acquire new partners at the rate `c`, each infecting with the probability `beta` over the
+    partnership, and are infected at the rate `pi = c beta (I / A + J)` with the active population `A = S + E + I`. The
+    first term is the infection by a new partner who is infectious, and the memory `J` is the infection by a current
+    partner who turned infectious after the partnership formed, `dJ/dt = pi(t - T) S(t - T) / A - J / tau`, where
+    partnerships last a mean time `tau`. The exposed `E` turn infectious after the fixed time `T`, and the infectious
+    `I` develop the disease, which ends their sexual activity, at the rate `nu`, into `R`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the population.
 
         c:
             The rate of acquiring new partners.
@@ -77,65 +126,51 @@ class PartnershipEpidemicElement(Element):
             The rate at which the infectious develop the disease.
 
     Examples:
-        >>> from skcomplex.systems.biology.epidemiology import PartnershipEpidemicElement
-        >>> PartnershipEpidemicElement('population').tau
+        >>> from skcomplex.systems.biology.epidemiology import PartnershipInfectionInteraction
+        >>> PartnershipInfectionInteraction('infection', target='population').tau
         1.0
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        S: Annotated[float, StateSpec(domain=FRACTION)] = 0.99,
-        E: Annotated[float, StateSpec(domain=FRACTION)] = 0.0,
-        I: Annotated[float, StateSpec(domain=FRACTION, history=0.0)] = 0.01,
-        R: Annotated[float, StateSpec(domain=FRACTION)] = 0.0,
-        J: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), history=0.0)] = 0.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        beta: Annotated[float, ParameterSpec(domain=FRACTION)] = 0.2,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        c: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        beta: Annotated[float, FRACTION] = 0.2,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        T: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        nu: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.S = S
-        self.E = E
-        self.I = I
-        self.R = R
-        self.J = J
+        super().__init__(label)
+        self.target = target
         self.c = c
         self.beta = beta
         self.tau = tau
         self.T = T
         self.nu = nu
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection, the exposed period, and the progression.
-
-        The infection is by new and current partners.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the infection by new and current partners, the exposed period, and the progression.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the population.
         """
-        active = s.S + s.E + s.I
-        infection = s.c * s.beta * (s.I / active + s.J) * s.S
-        past = [delayed(state, s.T) for state in (s.S, s.E, s.I, s.J)]
+        super()._prepare(context)
+        s, t = context.target, context.t
+        S, E, I, R, J = s.S, s.E, s.I, s.R, s.J
+        active = S + E + I
+        infection = context.c * context.beta * (I / active + J) * S
+        past = [state(t=t - context.T) for state in (S, E, I, J)]
         past_active = past[0] + past[1] + past[2]
-        matured = s.c * s.beta * (past[2] / past_active + past[3]) * past[0]
-        return [
-            RateLaw(s.S, -infection),
-            RateLaw(s.E, infection - matured),
-            RateLaw(s.I, matured - s.nu * s.I),
-            RateLaw(s.R, s.nu * s.I),
-            RateLaw(s.J, matured / active - s.J / s.tau),
+        matured = context.c * context.beta * (past[2] / past_active + past[3]) * past[0]
+        self.laws_ = [
+            RateLaw(S.diff(t), -infection),
+            RateLaw(E.diff(t), infection - matured),
+            RateLaw(I.diff(t), matured - context.nu * I),
+            RateLaw(R.diff(t), context.nu * I),
+            RateLaw(J.diff(t), matured / active - J / context.tau),
         ]
 
 
@@ -172,9 +207,15 @@ class WattsMayConcurrencySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import WattsMayConcurrencySystem
-        >>> WattsMayConcurrencySystem(tau=3.0).prepare().system_.elements[0].tau
+        >>> WattsMayConcurrencySystem(tau=3.0).prepare().system_.interactions[0].tau
         3.0
     """
 
@@ -194,8 +235,10 @@ class WattsMayConcurrencySystem(BaseSystem):
         T: float = 0.5,
         nu: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.infected = infected
         self.c = c
         self.beta = beta
@@ -203,19 +246,30 @@ class WattsMayConcurrencySystem(BaseSystem):
         self.T = T
         self.nu = nu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SEIR epidemic of Watts and May."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SEIR epidemic of Watts and May.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         population = PartnershipEpidemicElement(
             'population',
             S=1 - self.infected,
             I=self.infected,
+            values={'I[-1]': 0.0, 'J[-1]': 0.0},
+        )
+        infection = PartnershipInfectionInteraction(
+            'infection',
+            target='population',
             c=self.c,
             beta=self.beta,
             tau=self.tau,
             T=self.T,
             nu=self.nu,
         )
-        return CompositeSystem(self.label, elements=[population])
+        self.system_ = System(self.label, elements=[population], interactions=[infection])
 
 
 class PairFormationSISSystem(BaseSystem):
@@ -260,6 +314,12 @@ class PairFormationSISSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import PairFormationSISSystem
         >>> PairFormationSISSystem(n=20, k=4).prepare().system_.interactions[0].beta
@@ -285,8 +345,10 @@ class PairFormationSISSystem(BaseSystem):
         infected: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.beta = beta
@@ -297,41 +359,32 @@ class PairFormationSISSystem(BaseSystem):
         self.infected = infected
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on partnerships that are replaced at once.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIS epidemic on partnerships that are replaced at once.
 
-        The partnerships dissolve and are replaced at once.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         beta = self.beta
         sigma = self.sigma
         beta = self.pressure / self.k if beta is None else beta
         sigma = self.turnover / self.k if sigma is None else sigma
         space = NetworkSpace(nx.random_regular_graph(self.k, self.n, seed=self.seed))
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
-        people = GroupElement(
-            'people',
-            element=HostElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=self.n,
-            values={'i': initial},
-            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
-        )
-        partnerships = GroupElement(
-            'partnerships',
-            element=Element,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=space.graph.number_of_edges(),
-            visual=VisualSpec('sites', {'states': []}),
-        )
-        return CompositeSystem(
+        people = PersonElement('people', i=initial, space=space)
+        partnerships = PartnershipEdgeElement('partnerships', space=space, on='edges')
+        self.system_ = System(
             self.label,
             elements=[people, partnerships],
             interactions=[
                 SpreadingInteraction('spreading', target='people', state='i', beta=beta, gamma=self.gamma),
-                TopologyInteraction('dissolution', target='people', action='rewire', rate=sigma, keep='source'),
+                Interaction(
+                    'dissolution',
+                    roles={'nodes': 'people'},
+                    laws=lambda s: [JumpLaw(sigma, {TopologyRequestSpec('rewire', keep='source'): 1})],
+                    along=True,
+                ),
             ],
         )

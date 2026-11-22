@@ -5,13 +5,16 @@
 
 from collections.abc import Mapping, Sequence
 
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ..elements import NonnegativeElement
 from ._reaction import ReactionInteraction
 from .types import ReactionTable
 
 
-class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
+class ReactionNetworkSystem(BaseSystem):
     """A system of amounts and the reactions between them, written as a table.
 
     Every species is a `NonnegativeElement` named after it, whose state `x` holds its amount. Every reaction is a
@@ -26,31 +29,27 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
     subclass takes the parameters of its model under its own names and gives its species, reactions, and mode from the
     hooks `_get_species`, `_get_reactions`, and `_get_mode`, or its reactions as interactions from `_get_interactions`.
 
-    Unlike `CompositeSystem`, which takes any parts, it builds `NonnegativeElement` and `ReactionInteraction` parts from
-    a table of reactions. Choose it when a model is a list of reactions with rate constants.
+    Unlike `System`, which takes any components, it builds `NonnegativeElement` and `ReactionInteraction`
+    components from a table of reactions. Choose it when a model is a list of reactions with rate constants.
 
     It appears in many fields. Epidemics of susceptible, infected, and recovered people, enzyme kinetics of Michaelis
     and Menten, and predator and prey cycles of Lotka and Volterra are reaction networks.
 
     Attributes:
         system_:
-            The composite of the species and the reactions built from the parameters at the last `prepare`.
-
-        laws_:
-            The laws the system contributes for the namespace of its last run.
+            The `System` of the species and the reactions built from the parameters at the last `prepare`.
 
     Examples:
         The reversible isomerization `A <-> B`, whose amounts relax to `k_back / (k_forth + k_back)` of the total:
 
         >>> from skcomplex.systems.general.reactions import ReactionNetworkSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> isomerization = ReactionNetworkSystem(
         ...     species={'A': 10.0, 'B': 0.0},
         ...     reactions={'forth': ({'A': 1}, {'B': 1}, 0.3), 'back': ({'B': 1}, {'A': 1}, 0.1)},
         ... )
         >>> [element.label for element in isomerization.prepare().system_.elements]
         ['A', 'B']
-        >>> trajectory = simulate(isomerization, until=50.0, dt=1.0)
+        >>> trajectory = isomerization.prepare().simulate(until=50.0, dt=1.0)
         >>> round(float(trajectory.get_values('A.x')[-1]), 3)
         2.5
 
@@ -68,8 +67,10 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
         *,
         mode: str = 'rate',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        """Store the species, the reactions, the mode, and the label of the system.
+        """Store the species, the reactions, the mode, the label, and the settings.
 
         Args:
             species:
@@ -84,8 +85,14 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
 
             label:
                 The label of the system, which names it when it is nested in another one.
+
+            solver:
+                The solver of the problem, or `'auto'` for the one the system chooses.
+
+            backend:
+                The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
         """
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.species = species
         self.reactions = reactions
         self.mode = mode
@@ -133,15 +140,24 @@ class ReactionNetworkSystem(BaseSystem[CompositeSystem]):
             for name, (reactants, products, k) in self._get_reactions().items()
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return an element for every species, and the reactions between them.
+    def _get_solver(self) -> BaseSolver | str:
+        """Return the tuned solver, or `'auto'` for the one the problem chooses.
 
-        Returns:
-            system:
-                The composite of the species and the reactions.
+        A subclass whose reactions need a solver of their own returns it. A `solver` given to the system replaces it.
         """
-        return CompositeSystem(
+        return 'auto'
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to an element for every species and the reactions between them.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[NonnegativeElement(name, x=amount) for name, amount in self._get_species().items()],
             interactions=list(self._get_interactions()),
+            solver=self._get_solver(),
         )

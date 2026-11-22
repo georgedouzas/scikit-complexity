@@ -6,25 +6,32 @@ The traders trade with and without budget constraints.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated, ClassVar
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.matching import BatchMatchingSpec, ContinuousMatchingSpec, MatchingInteraction, MatchSpec
 from ..common.policy import PolicyRuleInteraction
 
 PROTOCOLS = ('order_book', 'call_auction')
 
 
-class ZeroIntelligenceBuyerView(AgentView):
+@runtime_checkable
+class ZeroIntelligenceBuyerView(AgentViewProtocol, Protocol):
     """Zero-intelligence buyer as the rules see it.
 
     It reads its `value`, `bid`, `demand`, and `profit`, the price `ceiling`, and whether it is `constrained`.
@@ -49,9 +56,6 @@ class ZeroIntelligenceBuyerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The value of the unit to the buyer, its redemption value.
 
@@ -70,26 +74,28 @@ class ZeroIntelligenceBuyerElement(Element):
         constrained:
             One when the buyer never bids above its value, zero otherwise.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ZeroIntelligenceBuyerElement
-        >>> GroupElement('buyers', element=ZeroIntelligenceBuyerElement, size=5, values={'value': 100.0}).size
+        >>> ZeroIntelligenceBuyerElement('buyers', value=100.0, size=5).size
         5
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        profit: Annotated[float, StateSpec()] = 0.0,
-        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        bid: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        profit: object = 0.0,
+        ceiling: Annotated[object, RealSet.open(0, oo)] = 200.0,
+        constrained: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.value = value
         self.bid = bid
         self.demand = demand
@@ -97,32 +103,9 @@ class ZeroIntelligenceBuyerElement(Element):
         self.ceiling = ceiling
         self.constrained = constrained
 
-    @classmethod
-    def _get_view(cls) -> type[ZeroIntelligenceBuyerView]:
-        """Return the view of a buyer, with its value, bid, demand, and profit."""
-        return ZeroIntelligenceBuyerView
 
-    @staticmethod
-    def get_bid(agent: ZeroIntelligenceBuyerView, system: SystemView) -> float:
-        """Return a bid drawn uniformly from 0 to the value.
-
-        Without the constraint, the bid goes up to the price ceiling.
-
-        Args:
-            agent:
-                The buyer.
-
-            system:
-                The system view of the quotes.
-
-        Returns:
-            bid:
-                The bid of the round.
-        """
-        return float(system.rng.uniform(0.0, agent.value if agent.constrained else agent.ceiling))
-
-
-class ZeroIntelligenceSellerView(AgentView):
+@runtime_checkable
+class ZeroIntelligenceSellerView(AgentViewProtocol, Protocol):
     """Zero-intelligence seller as the rules see it.
 
     It reads its cost `value`, `ask`, `supply`, and `profit`, the price `ceiling`, and whether it is `constrained`.
@@ -146,9 +129,6 @@ class ZeroIntelligenceSellerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The cost of the unit to the seller.
 
@@ -167,57 +147,34 @@ class ZeroIntelligenceSellerElement(Element):
         constrained:
             One when the seller never asks below its cost, zero otherwise.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ZeroIntelligenceSellerElement
-        >>> GroupElement('sellers', element=ZeroIntelligenceSellerElement, size=5, values={'value': 50.0}).size
+        >>> ZeroIntelligenceSellerElement('sellers', value=50.0, size=5).size
         5
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 200.0,
-        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        profit: Annotated[float, StateSpec()] = 0.0,
-        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 100.0,
+        ask: Annotated[object, RealSet.closed_open(0, oo)] = 200.0,
+        supply: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        profit: object = 0.0,
+        ceiling: Annotated[object, RealSet.open(0, oo)] = 200.0,
+        constrained: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.value = value
         self.ask = ask
         self.supply = supply
         self.profit = profit
         self.ceiling = ceiling
         self.constrained = constrained
-
-    @classmethod
-    def _get_view(cls) -> type[ZeroIntelligenceSellerView]:
-        """Return the view of a seller, with its cost, ask, supply, and profit."""
-        return ZeroIntelligenceSellerView
-
-    @staticmethod
-    def get_ask(agent: ZeroIntelligenceSellerView, system: SystemView) -> float:
-        """Return an ask drawn uniformly from the cost to the price ceiling.
-
-        Without the constraint, the ask starts from 0.
-
-        Args:
-            agent:
-                The seller.
-
-            system:
-                The system view of the quotes.
-
-        Returns:
-            ask:
-                The ask of the round.
-        """
-        bottom = agent.value if agent.constrained else 0.0
-        return float(system.rng.uniform(bottom, max(bottom, agent.ceiling)))
 
 
 def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
@@ -245,6 +202,63 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
     demand, supply = np.sort(values)[::-1], np.sort(costs)
     size = min(len(demand), len(supply))
     return float(np.maximum(demand[:size] - supply[:size], 0).sum())
+
+
+class QuotingInteraction(Interaction):
+    """Quotes of the zero-intelligence traders in every round.
+
+    Every buyer bids a price drawn uniformly from 0 to its value and every seller asks a price drawn uniformly from its
+    cost to the price ceiling. Without the budget constraint, the bid goes up to the ceiling and the ask starts from 0.
+
+    Args:
+        label:
+            The label of the quotes.
+
+        buyers:
+            The path of the group of buyers.
+
+        sellers:
+            The path of the group of sellers.
+
+        phase:
+            The phase the traders quote in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import QuotingInteraction
+        >>> QuotingInteraction('quotes', buyers='buyers', sellers='sellers').phase
+        'trade'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, buyers: Role, sellers: Role, phase: str | None = 'trade') -> None:
+        super().__init__(label)
+        self.buyers = buyers
+        self.sellers = sellers
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the quotes of every round as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.quote, phase=self.phase)]
+
+    def quote(self, system: SystemView) -> None:
+        """Draw the bid of every buyer and then the ask of every seller.
+
+        Args:
+            system:
+                The system view of the quotes.
+        """
+        for buyer in cast(list[ZeroIntelligenceBuyerView], system.get_agents('buyers')):
+            buyer.bid = float(system.rng.uniform(0.0, buyer.value if buyer.constrained else buyer.ceiling))
+        for seller in cast(list[ZeroIntelligenceSellerView], system.get_agents('sellers')):
+            bottom = seller.value if seller.constrained else 0.0
+            seller.ask = float(system.rng.uniform(bottom, max(bottom, seller.ceiling)))
 
 
 class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
@@ -278,8 +292,8 @@ class AuctionLedgerInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view scoped to the ledger.
         """
-        buyers = system.get_agents('buyers', ZeroIntelligenceBuyerView)
-        sellers = system.get_agents('sellers', ZeroIntelligenceSellerView)
+        buyers = cast(list[ZeroIntelligenceBuyerView], system.get_agents('buyers'))
+        sellers = cast(list[ZeroIntelligenceSellerView], system.get_agents('sellers'))
         values = np.array([buyer.value for buyer in buyers])
         costs = np.array([seller.value for seller in sellers])
         bought = np.array([buyer.demand <= 0 for buyer in buyers])
@@ -331,6 +345,12 @@ class DoubleAuctionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The protocol is unknown.
@@ -357,8 +377,10 @@ class DoubleAuctionSystem(BaseSystem):
         ceiling: float = 200.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_buyers = n_buyers
         self.n_sellers = n_sellers
         self.protocol = protocol
@@ -377,8 +399,9 @@ class DoubleAuctionSystem(BaseSystem):
         buyer.profit += trade.quantity * (buyer.value - trade.value)
         seller.profit += trade.quantity * (trade.value - seller.value)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.protocol not in PROTOCOLS:
             error_msg = f'Unknown protocol {self.protocol!r}. Use one of {PROTOCOLS}.'
             raise ValueError(error_msg)
@@ -386,17 +409,19 @@ class DoubleAuctionSystem(BaseSystem):
         values = rng.uniform(0.25 * self.ceiling, self.ceiling, self.n_buyers)
         costs = rng.uniform(0.0, 0.75 * self.ceiling, self.n_sellers)
         limit = float(self.constrained)
-        buyers = GroupElement(
+        buyers = ZeroIntelligenceBuyerElement(
             'buyers',
-            element=ZeroIntelligenceBuyerElement,
+            value=values,
+            ceiling=self.ceiling,
+            constrained=limit,
             size=self.n_buyers,
-            values={'value': values, 'ceiling': self.ceiling, 'constrained': limit},
         )
-        sellers = GroupElement(
+        sellers = ZeroIntelligenceSellerElement(
             'sellers',
-            element=ZeroIntelligenceSellerElement,
+            value=costs,
+            ceiling=self.ceiling,
+            constrained=limit,
             size=self.n_sellers,
-            values={'value': costs, 'ceiling': self.ceiling, 'constrained': limit},
         )
         market = MatchingInteraction(
             'auction',
@@ -408,18 +433,13 @@ class DoubleAuctionSystem(BaseSystem):
             phase='trade',
             on_match=self._record_profit,
         )
-        quotes = [
-            MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')
-            for label, group, state, function in (
-                ('bids', 'buyers', 'bid', ZeroIntelligenceBuyerElement.get_bid),
-                ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
-            )
-        ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[buyers, sellers],
-            interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('trade', repeat=self.rounds), PhaseSpec('close')]),
-            ),
+            interactions=[
+                QuotingInteraction('quotes', buyers='buyers', sellers='sellers'),
+                market,
+                AuctionLedgerInteraction('ledger', phase='close'),
+            ],
+            solver=MesaSolver(phases=[PhaseSpec('trade', repeat=self.rounds), PhaseSpec('close')]),
         )

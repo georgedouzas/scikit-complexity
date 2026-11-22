@@ -9,43 +9,64 @@ The module covers amplitude equations and rolls.
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import GradientInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ETDRK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ETDRK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
+from ...general.gradients import GradientInteraction
 
 
 class GinzburgLandauElement(Element):
-    """Site of the complex Ginzburg-Landau equation.
-
-    The equation is `A_t = A + (1 + i b) laplacian(A) - (1 - i c) |A|^2 A`.
-
-    The amplitude `A = u + i v` is held as its real and imaginary parts. Without the Laplacian every site is a
-    Stuart-Landau oscillator, and the dispersion `b` and the nonlinear frequency shift `c` set whether plane waves are
-    stable or break into spiral defect chaos.
+    """Sites of a complex amplitude `A = u + i v`, held as its real part `u` and its imaginary part `v`.
 
     Args:
         label:
-            The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
+            The label of the field.
 
         u:
-            The initial real part of the amplitude.
+            The initial real part of the amplitude, one value per site or one for all.
 
         v:
-            The initial imaginary part of the amplitude.
+            The initial imaginary part of the amplitude, one value per site or one for all.
+
+        space:
+            The lattice of the sites, or `None` for one site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
+        >>> GinzburgLandauElement('site', u=0.5).u
+        0.5
+    """
+
+    def __init__(self, label: str, *, u: object = 0.0, v: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
+        self.u = u
+        self.v = v
+
+
+class GinzburgLandauInteraction(Interaction):
+    """The complex Ginzburg-Landau dynamics `A_t = A + (1 + i b) laplacian(A) - (1 - i c) |A|^2 A` of an amplitude.
+
+    The amplitude `A = u + i v` of the target is held as its real and imaginary parts. Without the Laplacian every site
+    is a Stuart-Landau oscillator, and the dispersion `b` and the nonlinear frequency shift `c` set whether plane waves
+    are stable or break into spiral defect chaos.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the field, with the real part `u` and the imaginary part `v`.
 
         b:
             The linear dispersion.
@@ -53,69 +74,49 @@ class GinzburgLandauElement(Element):
         c:
             The nonlinear frequency shift.
 
-    Attributes:
-        default_visual_:
-            The visual of the site when it sets none.
-
     Examples:
-        >>> from skcomplex.systems.physics.pattern_formation import GinzburgLandauElement
-        >>> GinzburgLandauElement('site').c
+        >>> from skcomplex.systems.physics.pattern_formation import GinzburgLandauInteraction
+        >>> GinzburgLandauInteraction('dynamics', target='medium').c
         -1.5
     """
 
     law_classes = (RateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
-        b: Annotated[float, ParameterSpec()] = 1.0,
-        c: Annotated[float, ParameterSpec()] = -1.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
+    def __init__(self, label: str, *, target: Role, b: float = 1.0, c: float = -1.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.b = b
         self.c = c
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the real and imaginary parts of the amplitude.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the real and imaginary parts of the amplitude of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rates of `u` and `v`.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        square = s.u**2 + s.v**2
-        return [
-            RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - square * (s.u - s.c * s.v)),
-            RateLaw(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - square * (s.c * s.u + s.v)),
+        super()._prepare(context)
+        s, t = context, context.t
+        u, v = s.target.u, s.target.v
+        square = u**2 + v**2
+        self.laws_ = [
+            RateLaw(u.diff(t), u + laplacian(u) - s.b * laplacian(v) - square * (u - s.c * v)),
+            RateLaw(v.diff(t), v + s.b * laplacian(u) + laplacian(v) - square * (s.c * u + v)),
         ]
 
 
 class PatternFieldElement(Element):
-    """Site of a real field `u` whose patterns a free energy selects.
+    """Sites of a real field `u` whose patterns a free energy selects.
 
     Args:
         label:
-            The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
+            The label of the field.
 
         u:
-            The initial value of the field.
+            The initial value of the field, one value per site or one for all.
 
-    Attributes:
-        default_visual_:
-            The visual of the site when it sets none.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import PatternFieldElement
@@ -123,8 +124,8 @@ class PatternFieldElement(Element):
         0.1
     """
 
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, u: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, u: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.u = u
 
 
@@ -138,7 +139,7 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
@@ -156,9 +157,9 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.physics.pattern_formation._patterns import SwiftHohenbergEnergyInteraction
-        >>> energy = SwiftHohenbergEnergyInteraction('energy', target='cells').prepare()
+        >>> energy = SwiftHohenbergEnergyInteraction('energy', target='cells')
         >>> namespace = SimpleNamespace(target=SimpleNamespace(u=var('u')), r=var('r'), g=0)
-        >>> [law.value for law in energy.run(namespace).laws_]
+        >>> [law.value for law in energy.prepare(namespace).laws_]
         [-u^3 + r*u - u - 2*laplacian(u) - laplacian(laplacian(u))]
     """
 
@@ -166,10 +167,10 @@ class SwiftHohenbergEnergyInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'u',
-        r: Annotated[float, ParameterSpec()] = 0.3,
-        g: Annotated[float, ParameterSpec()] = 0.0,
+        r: float = 0.3,
+        g: float = 0.0,
     ) -> None:
         super().__init__(label, target=target, states=state, variational=True)
         self.state = state
@@ -221,9 +222,15 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.1.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import ComplexGinzburgLandauSystem
-        >>> ComplexGinzburgLandauSystem((8, 8)).prepare().system_.elements[0].values['c']
+        >>> ComplexGinzburgLandauSystem((8, 8)).prepare().system_.interactions[0].c
         -1.5
     """
 
@@ -232,7 +239,6 @@ class ComplexGinzburgLandauSystem(BaseSystem):
     references = ('Aranson and Kramer 2002', 'Gros 2015')
     until = 50.0
     dt = 1.0
-    solver = ETDRK4Solver(dt=0.1)
 
     @staticmethod
     def _get_noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
@@ -248,40 +254,32 @@ class ComplexGinzburgLandauSystem(BaseSystem):
         c: float = -1.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.length = length
         self.b = b
         self.c = c
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the complex Ginzburg-Landau equation.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the complex Ginzburg-Landau equation from a small random amplitude.
 
-        The equation is `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
-        values = {
-            'u': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, rng),
-            'v': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, rng),
-            'b': self.b,
-            'c': self.c,
-        }
-        space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return CompositeSystem(
-            self.label,
-            elements=[
-                FieldElement(
-                    'medium',
-                    element=GinzburgLandauElement,
-                    space=space,
-                    values=values,
-                    discretization='spectral',
-                ),
-            ],
-        )
+        u = ComplexGinzburgLandauSystem._get_noise(shape, 0.01, rng)
+        v = ComplexGinzburgLandauSystem._get_noise(shape, 0.01, rng)
+        space = LatticeSpace(shape, spacing=self.length / shape[0], discretization='spectral')
+        medium = GinzburgLandauElement('medium', u=u.ravel(), v=v.ravel(), space=space)
+        dynamics = GinzburgLandauInteraction('dynamics', target='medium', b=self.b, c=self.c)
+        self.system_ = System(self.label, elements=[medium], interactions=[dynamics], solver=ETDRK4Solver(dt=0.1))
 
 
 class SwiftHohenbergSystem(BaseSystem):
@@ -308,6 +306,12 @@ class SwiftHohenbergSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.5.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
         >>> SwiftHohenbergSystem((8, 8), r=0.1).prepare().system_.interactions[0].r
@@ -319,7 +323,6 @@ class SwiftHohenbergSystem(BaseSystem):
     references = ('Swift and Hohenberg 1977', 'Cross and Hohenberg 1993', 'Datseris and Parlitz 2022')
     until = 200.0
     dt = 5.0
-    solver = ETDRK4Solver(dt=0.5)
 
     def __init__(
         self,
@@ -329,28 +332,29 @@ class SwiftHohenbergSystem(BaseSystem):
         r: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.length = length
         self.r = r
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Swift-Hohenberg equation from small noise.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
-        values = {'u': ComplexGinzburgLandauSystem._get_noise(shape, 0.01, self.random_state)}
-        space = LatticeSpace(shape, spacing=self.length / shape[0])
-        return CompositeSystem(
+        u = ComplexGinzburgLandauSystem._get_noise(shape, 0.01, self.random_state)
+        space = LatticeSpace(shape, spacing=self.length / shape[0], discretization='spectral')
+        self.system_ = System(
             self.label,
-            elements=[
-                FieldElement(
-                    'cells',
-                    element=PatternFieldElement,
-                    space=space,
-                    values=values,
-                    discretization='spectral',
-                ),
-            ],
+            elements=[PatternFieldElement('cells', u=u.ravel(), space=space)],
             interactions=[SwiftHohenbergEnergyInteraction('energy', target='cells', r=self.r)],
+            solver=ETDRK4Solver(dt=0.5),
         )

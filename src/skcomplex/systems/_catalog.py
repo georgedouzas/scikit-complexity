@@ -10,9 +10,9 @@ from collections.abc import Mapping, Sequence
 from importlib.resources import files
 from pathlib import Path
 
-from ..core.components.systems import BaseSystem
+from ..core.components import Tags
 from ..core.errors import RegistryError, ValidationError
-from ..core.specs import Tags
+from ..core.systems import BaseSystem
 
 LISTED = ('field', 'topics', 'references')
 

@@ -1,4 +1,4 @@
-"""Merge, lower, and solve the linear program laws."""
+"""Join, rewrite, and solve the linear programs of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,12 +13,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy import sparse
 
-from ....components.laws import LinearProgramLaw
-from ....specs import IssueSpec, LayoutSpec, LinearObjectiveSpec, RunStateSpec
-from ....specs._base_spec import BaseSpec
+from ....base import BaseSpec
+from ....components.laws import LinearObjectiveSpec
+from ....components.laws._linear_program import _LinearProgramLaw
 from ....types import Array, Indices
 from ..._utils import symbol, symbols_of
-from ...problems import ProblemSpec
+from ...enums import LinearProgramBound
+from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._linear_program_kernel import LinearProgramKernel
@@ -29,9 +30,9 @@ from ...problems._linear_program_spec import (
     LinearProgramSpec,
 )
 from ...problems._reference_spec import ReferenceSpec
-from ...types import LinearProgramBound
 from .._base import BasePass
 from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from ._census import CensusPass
 
 ABSOLUTE = 'abs'
@@ -48,7 +49,7 @@ class _BoundLawSpec(BaseSpec):
     """
 
     spec: KernelSpec
-    law: LinearProgramLaw
+    law: _LinearProgramLaw
     owner: str
 
 
@@ -61,9 +62,23 @@ class _LinearPartsSpec(BaseSpec):
 
 
 class LinearProgramsPass(BasePass):
-    """A pass that lowers the linear program laws of the owners of a compilation.
+    """A pass that turns the linear programs of a system into programs a solver solves.
 
-    It solves them in its functions.
+    A linear program finds the values that maximize a linear objective under linear constraints, such as the fluxes of
+    a cell that maximize its growth. The pass joins the laws of every program into one table of the program and adds it
+    to the problem, which solves it at every step.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CollectPass: Keeps the programs aside.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
+        >>> compilation = PassCompiler().prepare(FluxBalanceSystem()).run().compilation_
+        >>> [program.program.path for program in compilation.problem.programs]
+        ['cell']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -120,6 +135,7 @@ class LinearProgramsPass(BasePass):
             _BoundLawSpec(spec, law, CensusPass._get_law_owner(spec, law, set()))
             for spec, items in laws
             for law in items
+            if isinstance(law, _LinearProgramLaw)
         ]
         owners = compilation.owners
         return [item for item in found if not owned or owners is None or item.owner in owners]
@@ -218,7 +234,7 @@ class LinearProgramsPass(BasePass):
             name = str(item) if reference is None else reference.entry.name
             if reference is None or name not in algebraic:
                 message = f'The linear program law of {bound.spec.owner} sets {name}, which is not an algebraic state.'
-                fix = f'Declare {name} with `StateSpec(algebraic=True)`.'
+                fix = f'Set {name} by an algebraic equation of the linear program, not by a rate or an update.'
                 issues.append(IssueSpec('linear-program-variable', bound.spec.owner, message, fix))
         return issues
 
@@ -243,6 +259,29 @@ class LinearProgramsPass(BasePass):
                 if problem is not None:
                     message = f'The objective {objective.expression} of {spec.owner} is not usable: {problem}.'
                     issues.append(IssueSpec('linear-program-form', spec.owner, message, fix))
+        return issues
+
+    @staticmethod
+    def _get_unbounded_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+        """Return the variables of a program that no constraint bounds."""
+        columns = LinearProgramsPass._get_columns_of(group)
+        bounded = {
+            column
+            for bound in group
+            for constraint in bound.law.constraints
+            for column in LinearProgramsPass._get_symbols_in(
+                bound.spec,
+                constraint.lhs() - constraint.rhs(),
+                columns,
+            ).values()
+        }
+        owner = next((bound.spec.owner for bound in group if bound.law.objectives), group[0].spec.owner)
+        issues = []
+        for (name, _), column in columns.items():
+            if column not in bounded:
+                message = f'The linear program of {owner} sets {name}, which no constraint bounds.'
+                fix = f'Add a `ConstraintLaw` that bounds {name}, such as `ConstraintLaw(v >= 0, target=v)`.'
+                issues.append(IssueSpec('linear-program-variable', owner, message, fix))
         return issues
 
     @staticmethod
@@ -277,6 +316,7 @@ class LinearProgramsPass(BasePass):
         for group in LinearProgramsPass._get_merged(bounds):
             issues += LinearProgramsPass._get_form_issues(group)
             issues += LinearProgramsPass._get_objective_issues(group)
+            issues += LinearProgramsPass._get_unbounded_issues(group)
         return issues
 
     @staticmethod
@@ -525,7 +565,7 @@ class _Lowering:
         self._offsets.append(float(rest) if rest.is_numeric() else 0.0)
 
     def _get_cost_matrix(self) -> Array:
-        """Return the costs of every objective, with the parts after the variables."""
+        """Return the costs of every objective, absolute values after the variables."""
         size, count = len(self._columns), len(self._parts)
         matrix = np.zeros((len(self._costs), size + 2 * count))
         for row, costs in enumerate(self._costs):

@@ -12,14 +12,13 @@ while the predators grow on the prey and decline after them.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import StigmergicPredatorPreySystem
 
 SYSTEM = 'stigmergic_predator_prey'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(StigmergicPredatorPreySystem(random_state=0), observers=[observer], random_state=0)
+trajectory = StigmergicPredatorPreySystem(random_state=0).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Populations with and without shared emotions
@@ -27,7 +26,7 @@ trajectory = simulate(StigmergicPredatorPreySystem(random_state=0), observers=[o
 # The three populations should peak in turn, plants, then prey, then predators. Turning the shared emotions off
 # changes how the animals move, and with it the timing of the prey boom and crash.
 
-without = simulate(StigmergicPredatorPreySystem(emotions=False, random_state=0), random_state=0)
+without = StigmergicPredatorPreySystem(emotions=False, random_state=0).prepare().simulate(random_state=0)
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, run, title in zip(axes, [trajectory, without], ['with emotions', 'without'], strict=True):
     for kind in ['plants', 'prey', 'predators']:

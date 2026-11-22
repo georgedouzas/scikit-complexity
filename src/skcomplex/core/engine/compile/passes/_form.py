@@ -1,13 +1,13 @@
-"""Infer the form of a problem from the classes of the laws of its components."""
+"""Find the kind of problem that the laws of a system make."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Iterable
 
-from ....components.spaces import StaticTime
+from ....components.laws import BaseLaw
+from ....enums import FormKind
 from ....errors import IncompatibleLawsError
-from ....types import FormKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._forms import COMBINED, FORMS
@@ -15,11 +15,27 @@ from .._laws import FORMLESS_LAWS
 
 
 class FormPass(BasePass):
-    """A pass that infers the form of the problem from the law classes of its owners."""
+    """A pass that finds the kind of problem that the classes of the laws make.
+
+    Rate laws make ordinary differential equations, rate and noise laws make stochastic ones, and update laws make a
+    map, so the population of the logistic map makes a map. The kind of problem chooses the default solver.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FractionalFormPass: Gives a problem with a fractional state its kind.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> compilation = PassCompiler().prepare(LogisticMapSystem()).run().compilation_
+        >>> compilation.form.value
+        'discrete map'
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('kinds',)
+        return ('kinds', 'layout')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -29,12 +45,10 @@ class FormPass(BasePass):
         """Infer the form of the problem."""
         compilation = self.compilation_
         kinds = Compilation._get_required(compilation.kinds, 'kinds').values()
-        compilation.form = (
-            FormKind.STATIC if isinstance(compilation.system.time, StaticTime) else self._infer_form(kinds)
-        )
+        compilation.form = FormKind.STATIC if compilation.is_static() else self._infer_form(kinds)
 
     @staticmethod
-    def _infer_form(owners: Iterable[set[type]]) -> FormKind:
+    def _infer_form(owners: Iterable[set[type[BaseLaw]]]) -> FormKind:
         """Return the form that the law classes of the components of a system determine.
 
         A combined class, such as a renewal, drops out of the classes when the rest are its companions and no
@@ -54,16 +68,16 @@ class FormPass(BasePass):
         """
         kinds = FormPass._get_form_kinds(owners)
         if kinds not in FORMS:
-            found = ', '.join(sorted(kind.__name__ for kind in kinds))
+            found = ', '.join(sorted({kind._get_name() for kind in kinds}))
             supported = '; '.join(
-                ', '.join(sorted(kind.__name__ for kind in combination)) for combination in FORMS if combination
+                ', '.join(sorted({kind._get_name() for kind in combination})) for combination in FORMS if combination
             )
             error_msg = f'The system mixes the law kinds {found}. Supported combinations are: {supported}.'
             raise IncompatibleLawsError(error_msg)
         return FORMS[kinds]
 
     @staticmethod
-    def _get_form_kinds(owners: Iterable[set[type]]) -> frozenset[type]:
+    def _get_form_kinds(owners: Iterable[set[type[BaseLaw]]]) -> frozenset[type[BaseLaw]]:
         """Return the law classes that decide the form of components.
 
         They are the components with their own law classes. A combined class, such as a renewal, drops out of the
@@ -72,7 +86,7 @@ class FormPass(BasePass):
         partitions.
         """
         owned = [{kind for kind in kinds if not issubclass(kind, FORMLESS_LAWS)} for kinds in owners]
-        kinds: set[type] = set().union(*owned)
+        kinds: set[type[BaseLaw]] = set().union(*owned)
         for kind, companions in COMBINED.items():
             rest = kinds - {kind}
             if kind not in kinds or not rest:

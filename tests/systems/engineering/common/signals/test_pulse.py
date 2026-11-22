@@ -1,40 +1,39 @@
 """Test the `_pulse` module of `skcomplex.systems.engineering.common.signals`."""
 
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.engineering.common.signals import PulseInteraction
 
 
-class DecayElement(Element):
-    """Amount `c` that decays at rate 1."""
+class DecayInteraction(Interaction):
+    """Decay of the amount `c` at rate 1."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        c: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.c = c
+    law_classes = (RateLaw,)
 
-    def _get_laws(self, s):
-        return [RateLaw(s.c, -s.c)]
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        c = context.target.c
+        self.laws_ = [RateLaw(c.diff(context.t), -c)]
 
 
 def _run(pulse, until):
     """Return the trajectory of a decaying amount with pulses."""
-    system = CompositeSystem(elements=[DecayElement('body')], interactions=[pulse])
-    return simulate(system, until=until, dt=0.25)
+    body = Element('body', values={'c': 0.0})
+    system = System(elements=[body], interactions=[DecayInteraction('decay', target='body'), pulse])
+    return system.prepare().simulate(until=until, dt=0.25)
 
 
 def _dose(**arguments):
@@ -65,11 +64,35 @@ def test_periodic_pulses_without_a_count_fire_until_the_end():
 
 def test_pulses_on_a_group_set_every_member_from_its_own_state():
     """Test that pulses on a group set the state of every member from that member's own state."""
-    bodies = GroupElement('bodies', element=DecayElement, size=3, values={'c': [0.0, 1.0, 2.0]})
+    bodies = Element('bodies', size=3, values={'c': [0.0, 1.0, 2.0]})
     dose = PulseInteraction('dose', target='bodies', reset={'c': lambda s: s.target.c + 1.0}, times=(1.0,))
-    trajectory = simulate(CompositeSystem(elements=[bodies], interactions=[dose]), until=2.0, dt=0.25)
+    decay = DecayInteraction('decay', target='bodies')
+    trajectory = System(elements=[bodies], interactions=[decay, dose]).prepare().simulate(until=2.0, dt=0.25)
     expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
     np.testing.assert_allclose(trajectory.get_values('bodies.c')[-1], expected, rtol=1e-3)
+
+
+class CoastInteraction(Interaction):
+    """Motion of `x` without force, `x'' = 0`."""
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.x.diff(context.t, 2), 0)]
+
+
+def test_prepare_kicks_a_derivative_named_with_a_prime():
+    """Test that a pulse on `x'` at time 1 sets a body at rest moving, so it travels 2 by time 3."""
+    kick = PulseInteraction('kick', target='body', reset={"x'": lambda s: s.target.x.diff(s.t) + 1.0}, times=(1.0,))
+    body = Element('body', values={'x': 0.0})
+    system = System(elements=[body], interactions=[CoastInteraction('coast', target='body'), kick])
+    trajectory = system.prepare().simulate(until=3.0, dt=0.5)
+    assert trajectory.get_values('body.x')[-1] == pytest.approx(2.0)
 
 
 @pytest.mark.parametrize(

@@ -3,7 +3,7 @@
 The module covers a homogeneous universe and a collapsing ball of dust.
 
 `COUPLING` holds the coupling `κ = 8 π G / c⁴` of the Einstein equations in units with `G = c = 1`. `COORDINATES` holds
-the comoving coordinates of the spherical ansatzes.
+the comoving coordinates of the spherical ansatzes. `ACCURATE` holds the solver of tight tolerances of the systems.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -15,26 +15,28 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import QQ, SR, Expression, diagonal_matrix, function, matrix, oo, sin
 from sage.sets.real_set import RealSet
 from sage.structure.element import Matrix
 from sage.symbolic.function import BuiltinFunction, SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
-from ....core.components.base import BasePart
-from ....core.components.elements import Element, FieldElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import derivative, partial
+from ....core.components.laws.utils import partial
 from ....core.components.spaces import BaseSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import SpaceError, ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import ElementKind
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.relativity import SpacetimeSpace
 
 COUPLING = 8 * math.pi
+ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 COORDINATES = ('t', 'r', 'theta', 'phi')
 MAX_ORDER = 2
 
@@ -63,7 +65,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or field whose states and parameters are the unknowns of the ansatz.
@@ -109,19 +111,11 @@ class EinsteinFieldEquationsInteraction(Interaction):
             The space is not a pseudo-Riemannian space with curvature, raised by `prepare`.
 
     Examples:
-        >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
         >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.cosmology import EinsteinFieldEquationsInteraction
         >>> from skcomplex.systems.physics.common.relativity import SpacetimeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class UniverseElement(Element):
-        ...     def __init__(self, label, a: Annotated[float, StateSpec(order=2)] = 1.0, a_d1: float = 0.0):
-        ...         super().__init__(label)
-        ...         self.a = a
-        ...         self.a_d1 = a_d1
         >>> t, r, theta, phi = SR.var('t r theta phi')
         >>> a = function('a')(t)
         >>> metric = diagonal_matrix(SR, [-1, a**2, a**2 * r**2, a**2 * r**2 * sin(theta) ** 2])
@@ -129,8 +123,9 @@ class EinsteinFieldEquationsInteraction(Interaction):
         >>> vacuum = EinsteinFieldEquationsInteraction(
         ...     'vacuum', target='universe', states='a', space=flat, components=[(1, 1)], cosmological_constant=3.0
         ... )
-        >>> system = CompositeSystem(elements=[UniverseElement('universe', a_d1=1.0)], interactions=[vacuum])
-        >>> trajectory = simulate(system, until=1.0, dt=0.001)
+        >>> universe = Element('universe', values={'a': 1.0, "a'": 1.0})
+        >>> system = System(elements=[universe], interactions=[vacuum]).prepare()
+        >>> trajectory = system.simulate(until=1.0, dt=0.001)
         >>> round(float(trajectory.get_values('universe.a')[-1]), 4)
         2.7183
     """
@@ -141,7 +136,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states',))],
+        target: Role,
         states: str | Sequence[str] = 'x',
         space: SpacetimeSpace | None = None,
         components: Sequence[tuple[int, int]] = (),
@@ -166,23 +161,16 @@ class EinsteinFieldEquationsInteraction(Interaction):
         """Return the names of the states the equations determine."""
         return (self.states,) if isinstance(self.states, str) else tuple(self.states)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set the prepared space and the mixed Einstein tensor of its metric.
-
-        It first raises an error for states not names, mismatched components, or a source.
-
-        Args:
-            context:
-                The space the interaction inherits from its system, which the equations do not read.
+    def _check(self) -> None:
+        """Raise an error for states not names, mismatched components, a source, or a space.
 
         Raises:
             SpaceError:
                 The space is not a pseudo-Riemannian space with curvature.
             ValidationError:
-                The type declares states, a state is not a name, the components do not give one index pair per state,
-                or the source is not callable.
+                A state is not a name, the components do not give one index pair per state, or the source is not
+                callable.
         """
-        super()._prepare(context)
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} solves for the states {self.states!r}. Give names.'
@@ -203,8 +191,37 @@ class EinsteinFieldEquationsInteraction(Interaction):
                 '`SpacetimeSpace` with `curvature=True`.'
             )
             raise SpaceError(error_msg)
+
+    def _check_arguments(self) -> None:
+        """Raise an error for states not names, mismatched components, a source, or a space.
+
+        Raises:
+            SpaceError:
+                The space is not a pseudo-Riemannian space with curvature.
+            ValidationError:
+                A state is not a name, the components do not give one index pair per state, or the source is not
+                callable.
+        """
+        super()._check_arguments()
+        self._check()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the prepared space, the mixed Einstein tensor of its metric, and the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+
+        Raises:
+            ValidationError:
+                An equation does not reduce to rate laws of the states.
+        """
+        super()._prepare(context)
+        if not isinstance(self.space, SpacetimeSpace):
+            return
         self.space_ = self.space.prepare()
         self.equations_: Matrix = self.space_.inverse_metric_ * self.space_.einstein_
+        self.laws_ = self._get_rate_laws(context)
 
     def _walk(self, expression: Expression) -> Iterator[Expression]:
         """Yield an expression and every subexpression of it."""
@@ -221,6 +238,15 @@ class EinsteinFieldEquationsInteraction(Interaction):
             )
             raise ValidationError(error_msg)
         return SR(getattr(member, name))
+
+    def _get_functions(self) -> set[str]:
+        """Return the names of the unknown functions of the ansatz."""
+        return {
+            item.operator().name()
+            for entry in self.space_.metric_.list()
+            for item in self._walk(SR(entry))
+            if isinstance(item.operator(), SymbolicFunction) and not isinstance(item.operator(), BuiltinFunction)
+        }
 
     def _get_derivative(
         self,
@@ -283,10 +309,10 @@ class EinsteinFieldEquationsInteraction(Interaction):
     def _translate(
         self,
         expression: Expression,
-        namespace: SimpleNamespace,
+        context: SimpleNamespace,
         accelerations: Mapping[int, Mapping[str, Expression]],
     ) -> Expression:
-        """Return an entry of the Einstein tensor in the symbols of the namespace.
+        """Return an entry of the Einstein tensor in the values of the target.
 
         It checks that the entry reduces.
 
@@ -294,37 +320,36 @@ class EinsteinFieldEquationsInteraction(Interaction):
             expression:
                 The entry of the mixed Einstein tensor.
 
-            namespace:
-                The namespace of the symbols the laws can use, with the namespace of the target.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
 
             accelerations:
                 The symbols of the first and the second time derivatives of every state, by the order and the name.
 
         Returns:
             entry:
-                The entry in the symbols of the namespace.
+                The entry in the values of the target.
 
         Raises:
             ValidationError:
                 The entry keeps a coordinate other than time, or a derivative does not reduce.
         """
-        member = self._get_member(namespace, 'target')
-        items = list(self._walk(expression))
+        member = context.target
         derivatives = {
             item: self._get_derivative(item, member, accelerations)
-            for item in items
+            for item in self._walk(expression)
             if isinstance(item.operator(), FDerivativeOperator)
         }
-        expression = expression.subs(derivatives)
+        names = self._get_functions()
         functions = {
             item: self._get_unknown(member, item.operator().name())
             for item in self._walk(expression)
-            if isinstance(item.operator(), SymbolicFunction)
-            and not isinstance(item.operator(), BuiltinFunction)
-            and item.operator() not in (partial, derivative)
+            if isinstance(item.operator(), SymbolicFunction) and item.operator().name() in names
         }
-        expression = expression.subs(functions).subs({self.space_.coordinates_[self.time]: SR(namespace.t)})
-        kept = [item for item in self.space_.coordinates_ if expression.has(item)]
+        expression = expression.subs(derivatives).subs(functions)
+        coordinates = self.space_.coordinates_
+        expression = expression.subs({coordinates[self.time]: SR(context.t)})
+        kept = [item for index, item in enumerate(coordinates) if index != self.time and expression.has(item)]
         if kept:
             error_msg = (
                 f'The equations of {self.label!r} keep the coordinates {kept}, so the ansatz does not reduce them. '
@@ -333,21 +358,21 @@ class EinsteinFieldEquationsInteraction(Interaction):
             raise ValidationError(error_msg)
         return expression
 
-    def _get_source(self, namespace: SimpleNamespace) -> Matrix:
+    def _get_source(self, context: SimpleNamespace) -> Matrix:
         """Return the mixed energy-momentum tensor, zero without a source."""
         n_dim = len(self.space_.coordinates_)
         if self.source is None:
             return matrix(SR, n_dim, n_dim)
-        return matrix(SR, self.source(namespace))
+        return matrix(SR, self.source(context))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+    def _get_rate_laws(self, context: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate law of the second derivative of every state.
 
         It is solved from the chosen equations.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the namespace of the target.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
 
         Returns:
             laws:
@@ -358,17 +383,18 @@ class EinsteinFieldEquationsInteraction(Interaction):
                 An equation does not reduce, is not linear in the second derivatives, or the equations do not fix them.
         """
         names = self._get_names()
-        member = self._get_member(namespace, 'target')
+        member = context.target
+        t = context.t
         accelerations = {
             order: {name: SR.var(f'_derivative_{order}_{index}') for index, name in enumerate(names)}
             for order in (1, MAX_ORDER)
         }
         unknowns = list(accelerations[MAX_ORDER].values())
-        velocities = {accelerations[1][name]: derivative(getattr(member, name), 1) for name in names}
-        source = self._get_source(namespace)
+        velocities = {accelerations[1][name]: SR(getattr(member, name)).diff(t) for name in names}
+        source = self._get_source(context)
         rows, rest = [], []
         for mu, nu in (tuple(pair) for pair in self.components):
-            curvature = self._translate(SR(self.equations_[mu, nu]).simplify_full(), namespace, accelerations)
+            curvature = self._translate(SR(self.equations_[mu, nu]).simplify_full(), context, accelerations)
             vacuum = self.cosmological_constant if mu == nu else 0
             equation = curvature + vacuum - self.coupling * SR(source[mu, nu])
             coefficients = [equation.diff(unknown) for unknown in unknowns]
@@ -386,7 +412,7 @@ class EinsteinFieldEquationsInteraction(Interaction):
             raise ValidationError(error_msg)
         rates = system.solve_right(matrix(SR, len(rest), 1, rest), check=False).column(0)
         return [
-            RateLaw(getattr(member, name), SR(rate).simplify_full().subs(velocities))
+            RateLaw(SR(getattr(member, name)).diff(t, 2), SR(rate).simplify_full().subs(velocities))
             for name, rate in zip(names, rates, strict=True)
         ]
 
@@ -474,7 +500,7 @@ class LemaitreTolmanBondiSpace(SpacetimeSpace):
 class HomogeneousUniverseElement(Element):
     """Homogeneous universe of matter, radiation, and vacuum energy.
 
-    The universe has the scale factor `a` of order 2.
+    The universe has the scale factor `a`, and its rate is the derivative `a'`.
 
     The densities are measured by their parameters `Ω` today, at `a = 1`, relative to the critical density
     `3 H0² / κ`: matter dilutes as `a⁻³`, radiation as `a⁻⁴`, and the vacuum energy of a cosmological constant stays.
@@ -483,14 +509,8 @@ class HomogeneousUniverseElement(Element):
         label:
             The label of the universe.
 
-        visual:
-            How the universe is drawn, or `None` for none.
-
         a:
             The initial scale factor.
-
-        a_d1:
-            The initial rate of change of the scale factor.
 
         H0:
             The Hubble constant today.
@@ -504,6 +524,9 @@ class HomogeneousUniverseElement(Element):
         omega_lambda:
             The density parameter of the cosmological constant.
 
+        values:
+            Further values by name, such as the initial rate `a'` of the scale factor, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.cosmology import HomogeneousUniverseElement
         >>> HomogeneousUniverseElement('universe', omega_radiation=1e-4).omega_radiation
@@ -513,18 +536,16 @@ class HomogeneousUniverseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        a: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
-        a_d1: float = 1.0,
-        H0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        omega_matter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        omega_radiation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        omega_lambda: Annotated[float, ParameterSpec()] = 0.7,
+        a: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        H0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        omega_matter: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        omega_radiation: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        omega_lambda: float = 0.7,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values)
         self.a = a
-        self.a_d1 = a_d1
         self.H0 = H0
         self.omega_matter = omega_matter
         self.omega_radiation = omega_radiation
@@ -534,23 +555,21 @@ class HomogeneousUniverseElement(Element):
 class DustShellElement(Element):
     """Shell of a spherical ball of dust.
 
-    The shell has the areal radius `R` of order 2 and the energy per unit mass `energy`.
+    The shell has the areal radius `R` and the energy per unit mass `energy`, and the rate of the radius is the
+    derivative `R'`. On a space, the element holds one shell per site.
 
     Args:
         label:
             The label of the shell.
 
-        visual:
-            How the shell is drawn, or `None` for none.
-
         R:
-            The initial areal radius.
-
-        R_d1:
-            The initial rate of change of the areal radius.
+            The initial areal radius, or one radius per site.
 
         energy:
-            The energy per unit mass, negative for a bound shell.
+            The energy per unit mass, negative for a bound shell, or one energy per site.
+
+        space:
+            The space whose sites hold the shells, or `None` for a single shell.
 
     Examples:
         >>> from skcomplex.systems.physics.cosmology import DustShellElement
@@ -561,15 +580,13 @@ class DustShellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        R: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
-        R_d1: float = 0.0,
-        energy: Annotated[float, ParameterSpec(domain=RealSet.open(-0.5, oo))] = 0.0,
+        R: Annotated[float | npt.ArrayLike, RealSet.open(0, oo)] = 1.0,
+        energy: Annotated[float | npt.ArrayLike, RealSet.open(-0.5, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.R = R
-        self.R_d1 = R_d1
         self.energy = energy
 
 
@@ -584,7 +601,7 @@ class FLRWCosmologySystem(BaseSystem):
     = κ rho / 3 - k / a²`, which sets the initial rate and which the evolution keeps. The fluid holds matter of pressure
     0, radiation of pressure `rho / 3`, and the vacuum energy of a cosmological constant of pressure `-rho`, with the
     density parameters today, at `a = 1`, and the curvature `k = -Ω_k H0²` of the remainder `Ω_k = 1 - Ω_m - Ω_r - Ω_Λ`.
-    Units have `G = c = 1`. The system has the scale factor `universe.a` of order 2 and its rate `universe.a_d1`.
+    Units have `G = c = 1`. The system has the scale factor `universe.a` and its rate `universe.a'`.
 
     Args:
         a:
@@ -605,13 +622,20 @@ class FLRWCosmologySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The universe does not expand at the initial scale factor.
 
     Examples:
         >>> from skcomplex.systems.physics.cosmology import FLRWCosmologySystem
-        >>> FLRWCosmologySystem(1.0, omega_matter=1.0, omega_lambda=0.0).prepare().system_.elements[0].a_d1
+        >>> system = FLRWCosmologySystem(1.0, omega_matter=1.0, omega_lambda=0.0).prepare()
+        >>> float(system.simulate(until=0.1).get_values("universe.a'")[0])
         1.0
     """
 
@@ -620,7 +644,6 @@ class FLRWCosmologySystem(BaseSystem):
     references = ('Schwichtenberg 2020', 'Satz 2022', 'Friedmann 1922', 'Lemaître 1927', 'Carroll 2004')
     until = 2.0
     dt = 0.02
-    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
     def __init__(
         self,
@@ -631,8 +654,10 @@ class FLRWCosmologySystem(BaseSystem):
         omega_radiation: float = 0.0,
         omega_lambda: float = 0.7,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.a = a
         self.H0 = H0
         self.omega_matter = omega_matter
@@ -653,8 +678,14 @@ class FLRWCosmologySystem(BaseSystem):
         pressure = critical * (radiation / 3 - universe.omega_lambda)
         return diagonal_matrix(SR, [-density, pressure, pressure, pressure])
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a homogeneous universe whose expansion follows from the Einstein equations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         curvature = 1 - self.omega_matter - self.omega_radiation - self.omega_lambda
         square = self.H0**2 * (
             self.omega_matter / self.a + self.omega_radiation / self.a**2 + self.omega_lambda * self.a**2 + curvature
@@ -668,11 +699,11 @@ class FLRWCosmologySystem(BaseSystem):
         universe = HomogeneousUniverseElement(
             'universe',
             a=self.a,
-            a_d1=math.sqrt(square),
             H0=self.H0,
             omega_matter=self.omega_matter,
             omega_radiation=self.omega_radiation,
             omega_lambda=self.omega_lambda,
+            values={"a'": math.sqrt(square)},
         )
         einstein = EinsteinFieldEquationsInteraction(
             'einstein',
@@ -683,7 +714,7 @@ class FLRWCosmologySystem(BaseSystem):
             source=self._get_perfect_fluid,
             coupling=COUPLING,
         )
-        return CompositeSystem(self.label, elements=[universe], interactions=[einstein])
+        self.system_ = System(self.label, elements=[universe], interactions=[einstein], solver=ACCURATE)
 
 
 class OppenheimerSnyderCollapseSystem(BaseSystem):
@@ -699,7 +730,7 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
     r`, so every shell follows the same cycloid `R = r (1 + cos η) / 2` with `t = (η + sin η) / (2 √k)` and `k = 2 M /
     R₀³`, as the interior of Oppenheimer and Snyder. The surface crosses its Schwarzschild radius `2 M` and the ball
     reaches zero size at the proper time `π / (2 √k)`. The system has the areal radius `ball.R` of every shell and its
-    rate `ball.R_d1`.
+    rate `ball.R'`.
 
     Args:
         n_shells:
@@ -714,13 +745,19 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The ball starts inside its Schwarzschild radius.
 
     Examples:
         >>> from skcomplex.systems.physics.cosmology import OppenheimerSnyderCollapseSystem
-        >>> round(float(OppenheimerSnyderCollapseSystem(4).prepare().system_.elements[0].values['energy'][-1]), 3)
+        >>> round(float(OppenheimerSnyderCollapseSystem(4).prepare().system_.elements[0].energy[-1]), 3)
         -0.1
     """
 
@@ -729,7 +766,6 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
     references = ('Schwichtenberg 2020', 'Satz 2022', 'Oppenheimer and Snyder 1939', 'Tolman 1934', 'Bondi 1947')
     until = 34.5
     dt = 0.1
-    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
     def __init__(
         self,
@@ -738,14 +774,22 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
         radius: float = 10.0,
         mass: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_shells = n_shells
         self.radius = radius
         self.mass = mass
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ball of dust shells that collapses under its own gravity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.radius <= 2 * self.mass:
             error_msg = (
                 f'The radius {self.radius} is inside the Schwarzschild radius 2 M = {2 * self.mass}. Give a larger '
@@ -754,11 +798,11 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
             raise ValidationError(error_msg)
         radii = self.radius * np.arange(1, self.n_shells + 1) / self.n_shells
         energies = -self.mass * radii**2 / self.radius**3
-        ball = FieldElement(
+        ball = DustShellElement(
             'ball',
-            element=DustShellElement,
+            R=radii,
+            energy=energies,
             space=LatticeSpace((self.n_shells,), spacing=self.radius / self.n_shells),
-            values={'R': radii, 'energy': energies},
         )
         einstein = EinsteinFieldEquationsInteraction(
             'einstein',
@@ -769,4 +813,4 @@ class OppenheimerSnyderCollapseSystem(BaseSystem):
             coupling=COUPLING,
             axes={1: 0},
         )
-        return CompositeSystem(self.label, elements=[ball], interactions=[einstein])
+        self.system_ = System(self.label, elements=[ball], interactions=[einstein], solver=ACCURATE)

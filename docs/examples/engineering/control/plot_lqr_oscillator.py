@@ -16,16 +16,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import linearization
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.systems import System
 from skcomplex.systems.engineering.control import LqrOscillatorSystem
 
 SYSTEM = 'lqr_oscillator'
 
 system = LqrOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The decay rate of the closed loop
@@ -33,9 +32,10 @@ trajectory = simulate(system, observers=[observer])
 # The closed loop `x' = (A - B K) x` decays at the rate of its slowest eigenvalue, so the energy, a quadratic form of
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
-parts = system.prepare().system_
-linear = linearization(CompositeSystem(elements=list(parts.elements)))
-gain = np.array([parts.interactions[0].gain])
+composite = system.prepare().system_
+regulator, motion = composite.interactions
+linear = linearization(System(elements=composite.elements, interactions=[motion]), controls=['oscillator.force'])
+gain = np.array([regulator.gain])
 slowest = max(np.linalg.eigvals(linear.A - linear.B @ gain).real)
 times, energy = trajectory.times, trajectory.get_values('energy')
 decay = energy[40] * np.exp(2 * slowest * (times - times[40]))

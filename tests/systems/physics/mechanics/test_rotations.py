@@ -11,7 +11,7 @@ from ..conftest import _relative_spread, _run, _series
 def test_rotating_swing_conserves_angular_momentum():
     """Test that the swing without torque keeps its angular momentum while the chairs swing out."""
     trajectory = _run(RotatingSwingSystem(), 10.0, 0.05)
-    theta, omega = _series(trajectory, 'swing.theta', 'swing.phi_d1')
+    theta, omega = _series(trajectory, 'swing.theta', "swing.phi'")
     momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * omega
     assert _relative_spread(momentum) < 1e-8
     assert np.ptp(omega) > 0.1
@@ -37,7 +37,7 @@ def test_gimballed_gyroscope_precesses_at_torque_over_angular_momentum():
 def test_gimballed_gyroscope_conserves_its_cyclic_momenta_and_precesses():
     """Test that the gyroscope keeps the momenta of its outer ring and rotor and precesses under the torque."""
     trajectory = _run(GimballedGyroscopeSystem(), 5.0, 0.05)
-    beta, d_alpha, d_gamma = _series(trajectory, 'gyroscope.beta', 'gyroscope.alpha_d1', 'gyroscope.gamma_d1')
+    beta, d_alpha, d_gamma = _series(trajectory, 'gyroscope.beta', "gyroscope.alpha'", "gyroscope.gamma'")
     inertia = 1.0 + 1.5 * np.cos(beta) ** 2 + 2.5 * np.sin(beta) ** 2
     outer = inertia * d_alpha + 2.0 * d_gamma * np.sin(beta)
     rotor = 2.0 * (d_alpha * np.sin(beta) + d_gamma)

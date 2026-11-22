@@ -6,7 +6,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.active_matter import BertinDrozGregoireSystem
 
 
@@ -14,7 +13,7 @@ def polarization_change(density: float, transition: float) -> float:
     """Return the ratio of the final and initial polarization moments of a homogeneous flock."""
     angles = 32
     system = BertinDrozGregoireSystem(1, angles, density=density * transition, interaction_range=0.5, noise=0.5)
-    trajectory = simulate(system, until=2.0, dt=2.0)
+    trajectory = system.prepare().simulate(until=2.0, dt=2.0)
     values = np.asarray(trajectory.get_values('flock.x'))
     theta = 2 * np.pi * (np.arange(angles) + 0.5) / angles
     return float((values[-1] @ np.cos(theta)) / (values[0] @ np.cos(theta)))

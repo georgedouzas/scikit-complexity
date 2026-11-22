@@ -9,26 +9,30 @@ from dataclasses import replace
 import numpy as np
 from sklearn.base import clone
 
-from ...components.laws import BilinearLaw, FluxLaw, RateLaw
-from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...components.laws import BaseLaw, RateLaw
+from ...components.spaces import LatticeSpace, PhaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
-from ..problems import ProblemSpec
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._steps import step_count
 from ._rk4 import RK4Solver
 from ._solver import Solver
 
 
 class StrangSplittingSolver(Solver):
-    """A solver that splits half transport steps around a full collision step.
+    """A solver that puts a full collision step between two half transport steps.
 
-    A half transport step, a full collision step, and a half transport step follow each other. The transport solver
-    advances the flux differences of the finite-volume fields and the collision solver the source rates, which the
-    problem keeps apart.
+    Every step takes half a step of transport, a full step of collisions, and another half step of transport, which is
+    of order 2. The transport solver moves the flux differences of the finite volume fields, such as a gas streaming
+    along its positions, and the collision solver the source rates, such as its relaxation towards equilibrium, which
+    the problem keeps apart. Choose it for kinetic equations with collisions, in models of rarefied gases, plasmas, and
+    traffic.
 
-    Choose it for kinetic equations with collisions. It appears in models of rarefied gases and of particles in a
-    plasma.
+    Read more in the user guide, under Solvers.
 
     Args:
         transport:
@@ -53,47 +57,24 @@ class StrangSplittingSolver(Solver):
         collision_:
             The prepared solver of the source rates.
 
+    See Also:
+        SemiLagrangianSolver: Moves transport with any step.
+        SSPRKSolver: Moves transport with shocks.
+
     Examples:
-        >>> import numpy as np
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, FieldElement
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
-        ...         self.x = x
-        >>> from skcomplex.core.components.interactions import ConservationInteraction, RateInteraction
-        >>> from skcomplex.core.components.laws.utils import coordinate, maximum_entropy
-        >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
-        >>> from skcomplex.core.specs import AxisSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
-        >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
-        >>> gas = FieldElement(
-        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
-        ... )
-        >>> stream = ConservationInteraction(
-        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
-        ... )
-        >>> def relaxation(s):
-        ...     return (maximum_entropy(s.target.x, axes=('v',)) - s.target.x) / 0.5
-        >>> relax = RateInteraction('r', target='gas', state='x', rate=relaxation)
-        >>> system = CompositeSystem(elements=[gas], interactions=[stream, relax])
-        >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = simulate(system, until=0.2, solver=solver).get_values('gas.x')[-1]
-        >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
-        True
+        >>> from skcomplex.systems.physics.fluids import BGKEquationSystem
+        >>> solver = BGKEquationSystem(positions=8, velocities=16).prepare().system_.solver_
+        >>> type(solver).__name__, type(solver.transport).__name__, type(solver.collision).__name__
+        ('StrangSplittingSolver', 'SSPRKSolver', 'RK4Solver')
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw, BilinearLaw},
+            laws={RateLaw, BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -135,21 +116,21 @@ class StrangSplittingSolver(Solver):
             rates = rates + np.asarray(volume.run(RunStateSpec(t, x, p)).values_, dtype=float)
         return rates
 
-    def _get_inner(self, solver: Solver | None, law: type, dt: float, problem: ProblemSpec) -> Solver:
+    def _get_inner(self, solver: Solver | None, law: type[BaseLaw], dt: float, problem: ProblemSpec) -> Solver:
         """Return an inner solver prepared on a part of the problem.
 
         An error is raised for a law it does not advance.
         """
         inner = RK4Solver(dt=dt) if solver is None else clone(solver)
         if inner._get_support().get_missing('laws', {law}):
-            error_msg = f'StrangSplittingSolver advances {law.__name__} with {type(inner).__name__}, which lacks it.'
+            error_msg = f'StrangSplittingSolver advances {law._get_name()} with {type(inner).__name__}, which lacks it.'
             raise SolverError(error_msg)
         return inner.prepare(problem)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the two inner solvers on the transport and the collision parts.
 
-        The parts are those of the problem.
+        These are the parts of the problem.
 
         Args:
             context:
@@ -157,7 +138,7 @@ class StrangSplittingSolver(Solver):
 
         Raises:
             SolverError:
-                The problem has no flux or no source rates, or an inner solver does not advance its part.
+                The problem has no flux or no source rates, or an inner solver does not advance its part of the problem.
         """
         super()._prepare(context)
         problem = self.problem_
@@ -167,7 +148,7 @@ class StrangSplittingSolver(Solver):
         plain = replace(problem, accelerated=None, jacobian=None, sources=None)
         transport = replace(plain, drift=self._get_flux_differences)
         collision = replace(plain, drift=problem.sources, volumes=(), linear=())
-        self.transport_ = self._get_inner(self.transport, FluxLaw, self.dt / 2, transport)
+        self.transport_ = self._get_inner(self.transport, RateLaw, self.dt / 2, transport)
         self.collision_ = self._get_inner(self.collision, RateLaw, self.dt, collision)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

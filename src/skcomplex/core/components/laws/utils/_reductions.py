@@ -12,19 +12,22 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, sin, var, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.function import SymbolicFunction
 
+from ....enums import ComponentReductionKind, PathReductionKind
 from ....errors import ValidationError
-from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
 from ....types import AnyArray
 from ...spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
-    LatticeNeighborhood,
-    MemoryNeighborhood,
+    LayerSpec,
     NearestNeighborhood,
     RadiusNeighborhood,
 )
 from ...spaces._lattice import BOUNDARIES
+from .._hyperedge_reduction_spec import _HyperedgeReductionSpec
+from .._neighbor_reduction_spec import _NeighborReductionSpec
+from .._reduction_spec import _ReductionSpec
 from ._conditions import both
 from ._draws import draws_in
 from ._operators import _OperatorFunction
@@ -43,8 +46,6 @@ KINDS = {
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 MIN_HYPEREDGE_SIZE = 2
 MAX_NEIGHBOR_HYPEREDGE_SIZE = 5
-COMPONENT_REDUCTIONS = ('label', 'size', 'largest', 'giant')
-PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
 FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
@@ -145,7 +146,7 @@ class _ComponentsFunction(_OperatorFunction):
         parts = [str(active)]
         if not _ReductionFunction._is_placeholder(over, 0):
             parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={COMPONENT_REDUCTIONS[int(SR(kind))]!r}')
+        parts.append(f'reduce={tuple(ComponentReductionKind)[int(SR(kind))].value!r}')
         return f'components({", ".join(parts)})'
 
 
@@ -166,7 +167,7 @@ class _ShortestPathsFunction(_OperatorFunction):
         parts = [str(active)]
         if not _ReductionFunction._is_placeholder(over, 0):
             parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
-        parts.append(f'reduce={PATH_REDUCTIONS[int(SR(kind))]!r}')
+        parts.append(f'reduce={tuple(PathReductionKind)[int(SR(kind))].value!r}')
         return f'shortest_paths({", ".join(parts)})'
 
 
@@ -199,7 +200,8 @@ SHIFT_MEMBER = _ShiftMemberFunction('shift_member', nargs=4)
 def _over_symbol(over: object) -> Expression:
     """Return a symbol that names the group of a reduction, or 0 for none.
 
-    It comes from a namespace or a symbol.
+    It comes from a namespace or a symbol. An interaction reads every state as a function of the time, such as `x(t)`,
+    which names the group like the symbol `x`.
     """
     if over is None:
         return SR(0)
@@ -209,10 +211,10 @@ def _over_symbol(over: object) -> Expression:
                 continue
             if isinstance(value, FreeModuleElement):
                 return SR(next(iter(value)))
-            if isinstance(value, Expression) and value.is_symbol():
+            if _is_named(value):
                 return value
-    if isinstance(over, Expression) and over.is_symbol():
-        return over
+    if _is_named(over):
+        return SR(over)
     error_msg = (
         'A reduction takes the group to reduce over as a namespace such as `namespace.members`, or as one of its '
         f'symbols, not {over!r}.'
@@ -220,10 +222,19 @@ def _over_symbol(over: object) -> Expression:
     raise ValidationError(error_msg)
 
 
+def _is_named(value: object) -> bool:
+    """Return whether a value is a symbol, or a function of a symbol, such as `x(t)`."""
+    if not isinstance(value, Expression):
+        return False
+    operands = value.operands()
+    function = isinstance(value.operator(), SymbolicFunction) and len(operands) == 1 and operands[0].is_symbol()
+    return value.is_symbol() or function
+
+
 def _weights_symbol(weights: object) -> Expression:
     """Return the symbol that stands for a constant weight matrix, or 0 for none.
 
-    It is the symbol of a shaped parameter for one.
+    It is the symbol of an array parameter for one.
     """
     if weights is None:
         return SR(0)
@@ -237,8 +248,8 @@ def _weights_symbol(weights: object) -> Expression:
         parts = [np.asarray(matrix.shape), np.ascontiguousarray(matrix)]
     if matrix.ndim not in {1, 2}:
         error_msg = (
-            'The weights of a reduction are a matrix with one row per reading member, or one row that every reading '
-            f'member shares, not of shape {matrix.shape}.'
+            'The weights of a reduction must be a matrix with one row per member that reads it, or one row they all '
+            f'share, but they have the shape {matrix.shape}.'
         )
         raise ValidationError(error_msg)
     name = f'_weights_{hashlib.sha256(b"".join(np.asarray(part).tobytes() for part in parts)).hexdigest()[:16]}'
@@ -288,11 +299,14 @@ def reduction(
     over: object = None,
     where: object = None,
 ) -> Expression:
-    """Return a reduction over a group by a function of the array of member values.
+    """Return a summary of the values of the members of a group by any function.
 
-    The function runs in Python, so a law that reads it falls back to Python on the Numba backend. The name of the
-    function stands in the expression and the function waits in a module-level mapping, for the same reason as the
-    draws: a Sage symbolic function holds only a name and arguments.
+    The function receives the array of the values of the selected members and returns one number, such as
+    `reduction(np.median, x)` for the median of `x` over the group. It runs in Python, so a law that reads it runs in
+    Python on the Numba backend too. It gives the median income of households, a quantile of the sizes of firms, and the
+    spread of the opinions of voters.
+
+    Read more in the user guide, under Laws.
 
     Args:
         function:
@@ -311,17 +325,23 @@ def reduction(
         reduction:
             The reduction, a symbolic expression.
 
+    Raises:
+        ValidationError:
+            The function cannot be called.
+
+    See Also:
+        total: Sums an expression over the members of a group.
+        mean: Averages an expression over the members of a group.
+
     Examples:
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import reduction
-        >>> from skcomplex.core.components.laws.utils._reductions import reductions_in
-        >>> x = var('x')
-        >>> [item.kind for item in reductions_in(reduction(np.median, x))]
-        ['function']
+        >>> reduction(np.median, var('x')).operator().name()
+        'reduction'
     """
     if not callable(function):
-        error_msg = f'A reduction takes a function of the array of member values, but got {function!r}.'
+        error_msg = f'A reduction takes a function of the array of the values of the members, but got {function!r}.'
         raise ValidationError(error_msg)
     name = f'_reduction_{id(function)}'
     FUNCTIONS[name] = function
@@ -338,8 +358,12 @@ def total(
 ) -> Expression:
     """Return the sum of an expression over the members of a group.
 
-    It is `sum_j a_j`, or `sum_j W_ij a_j` with weights. Inside the reduction, the symbols of a member stand for the
-    reduced member, and outside it for the reading member.
+    It is `Σ_j a_j`, or `Σ_j W_ij a_j` with weights, such as `tanh(total(x))` for a response to the sum of `x` over the
+    group, and `where` keeps only the members that meet a condition. Inside the call the values are those of the member
+    being summed, and outside it those of the member that reads the sum. It gives the total input to a neuron, the
+    demand of all buyers in a market, and the number of infected people a person meets.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -354,8 +378,7 @@ def total(
 
         weights:
             A constant matrix, a NumPy array or a SciPy sparse matrix, with one row per reading member and one column
-            per reduced member, a vector with one weight per reduced member that every reading member shares, or
-            `None`.
+            per reduced member, a vector with one weight per reduced member that every reading member shares, or `None`.
 
         by:
             The name of a state of the group, so every member reduces over the members that share its value of the
@@ -367,14 +390,17 @@ def total(
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol, the weights are not a matrix, or a key has no group namespace.
+            The group is not a namespace or a symbol, the weights are not a matrix, or `by` comes without the namespace
+            of the group.
+
+    See Also:
+        mean: Averages an expression over the members of a group.
+        count: Counts the members of a group.
 
     Examples:
-        >>> from sage.all__sagemath_symbolics import tanh, var
+        >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import total
         >>> x = var('x')
-        >>> -x + tanh(total(x))
-        -x + tanh(total(x))
         >>> total(x, where=x > 0.5)
         total(x, where=x > 0.5)
     """
@@ -390,7 +416,11 @@ def mean(
 ) -> Expression:
     """Return the mean of an expression over the selected members of a group.
 
-    It is the total divided by their count.
+    It is the sum over the members that `where` selects divided by their number, or 0 when none is selected, such as
+    `mean(cos(theta))` for how well the phases of a group line up. It gives the mean opinion of voters, the order of
+    oscillators that synchronise, and the average price in a market.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -415,7 +445,12 @@ def mean(
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol, the weights are not a matrix, or a key has no group namespace.
+            The group is not a namespace or a symbol, the weights are not a matrix, or `by` comes without the namespace
+            of the group.
+
+    See Also:
+        total: Sums an expression over the members of a group.
+        circular_mean: Averages an angle over the members of a group.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import cos, var
@@ -429,9 +464,12 @@ def mean(
 def maximum(*expressions: object, over: object = None, where: object = None) -> Expression:
     """Return the largest value of an expression over selected members, or of several.
 
-    It returns the largest value over the selected members of a group, or the largest of expressions. With one
-    expression it reduces over the members of a group, as `max` over an array. With several it compares them member by
-    member, as `max` over its arguments, with no group or condition.
+    With one expression it gives the largest value over the members of a group, as `max` of an array, and 0 when no
+    member is selected. With several it gives the largest of them for every member, as `max` of its arguments, such as
+    `maximum(x, y)` that is 2 for `x = 1` and `y = 2`. It gives the highest bid of an auction, the tallest tree that
+    shades a forest, and the larger of a demand and a floor.
+
+    Read more in the user guide, under Laws.
 
     Args:
         *expressions:
@@ -452,14 +490,13 @@ def maximum(*expressions: object, over: object = None, where: object = None) -> 
             No expression is given, several expressions come with a group or a condition, or the group is not a
             namespace or a symbol.
 
+    See Also:
+        minimum: Gives the smallest value instead.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import maximum
         >>> x, y = var('x y')
-        >>> maximum(x)
-        maximum(x)
-        >>> maximum(x, y)
-        where(y > x, y, x)
         >>> maximum(x, y).subs(x=1, y=2)
         2
     """
@@ -477,9 +514,12 @@ def maximum(*expressions: object, over: object = None, where: object = None) -> 
 def minimum(*expressions: object, over: object = None, where: object = None) -> Expression:
     """Return the smallest value of an expression over selected members, or of several.
 
-    It returns the smallest value over the selected members of a group, or the smallest of expressions. With one
-    expression it reduces over the members of a group, as `min` over an array. With several it compares them member by
-    member, as `min` over its arguments, with no group or condition.
+    With one expression it gives the smallest value over the members of a group, as `min` of an array, and 0 when no
+    member is selected. With several it gives the smallest of them for every member, as `min` of its arguments, such as
+    `minimum(x, y)` that is 1 for `x = 1` and `y = 2`. It gives the lowest ask of a market, the nutrient that limits
+    growth, and the smaller of an order and the stock on hand.
+
+    Read more in the user guide, under Laws.
 
     Args:
         *expressions:
@@ -500,14 +540,13 @@ def minimum(*expressions: object, over: object = None, where: object = None) -> 
             No expression is given, several expressions come with a group or a condition, or the group is not a
             namespace or a symbol.
 
+    See Also:
+        maximum: Gives the largest value instead.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import minimum
         >>> x, y = var('x y')
-        >>> minimum(x)
-        minimum(x)
-        >>> minimum(x, y)
-        where(y < x, y, x)
         >>> minimum(x, y).subs(x=1, y=2)
         1
     """
@@ -523,7 +562,13 @@ def minimum(*expressions: object, over: object = None, where: object = None) -> 
 
 
 def variance(expression: object, over: object = None, where: object = None) -> Expression:
-    """Return the population variance of an expression over selected group members.
+    """Return the variance of an expression over the selected members of a group.
+
+    It is the mean of the squared distance of every value from the mean, dividing by the number of members, or 0 when no
+    member is selected, such as `variance(x)` for the spread of `x` over the group. It gives the spread of opinions in a
+    society, the dispersion of prices in a market, and the diversity of traits in a population.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -543,6 +588,9 @@ def variance(expression: object, over: object = None, where: object = None) -> E
         ValidationError:
             The group is not a namespace or a symbol.
 
+    See Also:
+        mean: Averages an expression over the members of a group.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import variance
@@ -555,7 +603,11 @@ def variance(expression: object, over: object = None, where: object = None) -> E
 def log_sum_exp(expression: object, over: object = None, where: object = None) -> Expression:
     """Return the log of the sum of the exponentials of an expression over members.
 
-    The members are the selected members of a group.
+    It is `log Σ_j exp(a_j)` over the selected members, computed so that large values do not overflow, such as
+    `log_sum_exp(-E / T)` for the log of the partition function of states of energy `E` at temperature `T`. It gives the
+    free energy of a physical system, the expected utility of a choice among options, and the normaliser of a softmax.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -575,6 +627,9 @@ def log_sum_exp(expression: object, over: object = None, where: object = None) -
         ValidationError:
             The group is not a namespace or a symbol.
 
+    See Also:
+        total: Sums an expression over the members of a group.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import log_sum_exp
@@ -586,6 +641,12 @@ def log_sum_exp(expression: object, over: object = None, where: object = None) -
 
 def count(over: object = None, where: object = None, by: str | None = None) -> Expression:
     """Return the number of members of a group a condition selects, or of all members.
+
+    It counts the members that meet `where`, such as `count(where=x > 0.5)`, and with `by` only those that share the
+    value of a state with the member that reads the count, such as the members in the same cell. It gives the number of
+    infected people, of buyers at a price, and of birds in a patch.
+
+    Read more in the user guide, under Laws.
 
     Args:
         over:
@@ -605,18 +666,16 @@ def count(over: object = None, where: object = None, by: str | None = None) -> E
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol, or a key has no group namespace.
+            The group is not a namespace or a symbol, or `by` comes without the namespace of the group.
+
+    See Also:
+        total: Sums an expression over the members of a group.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import count
-        >>> x = var('x')
-        >>> count(where=x > 0.5)
+        >>> count(where=var('x') > 0.5)
         count(where=x > 0.5)
-        >>> from types import SimpleNamespace
-        >>> members = SimpleNamespace(cell=var('cell'), other=SimpleNamespace(cell=var('cell_other')))
-        >>> count(over=members, by='cell')
-        count(over=cell, where=cell_other == cell)
     """
     return _reduce('count', 1, over, where, None, by=by)
 
@@ -628,10 +687,13 @@ def circular_mean(
     weights: object = None,
     by: str | None = None,
 ) -> Expression:
-    """Return the circular mean of an angle over the members of a group.
+    """Return the mean direction of an angle over the members of a group.
 
-    It is `arctan2(sum_j sin a_j, sum_j cos a_j)`. The mean is the direction of the sum of the unit vectors at the
-    angles, 0 when no member is selected.
+    It is `arctan2(Σ_j sin a_j, Σ_j cos a_j)`, the direction of the sum of the unit vectors at the angles, or 0 when no
+    member is selected, so 350 and 10 degrees average to 0 rather than 180. It gives the heading of a flock, the phase
+    of a group of fireflies, and the mean wind direction.
+
+    Read more in the user guide, under Laws.
 
     Args:
         angle:
@@ -656,7 +718,11 @@ def circular_mean(
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol, the weights are not a matrix, or a key has no group namespace.
+            The group is not a namespace or a symbol, the weights are not a matrix, or `by` comes without the namespace
+            of the group.
+
+    See Also:
+        mean: Averages an expression that is not an angle.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -679,7 +745,7 @@ def _neighborhood_symbol(over: object) -> Expression:
     if isinstance(over, LayerSpec):
         over = AdjacencyNeighborhood(layer=over.label)
     if not isinstance(over, BaseNeighborhood):
-        error_msg = f'A neighbourhood reduction reduces over None, a neighbourhood, or a LayerSpec, not {over!r}.'
+        error_msg = f'A reduction over neighbours takes None, a neighbourhood, or a LayerSpec as `over`, not {over!r}.'
         raise ValidationError(error_msg)
     name = f'_over_{hashlib.sha256(repr(over).encode()).hexdigest()[:16]}'
     NEIGHBORHOODS[name] = over
@@ -692,36 +758,33 @@ def neighbors(
     reduce: str = 'sum',
     weight: object = None,
 ) -> Expression | FreeModuleElement:
-    """Return the reduction of an expression over the neighbours of group members.
+    """Return a summary of an expression over the neighbours of every member.
 
-    It is over the neighbours of every member of a group. The expression is written for one neighbour: the namespace
-    `namespace.other` holds the symbols of the neighbour, and `namespace` those of the member that reads the reduction,
-    so `sin(namespace.other.theta - namespace.theta)` is the phase difference to one neighbour. The neighbourhood is the
-    graph of a network space by default, `AdjacencyNeighborhood()`, a layer of the network,
-    `AdjacencyNeighborhood(layer=label)` or the `LayerSpec` itself, a lattice neighbourhood, or in a continuous space
-    the members within a distance, `RadiusNeighborhood(r)`, the nearest members, `NearestNeighborhood(k)`, or the
-    members within a distance inside a cone around a direction, `RadiusNeighborhood(r, angle=angle)`. A reduction over
-    no neighbours is 0.
+    The expression is written for one neighbour, with `namespace.other` holding the values of the neighbour and
+    `namespace` those of the member that reads the result, such as `neighbors(sin(s.other.theta - s.theta))` for the
+    pull of every neighbour on the phase of an oscillator. The neighbours are those of the network by default, of a
+    layer with `AdjacencyNeighborhood(layer=label)` or its `LayerSpec`, of a lattice neighbourhood, or in a continuous
+    space those within a distance, `RadiusNeighborhood(r)`, inside a cone, `RadiusNeighborhood(r, angle=angle)`, or the
+    nearest, `NearestNeighborhood(k)`. A member without neighbours gets 0. It couples oscillators on a network, aligns
+    the headings of birds in a flock, and lets players copy their most successful neighbour.
 
-    The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,
-    `'mean'`, the sum divided by the number of neighbours, `'count'`, `sum_j w_j [f_j != 0]`, `'max'` and `'min'`, the
-    largest and smallest `w_j f_j`, `'normalized-mean'`, `sum_j w_j f_j / sum_j w_j`, and `'argmax'`, the value `f_j` of
-    the neighbour whose weight `w_j` is largest, the first of them in neighbour order. The circular mean of an angle,
-    `'circular-mean'`, is `arctan2(sum_j w_j sin f_j, sum_j w_j cos f_j)`, 0 over no neighbours. On a lattice
-    neighbourhood, `reduce='each'` gives the values of a lattice state at every offset, in neighbourhood order, without
-    reducing them.
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
-            The value of one neighbour, an expression of the symbols of `namespace.other` and `namespace`, or a vector
-            of them.
+            The value of one neighbour, an expression of the values of `namespace.other` and `namespace`, or a vector of
+            them.
 
         over:
             The neighbourhood, or `None` for the neighbours of the network or lattice the group lives on.
 
         reduce:
-            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, or `'circular-mean'`, or
-            `'each'` for the values at every offset of a lattice neighbourhood or a memory.
+            How to combine the values `f_j` of the neighbours with their weights `w_j`. `'sum'` gives `Σ_j w_j f_j`,
+            `'mean'` that sum over the number of neighbours, `'count'` gives `Σ_j w_j [f_j != 0]`, `'max'` and `'min'`
+            the largest and smallest `w_j f_j`, `'normalized-mean'` gives `Σ_j w_j f_j / Σ_j w_j`, `'argmax'` the value
+            of the neighbour of largest weight, the first in neighbour order, and `'circular-mean'` gives
+            `arctan2(Σ_j w_j sin f_j, Σ_j w_j cos f_j)`. `'each'` gives the values at every offset of a lattice
+            neighbourhood or a memory, in order, without combining them.
 
         weight:
             The weight of one neighbour, an expression of the same symbols, or `None` for 1. The `'argmax'` reduction
@@ -729,34 +792,33 @@ def neighbors(
 
     Returns:
         reduction:
-            The unevaluated reduction, one per component of a vector expression, or with `reduce='each'` the values of
-            a lattice state at the offsets of a lattice neighbourhood.
+            The unevaluated reduction, one per entry of a vector expression, or with `reduce='each'` the values of a
+            lattice state at the offsets of a lattice neighbourhood.
 
     Raises:
         ValidationError:
             The reduction or the neighbourhood is unknown.
 
+    See Also:
+        hyperedges: Reduces over the hyperedges around every member.
+        total: Sums an expression over all the members of a group.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.components.laws.utils import neighbors
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, RadiusNeighborhood
+        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
-        >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
-        neighbors(strategy_other, reduce='argmax', weight=payoff_other)
-        >>> values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
-        >>> len(values), values[0]
-        (4, neighbor(spin, 0))
     """
     if reduce == 'each':
-        if isinstance(over, LatticeNeighborhood):
-            size = len(over.prepare().offsets_)
-        elif isinstance(over, MemoryNeighborhood):
-            size = len(over.prepare().elements_)
-        else:
-            error_msg = f"The reduction 'each' reads a lattice or a memory neighbourhood, not {over!r}."
+        items = over._get_slots() if isinstance(over, BaseNeighborhood) else None
+        if items is None:
+            error_msg = (
+                f"The reduction 'each' reads a neighbourhood whose offsets are known before its lattice, such as a "
+                f'LatticeNeighborhood, or a memory neighbourhood, not {over!r}.'
+            )
             raise ValidationError(error_msg)
-        return vector(SR, [NEIGHBOR(expression, index) for index in range(size)])
+        return vector(SR, [NEIGHBOR(expression, index) for index in range(len(items))])
     if reduce == 'circular-mean':
         sines = neighbors(sin(SR(expression)), over, 'sum', weight)
         return arctan2(sines, neighbors(cos(SR(expression)), over, 'sum', weight))
@@ -781,64 +843,57 @@ def hyperedges(
     weight: object = None,
     over: BaseNeighborhood | None = None,
 ) -> Expression | FreeModuleElement:
-    """Return the reduction of an expression over the hyperedges around group members.
+    """Return a summary of an expression over the hyperedges around every member.
 
-    It is over the hyperedges around every member of a group. The expression is written for one hyperedge around the
-    member that reads the reduction: the namespaces `namespace.others` hold the symbols of the other members of the
-    hyperedge in its order, `namespace.members` those of all its members, which `total`, `mean`, `count`, `maximum`,
-    and `minimum` reduce with `over=namespace.members`, and `namespace` those of the reading member. So
-    `sin(s.others[0].theta + s.others[1].theta - 2 * s.theta)` with `size=3` is the three-body phase coupling over the
-    triangles around a member. A reduction over no hyperedges is 0.
+    A hyperedge joins several members at once, and the expression is written for one hyperedge around the member that
+    reads the result. `namespace.others` holds the values of the other members in order, `namespace.members` those of
+    all its members, which `total` or `mean` sum with `over=namespace.members`, and `namespace` those of the reading
+    member, such as `hyperedges(sin(s.others[0].theta + s.others[1].theta - 2 * s.theta), size=3)` for a coupling of
+    oscillators in triangles. The hyperedges are those of the network by default, and in a continuous space with
+    `over=RadiusNeighborhood(r)` or `NearestNeighborhood(k)` they are the member with every set of `size - 1` of its
+    current neighbours, for a size of at most 5. A member without hyperedges gets 0. It couples oscillators in groups,
+    spreads a rumour that needs two sources, and models a group of three animals that forage together.
 
-    The hyperedges are those of the network space of the group by default. In a continuous space, `over` is a
-    neighbourhood, `RadiusNeighborhood(r)` with an optional `angle`, or `NearestNeighborhood(k)`, and the
-    hyperedges around a member are the member with every set of `size - 1` of its current neighbours, the other members
-    in increasing member order, for a size of at most 5. The sets follow the motion of the members, found again at
-    every evaluation, and their number grows as `d^(size - 1)` for `d` neighbours.
-
-    The reductions are those of `neighbors` with the weight `w_e` of every hyperedge `e` of the value `f_e`: `'sum'`,
-    `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and `'circular-mean'`. Without a size, the
-    reduction runs over the hyperedges of every size of the network, which the sum, the mean, and the count reduce, and
-    the expression reads `namespace.members` rather than `namespace.others`.
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
-            The value of one hyperedge, an expression of the symbols of `namespace.others`, `namespace.members`, and
+            The value of one hyperedge, an expression of the values of `namespace.others`, `namespace.members`, and
             `namespace`, or a vector of them.
 
         reduce:
-            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, or `'circular-mean'`.
+            How to combine the values of the hyperedges, as in `neighbors`, `'sum'`, `'mean'`, `'count'`, `'max'`,
+            `'min'`, `'normalized-mean'`, `'argmax'`, or `'circular-mean'`.
 
         size:
-            The number of members of the hyperedges, or `None` for every size of the network.
+            The number of members of the hyperedges, or `None` for every size of the network, where the expression reads
+            `namespace.members` rather than `namespace.others` and only the sum, the mean, and the count apply.
 
         weight:
             The weight of one hyperedge, an expression of the same symbols, or `None` for 1.
 
         over:
-            The neighbourhood whose current neighbours form the hyperedges, or `None` for the hyperedges of the
-            network.
+            The neighbourhood whose current neighbours form the hyperedges, found again at every step, or `None` for the
+            hyperedges of the network.
 
     Returns:
         reduction:
-            The unevaluated reduction, one per component of a vector expression.
+            The unevaluated reduction, one per entry of a vector expression.
 
     Raises:
         ValidationError:
-            The reduction or the neighbourhood is unknown, or the size is not a whole number of at least two, or with
-            a neighbourhood is missing or above 5.
+            The reduction or the neighbourhood is unknown, or the size is not a whole number of at least two, or with a
+            neighbourhood is missing or above 5.
+
+    See Also:
+        neighbors: Reduces over the neighbours of every member.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.components.laws.utils import hyperedges
-        >>> from skcomplex.core.components.spaces import RadiusNeighborhood
         >>> theta, first, second = var('theta first second')
         >>> hyperedges(sin(first + second - 2 * theta), size=3)
         hyperedges(sin(first + second - 2*theta), reduce='sum', size=3)
-        >>> hyperedges(var('x'), reduce='mean')
-        hyperedges(x, reduce='mean')
-        >>> hyperedges(first * second, size=3, over=RadiusNeighborhood(1.5))
-        hyperedges(first*second, reduce='sum', size=3, over=RadiusNeighborhood(radius=1.5))
     """
     if size is not None and (
         isinstance(size, bool) or not isinstance(size, numbers.Integral) or size < MIN_HYPEREDGE_SIZE
@@ -847,8 +902,8 @@ def hyperedges(
         raise ValidationError(error_msg)
     if over is not None and not isinstance(over, RadiusNeighborhood | NearestNeighborhood):
         error_msg = (
-            f'A hyperedge reduction runs over the neighbours of a continuous space, not {over!r}. Reduce over '
-            'Radius or Nearest.'
+            f'A hyperedge reduction runs over the neighbours of a continuous space, not {over!r}. Give a '
+            'RadiusNeighborhood or a NearestNeighborhood.'
         )
         raise ValidationError(error_msg)
     if over is not None and size is None:
@@ -872,12 +927,14 @@ def hyperedges(
 
 
 def shift_member(expression: Expression, offset: int, *, boundary: str = 'periodic', fill: float = 0.0) -> Expression:
-    """Return an expression of a group's members read some places along the order.
+    """Return an expression read at the member some places further along a group.
 
-    It is read at the member a number of places along the group order. The order of a group is the member index, so
-    member `i` reads the expression at member `i + offset`. Past the ends, `'periodic'` wraps around to close a ring,
-    `'reflecting'` mirrors the order so the end member reads itself for an offset of 1, and `'fixed'` reads `fill`. The
-    compiler lowers the read to an index table of the group.
+    Member `i` reads the expression at member `i + offset`, such as `shift_member(x, 1) - x` for the difference to the
+    next member. Past the ends, `'periodic'` wraps around to close a ring, `'reflecting'` mirrors the order so the last
+    member reads itself for an offset of 1, and `'fixed'` reads `fill`. An offset of 0 gives the expression itself. It
+    links the masses of a chain of springs, the cars of a queue on a road, and the stages of a pipeline.
+
+    Read more in the user guide, under Laws.
 
     Args:
         expression:
@@ -898,7 +955,10 @@ def shift_member(expression: Expression, offset: int, *, boundary: str = 'period
 
     Raises:
         ValidationError:
-            The offset is not an integer or the boundary is unknown.
+            The offset is not a whole number or the boundary is unknown.
+
+    See Also:
+        neighbors: Reduces over the neighbours of every member.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -906,8 +966,6 @@ def shift_member(expression: Expression, offset: int, *, boundary: str = 'period
         >>> x = var('x')
         >>> shift_member(x, 1) - x
         -x + shift_member(x, 1, 0, 0.0)
-        >>> shift_member(x, 0)
-        x
     """
     if boundary not in BOUNDARIES or isinstance(offset, bool) or not isinstance(offset, numbers.Integral):
         error_msg = (
@@ -939,10 +997,15 @@ def _calls_in(expression: object, names: set[str]) -> list[Expression]:
     return list(found.values())
 
 
-def reductions_in(expression: object) -> list[ReductionSpec]:
-    """Return the outermost reduction calls of an expression.
+def reductions_in(expression: object) -> list[_ReductionSpec]:
+    """Return the reductions over groups in an expression, outermost first.
 
-    They may hold further reductions in their arguments.
+    The compiler reads them to compute every sum, mean, or other summary over a group, each listed once with its kind,
+    condition, weights, and group, such as the one sum in `total(x * mean(x))`. A reduction inside the argument of
+    another is left for the outer one. It finds the inputs of neurons, the demand of markets, and the order of
+    oscillators.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -951,6 +1014,9 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     Returns:
         reductions:
             The reductions, each listed once.
+
+    See Also:
+        total: Builds one of the reductions it finds.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -964,7 +1030,7 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     for call in _calls_in(expression, set(KINDS)):
         argument, condition, weights, over = call.operands()
         reductions.append(
-            ReductionSpec(
+            _ReductionSpec(
                 call=call,
                 kind=KINDS[call.operator().name()],
                 argument=argument,
@@ -981,42 +1047,45 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
     return reductions
 
 
-def _component_reduction(call: Expression) -> NeighborReductionSpec:
+def _component_reduction(call: Expression) -> _NeighborReductionSpec:
     """Return the neighbourhood reduction of the links of a components call.
 
     It is of the kind `'component-'` and its name.
     """
     active, over, kind = call.operands()
-    return NeighborReductionSpec(
+    return _NeighborReductionSpec(
         call=call,
-        kind=f'component-{COMPONENT_REDUCTIONS[int(SR(kind))]}',
+        kind=f'component-{tuple(ComponentReductionKind)[int(SR(kind))]}',
         argument=active,
         weight=None,
         over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
     )
 
 
-def _path_reduction(call: Expression) -> NeighborReductionSpec:
+def _path_reduction(call: Expression) -> _NeighborReductionSpec:
     """Return the neighbourhood reduction of the links of a shortest paths call.
 
     It is of the kind `'path-'` and its name.
     """
     active, over, kind = call.operands()
-    return NeighborReductionSpec(
+    return _NeighborReductionSpec(
         call=call,
-        kind=f'path-{PATH_REDUCTIONS[int(SR(kind))]}',
+        kind=f'path-{tuple(PathReductionKind)[int(SR(kind))]}',
         argument=active,
         weight=None,
         over=None if _ReductionFunction._is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
     )
 
 
-def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
-    """Return the outermost neighbourhood reductions of an expression.
+def neighborhoods_in(expression: object) -> list[_NeighborReductionSpec]:
+    """Return the reductions over neighbours in an expression, outermost first.
 
-    They include the components reductions. A components reduction has the kind `'component-'` followed by its
-    reduction, a shortest paths reduction the kind `'path-'` followed by its reduction, and both the activity of one
-    link as their argument.
+    The compiler reads them to compute every reduction of `neighbors`, `components`, and `shortest_paths`, each listed
+    once with its kind, such as `'mean'`, `'component-size'` for `components(..., reduce='size')`, or
+    `'path-closeness'`, and with the value of one link as the argument of the last two. It finds the couplings of
+    oscillators, the clusters of a network, and the load of a power grid.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -1025,6 +1094,9 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
     Returns:
         reductions:
             The neighbourhood reductions, each listed once.
+
+    See Also:
+        neighbors: Builds one of the reductions it finds.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -1043,7 +1115,7 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
             continue
         argument, weight, over, kind = call.operands()
         reductions.append(
-            NeighborReductionSpec(
+            _NeighborReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,
@@ -1054,8 +1126,14 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
     return reductions
 
 
-def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
-    """Return the outermost hyperedge reductions of an expression.
+def hyperedges_in(expression: object) -> list[_HyperedgeReductionSpec]:
+    """Return the reductions over hyperedges in an expression, outermost first.
+
+    The compiler reads them to compute every call of `hyperedges`, each listed once with its kind, size, weight, and
+    neighbourhood, such as `('mean', 3)` for a mean over triangles. A reduction inside another is left for the outer
+    one. It finds the group couplings of oscillators, of rumours, and of foraging animals.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -1064,6 +1142,9 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
     Returns:
         reductions:
             The hyperedge reductions, each listed once.
+
+    See Also:
+        hyperedges: Builds the reductions it finds.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -1076,7 +1157,7 @@ def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
     for call in _calls_in(expression, {'hyperedges'}):
         argument, weight, size, kind, over = call.operands()
         reductions.append(
-            HyperedgeReductionSpec(
+            _HyperedgeReductionSpec(
                 call=call,
                 kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
                 argument=argument,

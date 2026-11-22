@@ -7,17 +7,20 @@ Their production functions catalyse each other.
 # License: MIT
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
 import networkx as nx
-from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TopologyInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw, TopologyRequestSpec
 from ....core.components.laws.utils import count, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class TapCatalysisSystem(BaseSystem):
@@ -54,6 +57,12 @@ class TapCatalysisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import TapCatalysisSystem
         >>> [element.label for element in TapCatalysisSystem(goods=50).prepare().system_.elements]
@@ -74,59 +83,53 @@ class TapCatalysisSystem(BaseSystem):
         goods: int = 1250,
         pc: float = 0.0044,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m0 = m0
         self.parents = parents
         self.alpha = alpha
         self.goods = goods
         self.pc = pc
 
-    @staticmethod
-    def _get_combination_rate(order: int, alpha: float, goods: int) -> Callable[[SimpleNamespace], Expression]:
-        """Return the rate `alpha^i C(M, i)` of new goods of `i` parents.
+    def _get_combination_laws(self, order: int) -> Callable[[SimpleNamespace], list[JumpLaw]]:
+        """Return the jump of new goods of `i` parents at the rate `alpha^i C(M, i)`.
 
-        It stops at `goods` goods.
+        A new good forms a production function with its parents and catalyses every other good, and every other good
+        catalyses it, each with the probability `pc`.
         """
+        request = TopologyRequestSpec(
+            'add-node',
+            toward=lambda node: self.pc,
+            hyperedge=order + 1,
+            independent=True,
+            direction='both',
+        )
 
-        def rate(namespace: SimpleNamespace) -> Expression:
-            present = count(over=namespace.source)
+        def laws(namespace: SimpleNamespace) -> list[JumpLaw]:
+            present = count(over=namespace.target)
             combinations = math.prod(present - parent for parent in range(order)) / math.factorial(order)
-            return where(present < goods, alpha**order * combinations, 0)
+            rate = where(present < self.goods, self.alpha**order * combinations, 0)
+            return [JumpLaw(rate, {request: 1})]
 
-        return rate
+        return laws
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         growth = [
-            TopologyInteraction(
-                f'order_{order}',
-                target='goods',
-                action='add-node',
-                rate=self._get_combination_rate(order, self.alpha, self.goods),
-                hyperedge=order + 1,
-                independent=True,
-                direction='both',
-                toward=lambda node: self.pc,
-            )
+            Interaction(f'order_{order}', roles={'target': 'goods'}, laws=self._get_combination_laws(order))
             for order in range(1, self.parents + 1)
         ]
-        links = int(3 * self.pc * self.goods * self.goods) + self.goods
-        return CompositeSystem(
+        space = NetworkSpace(nx.empty_graph(self.m0, create_using=nx.DiGraph))
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement('goods', element=Element, on='sites', variable=True, capacity=self.goods),
-                GroupElement('catalysis', element=Element, on='edges', variable=True, capacity=links),
-                GroupElement(
-                    'functions',
-                    element=Element,
-                    on='hyperedges',
-                    variable=True,
-                    size=0,
-                    capacity=self.goods,
-                    rank=self.parents + 1,
-                ),
+                Element('goods', space=space),
+                Element('catalysis', space=space, on='edges'),
+                Element('functions', space=space, on='hyperedges'),
             ],
             interactions=growth,
-            space=NetworkSpace(nx.empty_graph(self.m0, create_using=nx.DiGraph)),
+            space=space,
         )

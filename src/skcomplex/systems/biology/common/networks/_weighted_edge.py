@@ -11,7 +11,8 @@ from typing import Annotated
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
+from .....core.types import Array
 
 
 class WeightedEdgeElement(Element):
@@ -25,14 +26,17 @@ class WeightedEdgeElement(Element):
         label:
             The label of the edge or of the group of edges.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         w:
             The weight.
 
         fresh:
             Whether the edge has not drawn its weight yet, 1 or 0.
+
+        space:
+            The network whose edges hold one member each, or `None` for one edge.
+
+        on:
+            `'edges'` for one member per edge of the network, or `None` for one per node.
 
     Examples:
         >>> from skcomplex.systems.biology.common.networks import WeightedEdgeElement
@@ -43,11 +47,12 @@ class WeightedEdgeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        w: Annotated[float, StateSpec()] = 0.0,
-        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        w: float | Array = 0.0,
+        fresh: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 1.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.w = w
         self.fresh = fresh

@@ -1,4 +1,4 @@
-"""Pass that replaces every jump on a clock of waiting times by its renewal."""
+"""Replace every jump that waits on a clock by its renewal law."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +11,22 @@ from .._renewal_law import RenewalLaw
 
 
 class UnpackRenewalsPass(BasePass):
-    """A pass that replaces every jump on a clock of waiting times by its renewal.
+    """A pass that replaces every jump that waits on a clock by its renewal law.
 
-    The steppers run the renewal for the jump.
+    A jump with a random waiting time, such as a walker that rests and then jumps, runs on a clock of its own, and the
+    pass writes it as a renewal law, which the solver runs.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        RenewalLaw: Renews states after random waiting times.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> compilation = PassCompiler().prepare(ContinuousTimeRandomWalkSystem()).compilation_
+        >>> [type(law).__name__ for _, laws, _ in compilation.collected for law in laws]
+        ['RenewalLaw']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -32,7 +45,7 @@ class UnpackRenewalsPass(BasePass):
                 spec,
                 [
                     (
-                        RenewalLaw(law.waiting, law.reset, label=law.label).prepare(law.owner_)
+                        RenewalLaw(law.waiting, law.reset, label=law.label)
                         if isinstance(law, JumpLaw) and law.waiting is not None
                         else law
                     )

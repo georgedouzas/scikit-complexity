@@ -3,10 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.resources import (
     FoodSecuritySystem,
     PartialAdjustmentInteraction,
@@ -44,8 +43,12 @@ def test_food_security_falls_and_recovers_with_policy():
 def test_partial_adjustment_follows_a_moving_target():
     """Test that a partial adjustment towards the target `t` follows `t - time (1 - exp(-t / time))`."""
     adjustment = PartialAdjustmentInteraction('adjustment', target='policy', goal=lambda s: s.t, time=2.0)
-    system = CompositeSystem(elements=[NodeElement('policy', x=0.0)], interactions=[adjustment])
-    trajectory = simulate(system, until=3.0, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5)
+    system = System(
+        elements=[NodeElement('policy', x=0.0)],
+        interactions=[adjustment],
+        solver=ScipyODESolver(rtol=1e-10, atol=1e-12),
+    )
+    trajectory = system.prepare().simulate(until=3.0, dt=0.5)
     expected = trajectory.times - 2.0 * (1 - np.exp(-trajectory.times / 2.0))
     np.testing.assert_allclose(trajectory.get_values('policy.x'), expected, rtol=1e-7, atol=1e-9)
 

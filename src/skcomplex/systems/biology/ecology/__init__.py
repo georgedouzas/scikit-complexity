@@ -7,7 +7,7 @@ from ..common.populations import PredationInteraction
 from ._agent_predation import AgentBasedLotkaVolterraSystem, PredatorElement, PreyElement
 from ._cell_quota import DroopCellQuotaSystem
 from ._clustering import HabitatPatchElement, HoppingInteraction, NeutralClusteringSystem
-from ._comets import CometsSystem
+from ._comets import ColonyCellElement, CometsSystem
 from ._communities import (
     CompetitionInteraction,
     CompetitionSystem,
@@ -40,9 +40,26 @@ from ._factories import (
 from ._forest_size_structure import ForestSizeStructureSystem, SizeGrowthInteraction
 from ._fronts import FisherKPPSystem
 from ._higher_order import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
-from ._instability import IntrinsicInstabilitySystem, UnstablePopulationsElement
-from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, MeadowCapacitySystem, PastureElement
-from ._microbial_communities import GeneralizedLotkaVolterraInteraction, GeneralizedLotkaVolterraSystem, MicrobeElement
+from ._instability import (
+    IntrinsicInstabilitySystem,
+    InvaderMapInteraction,
+    ResidentMapInteraction,
+    UnstablePopulationsElement,
+)
+from ._meadow import (
+    CowElement,
+    GrazingInteraction,
+    HerdingInteraction,
+    MeadowCapacitySystem,
+    PastureElement,
+    PastureRegrowthInteraction,
+)
+from ._microbial_communities import (
+    GeneralizedLotkaVolterraInteraction,
+    GeneralizedLotkaVolterraSystem,
+    MicrobeElement,
+    MicrobialGrowthInteraction,
+)
 from ._neutral import NeutralMacroecologySystem, NeutralSpeciesElement
 from ._predation import (
     LotkaVolterraWithHarvestingSystem,
@@ -64,11 +81,12 @@ from ._stigmergy import (
     StigmergicPreyElement,
 )
 from ._succession import MangroveSuccessionSystem, PioneerGrowthInteraction, StandElement, SuccessionalGrowthInteraction
-from ._wolf_sheep import GrassElement, SheepElement, WolfElement, WolfSheepSystem
+from ._wolf_sheep import GrassElement, GrassRegrowthInteraction, SheepElement, WolfElement, WolfSheepSystem
 
 __all__: list[str] = [
     'AbundanceElement',
     'AgentBasedLotkaVolterraSystem',
+    'ColonyCellElement',
     'CometsSystem',
     'CommunityFBASystem',
     'CompetitionInteraction',
@@ -90,6 +108,7 @@ __all__: list[str] = [
     'GeneralizedLotkaVolterraInteraction',
     'GeneralizedLotkaVolterraSystem',
     'GrassElement',
+    'GrassRegrowthInteraction',
     'GrazingInteraction',
     'HabitatPatchElement',
     'HerdingInteraction',
@@ -97,6 +116,7 @@ __all__: list[str] = [
     'HoppingInteraction',
     'HutchinsonSystem',
     'IntrinsicInstabilitySystem',
+    'InvaderMapInteraction',
     'LinearGrowthInteraction',
     'LogisticGrowthSystem',
     'LotkaVolterraSystem',
@@ -104,6 +124,7 @@ __all__: list[str] = [
     'MangroveSuccessionSystem',
     'MeadowCapacitySystem',
     'MicrobeElement',
+    'MicrobialGrowthInteraction',
     'MutualismInteraction',
     'MutualismSystem',
     'NeutralBiodiversitySystem',
@@ -115,6 +136,7 @@ __all__: list[str] = [
     'OrganismElement',
     'ParasitismInteraction',
     'PastureElement',
+    'PastureRegrowthInteraction',
     'PenaeidShrimpSystem',
     'PioneerGrowthInteraction',
     'PlantElement',
@@ -122,6 +144,7 @@ __all__: list[str] = [
     'PredatorElement',
     'PredatorPreyEventsInteraction',
     'PreyElement',
+    'ResidentMapInteraction',
     'ResourceElement',
     'ResourceTurnoverInteraction',
     'RickerGrowthInteraction',

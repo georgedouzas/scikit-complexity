@@ -2,21 +2,18 @@
 
 import math
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
 from scipy.optimize import brentq
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws.utils import partial
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.relativity import SpacetimeSpace
 from skcomplex.systems.physics.cosmology import (
     EinsteinFieldEquationsInteraction,
@@ -26,7 +23,6 @@ from skcomplex.systems.physics.cosmology import (
 
 from ..conftest import _run, _series
 
-ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-12)
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 
@@ -54,7 +50,7 @@ def test_mixed_universe_keeps_the_friedmann_constraint_and_accelerates_late():
         0.05,
         ACCURATE,
     )
-    a, rate = (np.ravel(item) for item in _series(trajectory, 'universe.a', 'universe.a_d1'))
+    a, rate = (np.ravel(item) for item in _series(trajectory, 'universe.a', "universe.a'"))
     curvature = 1 - 0.3 - 0.01 - 0.8
     constraint = rate**2 - (0.3 / a + 0.01 / a**2 + 0.8 * a**2 + curvature)
     assert np.abs(constraint).max() < 1e-8
@@ -106,32 +102,6 @@ def test_oppenheimer_snyder_collapse_rejects_a_ball_inside_its_horizon():
 t, r, theta, phi, x, y, z = SR.var('t r theta phi x y z')
 
 
-class UniverseElement(Element):
-    """Universe with the scale factor `a` of order 2 and the matter density today `rho`."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        a: Annotated[float, StateSpec(order=2)] = 1.0,
-        a_d1: float = 0.0,
-        rho: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.a = a
-        self.a_d1 = a_d1
-        self.rho = rho
-
-
-class ProfileElement(Element):
-    """Site of a field with the warp `u` of order 2."""
-
-    def __init__(self, label: str, *, u: Annotated[float, StateSpec(order=2)] = 1.0, u_d1: float = 0.0) -> None:
-        super().__init__(label)
-        self.u = u
-        self.u_d1 = u_d1
-
-
 def _flat_universe() -> SpacetimeSpace:
     """Return the flat Robertson-Walker ansatz of the scale factor `a(t)`."""
     a = function('a')(t)
@@ -150,7 +120,7 @@ def _warped_plane() -> SpacetimeSpace:
 def test_dust_universe_follows_the_einstein_de_sitter_solution():
     """Test that a flat universe of dust grows as `(3 H t / 2 + 1)^(2/3)` with `H² = 8 π rho / 3`."""
     rho = 3 / (8 * math.pi)
-    universe = UniverseElement('universe', a=1.0, a_d1=1.0, rho=rho)
+    universe = Element('universe', values={'a': 1.0, "a'": 1.0, 'rho': rho})
     einstein = EinsteinFieldEquationsInteraction(
         'einstein',
         target='universe',
@@ -159,8 +129,8 @@ def test_dust_universe_follows_the_einstein_de_sitter_solution():
         components=[(1, 1)],
         source=lambda s: diagonal_matrix(SR, [-s.target.rho / s.target.a**3, 0, 0, 0]),
     )
-    system = CompositeSystem(elements=[universe], interactions=[einstein])
-    trajectory = simulate(system, until=2.0, dt=0.1, solver=ACCURATE)
+    system = System(elements=[universe], interactions=[einstein], solver=ACCURATE).prepare()
+    trajectory = system.simulate(until=2.0, dt=0.1)
     expected = (1.5 * np.asarray(trajectory.times) + 1) ** (2 / 3)
     assert np.ravel(trajectory.get_values('universe.a')) == pytest.approx(expected, rel=1e-8)
 
@@ -178,15 +148,10 @@ def test_warped_plane_reduces_to_the_wave_equation_of_a_field():
     n_sites = 64
     spacing = 2 * math.pi / n_sites
     positions = spacing * np.arange(n_sites)
-    plane = FieldElement(
-        'plane',
-        element=ProfileElement,
-        space=LatticeSpace((n_sites,), spacing=spacing, boundary='periodic'),
-        values={'u': 2 + 0.1 * np.sin(positions)},
-        discretization='spectral',
-    )
-    system = CompositeSystem(elements=[plane], interactions=[einstein])
-    trajectory = simulate(system, until=1.0, dt=0.1, solver=ACCURATE)
+    space = LatticeSpace((n_sites,), spacing=spacing, boundary='periodic', discretization='spectral')
+    plane = Element('plane', values={'u': 2 + 0.1 * np.sin(positions), "u'": 0.0}, space=space)
+    system = System(elements=[plane], interactions=[einstein], solver=ACCURATE).prepare()
+    trajectory = system.simulate(until=1.0, dt=0.1)
     expected = 2 + 0.1 * np.sin(positions) * np.cos(1.0)
     assert np.asarray(trajectory.get_values('plane.u'))[-1] == pytest.approx(expected, abs=1e-6)
 
@@ -203,7 +168,7 @@ def test_warped_plane_law_reads_the_second_derivative_along_the_lattice_axis():
         components=[(2, 2)],
         axes={1: 0},
     )
-    (law,) = einstein.prepare().run(namespace).laws_
+    (law,) = einstein.prepare(namespace).laws_
     assert bool(SR(law.value) == partial(partial(u, SR(0)), SR(0)))
 
 
@@ -227,7 +192,7 @@ def test_einstein_interaction_rejects_equations_that_do_not_reduce(components, a
         axes=axes,
     )
     with pytest.raises(ValidationError, match=message):
-        einstein.prepare().run(namespace)
+        einstein.prepare(namespace)
 
 
 def test_einstein_interaction_rejects_coordinates_the_ansatz_keeps():
@@ -246,7 +211,7 @@ def test_einstein_interaction_rejects_coordinates_the_ansatz_keeps():
         components=[(1, 1)],
     )
     with pytest.raises(ValidationError, match='keep the coordinates'):
-        einstein.prepare().run(namespace)
+        einstein.prepare(namespace)
 
 
 def test_einstein_interaction_rejects_functions_that_name_nothing():
@@ -260,7 +225,7 @@ def test_einstein_interaction_rejects_functions_that_name_nothing():
         components=[(1, 1)],
     )
     with pytest.raises(ValidationError, match='time derivative of'):
-        einstein.prepare().run(namespace)
+        einstein.prepare(namespace)
 
 
 @pytest.mark.parametrize(

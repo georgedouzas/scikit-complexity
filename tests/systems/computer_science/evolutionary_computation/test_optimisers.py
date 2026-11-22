@@ -1,18 +1,17 @@
 """Test the `_optimisers` module of `skcomplex.systems.computer_science.evolutionary_computation`."""
 
-from typing import Annotated
-
 import numpy as np
 import numpy.typing as npt
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.evolutionary_computation import (
+    AnnealedCandidateElement,
+    AnnealingInteraction,
     CovarianceAdaptationSpec,
     DifferentialEvolutionSpec,
     EvolutionaryOptimisersSystem,
@@ -31,7 +30,7 @@ PATHS = {
 def _best(algorithm: str, landscape: str = 'rastrigin') -> np.ndarray:
     """Return the best value of a run of 100 generations after the initial frame."""
     system = EvolutionaryOptimisersSystem(algorithm=algorithm, landscape=landscape, random_state=1)
-    return simulate(system, until=100, random_state=1).get_values(PATHS.get(algorithm, 'search.best'))[1:]
+    return system.prepare().simulate(until=100, random_state=1).get_values(PATHS.get(algorithm, 'search.best'))[1:]
 
 
 @pytest.mark.parametrize('algorithm', PATHS)
@@ -64,8 +63,8 @@ def test_evolutionary_optimisers_unknown_names() -> None:
 class CandidateElement(Element):
     """Candidate with a vector state."""
 
-    def __init__(self, label: str, x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = (0.0, 0.0)) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, x: npt.ArrayLike = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.x = x
 
 
@@ -74,10 +73,10 @@ def _rastrigin(values: np.ndarray) -> np.ndarray:
     return 20.0 + (values**2 - 10.0 * np.cos(2.0 * np.pi * values)).sum(axis=1)
 
 
-def _system(algorithm: object, count: int = 40) -> CompositeSystem:
+def _system(algorithm: object, count: int = 40) -> System:
     """Return a population on the Rastrigin function with an algorithm."""
     start = np.random.default_rng(0).uniform(-5.12, 5.12, (count, 2))
-    group = GroupElement('swarm', element=CandidateElement, size=count, values={'x': start})
+    group = CandidateElement('swarm', x=start, size=count)
     search = OptimizationInteraction(
         'search',
         target='swarm',
@@ -86,12 +85,12 @@ def _system(algorithm: object, count: int = 40) -> CompositeSystem:
         bounds=(-5.12, 5.12),
         algorithm=algorithm,
     )
-    return CompositeSystem(elements=[group], interactions=[search], time=DiscreteTime())
+    return System(elements=[group], interactions=[search])
 
 
 def test_run_differential_evolution_on_rastrigin() -> None:
     """Test that the best value is below 1e-3 by step 50 and never increases."""
-    trajectory = simulate(_system(DifferentialEvolutionSpec()), until=50, random_state=1)
+    trajectory = _system(DifferentialEvolutionSpec()).prepare().simulate(until=50, random_state=1)
     best = trajectory.get_values('search.best')[1:]
     assert best[-1] < 1e-3
     assert np.all(np.diff(best) <= 0)
@@ -104,7 +103,7 @@ def test_run_differential_evolution_on_rastrigin() -> None:
 )
 def test_run_same_seed_identical(algorithm: object) -> None:
     """Test that runs with the same seed are identical and the best value never increases."""
-    first, second = (simulate(_system(algorithm), until=10, random_state=1) for _ in range(2))
+    first, second = (_system(algorithm).prepare().simulate(until=10, random_state=1) for _ in range(2))
     assert np.array_equal(first.get_values('search.best')[1:], second.get_values('search.best')[1:])
     first_final = np.asarray(first.get_agents('swarm', 10).values['x'].tolist())
     second_final = np.asarray(second.get_agents('swarm', 10).values['x'].tolist())
@@ -114,7 +113,7 @@ def test_run_same_seed_identical(algorithm: object) -> None:
 
 def test_run_algorithm_that_converges_keeps_its_population() -> None:
     """Test that the steps after the algorithm stops itself report the same values and keep the candidates."""
-    trajectory = simulate(_system(CovarianceAdaptationSpec()), until=400, random_state=1)
+    trajectory = _system(CovarianceAdaptationSpec()).prepare().simulate(until=400, random_state=1)
     best = trajectory.get_values('search.best')
     assert best[-1] == best[-2]
     assert np.array_equal(
@@ -135,3 +134,26 @@ def test_check_algorithm_not_a_spec() -> None:
     )
     with pytest.raises(ValidationError, match=r'DifferentialEvolutionSpec.*CovarianceAdaptationSpec'):
         interaction.prepare()
+
+
+def _square(s):
+    """Return the energy `x^2` of a candidate."""
+    return s.target.x**2
+
+
+@pytest.mark.parametrize(('generations', 'low', 'high'), [(10.0, 0.0, 0.01), (1e9, 1.0, 5.0)])
+def test_annealing_interaction_cools_the_candidates(generations, low, high):
+    """Test that candidates in the well `x^2` at temperature 5 gather at 0 only when the temperature falls."""
+    candidates = AnnealedCandidateElement('candidates', x=np.zeros(64), space=LatticeSpace((64,)))
+    anneal = AnnealingInteraction(
+        'anneal',
+        target='candidates',
+        state='x',
+        energy=_square,
+        temperature=5.0,
+        generations=generations,
+    )
+    solver = MetropolisSolver(moves={'candidates.x': 'gaussian'}, width=0.5)
+    system = System(elements=[candidates], interactions=[anneal], solver=solver).prepare()
+    positions = system.simulate(until=40, random_state=0).get_values('candidates.x')[-1]
+    assert low <= np.var(positions) < high

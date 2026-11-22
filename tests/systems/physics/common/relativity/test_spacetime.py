@@ -7,13 +7,12 @@ import pytest
 from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, matrix, sin
 from sklearn.base import clone
 
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.systems.general.elements import PointElement
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.common.relativity import GeodesicInteraction, SpacetimeSpace
 
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
@@ -113,13 +112,13 @@ def test_prepared_space_derives_again_only_when_its_source_changes():
 r, phi, theta = SR.var('r phi theta')
 
 
-def _run(space: SpacetimeSpace, x: list[float], x_d1: list[float], until: float) -> np.ndarray:
+def _run(space: SpacetimeSpace, x: list[float], tangent: list[float], until: float) -> np.ndarray:
     """Return the positions and tangents of a point that follows the geodesics of a space."""
-    point = PointElement('point', x=x, x_d1=x_d1)
+    point = Element('point', values={'x': x, "x'": tangent})
     geodesic = GeodesicInteraction('geodesic', target='point', space=space)
-    system = CompositeSystem(elements=[point], interactions=[geodesic], space=space)
-    trajectory = simulate(system, until=until, dt=until / 50, solver=ACCURATE)
-    return np.hstack([trajectory.get_values('point.x'), trajectory.get_values('point.x_d1')])
+    system = System(elements=[point], interactions=[geodesic], space=space, solver=ACCURATE).prepare()
+    trajectory = system.simulate(until=until, dt=until / 50)
+    return np.hstack([trajectory.get_values('point.x'), trajectory.get_values("point.x'")])
 
 
 def test_geodesic_of_the_polar_plane_is_a_straight_line():
@@ -175,8 +174,8 @@ def test_geodesic_interaction_rejects_invalid_arguments(geodesic, error, message
 def test_geodesic_interaction_rejects_a_position_of_another_dimension():
     """Test that a position of three components on a space of two coordinates is rejected."""
     plane = SpacetimeSpace(matrix(SR, [[1, 0], [0, r**2]]), (r, phi))
-    point = PointElement('point', x=[1.0, 0.0, 0.0], x_d1=0.0)
+    point = Element('point', values={'x': [1.0, 0.0, 0.0]})
     geodesic = GeodesicInteraction('geodesic', target='point', space=plane)
-    system = CompositeSystem(elements=[point], interactions=[geodesic], space=ContinuousSpace(n_dim=3))
+    system = System(elements=[point], interactions=[geodesic], space=ContinuousSpace(n_dim=3))
     with pytest.raises(ValidationError, match='3 components for the 2 coordinates'):
-        simulate(system, until=0, dt=0.1)
+        system.prepare()

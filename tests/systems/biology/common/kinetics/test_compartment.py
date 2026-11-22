@@ -1,39 +1,32 @@
 """Test the `_compartment` module of `skcomplex.systems.biology.common.kinetics`."""
 
+import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.general.elements import NonnegativeElement
+from skcomplex.systems.general.reactions import ReactionInteraction
 
 
-def test_compartment_is_a_nonnegative_element_with_the_state_x():
-    """Test that the realization subclasses the core atom and keeps its one state `x` in `[0, oo)`."""
+def test_compartment_is_a_nonnegative_element_with_the_value_x():
+    """Test that the realization subclasses the general element and takes its value, size, and space."""
     element = CompartmentElement('a', x=0.5)
     assert isinstance(element, NonnegativeElement)
-    assert element.get_params() == {'label': 'a', 'visual': None, 'x': 0.5}
-    assert element.get_states()['x'].domain == RealSet.closed_open(0, oo)
+    assert element.get_params() == {'label': 'a', 'x': 0.5, 'size': None, 'space': None}
 
 
-def test_compartment_group_has_one_member_per_class():
-    """Test that a group of the realization on a lattice of classes has one member per class."""
-    group = GroupElement(
-        'density',
-        element=CompartmentElement,
-        space=LatticeSpace(4, boundary='fixed'),
-        on='sites',
-        values={'x': 0.25},
-    )
-    assert group.prepare().size_ == 4
+def test_compartment_on_a_lattice_has_one_value_per_class():
+    """Test that the realization on a lattice of classes holds one value per class."""
+    density = CompartmentElement('density', x=np.full(4, 0.25), space=LatticeSpace(4, boundary='fixed'))
+    decay = ReactionInteraction('decay', target='density', reactants={'x': 1}, k=1.0)
+    trajectory = System(elements=[density], interactions=[decay]).prepare().simulate(until=1, dt=1.0)
+    np.testing.assert_allclose(trajectory.get_lattice('density.x')[-1], np.full(4, 0.25 * np.exp(-1.0)), rtol=1e-4)
 
 
 def test_compartment_rejects_a_negative_value():
-    """Test that a run rejects a negative value."""
+    """Test that preparing rejects a negative value."""
     with pytest.raises(ValidationError):
-        simulate(CompositeSystem(elements=[CompartmentElement('a', x=-1.0)]), until=1, dt=1.0)
+        System(elements=[CompartmentElement('a', x=-1.0)]).prepare()

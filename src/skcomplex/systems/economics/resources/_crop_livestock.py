@@ -8,11 +8,12 @@ Its wealth from crops buys livestock that it rears and sells.
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, floor, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, floor
 
-from ....core.components.laws.utils import lag, where
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.components import Observable
+from ....core.components.laws.utils import where
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -95,9 +96,15 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import CropLivestockHouseholdSystem
-        >>> CropLivestockHouseholdSystem(wealth=20000.0).prepare().system_.elements[0].get_value('wealth')
+        >>> CropLivestockHouseholdSystem(wealth=20000.0).prepare().system_.elements[0].values['wealth']
         20000.0
     """
 
@@ -115,7 +122,7 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
     until = 12
     observables = tuple(
         [
-            ObservableSpec(name, function, element='household')
+            Observable(name, function, element='household')
             for name, function in (
                 ('crop_production', _get_crop_production),
                 ('income_from_crop', _get_income_from_crop),
@@ -140,8 +147,10 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         max_livestock: float = 8.0,
         sale_fraction: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.wealth = wealth
         self.livestock = livestock
         self.crop_area = crop_area
@@ -161,37 +170,38 @@ class CropLivestockHouseholdSystem(DynamicalSystem):
         """Return the discrete time of the yearly steps."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs, the first purchases those of the first year."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         sale = int(self.livestock * self.sale_fraction)
         affordable = int(self.wealth / self.purchase_price)
         purchases = float(affordable if affordable <= self.max_livestock + sale - self.livestock else 0)
         return {
-            'wealth': DeclaredVariableSpec(self.wealth, StateSpec()),
-            'livestock': DeclaredVariableSpec(self.livestock, StateSpec(domain=nonnegative)),
-            'yield_multiplier': DeclaredVariableSpec(1.0, StateSpec(domain=nonnegative)),
-            'purchases': DeclaredVariableSpec(purchases, StateSpec(domain=nonnegative, lags=2)),
-            'crop_area': DeclaredVariableSpec(self.crop_area, ParameterSpec(domain=nonnegative)),
-            'yield_normal': DeclaredVariableSpec(self.yield_normal, ParameterSpec(domain=nonnegative)),
-            'price': DeclaredVariableSpec(self.price, ParameterSpec(domain=nonnegative)),
-            'unit_price': DeclaredVariableSpec(self.unit_price, ParameterSpec(domain=nonnegative)),
-            'purchase_price': DeclaredVariableSpec(self.purchase_price, ParameterSpec(domain=RealSet.open(0, oo))),
-            'household_consumption': DeclaredVariableSpec(
-                self.household_consumption,
-                ParameterSpec(domain=nonnegative),
-            ),
-            'max_livestock': DeclaredVariableSpec(self.max_livestock, ParameterSpec(domain=nonnegative)),
-            'sale_fraction': DeclaredVariableSpec(self.sale_fraction, ParameterSpec(domain=RealSet.closed(0, 1))),
-            'yield_regeneration': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
-            'cropping_intensity': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
+            'wealth': self.wealth,
+            'livestock': self.livestock,
+            'yield_multiplier': 1.0,
+            'purchases': purchases,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'crop_area': self.crop_area,
+            'yield_normal': self.yield_normal,
+            'price': self.price,
+            'unit_price': self.unit_price,
+            'purchase_price': self.purchase_price,
+            'household_consumption': self.household_consumption,
+            'max_livestock': self.max_livestock,
+            'sale_fraction': self.sale_fraction,
+            'yield_regeneration': 0.0,
+            'cropping_intensity': 0.0,
         }
 
     def _get_equations(self) -> Equations:
         """Return the yearly steps of the stocks, the purchases joining the herd three years later."""
         return {
             'wealth': self._get_wealth,
-            'livestock': lambda s: s.target.livestock + lag(s.target.purchases, 2) - _get_sale(s.target),
+            'livestock': lambda s: s.target.livestock + s.target.purchases(t=s.t - 2) - _get_sale(s.target),
             'yield_multiplier': lambda s: (
                 s.target.yield_multiplier * (1 + s.target.yield_regeneration - s.target.cropping_intensity)
             ),

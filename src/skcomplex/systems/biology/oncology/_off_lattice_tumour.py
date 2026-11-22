@@ -4,7 +4,9 @@
 # License: MIT
 
 import math
-from typing import Annotated, cast
+from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -12,14 +14,16 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 from scipy.spatial import cKDTree
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace, DelaunayNeighborhood, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace, DelaunayNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 BINARY = FiniteEnumeratedSet([0, 1])
 HOURS_PER_DAY = 24.0
@@ -30,10 +34,10 @@ DAUGHTER_DISTANCE = 0.8
 SPRING_CUTOFF = 1.5
 
 
-class SpringCellView(AgentView):
+class SpringCellView(AgentViewProtocol, Protocol):
     """View of a cell of the off-lattice tumour, with its states and parameters as attributes.
 
-    `SpringCellElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `SpringCellElement` read them with checked types.
     """
 
     cancer: float
@@ -85,6 +89,15 @@ class SpringCellElement(Element):
         s:
             The natural length of the springs, the diameter of a cell.
 
+        values:
+            Further values by name, such as the coordinates `x` and `y` of the cells, or `None`.
+
+        size:
+            The number of cells, or `None` for one.
+
+        space:
+            The tissue the cells lie in, whose axes `x` and `y` place them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import SpringCellElement
         >>> SpringCellElement('cell', cancer=1).cancer
@@ -95,18 +108,21 @@ class SpringCellElement(Element):
         self,
         label: str,
         *,
-        cancer: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        p0: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.03,
-        dmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        g_age1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        g_age2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        p_psc: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.001,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.2,
-        s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        cancer: Annotated[float | Array, BINARY] = 0,
+        age: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        p0: Annotated[float, RealSet.closed(0, 1)] = 0.03,
+        dmax: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        g_age1: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        g_age2: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        tau: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        p_psc: Annotated[float, RealSet.closed(0, 1)] = 0.001,
+        lam: Annotated[float, RealSet.closed(0, 1)] = 0.2,
+        s: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.cancer = cancer
         self.age = age
         self.p0 = p0
@@ -117,11 +133,6 @@ class SpringCellElement(Element):
         self.p_psc = p_psc
         self.lam = lam
         self.s = s
-
-    @classmethod
-    def _get_view(cls) -> type[SpringCellView]:
-        """Return the view of a cell, `SpringCellView`."""
-        return SpringCellView
 
 
 class TumourGrowthInteraction(Interaction):
@@ -150,16 +161,22 @@ class TumourGrowthInteraction(Interaction):
         'cells'
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
     draws = True
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+    def __init__(self, label: str, *, target: Role) -> None:
         super().__init__(label)
         self.target = target
 
-    def _get_laws(self, namespace: object) -> list[BaseLaw]:
-        """Return the rule that every cell runs."""
-        return [RuleLaw(self._act, members='target')]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that every cell runs.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._act)]
 
     def _act(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
         """Age a cell, divide and invade if it is a cancer cell, and move it by its springs."""
@@ -279,6 +296,12 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OffLatticeTumourGrowthSystem
         >>> OffLatticeTumourGrowthSystem(side=6).prepare().system_.space.extent
@@ -289,7 +312,7 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
     topics = ('tumour growth', 'agents', 'off-lattice', 'springs', 'delaunay', 'stochastic')
     references = ('Wang et al. 2024', 'Jenner et al. 2020', 'Meineke et al. 2001')
     until = 240.0
-    observables = (ObservableSpec('tumour_area', group='cells', variable='cancer', reduce=_get_tumour_area),)
+    observables = (Observable('tumour_area', group='cells', variable='cancer', reduce=_get_tumour_area),)
 
     def __init__(
         self,
@@ -304,8 +327,10 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         lam: float = 0.2,
         initial_radius: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.side = side
         self.g_age1 = g_age1
         self.g_age2 = g_age2
@@ -316,8 +341,14 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
         self.lam = lam
         self.initial_radius = initial_radius
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the cells on a hexagonal layout with a cancer cluster at the centre."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the cells on a hexagonal layout with a cancer cluster at the centre.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         side = float(self.side)
         rows, columns = np.arange(0.5, side, ROW_SPACING), np.arange(0.5, side - 0.5)
         positions = np.asarray(
@@ -333,18 +364,18 @@ class OffLatticeTumourGrowthSystem(BaseSystem):
             'p_psc': self.p_psc,
             'lam': self.lam,
         }
-        cells = GroupElement(
+        space = ContinuousSpace(extent=(side, side), boundary='open')
+        cells = SpringCellElement(
             'cells',
-            element=SpringCellElement,
+            cancer=cancer,
+            **parameters,
+            values={'x': positions[:, 0], 'y': positions[:, 1]},
             size=len(positions),
-            values={'cancer': cancer, **parameters},
-            location=[tuple(item) for item in positions],
-            variable=True,
+            space=space,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[cells],
             interactions=[TumourGrowthInteraction('growth', target='cells')],
-            space=ContinuousSpace(extent=(side, side), boundary='open'),
-            time=DiscreteTime(),
+            space=space,
         )

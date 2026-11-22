@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import CalibrationResult, calibrate
 from skcomplex.core.experiments._calibration import _CalibrationObjective, _check_priors, _numpyro_prior, _series_of
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.economics.markets import BrockHommesSystem
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
 
 LOGISTIC_BOUNDS = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
@@ -100,7 +100,7 @@ def test_point_fit_searches_the_central_part_of_a_scipy_prior():
 
 def _brock_hommes_data():
     """Return the price deviations of a small Brock-Hommes market."""
-    truth = simulate(BrockHommesSystem(20, intensity=4.0, strength=1.3), until=60, random_state=0)
+    truth = BrockHommesSystem(20, intensity=4.0, strength=1.3).prepare().simulate(until=60, random_state=0)
     return {'pricing.deviation': (truth.times[1:], truth.get_values('pricing.deviation')[1:])}
 
 
@@ -118,11 +118,10 @@ def test_global_fit_is_reproducible_and_beats_the_midpoints():
 
 def test_event_likelihood_recovers_the_confidence_of_deffuant():
     """Test that the event likelihood of a recorded Deffuant run recovers the confidence within 0.02."""
-    recorded = simulate(
-        DeffuantSystem(100, confidence=0.25, steepness=50.0),
-        until=50,
-        random_state=0,
-        record_draws=True,
+    recorded = (
+        DeffuantSystem(100, confidence=0.25, steepness=50.0)
+        .prepare()
+        .simulate(until=50, random_state=0, record_draws=True)
     )
     result = calibrate(
         DeffuantSystem(100, steepness=50.0),
@@ -137,7 +136,7 @@ def test_event_likelihood_recovers_the_confidence_of_deffuant():
 
 def test_event_likelihood_recovers_the_rates_of_a_gillespie_run():
     """Test that the event likelihood of one Gillespie run of 1000 people recovers beta and gamma within 10%."""
-    recorded = simulate(SIRSystem(stochastic=True), until=100, random_state=0, record_draws=True)
+    recorded = SIRSystem(stochastic=True).prepare().simulate(until=100, random_state=0, record_draws=True)
     bounds = {'beta': (0.0001, 0.001), 'gamma': (0.02, 0.5)}
     result = calibrate(SIRSystem(stochastic=True), recorded, bounds, loss='events', random_state=0)
     assert result.estimates['beta'] == pytest.approx(0.0003, rel=0.1)
@@ -215,7 +214,7 @@ def test_mcmc_with_a_normal_prior_narrows_it():
 def test_mcmc_of_the_event_likelihood_runs_the_ensemble_sampler():
     """Test that MCMC of a recorded Gillespie run uses the gradient-free ensemble sampler and recovers the rates."""
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
-    recorded = simulate(system, until=60, random_state=3, record_draws=True)
+    recorded = system.prepare().simulate(until=60, random_state=3, record_draws=True)
     bounds = {'beta': (0.0003, 0.005), 'gamma': (0.02, 0.4)}
     result = calibrate(
         SIRSystem(198, 2, stochastic=True),
@@ -246,7 +245,7 @@ def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
     The transmission rate 0.3 per day of a well-mixed population of 200 is the mass-action rate 0.3 / 200.
     """
     system = SIRSystem(198, 2, beta=0.0015, gamma=0.1, stochastic=True)
-    truth = simulate(system, until=60, random_state=3)
+    truth = system.prepare().simulate(until=60, random_state=3)
     times = np.arange(0.0, 61.0, 3.0)
     data = {'I.x': (times, np.interp(times, truth.times, truth.get_values('I.x')))}
     bounds = {'beta': (0.0003, 0.005), 'gamma': (0.02, 0.4)}
@@ -271,7 +270,7 @@ def test_abc_smc_covers_the_rates_of_a_stochastic_epidemic():
 
 def test_abc_smc_compares_summary_statistics():
     """Test that ABC-SMC compares the summaries of the series, here the three final counts."""
-    truth = simulate(SIRSystem(48, 2, beta=0.006, stochastic=True), until=30, random_state=0)
+    truth = SIRSystem(48, 2, beta=0.006, stochastic=True).prepare().simulate(until=30, random_state=0)
     times = np.arange(0.0, 31.0, 5.0)
     data = {path: (times, np.interp(times, truth.times, truth.get_values(path))) for path in ('S.x', 'I.x', 'R.x')}
 
@@ -332,3 +331,13 @@ def test_predictive_band_covers_a_well_specified_model():
     assert 0.75 <= predictive['coverage'] <= 1
     assert np.all(predictive['q05']['population.x'] <= predictive['q95']['population.x'])
     assert predictive['q50']['population.x'].shape == (21,)
+
+
+def test_calibration_of_a_prepared_system_recovers_its_rate():
+    """Test that calibration fits the growth rate of the logistic map from its own run and keeps the user's system."""
+    times = np.arange(0.0, 9.0)
+    data = {'map.x': (times, LogisticMapSystem(r=2.6).prepare().simulate(8).get_values('map.x'))}
+    system = LogisticMapSystem(r=2.2)
+    result = calibrate(system, data, {'r': (2.0, 3.0)})
+    assert result.estimates['r'] == pytest.approx(2.6, abs=1e-4)
+    assert system.r == 2.2

@@ -12,14 +12,13 @@ growth, and at high growth overshoots and crashes in cycles that double their pe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import RickerSystem
 
 SYSTEM = 'ricker'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(RickerSystem(r=14.0), observers=[observer])
+trajectory = RickerSystem(r=14.0).prepare().simulate(observers=[observer])
 
 # %%
 # Period doubling
@@ -35,7 +34,7 @@ series.set_xlabel('generation')
 series.set_ylabel('population n')
 series.set_title('r = 14')
 for r in rates:
-    late = simulate(RickerSystem(r=r), until=200).get_values('population.x')[-60:]
+    late = RickerSystem(r=r).prepare().simulate(until=200).get_values('population.x')[-60:]
     diagram.plot(np.full(late.size, r), late, ',', color='black')
 diagram.plot(rates[rates < np.e**2], np.log(rates[rates < np.e**2]), color='tab:red', label='fixed point ln r')
 diagram.axvline(np.e**2, color='gray', linestyle='--', label='r = e^2')

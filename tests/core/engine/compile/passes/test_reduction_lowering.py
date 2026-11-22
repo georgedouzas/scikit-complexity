@@ -3,55 +3,35 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import count, neighbors, total
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 
 from .....conftest import _weighted
 
 
-class ValueElement(Element):
-    """Member with a value and a gain."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        gain: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.gain = gain
-
-
 def _step(x, gain, function, reduce):
     """Return the values after one step of a map coupling over every other member of the group."""
-    members = GroupElement('members', element=ValueElement, size=len(x), values={'x': x, 'gain': gain})
-    coupling = CouplingInteraction(
-        'coupling',
-        target='members',
-        read='x',
-        write='x',
-        function=function,
-        mode='group',
-        reduce=reduce,
-        form='map',
-    )
-    system = CompositeSystem(elements=[members], interactions=[coupling], time=DiscreteTime())
-    return simulate(system, until=1).get_values('members.x')[-1]
+
+    def laws(s):
+        """Return the map of every member to the reduction of the pair terms over the other members."""
+        pairs = total(function(SimpleNamespace(member=s.target, other=s.target.other)), over=s.target)
+        reduced = pairs - function(SimpleNamespace(member=s.target, other=s.target))
+        return [UpdateLaw(s.target.x, reduced if reduce == 'sum' else reduced / (count(over=s.target) - 1))]
+
+    members = Element('members', values={'x': x, 'gain': gain}, size=len(x))
+    coupling = Interaction('coupling', roles={'target': 'members'}, laws=laws)
+    return System(elements=[members], interactions=[coupling]).prepare().simulate(until=1).get_values('members.x')[-1]
 
 
 def _separable(s):
@@ -83,7 +63,24 @@ def test_reduction_lowering_weights_of_a_shaped_parameter(backend, reduce):
     """Test that a reduction weighted by a matrix parameter gives every reading member its row times the members."""
     weights = np.random.default_rng(0).normal(size=(4, 2))
     inputs = np.array([1.5, -0.5])
-    problem = PassCompiler(backend=backend()).prepare(_weighted(weights, inputs, reduce=reduce)).run().problem_
+    problem = _weighted(weights, inputs, reduce=reduce).set_params(backend=backend()).prepare()._problem
     rate = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = weights @ inputs / (len(inputs) if reduce == 'mean' else 1)
     np.testing.assert_allclose(problem.states.read(rate, 'hidden.x'), expected, atol=1e-12)
+
+
+@pytest.mark.parametrize(('kind', 'padded'), [('fixed', 'constant'), ('zero-flux', 'symmetric')])
+def test_reduction_lowering_reads_a_state_with_its_own_edges_beyond_them(kind, padded):
+    """Test that a neighbour sum reads the fixed value, or the mirrored site, beyond the edges of a state."""
+    field = np.random.default_rng(0).random(6)
+    boundary = {'u': (kind, 0.5) if kind == 'fixed' else kind}
+    rule = Interaction(
+        'c',
+        roles={'target': 'm'},
+        laws=lambda s: [RateLaw(s.target.u, neighbors(s.target.other.u**2, reduce='sum'))],
+    )
+    element = Element('m', values={'u': field}, space=LatticeSpace(6, boundary=boundary))
+    problem = System(elements=[element], interactions=[rule]).prepare()._problem
+    rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'm.u')
+    extended = np.pad(field, 1, mode=padded, **({'constant_values': 0.5} if kind == 'fixed' else {})) ** 2
+    assert np.abs(np.ravel(rate) - (extended[:-2] + extended[2:])).max() < 1e-12

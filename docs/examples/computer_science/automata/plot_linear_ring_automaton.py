@@ -13,19 +13,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.interactions import LocalRuleInteraction
-from skcomplex.core.components.spaces import BallNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import LinearRuleSpec, UpdateLaw
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import LinearRuleSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
 
 SYSTEM = 'linear_ring_automaton'
 
 system = LinearRingAutomatonSystem(size=101, modulus=3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Nonzero cells and invertibility
@@ -35,17 +35,17 @@ trajectory = simulate(system, observers=[observer])
 # matrix of `a^-1 + a - 2`, whose rank over GF(3) decides whether a configuration can be recovered from its image, and
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
+
 values = trajectory.get_values('cells.value')
 steps = np.arange(values.shape[0])
-laplacian = CompositeSystem(
-    elements=system.prepare().system_.elements,
+ring = LatticeNeighborhood(((-1,), (0,), (1,)))
+laplacian = System(
+    elements=[Element('cells', values={'value': 0}, space=LatticeSpace(101))],
     interactions=[
-        LocalRuleInteraction(
+        Interaction(
             'laplacian',
-            target='cells',
-            state='value',
-            rule=LinearRuleSpec((1, -2, 1), 'GF(3)'),
-            neighborhood=BallNeighborhood(n_dim=1, center='inline'),
+            roles={'target': 'cells'},
+            laws=lambda s: [UpdateLaw(s.target.value, LinearRuleSpec((1, -2, 1), 'GF(3)'), neighborhood=ring)],
         ),
     ],
 )

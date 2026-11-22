@@ -6,26 +6,27 @@ Tomato buyers and farms join a programme of fair wages.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from collections.abc import Sequence
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ..common.policy import PolicyRuleInteraction
 
 OUTSIDE, COMMITTED, MEMBER = 0, 1, 2
 
 
-class ProgramMemberView(AgentView):
+class ProgramMemberView(AgentViewProtocol, Protocol):
     """Buyer or farm as the programme sees it.
 
     It holds its acres of tomatoes, its level, and what it traded in the period.
@@ -48,9 +49,6 @@ class ProgramMemberElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         acres:
             The tomatoes a buyer needs or a farm grows every period, in acres.
 
@@ -60,46 +58,30 @@ class ProgramMemberElement(Element):
         traded:
             The tomatoes bought or sold in the period.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ProgramMemberElement
-        >>> GroupElement('farms', element=ProgramMemberElement, size=3, values={'acres': 10.0}).size
+        >>> ProgramMemberElement('farms', acres=10.0, size=3).size
         3
     """
 
-    law_classes = ()
+    visual = VisualSpec('agents', {'color_by': 'level'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
         *,
-        acres: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        level: Annotated[float, StateSpec(domain=NN)] = 0,
-        traded: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        acres: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        level: Annotated[object, NN] = 0.0,
+        traded: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.acres = acres
         self.level = level
         self.traded = traded
-
-    @classmethod
-    def _get_view(cls) -> type[ProgramMemberView]:
-        """Return the view of the agents of the element."""
-        return ProgramMemberView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the programme moves every buyer and farm.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class FairFoodMarketInteraction(PolicyRuleInteraction[SystemView]):
@@ -146,9 +128,9 @@ class FairFoodMarketInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        shops: Annotated[str, RoleSpec()],
-        farms: Annotated[str, RoleSpec()],
-        pressure: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.001,
+        shops: Role,
+        farms: Role,
+        pressure: Annotated[float, RealSet.closed(0, 1)] = 0.001,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.shops = shops
@@ -173,8 +155,8 @@ class FairFoodMarketInteraction(PolicyRuleInteraction[SystemView]):
                 The system view of the market.
         """
         rng = system.rng
-        shops = sorted(system.get_agents('shops', ProgramMemberView), key=lambda shop: shop.id)
-        farms = sorted(system.get_agents('farms', ProgramMemberView), key=lambda farm: farm.id)
+        shops = sorted(cast(list[ProgramMemberView], system.get_agents('shops')), key=lambda shop: shop.id)
+        farms = sorted(cast(list[ProgramMemberView], system.get_agents('farms')), key=lambda farm: farm.id)
         need = np.array([shop.acres for shop in shops])
         shop_level = np.array([shop.level for shop in shops])
         acres = np.array([farm.acres for farm in farms])
@@ -245,9 +227,15 @@ class FairFoodProgramSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import FairFoodProgramSystem
-        >>> [group.prepare().size_ for group in FairFoodProgramSystem(5, 3).prepare().system_.elements]
+        >>> [group.size for group in FairFoodProgramSystem(5, 3).prepare().system_.elements]
         [5, 3]
     """
 
@@ -265,8 +253,10 @@ class FairFoodProgramSystem(BaseSystem):
         pressure: float = 0.001,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_shops = n_shops
         self.n_farms = n_farms
         self.acres = acres
@@ -282,17 +272,13 @@ class FairFoodProgramSystem(BaseSystem):
         weights = rng.random(count)
         return weights, weights / weights.sum() * acres
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         _, needs = self._get_sizes(self.n_shops, self.acres, rng)
         _, grown = self._get_sizes(self.n_farms, self.acres, rng)
-        shops = GroupElement(
-            'shops',
-            element=ProgramMemberElement,
-            size=self.n_shops,
-            values={'acres': np.floor(needs)},
-        )
-        farms = GroupElement('farms', element=ProgramMemberElement, size=self.n_farms, values={'acres': np.ceil(grown)})
+        shops = ProgramMemberElement('shops', acres=np.floor(needs), size=self.n_shops)
+        farms = ProgramMemberElement('farms', acres=np.ceil(grown), size=self.n_farms)
         market = FairFoodMarketInteraction('market', shops='shops', farms='farms', pressure=self.pressure)
-        return CompositeSystem(self.label, elements=[shops, farms], interactions=[market])
+        self.system_ = System(self.label, elements=[shops, farms], interactions=[market])

@@ -13,7 +13,6 @@ light, the effect the solar eclipse of 1919 measured.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import LightBendingSystem
@@ -23,7 +22,7 @@ SYSTEM = 'light_bending'
 system = LightBendingSystem(impact_parameter=20.0, distance=2000.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-simulation = simulate(system, solver=solver, observers=[observer])
+simulation = system.set_params(solver=solver).prepare().simulate(observers=[observer])
 
 # %%
 # Deflection against the impact parameter
@@ -35,9 +34,9 @@ impacts = np.array([10.0, 20.0, 40.0, 80.0])
 deflections = []
 for impact in impacts:
     ray = LightBendingSystem(impact_parameter=impact, distance=2000.0)
-    trajectory = simulate(ray, until=4000.0, dt=4.0, solver=solver)
+    trajectory = ray.set_params(solver=solver).prepare().simulate(until=4000.0, dt=4.0)
     x = np.asarray(trajectory.get_values('photon.x'))[-1]
-    u = np.asarray(trajectory.get_values('photon.x_d1'))[-1]
+    u = np.asarray(trajectory.get_values("photon.x'"))[-1]
     vx = u[1] * np.cos(x[3]) - x[1] * np.sin(x[3]) * u[3]
     vy = u[1] * np.sin(x[3]) + x[1] * np.cos(x[3]) * u[3]
     deflections.append(-np.arctan2(vy, vx))

@@ -6,6 +6,7 @@ The opinions lie on a discrete grid.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -15,11 +16,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components import Observable
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -165,13 +168,13 @@ class OpinionEncountersInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        levels: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
-        confidence: Annotated[int, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        persuasion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        repulsion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        candidate: Role,
+        field: Role,
+        levels: Annotated[int, RealSet.open(0, oo)] = 7,
+        confidence: Annotated[int, RealSet.closed_open(0, oo)] = 2,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        persuasion: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        repulsion: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.levels = levels
@@ -189,7 +192,7 @@ class OpinionEncountersInteraction(EncounterInteraction):
         return persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
 
 
-def opinion_observables(levels: int) -> list[ObservableSpec]:
+def opinion_observables(levels: int) -> list[Observable]:
     """Return the mean opinion and the variance of the opinions of a distribution.
 
     The distribution is `opinions`.
@@ -209,8 +212,8 @@ def opinion_observables(levels: int) -> list[ObservableSpec]:
     """
     opinions = opinion_grid(levels)
     return [
-        ObservableSpec('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
-        ObservableSpec('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
+        Observable('mean_opinion', partial(mean_opinion, opinions=opinions), group='opinions'),
+        Observable('opinion_variance', partial(opinion_variance, opinions=opinions), group='opinions'),
     ]
 
 
@@ -245,9 +248,15 @@ class KineticOpinionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
-        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].size
+        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].x.size
         5
     """
 
@@ -258,9 +267,9 @@ class KineticOpinionSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_levels_of(system: CompositeSystem) -> int:
+    def _get_levels_of(system: System) -> int:
         """Return the number of opinion levels of a system, the size of its distribution."""
-        return int(next(item.size or 0 for item in system.elements if item.label == 'opinions'))
+        return int(np.size(next(item.x for item in system.elements if item.label == 'opinions')))
 
     def __init__(
         self,
@@ -271,26 +280,27 @@ class KineticOpinionSystem(BaseSystem):
         repulsion: float = 0.1,
         eta: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.levels = levels
         self.confidence = confidence
         self.persuasion = persuasion
         self.repulsion = repulsion
         self.eta = eta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         initial = 1.0 + 0.1 * opinion_grid(self.levels)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                ActivityDensityElement(
                     'opinions',
-                    element=ActivityDensityElement,
-                    size=self.levels,
-                    on='sites',
-                    values={'x': initial / initial.sum()},
+                    x=initial / initial.sum(),
+                    space=LatticeSpace(self.levels, boundary='fixed'),
                 ),
             ],
             interactions=[
@@ -306,15 +316,6 @@ class KineticOpinionSystem(BaseSystem):
                 ),
             ],
             space=LatticeSpace(self.levels, boundary='fixed'),
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = opinion_observables(KineticOpinionSystem._get_levels_of(system))
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(opinion_observables(KineticOpinionSystem._get_levels_of(self.system_)))

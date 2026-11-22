@@ -6,33 +6,38 @@ The epidemics spread on the contacts of people who visit the same locations of a
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, IntArray, Role
 
 SUSCEPTIBLE, INFECTED, RECOVERED = 0.0, 1.0, 2.0
 
 
-class CommuterView(AgentView):
+class CommuterView(AgentViewProtocol, Protocol):
     """View of a commuter, with its states as attributes.
 
-    `CommuterElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `CommuterElement` read them with checked types.
     """
 
     home: float
     work: float
     health: float
+    node: int
 
 
 class CommuterElement(Element):
@@ -47,9 +52,6 @@ class CommuterElement(Element):
         label:
             The label of the person or of the group of people.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         home:
             The location of the home.
 
@@ -59,30 +61,39 @@ class CommuterElement(Element):
         health:
             The health state.
 
+        node:
+            The location the person is at, a node of the network of locations.
+
+        size:
+            The number of people, or `None` for one.
+
+        space:
+            The network of locations, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import CommuterElement
         >>> CommuterElement('person', home=3.0, work=12.0).work
         12.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)}),
         *,
-        home: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        work: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        health: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        home: Annotated[float | Array, NN] = 0.0,
+        work: Annotated[float | Array, NN] = 0.0,
+        health: Annotated[float | Array, NN] = 0.0,
+        node: int | IntArray = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.home = home
         self.work = work
         self.health = health
-
-    @classmethod
-    def _get_view(cls) -> type[CommuterView]:
-        """Return the view of a commuter, `CommuterView`."""
-        return CommuterView
+        self.node = node
 
 
 class ColocationInteraction(Interaction):
@@ -117,13 +128,13 @@ class ColocationInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        people: Annotated[str, RoleSpec()],
+        people: Role,
         p: float = 0.05,
         gamma: float = 0.1,
         closed: bool = False,
@@ -134,18 +145,15 @@ class ColocationInteraction(Interaction):
         self.gamma = gamma
         self.closed = closed
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of a half day.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of a half day.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.visit)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.visit)]
 
     def visit(self, system: SystemView) -> None:
         """Move every person to the location of the half day, then infect and recover.
@@ -154,7 +162,7 @@ class ColocationInteraction(Interaction):
             system:
                 The system.
         """
-        people = system.get_agents(self.people, CommuterView)
+        people = cast(list[CommuterView], system.get_agents(self.people))
         at_work = round(system.time) % 2 == 1 and not self.closed
         places = np.array([int(person.work if at_work else person.home) for person in people])
         health = np.array([person.health for person in people])
@@ -164,7 +172,7 @@ class ColocationInteraction(Interaction):
         recovery = (health == INFECTED) & (draws < self.gamma)
         health = np.where(infection, INFECTED, np.where(recovery, RECOVERED, health))
         for person, place, state in zip(people, places, health, strict=True):
-            person.move_to(int(place))
+            person.node = int(place)
             person.health = float(state)
 
 
@@ -210,6 +218,12 @@ class EpisimsCitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import EpisimsCitySystem
         >>> EpisimsCitySystem(100).prepare().system_.elements[0].size
@@ -233,8 +247,10 @@ class EpisimsCitySystem(BaseSystem):
         closed: bool = False,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.people = people
         self.household = household
         self.workplace = workplace
@@ -244,8 +260,14 @@ class EpisimsCitySystem(BaseSystem):
         self.closed = closed
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a synthetic city in the spirit of EpiSims."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a synthetic city in the spirit of EpiSims.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         homes = rng.integers(0, max(1, round(self.people / self.household)), self.people)
         n_homes = int(homes.max()) + 1
@@ -255,18 +277,15 @@ class EpisimsCitySystem(BaseSystem):
         graph.add_edges_from(zip(homes.tolist(), works.tolist(), strict=True))
         health = np.zeros(self.people)
         health[rng.choice(self.people, size=self.infected, replace=False)] = 1.0
-        group = GroupElement(
+        space = NetworkSpace(graph)
+        group = CommuterElement(
             'people',
-            element=CommuterElement,
+            home=homes.astype(float),
+            work=works.astype(float),
+            health=health,
+            node=homes,
             size=self.people,
-            values={'home': homes.astype(float), 'work': works.astype(float), 'health': health},
-            location=homes.tolist(),
+            space=space,
         )
         contacts = ColocationInteraction('contacts', people='people', p=self.p, gamma=self.gamma, closed=self.closed)
-        return CompositeSystem(
-            self.label,
-            elements=[group],
-            interactions=[contacts],
-            space=NetworkSpace(graph),
-            time=DiscreteTime(),
-        )
+        self.system_ = System(self.label, elements=[group], interactions=[contacts], space=space)

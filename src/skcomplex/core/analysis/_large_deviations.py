@@ -11,15 +11,17 @@ import numpy as np
 import numpy.typing as npt
 from scipy import linalg, special
 
-from ..components.systems import CompositeSystem
 from ..engine.problems import ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.runtime import Trajectory
 from ..engine.runtime._simulations import Simulation
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
-from ._base import _check_choice, _check_settings, _composite, _read_series
-from .types import Source
+from ..systems import System
+from ..types import Array
+from ._analysis_tags import AnalysisTags
+from ._base import _check_choice, _check_settings, _composite, _get_system, _read_series
+from .types import DataSource
 
 MIN_SIZES = 2
 SMALL_POPULATION = 0.1
@@ -42,9 +44,13 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class LargeDeviationsResult:
-    """A result of `large_deviations`, the large deviations of an observable.
+    """A result of `large_deviations`, the odds of rare values of an observable.
 
-    They are its generating function and rate function.
+    It holds the data it read, the scaled cumulant generating function at every tilt, and the rate function at the
+    values, such as `2 (e - 1)` at the tilt 1 for the count of a Poisson process of rate 2. It reports the odds of a
+    run of losses of an insurer, a rare current through a channel, or a long drought.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         rates:
@@ -54,7 +60,7 @@ class LargeDeviationsResult:
             The increments of `'block'`.
 
         system:
-            The system or its compiled problem of `'cloning'`.
+            The `System`, the one a ready-made system builds, or the compiled problem of `'cloning'`.
 
         samples:
             The samples at every size of `'histogram'`.
@@ -86,11 +92,19 @@ class LargeDeviationsResult:
 
         effective_size:
             The effective number of samples `1 / Σ w²` of `'reweight'`.
+
+    See Also:
+        large_deviations: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import large_deviations
+        >>> large_deviations([-1.0, 1.0], kind='reweight', log_weights=[0.0, 0.0]).mean
+        0.0
     """
 
     rates: Array | None = None
     increments: Array | None = None
-    system: CompositeSystem | ProblemSpec | None = None
+    system: System | ProblemSpec | None = None
     samples: dict[int, Array] | None = None
     observations: Array | None = None
     tilts: Array | None = None
@@ -104,7 +118,7 @@ class LargeDeviationsResult:
 
 
 def large_deviations(
-    source: Source | ProblemSpec | Mapping[int, npt.ArrayLike],
+    source: DataSource | ProblemSpec | Mapping[int, npt.ArrayLike],
     *,
     kind: str = 'tilted',
     variables: Sequence[str] | None = None,
@@ -125,27 +139,13 @@ def large_deviations(
 ) -> LargeDeviationsResult:
     """Return the large deviations of a time-additive observable, of one kind.
 
-    The kinds estimate the scaled cumulant generating function `lambda(k)` at the `tilts`, or the rate function `I`:
+    A time-additive observable sums over a run, such as the number of jumps or the money paid out, and its rare
+    values have odds that fall off as `exp(-T I(a))` with the length `T` of the run. The kinds estimate the scaled
+    cumulant generating function `lambda(k)` at the `tilts`, and with `values` the rate function
+    `I(a) = max_k (k a - lambda(k))`, such as `lambda(1) = 2 (e - 1)` for the count of a Poisson process of rate 2. It
+    estimates the odds of a run of losses of an insurer, a rare current through a channel, or a long drought.
 
-    - `'tilted'`: exactly, for a counting observable of a jump process that adds `weights[i, j]` at every jump from
-      `i` to `j`, as the largest eigenvalue of the tilted generator `rates * exp(k weights) - diag(escape rates)` of
-      the rate matrix. A diagonal rate counts jumps that keep the state, such as the events of a Poisson process.
-    - `'block'`: from blocks of `block` steps of one long run of the increments of the observable, as
-      `ln <exp(k A)> / (block dt)`.
-    - `'cloning'`: by the fixed-population cloning of Giardinà, Kurchan, and Peliti, which advances every clone of a
-      system by `interval` through the simulation's steppers, weights it by `exp(k A)` for the increment `A` of the
-      observable, and resamples the population by the weights. The system is compiled once, and every segment restarts
-      the clock at zero, so the laws must not depend on time explicitly. A warning names a population whose effective
-      size falls below a tenth of the clones or below 10 clones.
-    - `'histogram'`: the rate function of `P_N(m) ≍ exp(-N I(m))` from the samples of an order parameter at several
-      sizes `N`, fitting `-ln P_N` linearly in `N` in every bin.
-    - `'reweight'`: samples reweighted to another law by the logarithms of the likelihood ratios, such as `beta dh M`.
-
-    With `values`, the generating function kinds also give the rate function, its Legendre transform
-    `I(a) = max_k (k a - lambda(k))` over the tilts.
-
-    It appears in many fields. It estimates the odds of rare events, such as a run of losses of an insurer, a rare
-    current through a channel, or a long drought.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -154,7 +154,19 @@ def large_deviations(
             `'reweight'`.
 
         kind:
-            The estimate, one of the kinds above.
+            What to return. `'tilted'` gives the exact generating function of a counting observable of a jump process
+            that adds `weights[i, j]` at every jump from `i` to `j`, the largest eigenvalue of the tilted generator
+            `rates * exp(k weights) - diag(escape rates)` of the rate matrix. A diagonal rate counts jumps that keep the
+            state, such as the events of a Poisson process. `'block'` gives `ln <exp(k A)> / (block dt)` from blocks
+            of `block` steps of one long run of the increments of the observable. `'cloning'` gives the estimate of the
+            fixed population cloning of Giardinà, Kurchan, and Peliti, which advances every clone of a system by
+            `interval`, weights it by `exp(k A)` for the increment `A` of the observable, and resamples the population
+            by the weights. The system is compiled once and every segment restarts the clock at zero, so the laws must
+            not depend on time explicitly, and a warning names a population whose effective size falls below a tenth
+            of the clones or below 10 clones. `'histogram'` gives the rate function of `P_N(m) ≍ exp(-N I(m))` from the
+            samples of an order parameter at several sizes `N`, fitting `-ln P_N` linearly in `N` in every bin.
+            `'reweight'` gives samples reweighted to another law by the logarithms of the likelihood ratios, such as
+            `beta dh M`.
 
         variables:
             The series of a trajectory whose values are the increments of `'block'`, or `None` for the first one.
@@ -211,19 +223,20 @@ def large_deviations(
             The kind is unknown, a setting the kind does not read is changed, a setting the kind needs is missing, a
             setting is out of range, or the source does not suit the kind.
 
+    See Also:
+        events: Finds the events of a series and counts them in windows.
+        fit_law: Fits a law to the tail of a sample.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import large_deviations
-        >>> large_deviations([[2.0]], weights=[[1.0]], tilts=[0.0, 1.0]).scgf.round(4).tolist()
-        [0.0, 3.4366]
         >>> tilts = np.linspace(-3, 3, 6001)
         >>> rate = large_deviations([[2.0]], weights=[[1.0]], tilts=tilts, values=[3.0])
         >>> round(float(rate.rate_function[0]), 4)
         0.2164
-        >>> large_deviations([-1.0, 1.0], kind='reweight', log_weights=[0.0, 0.0]).mean
-        0.0
     """
-    source = _composite(source)
+    given = _get_system(source)
+    source = _composite(given)
     _check_choice('large_deviations', 'kind', kind, KINDS)
     _check_settings(
         large_deviations,
@@ -272,7 +285,7 @@ def large_deviations(
     grid = np.atleast_1d(np.asarray(tilts, dtype=float))
     rates: Array | None = None
     increments: Array | None = None
-    system: CompositeSystem | ProblemSpec | None = None
+    system: System | ProblemSpec | None = None
     effective_population: Array | None = None
     if kind == 'tilted':
         rates = np.asarray(source, dtype=float)
@@ -283,7 +296,7 @@ def large_deviations(
         increments = _read_series(source, variables).values[:, 0].astype(float)
         scgf = _block_scgf(increments, grid, block, dt)
     else:
-        if not isinstance(source, CompositeSystem | ProblemSpec):
+        if not isinstance(source, _CompositeSystem | ProblemSpec):
             error_msg = f'large_deviations of kind cloning reads a system or its problem, not {type(source).__name__}.'
             raise AnalysisError(error_msg)
         estimates = [
@@ -301,7 +314,7 @@ def large_deviations(
         ]
         scgf = np.asarray([value for value, _ in estimates])
         effective_population = np.asarray([effective for _, effective in estimates])
-        system = source
+        system = given if isinstance(given, System) else source
     points: Array | None = None
     rate_function: Array | None = None
     if values is not None:
@@ -330,7 +343,7 @@ def _block_scgf(array: Array, tilts: Array, block: int, dt: float) -> Array:
 
 
 def _clone(
-    system: CompositeSystem | ProblemSpec,
+    system: _CompositeSystem | ProblemSpec,
     tilt: float,
     *,
     observable: str | Callable[[Trajectory], float] | None,

@@ -14,22 +14,25 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.structure.element import Matrix
 from scipy import optimize
 
-from ..components.elements import BaseElement, FieldElement
 from ..components.interactions import BaseInteraction
 from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
-from ..components.systems import CompositeSystem
-from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
+from ..engine._utils import binding_of, bound_labels, components_of, declarations_of, default_of, symbol
+from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._dynamics_spec import _DynamicsSpec
+from ..engine.problems._field_element import _FieldElement
+from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind, FormKind, VariableKind
-from ._base import _check_choice, _check_settings, _composite, _read_system
+from ..systems import System
+from ..types import Array
+from ._analysis_tags import AnalysisTags
+from ._base import _check_choice, _check_settings, _composite, _get_system, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
 from ._utils import compile_problem
-from .types import Point, Source
+from .types import DataSource, Point
 
 KINDS = ('fixed-points', 'dispersion')
 SETTINGS = {
@@ -47,7 +50,11 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 class StabilityResult:
     """A result of `stability`, the linear stability of a system.
 
-    It is its fixed points and their classes, or its dispersion relation.
+    It holds the Jacobian, the nullclines, and the fixed points with their classes, or the growth rate of every wave of
+    a field, such as a stable node at the carrying capacity of logistic growth. It reports whether a steady state of an
+    epidemic, a chemical reactor, or a power grid returns after a small push.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -79,7 +86,7 @@ class StabilityResult:
             `'fixed-points'`.
 
         system:
-            The system of one field, set for `'dispersion'`.
+            The `System` of one field, the one a ready-made system builds, set for `'dispersion'`.
 
         wavenumbers:
             The wave vector of every mode, one row per mode, set for `'dispersion'`.
@@ -99,6 +106,15 @@ class StabilityResult:
 
         band:
             The lengths of the wave vectors whose modes grow, set for `'dispersion'`.
+
+    See Also:
+        stability: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import stability
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> stability(LogisticGrowthSystem(), points=[{'population.x': 100.0}]).classifications
+        ['stable node']
     """
 
     problem: ProblemSpec | None = None
@@ -109,7 +125,7 @@ class StabilityResult:
     fixed_points: list[dict[str, Expression | float]] | None = None
     eigenvalues: list[npt.NDArray[np.complex128]] | None = None
     classifications: list[str] | None = None
-    system: CompositeSystem | None = None
+    system: System | None = None
     wavenumbers: Array | None = None
     magnitudes: Array | None = None
     growth_rates: Array | None = None
@@ -194,7 +210,7 @@ class StabilityResult:
 
     @staticmethod
     def _get_dynamics_of(
-        system: CompositeSystem | BaseProblemSpec,
+        system: _CompositeSystem | BaseProblemSpec,
         parameters: Mapping[str, float] | None = None,
     ) -> _DynamicsSpec:
         """Return the first-order equations of a system.
@@ -257,7 +273,7 @@ class StabilityResult:
 
 
 def stability(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'fixed-points',
     parameters: Mapping[str, float] | None = None,
@@ -266,21 +282,12 @@ def stability(
 ) -> StabilityResult:
     """Return the linear stability of a system, of one kind.
 
-    - `'fixed-points'`: the fixed points of a flow or a map, their linear stability, and the Jacobian, nullclines, and
-      divergence.
-    - `'dispersion'`: the growth rate of every Fourier mode of a system of one field, a site group on a periodic
-      lattice whose laws are rate laws. The laws are linearised symbolically around a uniform state, and every
-      Laplacian, nested ones included, becomes its eigenvalue on a Fourier mode of the lattice,
-      `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. Without `at`, the uniform
-      state is the fixed point of the laws nearest the mean initial values.
+    A fixed point is a state that does not change, where every rate is 0 for a flow or every state equals its next
+    value for a map, and it is stable when a small push dies out, such as the carrying capacity of logistic growth.
+    The stability of every point comes from the eigenvalues of the Jacobian there, evaluated at the parameter values.
+    It decides whether a steady state of an epidemic, a chemical reactor, or a power grid returns after a small push.
 
-    The fixed points of a flow are where every rate is 0, and those of a map where every state equals its next value.
-    Sage solves the equations symbolically, and when it finds no closed form, roots are searched numerically from a
-    grid of starting points with the parameters at their values. The stability of every point comes from the
-    eigenvalues of the Jacobian there, evaluated at the parameter values.
-
-    It appears in many fields. It decides whether a steady state of an epidemic, of a chemical reactor, or of a power
-    grid returns after a small push.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -288,7 +295,14 @@ def stability(
             `'dispersion'`.
 
         kind:
-            The stability to derive, one of the kinds above.
+            What to return. `'fixed-points'` gives the fixed points of a flow or a map, their linear stability, and the
+            Jacobian, nullclines, and divergence. Sage solves the equations symbolically, and when it finds no closed
+            form, roots are searched numerically from a grid of starting points with the parameters at their values.
+            `'dispersion'` gives the growth rate of every Fourier mode of a system of one field, a site group on a
+            periodic lattice whose laws are rate laws. The laws are linearised symbolically around a uniform state,
+            and every Laplacian, nested ones included, becomes its eigenvalue on a Fourier mode of the lattice,
+            `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. Without `at`, the
+            uniform state is the fixed point of the laws nearest the mean initial values.
 
         parameters:
             Values of parameters by dotted path that replace the system's values. They are substituted before solving,
@@ -309,29 +323,29 @@ def stability(
         AnalysisError:
             The kind is unknown, a setting the kind does not read is changed, or the system has no form of the kind.
 
+    See Also:
+        linearization: Gives the linear state space system of a system near an operating point.
+        lyapunov: Gives the rates at which nearby runs of a system separate.
+
     Examples:
         >>> from skcomplex.core.analysis import stability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = stability(LogisticGrowthSystem())
         >>> sorted(str(point['population.x']) for point in result.fixed_points)
         ['0', 'K_growth']
-        >>> stability(LogisticGrowthSystem(), points=[{'population.x': 100.0}]).classifications
-        ['stable node']
-        >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
-        >>> relation = stability(BrusselatorSystem((64,), b=1.9, Dv=8.0), kind='dispersion')
-        >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)
-        (True, True)
     """
-    source = _composite(source)
+    system = _get_system(source)
+    source = _composite(system)
     _check_choice('stability', 'kind', kind, KINDS)
     _check_settings(stability, 'kind', SETTINGS[kind], kind=kind, parameters=parameters, points=points, at=at)
     if kind == 'dispersion':
-        if not isinstance(source, CompositeSystem):
-            error_msg = f'A dispersion relation is computed from a system, not from {type(source).__name__}.'
+        if not isinstance(system, System) or not isinstance(source, _CompositeSystem):
+            error_msg = f'A dispersion relation is computed from a system, not from {type(system).__name__}.'
             raise AnalysisError(error_msg)
-        waves, magnitudes, growth_rates, frequencies, uniform = _dispersion_relation(source, at)
+        declared = PassCompiler()._get_declared_system(source)
+        waves, magnitudes, growth_rates, frequencies, uniform = _dispersion_relation(declared, at)
         return StabilityResult(
-            system=source,
+            system=system,
             wavenumbers=waves,
             magnitudes=magnitudes,
             growth_rates=growth_rates,
@@ -468,7 +482,7 @@ def _with_eigenvalue(expression: Expression, eigenvalue: Expression) -> Expressi
     return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
 
 
-def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
+def _laplacian_eigenvalues(field: _FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
     """Return the eigenvalue of the field's Laplacian at every wave vector.
 
     It is that of its discretization.
@@ -479,7 +493,7 @@ def _laplacian_eigenvalues(field: FieldElement, lattice: LatticeSpace, waves: Ar
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
 
 
-def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[BaseInteraction]:
+def _bound_interactions(system: _CompositeSystem, field: _FieldElement) -> list[BaseInteraction]:
     """Return the interactions of a system whose every role binds one field.
 
     An error is raised for another.
@@ -488,27 +502,27 @@ def _bound_interactions(system: CompositeSystem, field: FieldElement) -> list[Ba
     for interaction in system.interactions:
         labels = [
             label
-            for name in declarations_of(type(interaction), VariableKind.ROLE)
-            for label in bound_labels(getattr(interaction, name) or ())
+            for name in declarations_of(interaction, VariableKind.ROLE)
+            for label in bound_labels(binding_of(interaction, name) or ())
         ]
         if not labels or any(label != field.label for label in labels):
-            error_msg = f'The interaction {interaction.label} binds a part other than the field {field.label}.'
+            error_msg = f'The interaction {interaction.label} binds a component other than the field {field.label}.'
             raise AnalysisError(error_msg)
         bound.append(interaction)
     return bound
 
 
-def _single_field(system: CompositeSystem) -> tuple[FieldElement, LatticeSpace, list[BaseInteraction]]:
+def _single_field(system: _CompositeSystem) -> tuple[_FieldElement, LatticeSpace, list[BaseInteraction]]:
     """Return the one field of a system, its periodic lattice, and its interactions.
 
     The interactions are those bound to the field. An error is raised when there is none.
     """
-    fields = [element for element in system.elements if isinstance(element, FieldElement)]
+    fields = [element for element in system.elements if isinstance(element, _FieldElement)]
     if len(fields) != 1 or len(system.elements) != 1 or system.systems:
         error_msg = 'The dispersion relation takes a system of one field on a lattice.'
         raise AnalysisError(error_msg)
     field = fields[0]
-    if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
+    if not isinstance(field.space, LatticeSpace) or field.space._get_edges() != 'periodic':
         error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
         raise AnalysisError(error_msg)
     interactions = _bound_interactions(system, field)
@@ -521,7 +535,7 @@ def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: o
     Its Laplacians become eigenvalues, and an error is raised when it cannot be added.
     """
     targets = law._get_targets() if isinstance(law, RateLaw) else ()
-    target = next((name for name, item in names.items() if targets and targets[0] is item), None)
+    target = next((name for name, item in names.items() if targets and SR(targets[0]).is_trivially_equal(item)), None)
     if not isinstance(law, RateLaw) or target is None:
         error_msg = f'The dispersion relation takes rate laws of the states of {label}, but got {law!r}.'
         raise AnalysisError(error_msg)
@@ -529,21 +543,19 @@ def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: o
 
 
 def _linearised_rates(
-    field: FieldElement,
+    field: _FieldElement,
     interactions: Sequence[BaseInteraction],
 ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, object]]:
     """Return the rate of each state, the state symbols, and the field values.
 
-    The Laplacians of the rates become eigenvalues. The rates add the laws of the field's element and of the
-    interactions bound to the field.
+    The Laplacians of the rates become eigenvalues. The rates add the laws of the interactions bound to the field.
     """
-    part = field.get_declaring_part()
-    member = field._get_member() if isinstance(part, BaseElement) else field.element(field.label)
-    states = list(declarations_of(part, VariableKind.STATE))
-    values = {name: default_of(part, name) for name in states} | dict(field.values or {})
+    component = field.get_declaring_element()
+    states = list(declarations_of(component, VariableKind.STATE))
+    values = {name: default_of(component, name) for name in states} | dict(field.values or {})
     parameters = {}
-    for name in declarations_of(part, VariableKind.PARAMETER):
-        value = np.asarray(values.get(name, default_of(part, name)))
+    for name in declarations_of(component, VariableKind.PARAMETER):
+        value = np.asarray(values.get(name, default_of(component, name)))
         if value.ndim:
             error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
             raise AnalysisError(error_msg)
@@ -551,15 +563,12 @@ def _linearised_rates(
     names = {name: symbol(f'_{name}_') for name in states}
     rates: dict[str, Expression] = {}
     time = symbol('t')
-    for law in member._get_laws(SimpleNamespace(**names, **parameters, t=time)):
-        _add_rate(rates, names, law, field.label)
     for interaction in interactions:
-        own = {name: getattr(interaction, name) for name in declarations_of(type(interaction), VariableKind.PARAMETER)}
+        own = {name: getattr(interaction, name) for name in declarations_of(interaction, VariableKind.PARAMETER)}
         roles = {
-            name: SimpleNamespace(**names, **parameters)
-            for name in declarations_of(type(interaction), VariableKind.ROLE)
+            name: SimpleNamespace(**names, **parameters) for name in declarations_of(interaction, VariableKind.ROLE)
         }
-        for law in interaction.prepare().run(SimpleNamespace(**roles, **own, t=time)).laws_:
+        for law in interaction._get_laws_of(SimpleNamespace(**roles, **own, t=time)):
             _add_rate(rates, names, law, field.label)
     return {name: rates[name] for name in states if name in rates}, names, values
 
@@ -594,7 +603,7 @@ def _eigenvalue_terms(entry: Expression, name: str) -> list[tuple[float, int]]:
 
 
 def _dispersion_relation(
-    system: CompositeSystem,
+    system: _CompositeSystem,
     at: Mapping[str, float] | None = None,
 ) -> tuple[Array, Array, Array, Array, dict[str, float]]:
     """Return the wave vectors, lengths, growth rates, frequencies, and uniform state.

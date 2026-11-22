@@ -13,7 +13,6 @@ their rate, while the paclitaxel accumulates in the cells.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import HER2TargetedTherapySystem
@@ -22,7 +21,7 @@ SYSTEM = 'her2_targeted_therapy'
 SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(HER2TargetedTherapySystem(), dt=0.05, solver=SOLVER, observers=[observer])
+trajectory = HER2TargetedTherapySystem(solver=SOLVER).prepare().simulate(dt=0.05, observers=[observer])
 
 # %%
 # Logistic growth at a lowered rate
@@ -30,7 +29,7 @@ trajectory = simulate(HER2TargetedTherapySystem(), dt=0.05, solver=SOLVER, obser
 # The bound antibody equals the free antibody of 0.2, so from day 2 the growth rate is `r (1 - a1 Ab) = 0.41` a day
 # instead of 0.83. The treated tumour should follow the logistic curve of that rate, and lag behind the untreated one.
 
-untreated = simulate(HER2TargetedTherapySystem(antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER)
+untreated = HER2TargetedTherapySystem(antibody=0.0, paclitaxel=0.0, solver=SOLVER).prepare().simulate(dt=0.05)
 treated = trajectory
 times, cells = treated.times, treated.get_values('tumour.A')
 after = times >= 2.0

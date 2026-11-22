@@ -1,4 +1,4 @@
-"""Define the base of the backends."""
+"""Define the base of the backends, which write the functions solvers call."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,14 +7,18 @@
 import numpy as np
 
 from ...base import BaseConfig
+from ...components import Tags
 from ...errors import ValidationError
-from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec, Tags
 from ...types import Array, Indices, VectorFunction
+from ..enums import ReadKind
+from ..problems import RunStateSpec
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._output_spec import OutputSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import OptionalPairs, ReadKind
+from ..types import OptionalPairs
+from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._support_spec import SupportSpec
 
 AUTO_MEMBERS = 1000
 
@@ -22,15 +26,26 @@ AUTO_MEMBERS = 1000
 class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
     """An abstract backend, which writes the numeric functions of a compiled problem.
 
-    A backend turns the kernels of a problem into the numeric functions of its form. A backend stores its settings in
-    its constructor, `prepare()` takes nothing, and `run(kernels)` takes the `LoweredKernelsSpec` of a problem, with its
-    form, the size of its state vector, its reductions, and its draws, and keeps the `LoweredFunctionsSpec` of the form
-    in `functions_`. Subclasses implement the hooks `_run`, `_get_name`, the name a problem records, and `_get_support`,
-    the times, spaces, laws, noise, and orders the backend writes functions of.
+    A system compiles its laws into kernels, and a backend turns them into the functions a solver calls, such as the
+    rate function `f(t, x, p)` of `x' = f(t, x, p)`. It stores its settings in `__init__`, `prepare()` takes nothing,
+    and `run(kernels)` keeps the functions in `functions_`. A subclass names itself with `_get_name` and says what it
+    can write with `_get_support`. One backend runs the growth of a herd, a spin lattice, and an epidemic on a network.
+
+    Read more in the user guide, under Backends.
 
     Attributes:
         functions_:
             The numeric functions of the form of the kernels of the last run.
+
+    See Also:
+        NumpyBackend: Writes the functions with NumPy, the default.
+        NumbaBackend: Compiles the functions to machine code.
+        JaxBackend: Writes functions that JAX differentiates.
+
+    Examples:
+        >>> from skcomplex.core.engine.backends import BaseBackend, NumpyBackend
+        >>> isinstance(NumpyBackend(), BaseBackend)
+        True
     """
 
     functions_: LoweredFunctionsSpec

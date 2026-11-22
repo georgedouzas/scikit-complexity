@@ -7,32 +7,37 @@ The individuals reproduce, mutate, and climb fitness landscapes.
 # License: MIT
 
 
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 from scipy.special import expit
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import BirthDeathInteraction, EvolutionInteraction
 
 ORGANISMS = 'organisms'
 
 
-class ClimberView(AgentView):
+class ClimberView(AgentViewProtocol, Protocol):
     """View of a climber, with its states and parameters as attributes.
 
-    `ClimberElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `ClimberElement` read them with checked types.
     """
 
     genome: float
@@ -45,7 +50,7 @@ class ClimberView(AgentView):
 class ClimberElement(Element):
     """Agent that walks an NK fitness landscape.
 
-    It flips one random bit of its genome when that raises its fitness.
+    It flips one random bit of its genome when that raises its fitness, by `ClimbingInteraction`.
 
     The fitness of a genome of `n` bits is the mean of the contributions of its bits, each a random function of the bit
     and the next `k` bits, fixed by `seed`.
@@ -53,9 +58,6 @@ class ClimberElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         genome:
             The bits of the genome.
@@ -72,69 +74,42 @@ class ClimberElement(Element):
         seed:
             The seed of the landscape.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of climbers, or `None` for one.
+
+        space:
+            The space of the climbers, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.evolution import ClimberElement
-        >>> GroupElement('climbers', element=ClimberElement, size=10).size
+        >>> ClimberElement('climbers', size=10).size
         10
     """
 
-    draws = True
-
-    law_classes = (RuleLaw,)
+    visual = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fitness', 'color_range': (0.0, 1.0)}),
         *,
-        genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        k: Annotated[float, ParameterSpec(domain=NN)] = 2.0,
-        seed: Annotated[float, ParameterSpec(domain=NN)] = 0.0,
+        genome: Annotated[float | npt.ArrayLike, NN] = 0.0,
+        fitness: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 0.0,
+        n: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        k: Annotated[float, NN] = 2.0,
+        seed: Annotated[float, NN] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.genome = genome
         self.fitness = fitness
         self.n = n
         self.k = k
         self.seed = seed
-
-    @classmethod
-    def _get_view(cls) -> type[ClimberView]:
-        """Return the view of a climber, `ClimberView`."""
-        return ClimberView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the climbing rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.climb)]
-
-    def climb(self, agent: ClimberView, system: SystemView) -> None:
-        """Flip a random bit, and keep the flip when it raises the fitness.
-
-        Args:
-            agent:
-                The climber.
-
-            system:
-                The system.
-        """
-        n, k, seed = int(agent.n), int(agent.k), int(agent.seed)
-        mutant = int(agent.genome) ^ (1 << int(system.rng.integers(n)))
-        fitness = ClimberElement._get_nk_fitness(mutant, n, k, seed)
-        if fitness > agent.fitness:
-            agent.genome = float(mutant)
-            agent.fitness = fitness
 
     @staticmethod
     @lru_cache(maxsize=16)
@@ -160,10 +135,10 @@ class ClimberElement(Element):
         return total / n
 
 
-class IndividualView(AgentView):
+class IndividualView(AgentViewProtocol, Protocol):
     """View of an individual, with its states as attributes.
 
-    `IndividualElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `IndividualElement` read them with checked types.
     """
 
     trait: float
@@ -177,38 +152,108 @@ class IndividualElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         trait:
             The trait, a type index or the bits of a genome.
 
         fitness:
             The fitness of the trait.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of individuals, or `None` for one.
+
+        space:
+            The space of the individuals, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.evolution import IndividualElement
-        >>> GroupElement('population', element=IndividualElement, size=10, values={'trait': 0.0}).size
+        >>> IndividualElement('population', trait=0.0, size=10).size
         10
     """
+
+    visual = VisualSpec('agents', {'color_by': 'trait'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'trait'}),
         *,
-        trait: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        trait: Annotated[float | npt.ArrayLike, ZZ] = 0.0,
+        fitness: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.trait = trait
         self.fitness = fitness
 
-    @classmethod
-    def _get_view(cls) -> type[IndividualView]:
-        """Return the view of an individual, `IndividualView`."""
-        return IndividualView
+
+class ClimbingIndividualElement(IndividualElement):
+    """Individual of a climbing population, drawn by its fitness."""
+
+    visual = VisualSpec('agents', {'color_by': 'fitness'})
+
+
+class TangledOrganismElement(IndividualElement):
+    """Organism of the Tangled Nature system, drawn by its distinct genomes."""
+
+    visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
+
+
+class ClimbingInteraction(Interaction):
+    """Hill climbing of agents on an NK fitness landscape.
+
+    At every step each climber flips one random bit of its genome and keeps the flip when it raises its fitness.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of climbers.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import ClimbingInteraction
+        >>> ClimbingInteraction('climbing', target='climbers').target
+        'climbers'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the climbing rule of every climber.
+
+        Args:
+            context:
+                The namespace of the climbers.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.climb)]
+
+    def climb(self, agent: ClimberView, system: SystemView) -> None:
+        """Flip a random bit, and keep the flip when it raises the fitness.
+
+        Args:
+            agent:
+                The climber.
+
+            system:
+                The system.
+        """
+        n, k, seed = int(agent.n), int(agent.k), int(agent.seed)
+        mutant = int(agent.genome) ^ (1 << int(system.rng.integers(n)))
+        fitness = ClimberElement._get_nk_fitness(mutant, n, k, seed)
+        if fitness > agent.fitness:
+            agent.genome = float(mutant)
+            agent.fitness = fitness
 
 
 class AdaptiveClimbingInteraction(EvolutionInteraction):
@@ -248,8 +293,8 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        target: Role,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         length: int = 20,
         seed: int = 0,
     ) -> None:
@@ -349,9 +394,9 @@ class MoranStepInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        advantage: Annotated[float, ParameterSpec()] = 0.0,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        target: Role,
+        advantage: float = 0.0,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.0,
         phase: str | None = None,
     ) -> None:
         super().__init__(
@@ -433,11 +478,11 @@ class TangledNatureLifeCycleInteraction(BirthDeathInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        p_mut: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        p_kill: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        target: Role,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        mu: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        p_mut: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        p_kill: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
         length: int = 8,
         seed: int = 0,
         phase: str | None = 'generation',
@@ -556,9 +601,15 @@ class MoranProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import MoranProcessSystem
-        >>> float(MoranProcessSystem(10, mutants=3).prepare().system_.elements[0].values['trait'].sum())
+        >>> float(MoranProcessSystem(10, mutants=3).prepare().system_.elements[0].trait.sum())
         3.0
     """
 
@@ -575,27 +626,29 @@ class MoranProcessSystem(BaseSystem):
         selection: float = 0.0,
         mutation: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.mutants = mutants
         self.selection = selection
         self.mutation = mutation
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Moran process."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Moran process.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         traits = np.zeros(self.size)
         traits[: self.mutants] = 1.0
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'population',
-                    element=IndividualElement,
-                    size=self.size,
-                    values={'trait': traits, 'fitness': (1 + self.selection) ** traits},
-                    variable=True,
-                ),
+                IndividualElement('population', trait=traits, fitness=(1 + self.selection) ** traits, size=self.size),
             ],
             interactions=[
                 MoranStepInteraction('moran', target='population', advantage=self.selection, mutation=self.mutation),
@@ -641,9 +694,15 @@ class TangledNatureSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import TangledNatureSystem
-        >>> TangledNatureSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> TangledNatureSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -664,8 +723,10 @@ class TangledNatureSystem(BaseSystem):
         seed: int = 0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.organisms = organisms
         self.k = k
         self.mu = mu
@@ -675,8 +736,14 @@ class TangledNatureSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Tangled Nature system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Tangled Nature system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         genome = float(np.random.default_rng(self.random_state).integers(2**self.length))
         life_cycle = TangledNatureLifeCycleInteraction(
             'evolution',
@@ -688,23 +755,11 @@ class TangledNatureSystem(BaseSystem):
             length=self.length,
             seed=self.seed,
         )
-        visual = VisualSpec('histograms', {'color_by': 'trait', 'shown': ('distinct',)})
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    ORGANISMS,
-                    element=IndividualElement,
-                    size=self.organisms,
-                    values={'trait': genome},
-                    variable=True,
-                    visual=visual,
-                ),
-            ],
+            elements=[TangledOrganismElement(ORGANISMS, trait=genome, size=self.organisms)],
             interactions=[life_cycle],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('generation', activation='visits', visits=1 / self.p_kill)]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('generation', activation='visits', visits=1 / self.p_kill)]),
         )
 
 
@@ -733,9 +788,15 @@ class AdaptiveClimbingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import AdaptiveClimbingSystem
-        >>> AdaptiveClimbingSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> AdaptiveClimbingSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -752,28 +813,27 @@ class AdaptiveClimbingSystem(BaseSystem):
         length: int = 20,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.u = u
         self.length = length
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a finite population."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a finite population.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.seed)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'population',
-                    element=IndividualElement,
-                    size=self.size,
-                    values={'trait': 0.0, 'fitness': fitness},
-                    variable=True,
-                    visual=VisualSpec('agents', {'color_by': 'fitness'}),
-                ),
-            ],
+            elements=[ClimbingIndividualElement('population', trait=0.0, fitness=fitness, size=self.size)],
             interactions=[
                 AdaptiveClimbingInteraction(
                     'climbing',
@@ -813,9 +873,15 @@ class NKLandscapeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import NKLandscapeSystem
-        >>> NKLandscapeSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> NKLandscapeSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -833,29 +899,37 @@ class NKLandscapeSystem(BaseSystem):
         seed: int = 0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.climbers = climbers
         self.n = n
         self.k = k
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of agents on an NK landscape.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
         fitness = [ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
-        group = GroupElement(
+        climbers = ClimberElement(
             'climbers',
-            element=ClimberElement,
+            genome=genomes.astype(float),
+            fitness=np.asarray(fitness),
+            n=float(self.n),
+            k=float(self.k),
+            seed=float(self.seed),
             size=self.climbers,
-            values={
-                'genome': genomes.astype(float),
-                'fitness': np.asarray(fitness),
-                'n': float(self.n),
-                'k': float(self.k),
-                'seed': float(self.seed),
-            },
-            variable=True,
         )
-        return CompositeSystem(self.label, elements=[group])
+        self.system_ = System(
+            self.label,
+            elements=[climbers],
+            interactions=[ClimbingInteraction('climbing', target='climbers')],
+        )

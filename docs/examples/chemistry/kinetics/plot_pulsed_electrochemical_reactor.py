@@ -14,14 +14,13 @@ into a periodic response locked to the pulse train.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import PulsedElectrochemicalReactorSystem
 
 SYSTEM = 'pulsed_electrochemical_reactor'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(PulsedElectrochemicalReactorSystem(), until=120, observers=[observer])
+trajectory = PulsedElectrochemicalReactorSystem().prepare().simulate(until=120, observers=[observer])
 
 # %%
 # Locking to the pulse train

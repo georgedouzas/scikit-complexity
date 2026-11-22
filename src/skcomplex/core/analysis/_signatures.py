@@ -9,17 +9,22 @@ import networkx as nx
 import numpy as np
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, JumpPathSpec, SeriesSpec, SignatureSpec, SnapshotsSpec
-from ..types import Array, DataKind, FormKind
+from ..types import Array
 from ._alignment import _mean_rotation, _mean_vector_length
+from ._analysis_tags import AnalysisTags
 from ._base import _composite, _get_data_kinds, _read_fields, _read_networks, _read_path, _read_series, _read_snapshots
 from ._correlation import _autocorrelation_time, _correlation_length
 from ._distribution import _ccdf, _dispersion_index
+from ._jump_path_spec import _JumpPathSpec
 from ._neighbors import _nearest_neighbor_distances
 from ._networks import _degrees, _summary
+from ._series_spec import _SeriesSpec
+from ._signature_spec import SignatureSpec
+from ._snapshots_spec import _SnapshotsSpec
 from ._spectrum import _power_spectrum, _structure_factor
-from .types import Source
+from .types import DataSource
 
 SERIES_COLUMNS = 3
 PLANE = 2
@@ -30,7 +35,11 @@ TAGS = AnalysisTags(DataKind.SYSTEM)
 class SignaturesResult:
     """A result of `signatures`, one default analysis per kind of data.
 
-    It comes with its curves, axis labels, title, and values.
+    It holds the kinds of data of the trajectory, the data read for each, and one figure per kind with its curves,
+    axis labels, title, and values, such as the power spectrum of the series of a Lotka-Volterra run. It gives the
+    first look at the series of an ecosystem, the jumps of a market, or the field of a chemical pattern.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         kinds:
@@ -60,29 +69,40 @@ class SignaturesResult:
 
         series:
             The scalar series, for the series kind.
+
+    See Also:
+        signatures: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import signatures
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> trajectory = LotkaVolterraSystem().prepare().simulate(until=20.0, random_state=0)
+        >>> [kind.value for kind in signatures(trajectory).kinds]
+        ['series']
     """
 
     kinds: list[DataKind]
     discrete: bool
     signatures: list[SignatureSpec]
-    snapshots: SnapshotsSpec | None = None
+    snapshots: _SnapshotsSpec | None = None
     frames: Array | None = None
     graphs: list[nx.Graph] | None = None
-    path: JumpPathSpec | None = None
+    path: _JumpPathSpec | None = None
     jumps: Array | None = None
-    series: SeriesSpec | None = None
+    series: _SeriesSpec | None = None
 
 
-def signatures(source: Source) -> SignaturesResult:
+def signatures(source: DataSource) -> SignaturesResult:
     """Return the default analysis of every kind of data of a trajectory.
 
-    It comes with its curves, axis labels, and values. A series gives its power spectrum with the autocorrelation time,
-    or its return map for a map. A jump path gives the survival function of its waiting times with the dispersion index
-    of jumps per frame. A field gives the structure factor of its last frame with the peak wavelength or the correlation
-    length. Agents give their polar and milling orders over time, or their nearest-neighbour distances against the
-    Poisson law. A network gives its degree distribution.
+    Every kind of data gets one figure with its curves, axis labels, and values. A series gives its power spectrum with
+    the autocorrelation time, or its return map for a map, a jump path the survival function of its waiting times with
+    the dispersion index of jumps per frame, and a field the structure factor of its last frame with the peak
+    wavelength or the correlation length. Agents give their polar and milling orders over time, or their nearest
+    neighbour distances against the Poisson law, and a network its degree distribution. It gives the first look at a
+    run of an ecosystem, a market, or a chemical pattern.
 
-    It appears in every study that starts from a run and wants one overview per kind of data.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -96,11 +116,14 @@ def signatures(source: Source) -> SignaturesResult:
         AnalysisError:
             The source is not a trajectory.
 
+    See Also:
+        spectrum: Gives the spectrum of every series of a source, or of a field.
+        network_measures: Gives measures of a graph or of the network of every frame.
+
     Examples:
         >>> from skcomplex.core.analysis import signatures
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> trajectory = simulate(LotkaVolterraSystem(), until=20.0, random_state=0)
+        >>> trajectory = LotkaVolterraSystem().prepare().simulate(until=20.0, random_state=0)
         >>> [signature.title for signature in signatures(trajectory).signatures]
         ['Power spectrum']
     """
@@ -134,7 +157,7 @@ def signatures(source: Source) -> SignaturesResult:
     return SignaturesResult(kinds, discrete, found, snapshots, frames, graphs, path, jumps, series)
 
 
-def _get_series_signature(series: SeriesSpec, *, discrete: bool) -> SignatureSpec:
+def _get_series_signature(series: _SeriesSpec, *, discrete: bool) -> SignatureSpec:
     """Return the power spectra of the series and the autocorrelation time.
 
     For a map, the return map is returned instead.
@@ -164,7 +187,7 @@ def _get_series_signature(series: SeriesSpec, *, discrete: bool) -> SignatureSpe
     )
 
 
-def _get_path_signature(path: JumpPathSpec, jumps: Array) -> SignatureSpec:
+def _get_path_signature(path: _JumpPathSpec, jumps: Array) -> SignatureSpec:
     """Return the survival function of waiting times and the dispersion of jump counts.
 
     The waiting times are those between jumps, and the dispersion is the dispersion index.
@@ -209,7 +232,7 @@ def _get_field_signature(frames: Array) -> SignatureSpec:
     )
 
 
-def _get_order_signature(snapshots: SnapshotsSpec) -> SignatureSpec:
+def _get_order_signature(snapshots: _SnapshotsSpec) -> SignatureSpec:
     """Return the polar order over time and the milling order of agents.
 
     The milling order is for agents with velocities in a plane.
@@ -250,7 +273,7 @@ def _get_neighbor_signature(positions: Array, box: Array | None) -> SignatureSpe
     )
 
 
-def _get_agents_signature(snapshots: SnapshotsSpec) -> SignatureSpec:
+def _get_agents_signature(snapshots: _SnapshotsSpec) -> SignatureSpec:
     """Return the polar and milling orders, or the nearest-neighbour distances.
 
     The orders are over time, and the distances are compared with the Poisson law.

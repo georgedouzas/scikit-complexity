@@ -3,21 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, log, oo
+from sage.all__sagemath_symbolics import SR, Expression, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.reactions import ReactionInteraction
 from ..common.pharmacokinetics import DosingInteraction
 
@@ -62,9 +64,6 @@ class AndrogenReceptorProstateElement(Element):
     Args:
         label:
             The label of the prostate.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial normal epithelial cells.
@@ -189,48 +188,47 @@ class AndrogenReceptorProstateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        UIP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        UP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        UT: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        UD: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 22.4,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 22.4,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        psi1_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001202,
-        psi1_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001048,
-        psi1_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.8e-05,
-        phi1_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001281,
-        phi1_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00111,
-        phi1_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.000279,
-        psi2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.355,
-        phi2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 49.587,
-        psi3_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
-        psi3_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        psi3_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        psi4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 62.162,
-        Vc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.56,
-        v1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 18.397,
-        v2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 63.753,
-        v3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 28.4,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-        age: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001515,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05635,
-        du3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.776,
-        gamma_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3125,
-        KP: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 800.0,
-        beta_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0022622,
-        beta_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        beta_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.003,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        N: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        UIP: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        UP: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        UT: Annotated[float, RealSet.closed_open(0, oo)] = 40.0,
+        UD: Annotated[float, RealSet.closed_open(0, oo)] = 40.0,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        b2: Annotated[float, RealSet.open(0, oo)] = 22.4,
+        b3: Annotated[float, RealSet.open(0, oo)] = 22.4,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        psi1_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001202,
+        psi1_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.001048,
+        psi1_i: Annotated[float, RealSet.closed_open(0, oo)] = 9.8e-05,
+        phi1_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001281,
+        phi1_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.00111,
+        phi1_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.000279,
+        psi2: Annotated[float, RealSet.open(0, oo)] = 12.355,
+        phi2: Annotated[float, RealSet.open(0, oo)] = 49.587,
+        psi3_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.008,
+        psi3_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        psi3_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        psi4: Annotated[float, RealSet.open(0, oo)] = 62.162,
+        Vc: Annotated[float, RealSet.open(0, oo)] = 5.56,
+        v1: Annotated[float, RealSet.closed_open(0, oo)] = 18.397,
+        v2: Annotated[float, RealSet.open(0, oo)] = 63.753,
+        v3: Annotated[float, RealSet.open(0, oo)] = 28.4,
+        phi: Annotated[float, RealSet.open(0, oo)] = 12.0,
+        age: Annotated[float, RealSet.open(0, oo)] = 60.0,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 0.001515,
+        du2: Annotated[float, RealSet.closed_open(0, oo)] = 0.05635,
+        du3: Annotated[float, RealSet.closed_open(0, oo)] = 5.776,
+        gamma_p: Annotated[float, RealSet.closed_open(0, oo)] = 0.3125,
+        KP: Annotated[float, RealSet.open(0, oo)] = 800.0,
+        beta_n: Annotated[float, RealSet.closed_open(0, oo)] = 0.0022622,
+        beta_d: Annotated[float, RealSet.closed_open(0, oo)] = 0.002,
+        beta_i: Annotated[float, RealSet.closed_open(0, oo)] = 0.003,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.AD = AD
         self.AI = AI
@@ -287,9 +285,6 @@ class AndrogenSuppressionElement(Element):
         label:
             The label of the tumour.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         AD:
             The initial number of androgen-dependent cells.
 
@@ -338,23 +333,22 @@ class AndrogenSuppressionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.14,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.1e-11,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.064,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5e-05,
-        U0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.14,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.006,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 9.1e-11,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.064,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 5e-05,
+        U0: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AI = AI
         self.U = U
@@ -388,9 +382,6 @@ class CellQuotaProstateElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial number of androgen-dependent cells.
@@ -497,42 +488,41 @@ class CellQuotaProstateElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Q1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        Q2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.4,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        rm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        q1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        q2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.15,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
-        qm: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        vm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.275,
-        v50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        mx1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00015,
-        mx2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        m501: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
-        m502: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.7,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        r0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        U0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        Umin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        Q1: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        Q2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        P: Annotated[float, RealSet.closed_open(0, oo)] = 3.4,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        rm: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        q1: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        q2: Annotated[float, RealSet.open(0, oo)] = 0.15,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.015,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.015,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.09,
+        qm: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        vm: Annotated[float, RealSet.closed_open(0, oo)] = 0.275,
+        v50: Annotated[float, RealSet.open(0, oo)] = 4.0,
+        mx1: Annotated[float, RealSet.closed_open(0, oo)] = 0.00015,
+        mx2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        m501: Annotated[float, RealSet.open(0, oo)] = 0.08,
+        m502: Annotated[float, RealSet.open(0, oo)] = 1.7,
+        n: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        r0: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        rho1: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        rho2: Annotated[float, RealSet.open(0, oo)] = 1.1,
+        theta: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        U0: Annotated[float, RealSet.closed_open(0, oo)] = 15.0,
+        Umin: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
         period: float = 500.0,
         width: float = 250.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AI = AI
         self.Q1 = Q1
@@ -583,9 +573,6 @@ class IntermittentSuppressionElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial number of androgen-dependent cells.
@@ -647,27 +634,26 @@ class IntermittentSuppressionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0204,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0242,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0076,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0168,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5e-05,
-        k1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        k3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.0,
-        k4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        U0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        AI: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0204,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0242,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0076,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0168,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 5e-05,
+        k1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        k2: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        k3: Annotated[float, RealSet.closed_open(0, oo)] = 8.0,
+        k4: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        U0: Annotated[float, RealSet.open(0, oo)] = 30.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        x1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        x2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AI = AI
         self.U = U
@@ -700,9 +686,6 @@ class PiecewiseLinearProstateElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AD:
             The initial androgen-dependent cells.
@@ -761,32 +744,29 @@ class PiecewiseLinearProstateElement(Element):
         1.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17.84,
-        AIR: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.778,
-        AII: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.382,
-        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        w11_on: Annotated[float, ParameterSpec()] = -0.043844,
-        w21_on: Annotated[float, ParameterSpec()] = 0.00130716,
-        w22_on: Annotated[float, ParameterSpec()] = -0.004282,
-        w31_on: Annotated[float, ParameterSpec()] = 0.0,
-        w32_on: Annotated[float, ParameterSpec()] = 0.0,
-        w33_on: Annotated[float, ParameterSpec()] = 0.00181,
-        w11_off: Annotated[float, ParameterSpec()] = 0.00223,
-        w12_off: Annotated[float, ParameterSpec()] = 0.1,
-        w22_off: Annotated[float, ParameterSpec()] = 0.00392,
-        w33_off: Annotated[float, ParameterSpec()] = -0.2,
-        x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        x3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 17.84,
+        AIR: Annotated[float, RealSet.closed_open(0, oo)] = 0.778,
+        AII: Annotated[float, RealSet.closed_open(0, oo)] = 0.382,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        w11_on: float = -0.043844,
+        w21_on: float = 0.00130716,
+        w22_on: float = -0.004282,
+        w31_on: float = 0.0,
+        w32_on: float = 0.0,
+        w33_on: float = 0.00181,
+        w11_off: float = 0.00223,
+        w12_off: float = 0.1,
+        w22_off: float = 0.00392,
+        w33_off: float = -0.2,
+        x1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        x2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        x3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AD = AD
         self.AIR = AIR
         self.AII = AII
@@ -805,21 +785,42 @@ class PiecewiseLinearProstateElement(Element):
         self.x2 = x2
         self.x3 = x3
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the linear growth and transitions of each mode.
 
-        The switching of the therapy comes with them.
+class PiecewiseLinearAndrogenInteraction(Interaction):
+    """The linear growth and transitions of each mode.
+
+    The laws read the values of the target, a `PiecewiseLinearProstateElement`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element whose values the laws change.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import PiecewiseLinearAndrogenInteraction
+        >>> PiecewiseLinearAndrogenInteraction('piecewise_linear_androgen', target='target').target
+        'target'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the linear growth and transitions of each mode.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target.
         """
+        super()._prepare(context)
+        s = context.target
         on, off = s.u, 1 - s.u
-        return [
+        self.laws_: list[BaseLaw] = [
             RateLaw(s.AD, on * s.w11_on * s.AD + off * (s.w11_off * s.AD + s.w12_off * s.AIR)),
             RateLaw(s.AIR, on * (s.w21_on * s.AD + s.w22_on * s.AIR) + off * s.w22_off * s.AIR),
             RateLaw(s.AII, on * (s.w31_on * s.AD + s.w32_on * s.AIR + s.w33_on * s.AII) + off * s.w33_off * s.AII),
@@ -844,9 +845,6 @@ class TamoxifenTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Ag:
             The initial volume of cells in the growth phase.
@@ -932,35 +930,34 @@ class TamoxifenTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        Ag: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 900.0,
-        As: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        Am: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        X0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        X1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        X2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        X3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        mg: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0013,
-        ms: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.039,
-        mm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0169,
-        Asat: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0062,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        delta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        delta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        k01: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.048,
-        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.993,
-        k23: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 35.932,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.145,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 39.525,
-        V: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.592,
-        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.121,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.012,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.5,
+        Ag: Annotated[float, RealSet.closed_open(0, oo)] = 900.0,
+        As: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        Am: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        X0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        X1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        X2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        X3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        mg: Annotated[float, RealSet.closed_open(0, oo)] = 0.0013,
+        ms: Annotated[float, RealSet.closed_open(0, oo)] = 0.039,
+        mm: Annotated[float, RealSet.closed_open(0, oo)] = 0.0169,
+        Asat: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0062,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        delta1: Annotated[float, RealSet.closed_open(0, oo)] = 25.0,
+        delta2: Annotated[float, RealSet.closed_open(0, oo)] = 25.0,
+        k01: Annotated[float, RealSet.closed_open(0, oo)] = 0.048,
+        k12: Annotated[float, RealSet.closed_open(0, oo)] = 0.993,
+        k23: Annotated[float, RealSet.closed_open(0, oo)] = 35.932,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 1.145,
+        du2: Annotated[float, RealSet.closed_open(0, oo)] = 39.525,
+        V: Annotated[float, RealSet.open(0, oo)] = 8.592,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.121,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.012,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 12.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Ag = Ag
         self.As = As
         self.Am = Am
@@ -988,7 +985,7 @@ class TamoxifenTumourElement(Element):
         self.u = u
 
 
-class TherapySwitchInteraction(CrossingInteraction):
+class TherapySwitchInteraction(Interaction):
     """Switch of the therapy state of a tumour when a signal crosses a threshold.
 
     The switch sets the state to a value when the signal crosses in a direction.
@@ -1030,36 +1027,53 @@ class TherapySwitchInteraction(CrossingInteraction):
         15.0
     """
 
+    law_classes = (EventLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         signal: Callable[[SimpleNamespace], object],
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        threshold: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         value: float = 1.0,
         state: str = 'u',
         direction: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            guard=self._get_guard,
-            reset={state: self._get_value},
-            direction=direction,
-        )
+        super().__init__(label)
+        self.target = target
         self.signal = signal
         self.threshold = threshold
         self.value = value
         self.state = state
+        self.direction = direction
 
-    def _get_guard(self, s: SimpleNamespace) -> Expression:
-        """Return the signal above the threshold."""
-        return self.signal(s) - s.threshold
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
-    def _get_value(self, s: SimpleNamespace) -> float:
-        """Return the value of the therapy state after the switch."""
-        return self.value
+        Raises:
+            ValidationError:
+                The direction is not -1, 0, or 1, or the signal is not a function.
+        """
+        super()._check_arguments()
+        if self.direction not in (-1, 0, 1):
+            error_msg = f'The direction of crossing {self.label!r} is {self.direction!r}. Use -1, 0, or 1.'
+            raise ValidationError(error_msg)
+        if not callable(self.signal):
+            error_msg = f'The signal of {self.label!r} is {self.signal!r}. Give a function of the namespace.'
+            raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the switch, an event when the signal crosses the threshold in the direction.
+
+        Args:
+            context:
+                The namespace of the tumour.
+        """
+        super()._prepare(context)
+        guard = SR(self.signal(context) - context.threshold)
+        reset = {getattr(context.target, self.state): SR(self.value)}
+        self.laws_: list[BaseLaw] = [EventLaw(guard, reset, self.direction, False, label=self.label)]
 
 
 class ContinuousAndrogenSuppressionSystem(BaseSystem):
@@ -1117,6 +1131,12 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ContinuousAndrogenSuppressionSystem
         >>> ContinuousAndrogenSuppressionSystem(a=0.6).prepare().system_.elements[0].a
@@ -1146,8 +1166,10 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         du: float = 0.08,
         a: float = 0.9,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AD = AD
         self.AI = AI
         self.U = U
@@ -1162,8 +1184,14 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.du = du
         self.a = a
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of prostate cancer under continuous androgen suppression."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of prostate cancer under continuous androgen suppression.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = AndrogenSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1181,14 +1209,18 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
             a=self.a,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'dependent_growth',
-                target='tumour',
-                state='AD',
-                rate=lambda s: s.target.r1
-                * s.target.U
-                * (1 - s.target.b * (s.target.AD + s.target.c1 * s.target.AI))
-                * s.target.AD,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AD,
+                        s.target.r1
+                        * s.target.U
+                        * (1 - s.target.b * (s.target.AD + s.target.c1 * s.target.AI))
+                        * s.target.AD,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'deprivation_death',
@@ -1203,26 +1235,28 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
                 products={'AI': 1},
                 propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='tumour',
-                state='AI',
-                rate=lambda s: s.target.r2 * (1 - s.target.b * (s.target.AI + s.target.c2 * s.target.AD)) * s.target.AI,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AI,
+                        s.target.r2 * (1 - s.target.b * (s.target.AI + s.target.c2 * s.target.AD)) * s.target.AI,
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'androgen_production',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.du * (s.target.U - s.target.U0))],
             ),
-            RateInteraction(
+            Interaction(
                 'suppression',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.U0 * s.target.du * s.target.a,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.U0 * s.target.du * s.target.a)],
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class IdetaIntermittentAndrogenSystem(BaseSystem):
@@ -1286,6 +1320,12 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import IdetaIntermittentAndrogenSystem
         >>> IdetaIntermittentAndrogenSystem(h1=20.0).prepare().system_.interactions[-2].threshold
@@ -1328,8 +1368,10 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         h0: float = 10.0,
         h1: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AD = AD
         self.AI = AI
         self.r1 = r1
@@ -1346,8 +1388,14 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Ideta system of intermittent androgen suppression."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Ideta system of intermittent androgen suppression.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = IntermittentSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1371,13 +1419,17 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
             self.h1,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'dependent_growth',
-                target='tumour',
-                state='AD',
-                rate=lambda s: s.target.r1
-                * (s.target.k1 + (1 - s.target.k1) * s.target.U / (s.target.U + s.target.k2))
-                * s.target.AD,
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AD,
+                        s.target.r1
+                        * (s.target.k1 + (1 - s.target.k1) * s.target.U / (s.target.U + s.target.k2))
+                        * s.target.AD,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'dependent_death',
@@ -1394,11 +1446,10 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
                 products={'AI': 1},
                 propensity=lambda s: s.target.m1 * (1 - s.target.U / s.target.U0) * s.target.AD,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='tumour',
-                state='AI',
-                rate=lambda s: s.target.r2 * (1 - s.target.U / s.target.U0) * s.target.AI,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AI, s.target.r2 * (1 - s.target.U / s.target.U0) * s.target.AI)],
             ),
             ReactionInteraction(
                 'independent_death',
@@ -1406,21 +1457,19 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
                 reactants={'AI': 1},
                 propensity=lambda s: s.target.d2 * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'androgen_production',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.du * (s.target.U - s.target.U0),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.du * (s.target.U - s.target.U0))],
             ),
-            RateInteraction(
+            Interaction(
                 'suppression',
-                target='tumour',
-                state='U',
-                rate=lambda s: -s.target.U0 * s.target.du * s.target.u,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.U, -s.target.U0 * s.target.du * s.target.u)],
             ),
             *switches,
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateCellQuotaSystem(BaseSystem):
@@ -1493,6 +1542,12 @@ class ProstateCellQuotaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ProstateCellQuotaSystem
         >>> ProstateCellQuotaSystem(q1=0.45).prepare().system_.elements[0].q1
@@ -1526,8 +1581,10 @@ class ProstateCellQuotaSystem(BaseSystem):
         period: float = 500.0,
         width: float = 250.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AD = AD
         self.AI = AI
         self.rm = rm
@@ -1555,8 +1612,14 @@ class ProstateCellQuotaSystem(BaseSystem):
         uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
         return uptake
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Portz cell-quota system of prostate cancer."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Portz cell-quota system of prostate cancer.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = CellQuotaProstateElement(
             'tumour',
             AD=self.AD,
@@ -1579,11 +1642,10 @@ class ProstateCellQuotaSystem(BaseSystem):
             width=self.width,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'dependent_growth',
-                target='tumour',
-                state='AD',
-                rate=lambda s: s.target.rm * (1 - s.target.q1 / s.target.Q1) * s.target.AD,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AD, s.target.rm * (1 - s.target.q1 / s.target.Q1) * s.target.AD)],
             ),
             ReactionInteraction(
                 'dependent_death',
@@ -1605,11 +1667,10 @@ class ProstateCellQuotaSystem(BaseSystem):
                 products={'AD': 1},
                 propensity=lambda s: s.target.mx2 * hill(s.target.Q2, s.target.m502, s.target.n) * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='tumour',
-                state='AI',
-                rate=lambda s: s.target.rm * (1 - s.target.q2 / s.target.Q2) * s.target.AI,
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AI, s.target.rm * (1 - s.target.q2 / s.target.Q2) * s.target.AI)],
             ),
             ReactionInteraction(
                 'independent_death',
@@ -1617,17 +1678,15 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'AI': 1},
                 propensity=lambda s: s.target.d2 * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'dependent_uptake',
-                target='tumour',
-                state='Q1',
-                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q1, s.target.q1),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q1, self._get_quota_uptake(s.target, s.target.Q1, s.target.q1))],
             ),
-            RateInteraction(
+            Interaction(
                 'dependent_use',
-                target='tumour',
-                state='Q1',
-                rate=lambda s: -s.target.rm * (s.target.Q1 - s.target.q1),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q1, -s.target.rm * (s.target.Q1 - s.target.q1))],
             ),
             ReactionInteraction(
                 'dependent_degradation',
@@ -1635,17 +1694,15 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'Q1': 1},
                 propensity=lambda s: s.target.d3 * s.target.Q1,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_uptake',
-                target='tumour',
-                state='Q2',
-                rate=lambda s: self._get_quota_uptake(s.target, s.target.Q2, s.target.q2),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q2, self._get_quota_uptake(s.target, s.target.Q2, s.target.q2))],
             ),
-            RateInteraction(
+            Interaction(
                 'independent_use',
-                target='tumour',
-                state='Q2',
-                rate=lambda s: -s.target.rm * (s.target.Q2 - s.target.q2),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Q2, -s.target.rm * (s.target.Q2 - s.target.q2))],
             ),
             ReactionInteraction(
                 'independent_degradation',
@@ -1653,18 +1710,21 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'Q2': 1},
                 propensity=lambda s: s.target.d3 * s.target.Q2,
             ),
-            RateInteraction(
+            Interaction(
                 'psa_leak',
-                target='tumour',
-                state='P',
-                rate=lambda s: s.target.r0 * (s.target.AD + s.target.AI),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.P, s.target.r0 * (s.target.AD + s.target.AI))],
             ),
-            RateInteraction(
+            Interaction(
                 'psa_production',
-                target='tumour',
-                state='P',
-                rate=lambda s: s.target.r1 * s.target.AD * hill(s.target.Q1, s.target.rho1, s.target.theta)
-                + s.target.r2 * s.target.AI * hill(s.target.Q2, s.target.rho2, s.target.theta),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.P,
+                        s.target.r1 * s.target.AD * hill(s.target.Q1, s.target.rho1, s.target.theta)
+                        + s.target.r2 * s.target.AI * hill(s.target.Q2, s.target.rho2, s.target.theta),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'psa_clearance',
@@ -1672,19 +1732,23 @@ class ProstateCellQuotaSystem(BaseSystem):
                 reactants={'P': 1},
                 propensity=lambda s: s.target.du * s.target.P,
             ),
-            RateInteraction(
+            Interaction(
                 'androgen',
-                target='tumour',
-                state='U',
-                rate=lambda s: s.target.du1
-                * (
-                    s.target.U0
-                    - (s.target.U0 - s.target.Umin) * pulse_train(s.t, tumour.period, tumour.width)
-                    - s.target.U
-                ),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.U,
+                        s.target.du1
+                        * (
+                            s.target.U0
+                            - (s.target.U0 - s.target.Umin) * pulse_train(s.t, tumour.period, tumour.width)
+                            - s.target.U
+                        ),
+                    ),
+                ],
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class ProstateAndrogenReceptorSystem(BaseSystem):
@@ -1697,7 +1761,7 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
     lower activation. The normal cells fill a capacity that grows with the age-dependent prostate volume, and the PSA
     the cells produce in the tissue leaks into the serum through the normal epithelium and, faster, through the tumour.
     Cells are in billions, receptors in nM, PSA in ng/mL, and time in hours, the age in years. The book leaves several
-    parts open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
+    values open, filled as follows. The half saturations `psi2`, `phi2`, and `psi4` of the cancer cells are those of the
     normal cells. The death rate is `psi3_i / (psi4 + UD + UT)`. One activation `UT`, `UD` holds for all cell types, and
     so does `sigma`. The independent cells gain the part `m1` of the divisions of the dependent cells. The negligible
     interaction `c1` is 0. The capacity of the normal cells is the prostate volume over the volume of a billion cells,
@@ -1729,6 +1793,12 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ProstateAndrogenReceptorSystem
         >>> ProstateAndrogenReceptorSystem(UT=5.0).prepare().system_.elements[0].UT
@@ -1740,7 +1810,6 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
     references = (BOOK, 'Jain et al. 2011')
     until = 26280.0
     dt = 168.0
-    solver = ScipyODESolver(method='LSODA')
 
     def __init__(
         self,
@@ -1753,8 +1822,10 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         m1: float = 1e-4,
         age: float = 60.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.N = N
         self.AD = AD
         self.AI = AI
@@ -1800,8 +1871,14 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         )
         return division
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Jain system of prostate epithelium and cancer, with PSA.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         prostate = AndrogenReceptorProstateElement(
             'prostate',
             N=self.N,
@@ -1813,17 +1890,21 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
             age=self.age,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'normal_growth',
-                target='prostate',
-                state='N',
-                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
-                * s.target.N
-                * (
-                    1
-                    - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
-                    / (self._get_prostate_volume(s.target, s.t) / s.target.Vc)
-                ),
+                roles={'target': 'prostate'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.N,
+                        self._get_receptor_growth(s.target, s.target.psi1_n, s.target.phi1_n)
+                        * s.target.N
+                        * (
+                            1
+                            - (s.target.N + s.target.c1 * (s.target.AD + s.target.AI))
+                            / (self._get_prostate_volume(s.target, s.t) / s.target.Vc)
+                        ),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_death',
@@ -1831,11 +1912,10 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 reactants={'N': 1},
                 propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_n) * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'dependent_division',
-                target='prostate',
-                state='AD',
-                rate=lambda s: self._get_dependent_division(s.target),
+                roles={'target': 'prostate'},
+                laws=lambda s: [RateLaw(s.target.AD, self._get_dependent_division(s.target))],
             ),
             ReactionInteraction(
                 'mutation',
@@ -1850,13 +1930,17 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 reactants={'AD': 1},
                 propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_d) * s.target.AD,
             ),
-            RateInteraction(
+            Interaction(
                 'independent_growth',
-                target='prostate',
-                state='AI',
-                rate=lambda s: self._get_receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
-                * s.target.AI
-                * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
+                roles={'target': 'prostate'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AI,
+                        self._get_receptor_growth(s.target, s.target.psi1_i, s.target.phi1_i)
+                        * s.target.AI
+                        * (1 - (s.target.c1 * s.target.N + s.target.AD + s.target.AI) / s.target.b3),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'independent_death',
@@ -1864,12 +1948,18 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 reactants={'AI': 1},
                 propensity=lambda s: self._get_receptor_death(s.target, s.target.psi3_i) * s.target.AI,
             ),
-            RateInteraction(
+            Interaction(
                 'psa_production',
-                target='prostate',
-                state='UIP',
-                rate=lambda s: (s.target.UT + s.target.UD + s.target.sigma)
-                * (s.target.beta_n * s.target.N + s.target.beta_d * s.target.AD + s.target.beta_i * s.target.AI),
+                roles={'target': 'prostate'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.UIP,
+                        (s.target.UT + s.target.UD + s.target.sigma)
+                        * (
+                            s.target.beta_n * s.target.N + s.target.beta_d * s.target.AD + s.target.beta_i * s.target.AI
+                        ),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_leak',
@@ -1904,7 +1994,12 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
                 propensity=lambda s: s.target.du3 * s.target.UP,
             ),
         ]
-        return CompositeSystem(self.label, elements=[prostate], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[prostate],
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA'),
+        )
 
 
 class PiecewiseLinearIASSystem(BaseSystem):
@@ -1934,6 +2029,12 @@ class PiecewiseLinearIASSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The patient type is not 1, 2, or 3.
@@ -1957,14 +2058,22 @@ class PiecewiseLinearIASSystem(BaseSystem):
         h0: float = 4.0,
         h1: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.patient = patient
         self.h0 = h0
         self.h1 = h1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Hirata piecewise-linear system of intermittent androgen suppression.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if self.patient not in PATIENT_FACTORS:
             error_msg = f'The patient type must be 1, 2, or 3, got {self.patient!r}.'
             raise ValidationError(error_msg)
@@ -1994,7 +2103,8 @@ class PiecewiseLinearIASSystem(BaseSystem):
             self.h0,
             self.h1,
         )
-        return CompositeSystem(self.label, elements=[tumour], interactions=switches)
+        dynamics = PiecewiseLinearAndrogenInteraction('dynamics', target='tumour')
+        self.system_ = System(self.label, elements=[tumour], interactions=[dynamics, *switches])
 
 
 class TamoxifenCellCycleSystem(BaseSystem):
@@ -2032,6 +2142,12 @@ class TamoxifenCellCycleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TamoxifenCellCycleSystem
         >>> TamoxifenCellCycleSystem(u=0.0).prepare().system_.elements[0].u
@@ -2043,7 +2159,6 @@ class TamoxifenCellCycleSystem(BaseSystem):
     references = (BOOK, 'Chen, Kirkby, and Jena 2012')
     until = 2400.0
     dt = 8.0
-    solver = ScipyODESolver(method='LSODA')
 
     def __init__(
         self,
@@ -2055,8 +2170,10 @@ class TamoxifenCellCycleSystem(BaseSystem):
         a1: float = 0.0062,
         a2: float = 0.010,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.Ag = Ag
         self.As = As
         self.Am = Am
@@ -2073,8 +2190,14 @@ class TamoxifenCellCycleSystem(BaseSystem):
         room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
         return room
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set a breast tumour in Gompertzian cell-cycle phases under daily tamoxifen.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = TamoxifenTumourElement('tumour', Ag=self.Ag, As=self.As, Am=self.Am, u=self.u, a1=self.a1, a2=self.a2)
         interactions = [
             ReactionInteraction(
@@ -2140,7 +2263,11 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 reactants={'X3': 1},
                 propensity=lambda s: s.target.du2 * s.target.X3,
             ),
-            RateInteraction('effector_source', target='tumour', state='E', rate=lambda s: s.target.s),
+            Interaction(
+                'effector_source',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.s)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='tumour',
@@ -2156,4 +2283,9 @@ class TamoxifenCellCycleSystem(BaseSystem):
                 * (s.target.X2 / s.target.V + s.target.delta2 * s.target.X3 / s.target.V),
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[tumour],
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA'),
+        )

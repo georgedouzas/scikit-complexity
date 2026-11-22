@@ -9,10 +9,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import RepressionInteraction
 
@@ -25,9 +27,6 @@ class GeneElement(Element):
     Args:
         label:
             The label of the gene.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         m:
             The initial number of mRNA molecules.
@@ -44,12 +43,11 @@ class GeneElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        m: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        m: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.m = m
         self.p = p
 
@@ -94,6 +92,12 @@ class RepressilatorSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import RepressilatorSystem
@@ -157,7 +161,7 @@ class RepressilatorSystem(BaseSystem):
         mode: str,
         *,
         label: str,
-    ) -> CompositeSystem:
+    ) -> System:
         """Return labelled genes with initial protein counts.
 
         The first gene of each edge represses the second.
@@ -178,7 +182,7 @@ class RepressilatorSystem(BaseSystem):
             for gene in genes
             for interaction in RepressilatorSystem._get_express(gene.label, mode=mode, **expression)
         ]
-        return CompositeSystem(label, elements=genes, interactions=[*repressions, *expressions])
+        return System(label, elements=genes, interactions=[*repressions, *expressions])
 
     def __init__(
         self,
@@ -193,8 +197,10 @@ class RepressilatorSystem(BaseSystem):
         delta: float = 1.0,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.proteins = proteins
         self.alpha = alpha
         self.alpha0 = alpha0
@@ -205,12 +211,18 @@ class RepressilatorSystem(BaseSystem):
         self.delta = delta
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the repressilator of Elowitz and Leibler."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the repressilator of Elowitz and Leibler.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
-        return RepressilatorSystem._get_circuit(
+        self.system_ = RepressilatorSystem._get_circuit(
             self.proteins,
             [(2, 0), (0, 1), (1, 2)],
             expression,
@@ -260,6 +272,12 @@ class ToggleSwitchSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ToggleSwitchSystem
         >>> [element.p for element in ToggleSwitchSystem((0.0, 50.0)).prepare().system_.elements]
@@ -285,8 +303,10 @@ class ToggleSwitchSystem(BaseSystem):
         delta: float = 1.0,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.proteins = proteins
         self.alpha = alpha
         self.alpha0 = alpha0
@@ -297,12 +317,18 @@ class ToggleSwitchSystem(BaseSystem):
         self.delta = delta
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the genetic toggle switch of Gardner."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the genetic toggle switch of Gardner.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
-        return RepressilatorSystem._get_circuit(
+        self.system_ = RepressilatorSystem._get_circuit(
             self.proteins,
             [(1, 0), (0, 1)],
             expression,
@@ -347,6 +373,12 @@ class NegativeAutoregulationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import NegativeAutoregulationSystem
         >>> NegativeAutoregulationSystem().prepare().system_.interactions[0].modifiers
@@ -371,8 +403,10 @@ class NegativeAutoregulationSystem(BaseSystem):
         delta: float = 1.0,
         stochastic: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.p = p
         self.alpha = alpha
         self.K = K
@@ -382,11 +416,16 @@ class NegativeAutoregulationSystem(BaseSystem):
         self.delta = delta
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a gene that represses its own transcription.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a gene that represses its own transcription.
 
         The gene makes its protein in bursts.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         mode = 'jump' if self.stochastic else 'rate'
         feedback = RepressilatorSystem._get_repress(
             'autoregulation',
@@ -396,7 +435,7 @@ class NegativeAutoregulationSystem(BaseSystem):
             mode,
         )
         expression = RepressilatorSystem._get_express('gene', self.b, self.beta, self.delta, mode)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[GeneElement('gene', p=self.p)],
             interactions=[feedback, *expression],

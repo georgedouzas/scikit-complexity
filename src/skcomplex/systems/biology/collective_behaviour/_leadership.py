@@ -7,37 +7,36 @@ A few informed individuals steer a Couzin shoal.
 # License: MIT
 
 import math
-from typing import Annotated, cast
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
-from ....core.types import Array
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import MovementInteraction
 from ._zones import ClampSpec, RadiusSpec, ZoneCouplingInteraction
 
 
-class ShoalMemberView(AgentView):
+class ShoalMemberView(AgentViewProtocol, Protocol):
     """View of a member of a shoal, with its states and parameters as attributes.
 
-    `ShoalMemberElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `ShoalMemberElement` read them with checked types.
     """
 
+    x: float
+    y: float
     vx: float
     vy: float
     omega: float
@@ -48,7 +47,7 @@ class ShoalMemberView(AgentView):
     speed: float
     max_turn: float
     noise: float
-    size: float
+    side: float
 
 
 class ShoalMemberElement(Element):
@@ -66,9 +65,6 @@ class ShoalMemberElement(Element):
     Args:
         label:
             The label of the fish or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         vx:
             The horizontal component of the unit heading.
@@ -100,33 +96,46 @@ class ShoalMemberElement(Element):
         noise:
             The standard deviation of the angular noise.
 
-        size:
+        side:
             The side of the square torus.
+
+        values:
+            Further values by name, such as the coordinates `x` and `y` of the fish on the torus.
+
+        size:
+            The number of fish, or `None` for one.
+
+        space:
+            The torus the fish swim on, whose axes `x` and `y` place them, or `None`.
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ShoalMemberElement
-        >>> GroupElement('shoal', element=ShoalMemberElement, size=10, location=(5.0, 5.0)).size
+        >>> ShoalMemberElement('shoal', values={'x': 5.0, 'y': 5.0}, size=10).size
         10
     """
+
+    visual = VisualSpec('agents', {'color_by': 'omega'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'omega'}),
         *,
-        vx: Annotated[float, StateSpec(role='velocity')] = 1.0,
-        vy: Annotated[float, StateSpec(role='velocity')] = 0.0,
-        omega: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        deviation: Annotated[float, StateSpec()] = 0.0,
-        preferred: Annotated[float, ParameterSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        max_turn: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        vx: object = 1.0,
+        vy: object = 0.0,
+        omega: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        deviation: object = 0.0,
+        preferred: float = 0.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        rho: Annotated[float, RealSet.open(0, oo)] = 6.0,
+        speed: Annotated[object, RealSet.open(0, oo)] = 0.3,
+        max_turn: Annotated[float, RealSet.open(0, oo)] = 0.4,
+        noise: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        side: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.vx = vx
         self.vy = vy
         self.omega = omega
@@ -137,12 +146,7 @@ class ShoalMemberElement(Element):
         self.speed = speed
         self.max_turn = max_turn
         self.noise = noise
-        self.size = size
-
-    @classmethod
-    def _get_view(cls) -> type[ShoalMemberView]:
-        """Return the view of a member of a shoal, `ShoalMemberView`."""
-        return ShoalMemberView
+        self.side = side
 
 
 class SchoolingInteraction(ZoneCouplingInteraction):
@@ -153,12 +157,12 @@ class SchoolingInteraction(ZoneCouplingInteraction):
     When neighbours lie within the zone of repulsion `alpha`, the desired direction points away from them, and
     repulsion overrides the other zones. Otherwise it points toward the neighbours within the zone of interaction `rho`
     and along their headings and the fish's own, and an informed fish adds its preferred direction with the weight
-    `omega`. A fish with no neighbour keeps its heading. Offsets are the shortest ones on the torus of side `size`. It
+    `omega`. A fish with no neighbour keeps its heading. Offsets are the shortest ones on the torus of side `side`. It
     is the agent form of coupling over two radii of different priorities, with a clamp of the turn.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of fish.
@@ -172,7 +176,7 @@ class SchoolingInteraction(ZoneCouplingInteraction):
         [1, 0, 0]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
+    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
         super().__init__(
             label,
             target=target,
@@ -198,9 +202,9 @@ class SchoolingInteraction(ZoneCouplingInteraction):
 
         It lies along the shortest offset on the torus.
         """
-        size = agent.size
+        side = agent.side
         offset = np.asarray(other.location, dtype=float) - np.asarray(agent.location, dtype=float)
-        return self._get_unit((offset + size / 2) % size - size / 2)
+        return self._get_unit((offset + side / 2) % side - side / 2)
 
     def _get_repulsion(self, agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
         """Return the direction away from a close neighbour."""
@@ -243,11 +247,11 @@ class SwimmingInteraction(MovementInteraction):
 
     The heading is turned first by its angular noise `deviation`.
 
-    The heading `(vx, vy)` stays a unit vector, and the fish moves on the torus of side `size`.
+    The heading `(vx, vy)` stays a unit vector, and the fish moves on the torus of side `side`.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of fish.
@@ -268,8 +272,8 @@ class SwimmingInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         phase: str | None = None,
     ) -> None:
         super().__init__(
@@ -291,7 +295,7 @@ class SwimmingInteraction(MovementInteraction):
         angle = math.atan2(fish.vy, fish.vx) + fish.deviation
         fish.vx, fish.vy = math.cos(angle), math.sin(angle)
         position = np.asarray(fish.location, dtype=float) + fish.speed * np.array([fish.vx, fish.vy])
-        return tuple(float(item) for item in np.mod(position, fish.size))
+        return tuple(float(item) for item in np.mod(position, fish.side))
 
 
 class CouzinLeadershipSystem(BaseSystem):
@@ -319,7 +323,7 @@ class CouzinLeadershipSystem(BaseSystem):
         preferred:
             The angle of the preferred direction.
 
-        size:
+        side:
             The side of the square torus.
 
         random_state:
@@ -328,9 +332,15 @@ class CouzinLeadershipSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
-        >>> int((CouzinLeadershipSystem(20, informed=0.2).prepare().system_.elements[0].values['omega'] > 0).sum())
+        >>> int((CouzinLeadershipSystem(20, informed=0.2).prepare().system_.elements[0].omega > 0).sum())
         4
     """
 
@@ -347,16 +357,18 @@ class CouzinLeadershipSystem(BaseSystem):
         informed: float = 0.1,
         omega: float = 0.5,
         preferred: float = 0.0,
-        size: float = 100.0,
+        side: float = 100.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_fish = n_fish
         self.informed = informed
         self.omega = omega
         self.preferred = preferred
-        self.size = size
+        self.side = side
         self.random_state = random_state
 
     @staticmethod
@@ -367,46 +379,53 @@ class CouzinLeadershipSystem(BaseSystem):
         """
         return float(system.rng.normal(0.0, agent.noise))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Couzin shoal."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Couzin shoal.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
         place = rng.uniform(0.0, 2 * math.pi, self.n_fish)
         headings = rng.uniform(0.0, 2 * math.pi, self.n_fish)
         weights = np.zeros(self.n_fish)
         weights[: round(self.informed * self.n_fish)] = self.omega
-        locations = self.size / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
-        shoal = GroupElement(
+        locations = self.side / 2 + np.column_stack([radius * np.cos(place), radius * np.sin(place)])
+        shoal = ShoalMemberElement(
             'shoal',
-            element=ShoalMemberElement,
+            vx=np.cos(headings),
+            vy=np.sin(headings),
+            omega=weights,
+            preferred=self.preferred,
+            side=self.side,
+            values={'x': locations[:, 0], 'y': locations[:, 1]},
             size=self.n_fish,
-            values={
-                'vx': np.cos(headings),
-                'vy': np.sin(headings),
-                'omega': weights,
-                'preferred': self.preferred,
-                'size': self.size,
-            },
-            location=[tuple(point) for point in locations],
+            space=ContinuousSpace(extent=(self.side, self.side), boundary='periodic'),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[shoal],
             interactions=[
                 SchoolingInteraction('schooling', target='shoal', phase='turn'),
-                MapInteraction(
+                Interaction(
                     'deviation',
-                    target='shoal',
-                    state='deviation',
-                    function=self._draw_deviation,
-                    form='agent',
-                    schedule='member',
-                    phase='turn',
+                    roles={'target': 'shoal'},
+                    laws=lambda s: [
+                        UpdateLaw(
+                            s.target,
+                            lambda agent, system: setattr(
+                                agent,
+                                'deviation',
+                                float(self._draw_deviation(agent, system)),
+                            ),
+                            phase='turn',
+                        ),
+                    ],
                 ),
                 SwimmingInteraction('swimming', target='shoal', phase='swim'),
             ],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),
         )

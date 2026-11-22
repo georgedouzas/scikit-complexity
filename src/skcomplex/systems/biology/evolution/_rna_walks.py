@@ -6,6 +6,7 @@ The mutations keep or approach a secondary structure.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import lru_cache, partial
 from typing import Annotated
 
@@ -13,11 +14,14 @@ import numpy as np
 import numpy.typing as npt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import IntArray
 from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
 
@@ -41,18 +45,24 @@ class NucleotideElement(Element):
         base:
             The base of the site.
 
+        space:
+            The lattice whose sites hold one base each, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import NucleotideElement
         >>> NucleotideElement('site').base
         'A'
     """
 
+    visual = VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)})
+
     def __init__(
         self,
         label: str,
-        base: Annotated[str, StateSpec(domain=FiniteEnumeratedSet(list(BASES)))] = 'A',
+        base: Annotated[str | IntArray, FiniteEnumeratedSet(list(BASES))] = 'A',
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.base = base
 
 
@@ -219,6 +229,12 @@ class RNANeutralNetworksSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra `rna` is not installed.
@@ -247,8 +263,10 @@ class RNANeutralNetworksSystem(BaseSystem):
         regime: str = 'neutral',
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.walkers = walkers
         self.length = length
         self.start = start
@@ -265,8 +283,14 @@ class RNANeutralNetworksSystem(BaseSystem):
         fold = fold_sequence(read_sequence(row))[0]
         return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of walkers of RNA sequences."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of walkers of RNA sequences.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         import_extra('RNA', 'rna_neutral_networks', 'rna')
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
@@ -281,16 +305,13 @@ class RNANeutralNetworksSystem(BaseSystem):
             bases = np.random.default_rng(self.seed).integers(0, len(BASES), size=(self.walkers, self.length))
         else:
             bases = np.tile([BASES.index(letter) for letter in self.start], (self.walkers, 1))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                NucleotideElement(
                     'walkers',
-                    element=NucleotideElement,
+                    base=bases,
                     space=LatticeSpace((self.walkers, self.length), boundary='fixed'),
-                    values={'base': bases},
-                    visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
-                    on='sites',
                 ),
             ],
             interactions=[
@@ -303,5 +324,4 @@ class RNANeutralNetworksSystem(BaseSystem):
                     intensity=float('inf'),
                 ),
             ],
-            time=DiscreteTime(),
         )

@@ -10,46 +10,33 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sklearn.base import clone
 
-from ...components.laws import (
-    BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
-    JumpLaw,
-    LinearProgramLaw,
-    LocalRuleLaw,
-    MatchLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...components.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-)
+from ...components import EntrySpec
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
-from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
-from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
-from ..backends import NumbaBackend, NumpyBackend
+from ...types import Array
+from ..backends import NumbaBackend, NumpyBackend, SupportSpec
+from ..compile._held_reduction_spec import _HeldReductionSpec
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..problems import ProblemSpec
+from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._partition_spec import PartitionSpec
 from ..problems._reduction_kernel import ReductionKernel
+from ._agent_state_spec import _AgentStateSpec
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
+from ._metropolis import MetropolisSolver
 from ._solver import Solver
+from ._step_spec import StepSpec
 
 STEPWISE_FORMS = (FormKind.DISCRETE, FormKind.AGENT)
 TOLERANCE = 1e-9
@@ -57,22 +44,21 @@ SCHEMES = ('gauss-seidel', 'jacobi')
 
 
 class CoSimulationSolver(Solver):
-    """A solver that advances every partition of a co-simulation with its own solver.
+    """A solver that moves every component of a system with a solver of its own.
 
-    Every partition is advanced to each synchronisation point. Between synchronisation points a partition holds the
-    states of the other partitions at their last values, so a split adds an error of the order of `sync_dt`. A discrete
-    partition that holds a linear program takes one step per synchronisation interval, whatever its length, so the
-    program solves at every synchronisation point. A law of one partition that reads a reduction of the agents of
-    another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and holds
-    until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions before
-    it already advanced. Jacobi advances every partition from the same values.
+    Every component is moved to each meeting time, every `sync_dt`, and between meeting times it holds the values of the
+    other components at their last values, so the split adds an error of the order of `sync_dt`. Gauss-Seidel moves the
+    components in order, each reading what the components before it already moved, and Jacobi moves every component from
+    the same values. A law that reads a total over the agents of another component reads the value at the last meeting
+    time. Choose it when components need different solvers, such as cars on a road beside their exhaust, cells beside
+    the food they eat, or farmers beside their crops.
 
-    Choose it when parts of a system need different solvers, such as agents beside a field. It appears in many fields,
-    such as cars on a road network beside their emissions, and cells beside the nutrients they eat.
+    Read more in the user guide, under Solvers.
 
     Args:
         solvers:
-            The solver of a partition by its name, with the default solver of its form for the others.
+            The solver of a partition by its name, with the solver of its nested system or the default solver of its
+            form for the others.
 
         sync_dt:
             The time between synchronisation points, which must divide the frame duration, or `None` for one
@@ -94,52 +80,36 @@ class CoSimulationSolver(Solver):
         steppers_:
             The stepper of every partition by partition name.
 
+    See Also:
+        Solver: The base of the solvers each component may take.
+
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import CoSimulationSolver
-        >>> system = CompositeSystem(
-        ...     systems=[
-        ...         CompositeSystem(
-        ...             'a',
-        ...             elements=[PopulationElement('x', x=1)],
-        ...             interactions=[ExponentialGrowthInteraction('g', target='x')],
-        ...         ),
-        ...         CompositeSystem(
-        ...             'b',
-        ...             elements=[PopulationElement('y', x=1)],
-        ...             interactions=[ExponentialGrowthInteraction('g', target='y')],
-        ...         ),
-        ...     ],
-        ... )
-        >>> trajectory = simulate(system, until=1, solver=CoSimulationSolver(split=True), dt=0.5)
-        >>> [round(float(trajectory.get_values(name)[-1]), 2) for name in ('a/x.x', 'b/y.x')]
-        [2.72, 2.72]
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> system = System(systems=[LogisticGrowthSystem(label='a'), LogisticGrowthSystem(label='b')])
+        >>> system.set_params(solver=CoSimulationSolver(split=True)).prepare().simulate(until=1, dt=1).states.shape
+        (2, 2)
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            time={_ContinuousTime, _DiscreteTime},
+            space={None, BaseSpace},
             laws={
                 RateLaw,
-                FluxLaw,
                 NoiseLaw,
-                EquationLaw,
+                ConstraintLaw,
                 JumpLaw,
-                LinearProgramLaw,
-                CrossingLaw,
+                _LinearProgramLaw,
+                EventLaw,
                 UpdateLaw,
-                TransitionLaw,
-                RuleLaw,
-                LocalRuleLaw,
-                SampleLaw,
-                MatchLaw,
-                TransferLaw,
-                BoundaryLaw,
+                _RuleLaw,
+                _LocalRuleLaw,
+                _SampleLaw,
+                _BoundaryLaw,
             },
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset(OrderKind),
@@ -215,7 +185,9 @@ class CoSimulationSolver(Solver):
         given = dict(self.solvers or {})
         self.steppers_: dict[str, Solver] = {}
         for partition, generator in zip(problem.partitions, generators, strict=True):
-            solver = given.get(partition.name)
+            solver = given.get(partition.name, partition.solver)
+            if isinstance(solver, MetropolisSolver) and solver.moves:
+                solver = solver._get_member_solver()
             form = partition.problem.form
             if solver is None and not isinstance(form, FormKind):
                 error_msg = f'Partition {partition.name} has the {form} form, which has no default solver. Give one.'
@@ -289,8 +261,11 @@ class CoSimulationSolver(Solver):
         interval = duration if self.sync_dt is None else self.sync_dt
         count = round(duration / interval) if interval > 0 else 0
         stepwise = any(
-            partition.problem.form in STEPWISE_FORMS
-            and not (isinstance(partition.problem, ProblemSpec) and partition.problem.programs)
+            (
+                partition.problem.form in STEPWISE_FORMS
+                and not (isinstance(partition.problem, ProblemSpec) and partition.problem.programs)
+            )
+            or self.steppers_[partition.name]._is_stepwise()
             for partition in self.problem_.partitions
         )
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
@@ -335,8 +310,20 @@ class CoSimulationSolver(Solver):
     def _advance_partition(self, partition: PartitionSpec, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition and return its new state vector.
 
-        It starts from the values of a source state vector.
+        It starts from the values of a source state vector. A partition whose problem has a layout of its own
+        advances only the entries of the vectors it owns.
         """
+        if partition.states is not None and partition.parameters is not None:
+            own = PartitionSpec(partition.name, partition.problem, partition.owned, partition.owners, partition.solver)
+            state = source.copy()
+            state[partition.states] = self._advance_partition(
+                own,
+                source[partition.states],
+                p[partition.parameters],
+                start,
+                end,
+            )
+            return state
         stepper = self.steppers_[partition.name]
         problem = partition.problem
         boundary = problem.boundary if isinstance(problem, ProblemSpec) else None
@@ -350,7 +337,7 @@ class CoSimulationSolver(Solver):
             state = problem.update(start, source.copy(), p, *drawn)
             return state if boundary is None else boundary(end, state, p)
         if stepper._reads_inputs():
-            stepper.inputs_ = self.problem_.states.get_values(source)
+            stepper.inputs_ = problem.states.get_values(source)
         state = stepper.run(StepSpec(start, source.copy(), p, end)).state_
         if boundary is not None:
             state = boundary(end, state, p)
@@ -419,11 +406,11 @@ class CoSimulationSolver(Solver):
         agents: dict[str, list[object]] = {}
         for stepper in self.steppers_.values():
             external = stepper.snapshot_
-            if isinstance(external, AgentStateSpec):
+            if isinstance(external, _AgentStateSpec):
                 groups.update(external.groups)
                 reporters.update(external.reporters)
             agents.update(stepper.agents_)
-        self.snapshot_ = AgentStateSpec(groups, reporters) if groups or reporters else None
+        self.snapshot_ = _AgentStateSpec(groups, reporters) if groups or reporters else None
         self.agents_ = agents
 
     def _release(self) -> None:

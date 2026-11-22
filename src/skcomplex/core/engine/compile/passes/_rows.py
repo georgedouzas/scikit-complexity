@@ -1,36 +1,60 @@
-"""Settle the rows every kernel spec is evaluated over."""
+"""Settle the rows that the laws of every component run over."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from dataclasses import replace
 
+import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
+from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws._linear_program import _LinearProgramLaw
+from ....components.laws.utils._cells import cell_operations_in
 from ....components.laws.utils._draws import draws_in
+from ....components.laws.utils._phase import axis_reductions_in
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
-from ....components.spaces import DiscreteTime
+from ....components.spaces import PhaseSpace
+from ....components.spaces._discrete_time import _DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
-from ....specs._matrix_law_spec import RANDOM_FIELDS
 from ..._utils import components_of
+from ...enums import ReadKind
+from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
-from ...types import ReadKind
+from ...problems._neighbor_read_spec import _NeighborReadSpec
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
+RANDOM_FIELDS = ('value', 'rate', 'changes', 'lhs', 'rhs', 'guard', 'reset', 'waiting')
+
 
 class RowsPass(BasePass):
-    """A pass that checks the draws of the laws and settles the rows of every spec.
+    """A pass that settles how many rows the laws of every component run over.
 
-    The specs are kernel specs, with their laws set apart.
+    A law written for one member runs once per member of the groups it reads, such as once per oscillator of a ring. The
+    pass finds that number for every component and checks that the random draws of the laws are placed where they can
+    be drawn.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        SpecsPass: Records the groups the laws read.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> compilation = PassCompiler().prepare(KuramotoSystem()).compilation_
+        >>> [(spec.owner, spec.rows) for spec, _, _ in compilation.lowered]
+        [('oscillators', 50), ('rotation', 50), ('coupling', 50)]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('lowered', 'apart', 'transfer')
+        return ('lowered', 'apart', 'programs', 'transfer', 'layout')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -40,16 +64,23 @@ class RowsPass(BasePass):
         """Check the draws and settle the rows of every kernel spec.
 
         A spec whose rows change is replaced by a copy with its rows settled in every field of the compilation, such as
-        the laws, the laws set apart, and the flows, which later passes read.
+        the laws, the laws set apart, and the flows, which later passes read. The linear programs of a spec settle its
+        rows with its other laws. A field over position that laws of a phase-space field read is read at every class
+        of its position first.
         """
         compilation = self.compilation_
-        apart = Compilation._get_required(compilation.apart, 'apart')
+        declarations = Compilation._get_required(compilation.layout, 'layout')
+        apart = [
+            *Compilation._get_required(compilation.apart, 'apart'),
+            *Compilation._get_required(compilation.programs, 'programs'),
+        ]
         lowered = Compilation._get_required(compilation.lowered, 'lowered')
         stepped = self._get_stepped_flows(compilation, [laws for _, laws, _ in lowered])
         settled: dict[int, KernelSpec] = {}
         for spec, laws, _ in lowered:
             self._check_draw_placement(spec.owner, [law for law in laws if id(law) not in stepped])
-            new = self._get_settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
+            every = [*laws, *(law for other, items in apart if other is spec for law in items)]
+            new = self._get_settled(self._get_broadcast(spec, every, declarations), every)
             if new is not spec:
                 settled[id(spec)] = new
         compilation._replace_specs(settled)
@@ -59,15 +90,58 @@ class RowsPass(BasePass):
         """Return the identities of the rate laws of flows that move once per step.
 
         They move their amounts once per step and may draw. The flows of a system that declares discrete time, or that
-        holds update laws, become updates.
+        holds update laws or flows of increments, become updates.
         """
         born = compilation.transfer.born if compilation.transfer is not None else {}
-        declared = isinstance(compilation.system.time, DiscreteTime)
+        declared = isinstance(compilation.system.time, _DiscreteTime)
         if not declared and not any(
-            isinstance(law, UpdateLaw) and id(law) not in born for items in laws for law in items
+            (isinstance(law, UpdateLaw) and id(law) not in born) or (isinstance(law, FlowTermLaw) and law.increment)
+            for items in laws
+            for law in items
         ):
             return set()
         return {id(law) for items in laws for law in items if id(law) in born and isinstance(law, RateLaw)}
+
+    @staticmethod
+    def _get_broadcast(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> KernelSpec:
+        """Return a spec that reads a field over position at every class of a phase space.
+
+        The phase space is that of the field its laws change.
+
+        A drift of a phase-space field by a force over its position lattice, such as `s.force.x * s.target.x`, reads
+        the force of the position of every class. A spec without such a field is returned itself.
+        """
+        targets = {
+            reference.entry.name.rpartition('.')[0]
+            for law in laws
+            for target in law._get_targets()
+            for item in components_of(target)
+            if (reference := spec.references.get(item)) is not None
+        }
+        phases = [
+            space
+            for path in targets
+            if path in declarations.blocks
+            and isinstance(space := getattr(declarations.blocks[path].node.component, 'space', None), PhaseSpace)
+        ]
+        if not phases:
+            return spec
+        phase = phases[0]
+        references = dict(spec.references)
+        for item, reference in spec.references.items():
+            owner = reference.entry.name.rpartition('.')[0]
+            block = declarations.blocks.get(owner)
+            if reference.source is not ReadKind.MEMBER or owner in targets or block is None:
+                continue
+            if (
+                isinstance(getattr(block.node.component, 'space', None), PhaseSpace)
+                or block.rows != phase.position_size_
+            ):
+                continue
+            table = np.repeat(np.arange(block.rows), phase.size_ // phase.position_size_)
+            read = _NeighborReadSpec(table, None, None, None, 0)
+            references[item] = replace(reference, source=ReadKind.NEIGHBOR, neighbor=read)
+        return replace(spec, references=references) if references != spec.references else spec
 
     @staticmethod
     def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:
@@ -88,9 +162,16 @@ class RowsPass(BasePass):
 
     @staticmethod
     def _get_outside_reductions(value: object) -> set[Expression]:
-        """Return the symbols of a law value that occur outside its reductions."""
+        """Return the symbols of a law value that occur outside its reductions.
+
+        A call of the exterior calculus, such as `exterior_derivative(s.source.u)`, reads the cells of another degree
+        through the incidences of the complex, and an integral over class axes, such as the moment of a phase-space
+        field, reads every class of a position, so both count as reductions.
+        """
         expressions = [item for item in components_of(value) if isinstance(item, Expression)]
         found = [reduction.call for item in expressions for reduction in reductions_in(item)]
+        found += [call for item in expressions for call in cell_operations_in(item)]
+        found += [call for item in expressions for call in axis_reductions_in(item)]
         found += [reduction.call for item in expressions for reduction in neighborhoods_in(item)]
         found += [reduction.call for item in expressions for reduction in hyperedges_in(item)]
         calls, operators = {str(call) for call in found}, {call.operator() for call in found}
@@ -105,6 +186,19 @@ class RowsPass(BasePass):
         return symbols
 
     @staticmethod
+    def _get_read_values(law: BaseLaw) -> list[object]:
+        """Return the values of a law whose symbols settle the rows of its spec.
+
+        A jump law gives its rate, and a linear program its constraints, its objectives, and the condition under which
+        it is solved.
+        """
+        if isinstance(law, JumpLaw):
+            return [law.rate]
+        if isinstance(law, _LinearProgramLaw):
+            return [*law.constraints, *(objective.expression for objective in law.objectives), law.active]
+        return [getattr(law, 'value', None)]
+
+    @staticmethod
     def _get_settled(spec: KernelSpec, laws: list[BaseLaw]) -> KernelSpec:
         """Return a spec with the groups it is evaluated over.
 
@@ -114,12 +208,13 @@ class RowsPass(BasePass):
         receives the sum over the members. Groups of one size that laws read outside reductions are read member by
         member, row `i` of each together.
         """
-        values = [law.rate if isinstance(law, JumpLaw) else getattr(law, 'value', None) for law in laws]
+        values = [value for law in laws for value in RowsPass._get_read_values(law)]
         if not spec.groups or (len(spec.groups) == 1 and not any(reductions_in(value) for value in values)):
             return spec
         read: set[Expression] = set()
-        for law, value in zip(laws, values, strict=True):
+        for value in values:
             read |= RowsPass._get_outside_reductions(value)
+        for law in laws:
             read |= {item for target in law._get_targets() for item in components_of(target)}
         owners = {
             reference.entry.name.rpartition('.')[0]
@@ -155,18 +250,18 @@ class RowsPass(BasePass):
         for law in laws:
             if not isinstance(
                 law,
-                RateLaw | NoiseLaw | BoundaryLaw | UpdateLaw | JumpLaw | EquationLaw | CrossingLaw | RenewalLaw,
+                RateLaw | NoiseLaw | _BoundaryLaw | UpdateLaw | JumpLaw | ConstraintLaw | EventLaw | RenewalLaw,
             ):
                 continue
             values = [value for value in law._get_values(include=RANDOM_FIELDS) if DrawLowering._is_symbolic(value)]
             found = draws_in(values)
             if found and not isinstance(law, UpdateLaw | RenewalLaw):
                 error_msg = (
-                    f'The {type(law).__name__} of {owner} holds the random draw {found[0].call}, but only update and '
+                    f'The {law._get_name()} of {owner} holds the random draw {found[0].call}, but only update and '
                     'renewal laws take random draws. Express randomness in continuous time with Noise laws for Wiener '
                     'processes, Jump laws for random events, or Renewal laws for events after drawn waiting times.'
                 )
                 raise IncompatibleLawsError(error_msg)
             for item in found:
                 if item.kind == 'draw':
-                    DrawLowering._get_distribution_of(owner, f'{type(law).__name__}', item)
+                    DrawLowering._get_distribution_of(owner, f'{law._get_name()}', item)

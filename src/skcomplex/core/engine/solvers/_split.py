@@ -11,24 +11,20 @@ import numpy.typing as npt
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import SuperLU, splu
 
-from ...components.elements import FieldElement
-from ...components.laws import BoundaryLaw, FluxLaw, LinearProgramLaw, RateLaw, TransferLaw
-from ...components.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    LatticeNeighborhood,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-)
+from ...components.laws import RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.spaces import BaseSpace, CellComplexSpace, LatticeNeighborhood, LatticeSpace, NetworkSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, ComplexArray, FormKind, OrderKind
+from ...types import Array, ComplexArray
 from .._utils import symbol
+from ..backends import SupportSpec
 from ..compile._field_lowering import FieldLowering
 from ..problems import ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
+from ..problems._field_element import _FieldElement
 from ..problems._law_kernel import LATTICE_BOUNDARIES
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._reference_spec import ReferenceSpec
@@ -40,11 +36,14 @@ TIME = symbol('t')
 
 
 class SplitSolver(Solver):
-    """An abstract solver that treats the linear part of the rates of fields apart.
+    """An abstract solver that steps the linear part of the rates of fields on its own.
 
-    The linear part is treated apart from the nonlinear remainder. The linear part is held in Fourier blocks for
-    spectral fields, a small matrix per Fourier mode, and in a sparse matrix over the whole state vector for the other
-    fields. Every block is the shape of the field, the state indices of its states, and its matrices.
+    The rates of a field split into a linear part, such as the diffusion `D ∇²u` of heat, and the rest, such as a
+    reaction. The linear part is held as a small matrix per Fourier mode for spectral fields and as one sparse matrix
+    over all states for the other fields, so a subclass can step it implicitly or exactly while it steps the rest
+    explicitly. It is the base of the solvers of heat flow, of patterns in reaction and diffusion, and of option prices.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -62,15 +61,25 @@ class SplitSolver(Solver):
 
         blocks_:
             The spectral blocks.
+
+    See Also:
+        IMEXEulerSolver: Steps the linear part implicitly with order 1.
+        IMEX2Solver: Steps the linear part implicitly with order 2.
+        ETDRK4Solver: Steps the linear part exactly per Fourier mode.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import IMEX2Solver, SplitSolver
+        >>> isinstance(IMEX2Solver(dt=0.1), SplitSolver)
+        True
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={LinearProgramLaw, RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={_LinearProgramLaw, RateLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -275,7 +284,7 @@ class SplitSolver(Solver):
         return state
 
     @staticmethod
-    def _get_lattice_operator(name: str, axis: int, place: FieldElement, reference: ReferenceSpec) -> csr_matrix:
+    def _get_lattice_operator(name: str, axis: int, place: _FieldElement, reference: ReferenceSpec) -> csr_matrix:
         """Return the stencil matrix of a finite-difference operator on a field state.
 
         Its boundary values are left out.
@@ -324,7 +333,7 @@ class SplitSolver(Solver):
         for name, axis in reversed(term.chain):
             operator = (
                 SplitSolver._get_mesh_operator(place.space, name)
-                if isinstance(place.space, MeshSpace)
+                if isinstance(place.space, CellComplexSpace) and place.space._is_mesh()
                 else SplitSolver._get_lattice_operator(name, axis, place, term.source)
             )
             matrix = operator @ matrix
@@ -386,7 +395,7 @@ class SplitSolver(Solver):
         return dimensions, [SplitSolver._get_rows(reference) for reference in states.values()], matrix
 
     @staticmethod
-    def _get_mesh_operator(space: MeshSpace, name: str) -> csr_matrix:
+    def _get_mesh_operator(space: CellComplexSpace, name: str) -> csr_matrix:
         """Return the finite element Laplacian of a mesh."""
         if name != 'laplacian':
             error_msg = f'Only Laplacians act on finite element fields, but a term takes the {name}.'

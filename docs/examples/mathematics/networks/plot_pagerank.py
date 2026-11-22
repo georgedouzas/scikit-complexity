@@ -17,7 +17,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.networks import PagerankSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(PagerankSystem(graph=graph), until=40, observers=[observer])
+trajectory = PagerankSystem(graph=graph).prepare().simulate(until=40, observers=[observer])
 ranks = trajectory.get_values('pages.rank')
 layout = nx.spring_layout(graph, seed=1)
 positions = np.array([layout[node] for node in graph.nodes]) * 300

@@ -5,10 +5,8 @@ from collections.abc import Mapping
 import numpy as np
 import pytest
 
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.general.dynamics import ReactionDiffusionSystem
+from skcomplex.systems.general.dynamics import EquationInteraction, ReactionDiffusionSystem
 
 
 class DecaySystem(ReactionDiffusionSystem):
@@ -17,8 +15,8 @@ class DecaySystem(ReactionDiffusionSystem):
     def _get_boundaries(self) -> Mapping[str, object]:
         return {'u': 'zero-flux'}
 
-    def _get_equation_interactions(self) -> list[RateInteraction]:
-        return [RateInteraction('decay', target='medium', state='u', rate=lambda s: -s.target.u)]
+    def _get_equation_interactions(self) -> list[EquationInteraction]:
+        return [EquationInteraction('decay', target='medium', state='u', equation=lambda s: -s.target.u)]
 
 
 def front_position(values: np.ndarray, spacing: float) -> float:
@@ -40,7 +38,7 @@ def test_reaction_diffusion_front_moves_at_the_fisher_speed():
         boundary='reflecting',
         parameters={'r': r},
     )
-    trajectory = simulate(system, until=80.0, dt=20.0)
+    trajectory = system.prepare().simulate(until=80.0, dt=20.0)
     values = trajectory.get_values('medium.u')
     speed = (front_position(values[4], spacing) - front_position(values[2], spacing)) / 40.0
     assert speed == pytest.approx(2 * np.sqrt(r * D), rel=0.05)
@@ -54,17 +52,17 @@ def test_reaction_diffusion_field_without_diffusivity_changes_site_by_site():
         diffusivities={'w': 1.0},
         shape=4,
     )
-    values = simulate(system, until=1.0, dt=1.0).get_values('medium.u')
+    values = system.prepare().simulate(until=1.0, dt=1.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], np.array([1.0, 0.0, 2.0, 0.0]) * np.exp(-1.0), rtol=1e-5)
 
 
 def test_reaction_diffusion_takes_boundaries_per_field_and_its_own_kinetics():
     """Test that a subclass gives the boundary of a field and its kinetics as interactions."""
     system = DecaySystem(states={'u': 1.0}, diffusivities={'u': 1.0}, shape=8)
-    field = system.prepare().system_.elements[0]
-    assert field.boundary == {'u': 'zero-flux'}
+    system.prepare()
+    assert system.system_.elements[0].space.boundary == {'u': 'zero-flux'}
     assert [interaction.label for interaction in system.system_.interactions] == ['decay', 'u_diffusion']
-    values = simulate(system, until=1.0, dt=1.0).get_values('medium.u')
+    values = system.prepare().simulate(until=1.0, dt=1.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], np.exp(-1.0), rtol=1e-5)
 
 
@@ -79,7 +77,7 @@ def test_reaction_diffusion_spectral_diffusion_damps_a_mode():
         shape=size,
         discretization='spectral',
     )
-    values = simulate(system, until=10.0, dt=10.0).get_values('medium.u')
+    values = system.prepare().simulate(until=10.0, dt=10.0).get_values('medium.u')
     np.testing.assert_allclose(values[-1], initial * np.exp(-2.0 * k**2 * 10.0), atol=1e-4)
 
 

@@ -6,8 +6,9 @@ They choose a direction and then a speed.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 import scipy.ndimage
@@ -15,18 +16,20 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array, IntArray
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, IntArray, Role
 
 TINY = 1e-12
 
 
-class KineticWalkerView(AgentView):
+class KineticWalkerView(AgentViewProtocol, Protocol):
     """View of a walker of the kinetic crowd system, with its states as attributes."""
 
     x: float
@@ -45,9 +48,6 @@ class KineticWalkerElement(Element):
         label:
             The label of the walker or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         x:
             The position along the street.
 
@@ -63,34 +63,34 @@ class KineticWalkerElement(Element):
         target:
             The direction of the target, 0 for the exit at the right end and 1 for the exit at the left end.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import KineticWalkerElement
         >>> KineticWalkerElement('walker', target=1.0).target
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'target', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'target', 'color_range': (0.0, 1.0)}),
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        speed: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        direction: Annotated[float, StateSpec()] = 0.0,
-        target: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        x: object = 0.0,
+        y: object = 0.0,
+        speed: Annotated[object, RealSet.closed(0, 1)] = 0.5,
+        direction: object = 0.0,
+        target: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.x = x
         self.y = y
         self.speed = speed
         self.direction = direction
         self.target = target
-
-    @classmethod
-    def _get_view(cls) -> type[KineticWalkerView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return KineticWalkerView
 
 
 class KineticCrowdInteraction(Interaction):
@@ -166,7 +166,7 @@ class KineticCrowdInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('band_index', 'mean_speed')
 
@@ -174,20 +174,20 @@ class KineticCrowdInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        length: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        cell: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.5,
-        packing: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        quality: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
-        stress: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        deceleration: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.95,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        wall_distance: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        dt: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        target: Role,
+        length: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        cell: Annotated[float, RealSet.open(0, oo)] = 2.5,
+        packing: Annotated[float, RealSet.open(0, oo)] = 4.0,
+        quality: Annotated[float, RealSet.closed(0, 1)] = 1.0,
+        stress: Annotated[float, RealSet.closed(0, 1)] = 0.5,
+        deceleration: Annotated[float, RealSet.closed_open(0, 1)] = 0.95,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        wall_distance: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        dt: Annotated[float, RealSet.open(0, oo)] = 0.1,
         panic_time: float | None = None,
-        panic_stress: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.9,
-        band_width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        panic_stress: Annotated[float, RealSet.closed(0, 1)] = 0.9,
+        band_width: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -205,18 +205,15 @@ class KineticCrowdInteraction(Interaction):
         self.panic_stress = panic_stress
         self.band_width = band_width
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the decisions and the motion of the walkers.
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the rule of the decisions and the motion of the walkers.
 
         Args:
             s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.walk)]
+        super()._prepare(s)
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.walk)]
 
     def _get_cells(self, x: Array, y: Array) -> tuple[IntArray, IntArray, tuple[int, int]]:
         """Return the cell indices of positions along and across the street.
@@ -333,7 +330,7 @@ class KineticCrowdInteraction(Interaction):
             system:
                 The system.
         """
-        views = system.get_agents(self.target, KineticWalkerView)
+        views = cast(list[KineticWalkerView], system.get_agents(self.target))
         if not views:
             return
         walkers = {
@@ -423,9 +420,15 @@ class KineticCrowdSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import KineticCrowdSystem
-        >>> KineticCrowdSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> KineticCrowdSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -451,8 +454,10 @@ class KineticCrowdSystem(BaseSystem):
         panic_stress: float = 0.9,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.length = length
         self.width = width
@@ -467,21 +472,19 @@ class KineticCrowdSystem(BaseSystem):
         self.panic_stress = panic_stress
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         target = (np.arange(self.n_walkers) % 2).astype(float)
-        walkers = GroupElement(
+        walkers = KineticWalkerElement(
             'walkers',
-            element=KineticWalkerElement,
+            x=rng.random(self.n_walkers) * self.length,
+            y=rng.random(self.n_walkers) * self.width,
+            speed=0.5 * rng.random(self.n_walkers),
+            direction=np.pi * target,
+            target=target,
             size=self.n_walkers,
-            values={
-                'x': rng.random(self.n_walkers) * self.length,
-                'y': rng.random(self.n_walkers) * self.width,
-                'speed': 0.5 * rng.random(self.n_walkers),
-                'direction': np.pi * target,
-                'target': target,
-            },
         )
         decisions = KineticCrowdInteraction(
             'decisions',
@@ -498,4 +501,4 @@ class KineticCrowdSystem(BaseSystem):
             panic_time=self.panic_time,
             panic_stress=self.panic_stress,
         )
-        return CompositeSystem(self.label, elements=[walkers], interactions=[decisions])
+        self.system_ = System(self.label, elements=[walkers], interactions=[decisions])

@@ -3,7 +3,7 @@
 The package covers orbits under gravity and relativity, spin-orbit coupling, and charges in magnetic fields.
 """
 
-from ._dipoles import DipoleChargeElement, StormerProblemSystem
+from ._dipoles import DipoleChargeElement, DipoleLorentzInteraction, StormerProblemSystem
 from ._geodesics import (
     GeodesicParticleElement,
     KerrFrameDraggingSystem,
@@ -17,15 +17,26 @@ from ._orbits import (
     NBodySystem,
     RestrictedThreeBodySystem,
     RotatingFrameBodyElement,
+    RotatingFrameMotionInteraction,
     SitnikovBodyElement,
+    SitnikovGravityInteraction,
     SitnikovSystem,
     TwoBodyOrbitSystem,
 )
-from ._spin_orbit import DumbbellElement, KeplerianDumbbellSystem, RelativisticOrbitSystem
+from ._spin_orbit import (
+    DumbbellElement,
+    DumbbellMotionInteraction,
+    EinsteinOrbitInteraction,
+    KeplerianDumbbellSystem,
+    RelativisticOrbitSystem,
+)
 
 __all__: list[str] = [
     'DipoleChargeElement',
+    'DipoleLorentzInteraction',
     'DumbbellElement',
+    'DumbbellMotionInteraction',
+    'EinsteinOrbitInteraction',
     'GeodesicParticleElement',
     'KeplerBodyElement',
     'KeplerianDumbbellSystem',
@@ -36,9 +47,11 @@ __all__: list[str] = [
     'RelativisticOrbitSystem',
     'RestrictedThreeBodySystem',
     'RotatingFrameBodyElement',
+    'RotatingFrameMotionInteraction',
     'SchwarzschildPrecessionSystem',
     'SchwarzschildSpace',
     'SitnikovBodyElement',
+    'SitnikovGravityInteraction',
     'SitnikovSystem',
     'StormerProblemSystem',
     'TwoBodyOrbitSystem',

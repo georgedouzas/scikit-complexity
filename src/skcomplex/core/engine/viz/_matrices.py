@@ -1,4 +1,4 @@
-"""Draw matrix-valued states and parameters in Rerun as heat maps."""
+"""Draw matrix values as images coloured by value."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,21 +7,23 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 MATRIX_RANK = 2
 
 
 class MatrixVisual(BaseVisual):
-    """A visual that logs a matrix-valued state or parameter as an image.
+    """A visual that draws a matrix value of an element as an image coloured by value.
 
-    The image is colored by value. It logs one image per frame. The visual draws the variable `variable` of the element
-    at `path`, or the state or parameter named `<path>.<variable>` of a problem without such an element, such as a
-    trained matrix of a system that trains, under the entity path `<path>/<variable>`. The colors span the fixed range
-    `color_range` when it is given and the range of the frame otherwise.
+    It draws one image per frame with one pixel per entry of the matrix, such as the trained weights `A` of a network in
+    `MatrixVisual('A', path='net/recurrence')`. The colours span `color_range` when it is given and the values of each
+    frame otherwise. It shows the weights of a neural network as it learns, the trade between the sectors of an economy,
+    and the couplings between the species of an ecosystem.
+
+    Read more in the user guide, under Observe.
 
     Args:
         variable:
@@ -47,14 +49,18 @@ class MatrixVisual(BaseVisual):
         ValidationError:
             The variable is not a name, or the problem has no matrix of that name.
 
+    See Also:
+        ImageVisual: Draws the values of a grid as images.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import MatrixVisual
         >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
-        >>> problem = simulate(ElmanNetworkSystem(n_bits=30), until=0).problem
+        >>> problem = ElmanNetworkSystem(n_bits=30).prepare().simulate(until=0).problem
         >>> MatrixVisual('A', path='net/recurrence').prepare(problem).name_
         'net/recurrence.A'
     """
+
+    numeric_options = ('color_range',)
 
     name_: str
     shape_: tuple[int, ...]
@@ -107,7 +113,11 @@ class MatrixVisual(BaseVisual):
             raise ValidationError(error_msg)
         self.shape_ = layouts[0].get_entry(self.name_).shape
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the 2D spatial view of the matrix."""
         del problem
         return [rrb.Spatial2DView(origin=f'{element.path}/{self.variable}', name=f'{element.path}.{self.variable}')]

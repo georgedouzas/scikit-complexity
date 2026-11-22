@@ -15,7 +15,6 @@ those of ordinary houses.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import TraffickingSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'trafficking'
 
 system = TraffickingSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=360, dt=1, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=360, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Traces in the bills

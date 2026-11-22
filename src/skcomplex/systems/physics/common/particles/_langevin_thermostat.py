@@ -12,21 +12,18 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.specs import ParameterSpec, RoleSpec
-from ._relaxation_time import RelaxationTimeInteraction
-from ._utils import velocity_of
+from .....core.components.interactions import Interaction
+from .....core.components.laws import NoiseLaw, RateLaw
+from .....core.types import Role
 
 
-class LangevinThermostatInteraction(RelaxationTimeInteraction):
-    """Langevin thermostat.
+class LangevinThermostatInteraction(Interaction):
+    """Langevin thermostat, a drag `-gamma x'` and a random force that hold particles at a temperature.
 
-    The thermostat adds a drag `-gamma * v` and a random force that hold particles at a temperature.
-
-    Every velocity component follows `dv = -gamma * v / m * dt + sqrt(2 * gamma * temperature) / m * dW`, with the
-    temperature in energy units, a relaxation of the velocity towards rest over the time `m / gamma` with additive
-    noise. The velocity is the first derivative of the position, a state of order 2, and the mass is the divisor. A
-    system with a thermostat is stochastic, and its velocities relax to the Maxwell-Boltzmann distribution at that
-    temperature.
+    The velocity `x'` of every particle of mass `m` follows `dx' = -gamma x' / m dt + sqrt(2 gamma temperature) / m
+    dW`, with the temperature in energy units, so the velocities relax over the time `m / gamma` to the
+    Maxwell-Boltzmann distribution at that temperature. It is the solvent around a colloid, the heat bath of a
+    molecular simulation, or the gas around a dust grain. The LAMMPS solver runs it as `fix langevin`.
 
     Args:
         label:
@@ -42,10 +39,8 @@ class LangevinThermostatInteraction(RelaxationTimeInteraction):
             The friction coefficient.
 
         state:
-            The name of the vector state of order 2 that holds the positions of the particles.
+            The name of the position of the particles.
 
-        divisor:
-            The name of the state or parameter that holds the masses of the particles.
 
     Examples:
         >>> from skcomplex.systems.physics.common.particles import LangevinThermostatInteraction
@@ -53,62 +48,34 @@ class LangevinThermostatInteraction(RelaxationTimeInteraction):
         2.0
     """
 
+    law_classes = (RateLaw, NoiseLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        temperature: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
         state: str = 'x',
-        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
         self.temperature = temperature
         self.gamma = gamma
-        self.divisor = divisor
+        self.state = state
 
-    def _get_time(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation time `1 / gamma` of the velocity.
-
-        The time is taken before the division by the mass.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drag and the random force on the velocity of the particles.
 
         Args:
-            namespace:
-                The namespace of the symbols the time can use.
-
-        Returns:
-            time:
-                The relaxation time.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return 1 / namespace.gamma
-
-    def _get_noise(self, namespace: SimpleNamespace) -> object:
-        """Return the amplitude `sqrt(2 * gamma * temperature)` of the noise.
-
-        The amplitude is taken before the division by the mass.
-
-        Args:
-            namespace:
-                The namespace of the symbols the amplitude can use.
-
-        Returns:
-            amplitude:
-                The noise amplitude.
-        """
-        return sqrt(2 * namespace.gamma * namespace.temperature)
-
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the relaxation `-v / time` of the velocity `v`.
-
-        The velocity is the first derivative of the position.
-
-        Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The relaxation of the velocity towards rest, before the division by the mass.
-        """
-        return -velocity_of(getattr(namespace.target, self.state)) / self._get_time(namespace)
+        super()._prepare(context)
+        s, t = context, context.t
+        x, m = getattr(s.target, self.state), s.target.m
+        self.laws_ = [
+            RateLaw(x.diff(t, 2), -x.diff(t) / (1 / s.gamma) / m),
+            NoiseLaw(x.diff(t, 2), sqrt(2 * s.gamma * s.temperature) / m),
+        ]

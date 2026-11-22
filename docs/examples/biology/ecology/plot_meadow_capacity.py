@@ -12,14 +12,15 @@ the meadow grazes it bare and dies out within weeks, which brackets how many cow
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import MeadowCapacitySystem
 
 SYSTEM = 'meadow_capacity'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(MeadowCapacitySystem(cows=80, random_state=0), dt=1, observers=[observer], random_state=0)
+trajectory = (
+    MeadowCapacitySystem(cows=80, random_state=0).prepare().simulate(dt=1, observers=[observer], random_state=0)
+)
 
 # %%
 # Herds of different sizes
@@ -29,7 +30,7 @@ trajectory = simulate(MeadowCapacitySystem(cows=80, random_state=0), dt=1, obser
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for herd in [40, 80, 160, 320]:
-    trajectory = simulate(MeadowCapacitySystem(cows=herd, random_state=0), dt=1, random_state=0)
+    trajectory = MeadowCapacitySystem(cows=herd, random_state=0).prepare().simulate(dt=1, random_state=0)
     ax.plot(trajectory.times, trajectory.get_values('cows.count'), 'o-', markersize=3, label=f'{herd} cows')
 ax.axhline(64, color='black', linestyle='--', label='capacity without regrowth')
 ax.set_xlabel('week')

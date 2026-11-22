@@ -45,47 +45,31 @@ The shape `(1, 4)` holds the one solid tetrahedron and its four triangles. The c
 This section writes field equations on a complex with the operators of discrete exterior calculus. The exterior
 derivative `d` maps a state on cells of one degree to the next, as the gradient maps a potential to a field on links.
 The codifferential maps back down, as the divergence does. Here a potential `A` on the links of the torus follows the
-lattice Maxwell equations `dA/dt = -E` and `dE/dt = codifferential(d A)`. Two
-[`RateInteraction`](../core_components/interactions.md#rateinteraction)s write them on a
-[`GroupElement`](../core_components/elements.md#groupelement) on the edges of the complex.
+lattice Maxwell equations `dA/dt = -E` and `dE/dt = codifferential(d A)`. One
+[`Interaction`](../core_components/interactions.md#interaction) writes them on an
+[`Element`](../core_components/elements.md#element) with one member on every edge of the complex, `on='edges'`.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import codifferential, exterior_derivative
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class FieldLinkElement(Element):
-    def __init__(
-        self,
-        label,
-        visual=None,
-        *,
-        A: Annotated[float, StateSpec()] = 0.0,
-        E: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label, visual=visual)
-        self.A = A
-        self.E = E
+def maxwell(s):
+    A, E = s.target.A, s.target.E
+    return [RateLaw(A, -E), RateLaw(E, codifferential(exterior_derivative(A)))]
 
 
 space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
 potential = np.random.default_rng(0).normal(size=128)
-links = GroupElement('links', element=FieldLinkElement, space=space, on='edges', values={'A': potential})
-interactions = [
-    RateInteraction('potential', target='links', state='A', rate=lambda n: -n.target.E),
-    RateInteraction('field', target='links', state='E', rate=lambda n: codifferential(exterior_derivative(n.target.A))),
-]
-system = CompositeSystem(elements=[links], interactions=interactions)
-trajectory = simulate(system, until=2.0, dt=0.1)
+links = Element('links', values={'A': potential, 'E': 0.0}, space=space, on='edges')
+system = System(elements=[links], interactions=[Interaction('maxwell', roles={'target': 'links'}, laws=maxwell)])
+trajectory = system.prepare().simulate(until=2.0, dt=0.1)
 bool(np.abs(space.incidences_[0].T @ trajectory.get_values('links.E').T).max() < 1e-10)
 ```
 
@@ -102,8 +86,8 @@ a complex. The degree of their argument is the part of the complex its group liv
   is the parameter `weight` of the group on that part of the complex.
 
 With this sign, `codifferential(exterior_derivative(x))` is the graph Laplacian of a site state, and the curl of the
-curl of an edge state. A rate of `RateInteraction` reads another group on the complex through `sources`, and the value
-must have the degree of the state it changes.
+curl of an edge state. A rate reads another group on the complex through a role bound to it, and the value must have
+the degree of the state it changes.
 
 ## Coface reductions
 
@@ -116,9 +100,10 @@ weight one. The next section uses it for the Wilson action.
 ## Sampling links
 
 This section samples a lattice gauge field at equilibrium, link by link. In compact U(1) gauge theory every link holds
-an angle, and the Wilson action sums the cosine of the oriented sum of the angles around every plaquette. A
-[`SamplingInteraction`](../core_components/interactions.md#samplinginteraction) draws new angles by Metropolis moves
-against this objective, in a [`DiscreteTime`](../core_components/spaces.md#discretetime) of 200 sweeps.
+an angle, and the Wilson action sums the cosine of the oriented sum of the angles around every plaquette. An
+interaction gives this action as the `ObjectiveLaw` of every link, and a
+[`MetropolisSolver`](../core_components/laws.md#objectivelaw) draws new angles by Metropolis moves against it, one
+sweep per unit of time for 200 sweeps.
 
 ```python
 from typing import Annotated
@@ -126,41 +111,39 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import cos, pi
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.elements import Element, Period
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
 from skcomplex.core.components.laws.utils import exterior_derivative, neighbors
-from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
 
 
 class AngleLinkElement(Element):
-    def __init__(self, label, visual=None, *, theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0):
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, theta: Annotated[object, Period(2 * pi)] = 0.0, space=None, on=None):
+        super().__init__(label, space=space, on=on)
         self.theta = theta
 
 
+def wilson(s):
+    theta = s.target.theta
+    return [ObjectiveLaw(-2.0 * neighbors(cos(exterior_derivative(theta)), over=CofaceNeighborhood()), theta)]
+
+
 space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
-links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
-sampling = SamplingInteraction(
-    'wilson',
-    target='links',
-    state='theta',
-    objective=lambda n: -2.0 * neighbors(cos(exterior_derivative(n.target.theta)), over=CofaceNeighborhood()),
-    move='rotate',
-    width=1.5,
-    schedule='colored',
-)
-system = CompositeSystem(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = simulate(system, until=200, random_state=0).get_values('links.theta')
+links = AngleLinkElement('links', theta=np.zeros(128), space=space, on='edges')
+action = Interaction('wilson', roles={'target': 'links'}, laws=wilson)
+solver = MetropolisSolver(moves={'links.theta': 'rotate'}, schedule='colored', width=1.5)
+system = System(elements=[links], interactions=[action], solver=solver)
+states = system.prepare().simulate(until=200, random_state=0).get_values('links.theta')
 round(float(np.cos(space.incidences_[1] @ states[-50:].T).mean()), 1)
 ```
 
 The mean plaquette over the last 50 sweeps, the average cosine of the oriented sum of the angles around every face, is
 0.7. The sampler follows these rules.
 
-- `SamplingInteraction` samples a group on the edges of a cell complex with a local objective over cofaces.
+- The `MetropolisSolver` samples a group on the edges of a cell complex with a local objective over cofaces.
 - Its `'colored'` schedule updates together only links that share no face, and every draw comes from the generator of
   the simulation.
 - The move is `'rotate'` for U(1), and `'random-value'` for Z_N with the `'heat-bath'` rule.
@@ -168,7 +151,7 @@ The mean plaquette over the last 50 sweeps, the average cosine of the oriented s
 ## Matrix links
 
 This section holds a matrix of a compact group on every link, as the SU(2) and SU(3) gauge fields of the weak and
-strong forces do. A `MatrixGroupSpec` names `SU(n)` or `U(n)`, and a state declared with `StateSpec(group=...)` stores
+strong forces do. A `MatrixGroupSpec` names `SU(n)` or `U(n)`, and a value typed `Annotated[object, group]` stores
 the `2 n^2` real components of every matrix. The spec turns components into matrices and back, draws matrices from the
 Haar measure, the uniform distribution on the group, or near the identity, projects rounded products back onto the
 group, and multiplies matrices along paths. Here 32 random SU(3) matrices sit on the links of a torus of 4 by 4 sites.
@@ -177,7 +160,7 @@ group, and multiplies matrices along paths. Here 32 random SU(3) matrices sit on
 import numpy as np
 
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.specs import MatrixGroupSpec
+from skcomplex.core.components import MatrixGroupSpec
 
 group = MatrixGroupSpec('SU', 3)
 space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
@@ -197,8 +180,8 @@ element of SU(3) must.
   the loop only up to a cyclic shift, which leaves it unchanged.
 
 Sampling matrix links by a class function of the holonomy of every face, such as the real part of the trace for the
-Wilson action, is a recipe of physics. `WilsonSamplingInteraction` subclasses `SamplingInteraction` and reads the
-holonomies of the faces around a link with `get_holonomy_of`. It proposes Metropolis or Glauber moves that rotate a
+Wilson action, is a recipe of physics. `WilsonSamplingInteraction` reads the holonomies of the faces around a link
+with `get_holonomy_of`. It proposes Metropolis or Glauber moves that rotate a
 link by a random matrix of the group near the identity, or draw a new one from the Haar measure.
 `LatticeYangMillsSystem` and the analysis `gauge_observables` with a `group`, both of `skcomplex.systems.physics.waves`,
 realize SU(2) and SU(3) lattice gauge theory with its average plaquette, Wilson loops, and Polyakov loop.

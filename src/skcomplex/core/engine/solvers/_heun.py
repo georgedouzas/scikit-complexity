@@ -6,55 +6,49 @@
 
 import numpy as np
 
-from ...components.laws import (
-    BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
-    LinearProgramLaw,
-    NoiseLaw,
-    RateLaw,
-    TransferLaw,
-)
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import SupportSpec
-from ...types import Array, NoiseKind, OrderKind
+from ...components.laws import ConstraintLaw, EventLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ._sde import SDESolver
 
 
 class HeunSolver(SDESolver):
-    """A solver of stochastic differential equations by a predictor and corrector.
+    """A solver of stochastic differential equations by a predictor and a corrector.
 
-    It averages the drift over the step and keeps the Itô noise. The predictor `X~ = X + f(X) h + g(X) dW` gives the
-    corrector `X + (f(X) + f(X~)) h / 2 + g(X) dW`, which has strong order 1 for additive noise and integrates the Itô
-    form for any noise.
+    The predictor `X~ = X + f(X) h + g(X) dW` gives the corrector `X + (f(X) + f(X~)) h / 2 + g(X) dW`, which averages
+    the drift over the step and keeps the noise of the start, so it is of strong order 1 for noise of fixed size. Choose
+    it for smoother paths than Euler-Maruyama at the same step, in models of Brownian particles, noisy oscillators, and
+    prices.
 
-    Choose it for noise in the Stratonovich convention. It appears in models of physical noise, such as Brownian
-    particles and noisy oscillators.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The fixed internal step.
 
+    See Also:
+        EulerMaruyamaSolver: The default solver of noise in continuous time.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
         >>> from skcomplex.core.engine.solvers import HeunSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> problem = simulate(GeometricBrownianMotionSystem(), until=0).problem
-        >>> stepper = HeunSolver(dt=0.01, random_state=0).prepare(problem)
-        >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
-        True
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
+        >>> system = GeometricBrownianMotionSystem(solver=HeunSolver(dt=0.01)).prepare()
+        >>> system.simulate(until=1, dt=1, random_state=0).get_values('asset.price').round(2).tolist()
+        [100.0, 131.01]
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={LinearProgramLaw, RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={_LinearProgramLaw, RateLaw, ConstraintLaw, EventLaw, _BoundaryLaw, NoiseLaw},
             noise=frozenset(NoiseKind) - {NoiseKind.FRACTIONAL},
             orders=frozenset({OrderKind.INTEGER}),
         )

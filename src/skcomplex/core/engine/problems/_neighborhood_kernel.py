@@ -6,7 +6,7 @@
 import functools
 import itertools
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 
 import networkx as nx
 import numpy as np
@@ -14,36 +14,39 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 from scipy.sparse.csgraph import connected_components
 
+from ...components import EntrySpec
 from ...components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     BaseSpace,
-    CayleySpace,
     CellComplexSpace,
     CofaceNeighborhood,
     ContinuousSpace,
     DelaunayNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
-    MemoryNeighborhood,
     NearestNeighborhood,
     NetworkSpace,
     RadiusNeighborhood,
 )
 from ...errors import ValidationError
-from ...specs import DirectionSpec, EntrySpec, PairReadSpec, RunStateSpec, VariableSpec
 from ...types import Array, Indices
 from ..types import Pairs
 from ._base import BaseKernel
+from ._direction_spec import _DirectionSpec
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter
 from ._metric_search import MetricSearch
+from ._pair_read_spec import _PairReadSpec
+from ._run_state_spec import RunStateSpec
 from ._static_search import StaticSearch
+from ._variable_spec import _VariableSpec
 
 SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
-    ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
-    ((RadiusNeighborhood, NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
+    (LatticeNeighborhood, (LatticeSpace,)),
+    (RadiusNeighborhood, (ContinuousSpace, LatticeSpace)),
+    ((NearestNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
 PLANE = 2
@@ -53,9 +56,14 @@ type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
 
 
 class NeighborhoodKernel(BaseKernel):
-    """A kernel of a reduction over neighbours that laws read, one value per member.
+    """A kernel of a sum, mean, or other reduction over the neighbours of every member.
 
-    It is compiled into a function of its symbols.
+    Laws often read a value over the neighbours of a member, such as the number of infected neighbours of a person or
+    the size of the connected component a node belongs to. The kernel computes one such value per member before the laws
+    run and stores it after the parameters, so the laws read it like any other value. It counts the infected contacts of
+    a person, the live neighbours of a cell, and the friends of a voter who agree.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         symbol:
@@ -63,12 +71,12 @@ class NeighborhoodKernel(BaseKernel):
 
         kind:
             One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, the components
-            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`, and
-            the shortest paths reductions `'path-betweenness'` and `'path-closeness'`.
+            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`, and the
+            shortest paths reductions `'path-betweenness'` and `'path-closeness'`.
 
         argument:
-            The value of one neighbour, or the activity of one link for a components or a shortest paths reduction,
-            with nested reductions replaced by their placeholders.
+            The value of one neighbour, or the activity of one link for a components or a shortest paths reduction, with
+            nested reductions replaced by their placeholders.
 
         weight:
             The weight of one neighbour, 1 without one.
@@ -92,13 +100,24 @@ class NeighborhoodKernel(BaseKernel):
             The factor of every pair of the search, such as the oriented entries of an incidence, or `None` for 1.
 
         hyperedge:
-            The size of the hyperedges that every member forms with sets of its current neighbours, which the
-            reduction runs over instead of single neighbours, or `None` for single neighbours.
+            The size of the hyperedges that every member forms with sets of its current neighbours, which the reduction
+            runs over instead of single neighbours, or `None` for single neighbours.
 
     Attributes:
         paths_:
             The active links of the last shortest paths reduction with its values, which a run reuses while the links
             stay the same, or `None` before the first one.
+
+    See Also:
+        ReductionKernel: A reduction over the members of a group.
+        StaticSearch: The neighbours a reduction runs over.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> problem = BarabasiAlbertSystem().prepare().simulate(until=0).problem
+        >>> kernel = problem.topology.reductions.neighbourhoods[0]
+        >>> kernel.kind, kernel.group
+        ('sum', 'nodes')
     """
 
     values_: None
@@ -114,7 +133,7 @@ class NeighborhoodKernel(BaseKernel):
         *,
         group: str,
         search: NeighborSearch,
-        reads: dict[Expression, PairReadSpec],
+        reads: dict[Expression, _PairReadSpec],
         time: Expression,
         coefficients: Array | None = None,
         hyperedge: int | None = None,
@@ -176,18 +195,37 @@ class NeighborhoodKernel(BaseKernel):
                 values.append(column[edges])
             elif pair.side == 'pair':
                 values.append(column[np.arange(others.size)])
-            elif pair.image:
-                if not isinstance(self.search, MetricSearch):
-                    error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
-                    raise ValidationError(error_msg)
-                if pair.position not in differences:
-                    differences[pair.position] = self.search.get_differences(x, readers, neighbours)
-                values.append(column[readers] - differences[pair.position][:, read.column])
-            elif pair.table is not None:
-                values.append(column[pair.table[neighbours]])
             else:
-                values.append(column[neighbours])
+                values.append(self._gather_other(pair, column, x, readers, neighbours, differences=differences))
         return values
+
+    def _gather_other(
+        self,
+        pair: _PairReadSpec,
+        column: Array,
+        x: Array,
+        readers: Indices,
+        neighbours: Indices,
+        *,
+        differences: dict[int | None, Array],
+    ) -> Array:
+        """Return the values of a symbol of the neighbour for every pair.
+
+        A position is read by its minimum image from the reader, and a state with edges of its own by its own sites.
+        """
+        if pair.image:
+            if not isinstance(self.search, MetricSearch):
+                error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'
+                raise ValidationError(error_msg)
+            if pair.position not in differences:
+                differences[pair.position] = self.search.get_differences(x, readers, neighbours)
+            axis = pair.read.column if pair.axis is None else pair.axis
+            return column[readers] - differences[pair.position][:, axis]
+        if pair.table is not None:
+            return column[pair.table[neighbours]]
+        if pair.sites is not None:
+            return np.append(column, pair.fill)[pair.sites]
+        return column[neighbours]
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Write the reduction of every member into the extended parameter vector.
@@ -453,7 +491,7 @@ class NeighborhoodKernel(BaseKernel):
         return indptr, others[order].astype(np.intp), edges[order].astype(np.intp)
 
     @staticmethod
-    def _get_lattice_rows(space: BaseSpace, neighborhood: LatticeNeighborhood | MemoryNeighborhood) -> Pairs:
+    def _get_lattice_rows(space: BaseSpace, neighborhood: BaseNeighborhood) -> Pairs:
         """Return the neighbours of every site of a space in CSR form.
 
         They come in neighbourhood order, without outside sites.
@@ -463,7 +501,7 @@ class NeighborhoodKernel(BaseKernel):
                 The prepared lattice or other space of sites.
 
             neighborhood:
-                The neighbourhood of offsets, or the memory set of a group space.
+                The neighbourhood with lattice offsets, or the memory set of a group space.
 
         Returns:
             rows:
@@ -477,7 +515,7 @@ class NeighborhoodKernel(BaseKernel):
     @staticmethod
     def _get_default_neighborhood(
         space: object,
-    ) -> AdjacencyNeighborhood | LatticeNeighborhood | MemoryNeighborhood | None:
+    ) -> BaseNeighborhood | None:
         """Return the neighbourhood that a reduction without one reads.
 
         It is a network's graph, or a lattice's or group's own.
@@ -490,12 +528,12 @@ class NeighborhoodKernel(BaseKernel):
             neighbourhood:
                 The neighbourhood, or `None` for a space without one of its own.
         """
-        if isinstance(space, NetworkSpace | LatticeSpace | CayleySpace):
+        if isinstance(space, BaseSpace) and space._has_sites():
             return space._get_default_neighborhood()
         return None
 
     @staticmethod
-    def _get_position_state(states: Mapping[str, VariableSpec]) -> str | None:
+    def _get_position_state(states: Mapping[str, _VariableSpec]) -> str | None:
         """Return the position state of an element type.
 
         It is the first vector state with the role position or site.
@@ -511,10 +549,38 @@ class NeighborhoodKernel(BaseKernel):
         return next((name for name, item in states.items() if item.is_place), None)
 
     @staticmethod
-    def _get_cone_direction(cone: RadiusNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
-        """Return the state that holds the direction of a cone.
+    def _get_axis_states(space: object, states: Mapping[str, _VariableSpec]) -> tuple[str, ...] | None:
+        """Return the scalar positions of the members on every axis, or `None`.
 
-        It is the named state, else the derivative of the position.
+        A value named after an axis, such as `x` and `y` of walkers in a plane, is the position of a member along it.
+
+        Args:
+            space:
+                The space of the group.
+
+            states:
+                The state declarations by name.
+
+        Returns:
+            names:
+                The names of the positions in the order of the axes, or `None` when a member lacks one.
+        """
+        if not isinstance(space, ContinuousSpace):
+            return None
+        axes = tuple(space.prepare().axes_)
+        placed = all(name in states and states[name].role == 'position' and not states[name].vector for name in axes)
+        return axes if axes and placed else None
+
+    @staticmethod
+    def _get_cone_direction(
+        cone: RadiusNeighborhood,
+        states: Mapping[str, _VariableSpec],
+        n_dim: int,
+        parameters: Collection[str] = (),
+    ) -> str:
+        """Return the value that holds the direction of a cone.
+
+        It is the named state or parameter, such as a heading no law changes, else the derivative of the position.
 
         Args:
             cone:
@@ -526,9 +592,12 @@ class NeighborhoodKernel(BaseKernel):
             n_dim:
                 The dimension of the space.
 
+            parameters:
+                The names of the parameters of the members.
+
         Returns:
             name:
-                The name of the direction state, a vector state or in two dimensions a scalar angle.
+                The name of the direction, a vector or in two dimensions a scalar angle.
 
         Raises:
             ValidationError:
@@ -536,7 +605,7 @@ class NeighborhoodKernel(BaseKernel):
         """
         if cone.direction is not None:
             declaration = states.get(cone.direction)
-            if declaration is not None and (declaration.vector or n_dim == PLANE):
+            if cone.direction in parameters or (declaration is not None and (declaration.vector or n_dim == PLANE)):
                 return cone.direction
             error_msg = (
                 f'The cone reads the direction {cone.direction!r}, which is not a vector state of the members, or a '
@@ -546,8 +615,8 @@ class NeighborhoodKernel(BaseKernel):
         position = NeighborhoodKernel._get_position_state(states)
         if position is None or states[position].order <= 1:
             error_msg = (
-                'The cone has no direction: the position of the members has no first derivative. Declare the position '
-                "of order 2, `state(vector=True, order=2, role='position')`, or name a direction state, such as "
+                'The cone has no direction: the position of the members has no first derivative. Give the position a '
+                "rate law on `x.diff(t, 2)` or a starting velocity `x'`, or name a direction state, such as "
                 "`RadiusNeighborhood(r, angle=angle, direction='theta')`."
             )
             raise ValidationError(error_msg)
@@ -578,18 +647,11 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _get_neighbor_search(
-        over: (
-            AdjacencyNeighborhood
-            | LatticeNeighborhood
-            | MemoryNeighborhood
-            | RadiusNeighborhood
-            | NearestNeighborhood
-            | DelaunayNeighborhood
-        ),
+        over: BaseNeighborhood,
         space: object,
         rows: int,
         entries: Mapping[str, EntrySpec],
-        states: Mapping[str, VariableSpec],
+        states: Mapping[str, _VariableSpec],
         *,
         changing: Mapping[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]] | None = None,
     ) -> NeighborSearch:
@@ -637,30 +699,47 @@ class NeighborhoodKernel(BaseKernel):
                 return EdgeRowSearch(source, target, active, rows, directed, center=over.center).prepare()
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_network_rows(space, over)).prepare()
-        if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
+        if isinstance(space, BaseSpace) and space._has_sites():
             NeighborhoodKernel._check_rows(space, rows)
             return StaticSearch(*NeighborhoodKernel._get_lattice_rows(space, over)).prepare()
-        position = NeighborhoodKernel._get_position_state(states)
-        if position is None or not isinstance(space, ContinuousSpace):
+        if isinstance(over, RadiusNeighborhood) and over.metric != 'euclidean':
             error_msg = (
-                f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
-                "position state. Declare one with `state(vector=True, role='position')`."
+                f'The neighbourhood {over!r} measures {over.metric} distances, but a continuous space measures '
+                'euclidean ones.'
+            )
+            raise ValidationError(error_msg)
+        position = NeighborhoodKernel._get_position_state(states)
+        axes = NeighborhoodKernel._get_axis_states(space, states)
+        metric = RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood
+        if (
+            (position is None and axes is None)
+            or not isinstance(space, ContinuousSpace)
+            or not isinstance(over, metric)
+        ):
+            error_msg = (
+                f'A reduction over {over!r} measures distances between positions, but the members have no position. '
+                'Give them a value named after every axis of the space, such as `x` and `y`.'
             )
             raise ValidationError(error_msg)
         continuous = space
+        positions = entries[position] if position is not None else tuple(entries[name] for name in axes or ())
         periods = continuous.extent_ if continuous.periodic_ else None
         direction = None
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
-            name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_)
-            direction = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
+            name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_, set(entries) - set(states))
+            angle = not states[name].vector if name in states else name in entries and entries[name].columns == 1
+            direction = _DirectionSpec(entries[name], angle, name in states) if name in entries else None
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
-        return MetricSearch(over, entries[position], periods, direction).prepare()
+        return MetricSearch(over, positions, periods, direction).prepare()
 
     @staticmethod
     def _get_spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:
         """Return the classes of the spaces a neighbourhood is read on.
+
+        A neighbourhood that names its spaces, such as one defined outside the core, gives them, and the table of the
+        core gives the others.
 
         Args:
             neighborhood:
@@ -670,4 +749,7 @@ class NeighborhoodKernel(BaseKernel):
             spaces:
                 The space classes.
         """
+        named = neighborhood._get_spaces()
+        if named:
+            return named
         return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))

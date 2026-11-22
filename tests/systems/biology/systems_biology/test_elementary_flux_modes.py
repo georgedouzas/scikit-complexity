@@ -8,9 +8,9 @@ import pytest
 from scipy.optimize import nnls
 
 from skcomplex.core.analysis import elementary_modes
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import EnumerationLimitError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.metabolism import load_network
 from skcomplex.systems.biology.systems_biology import ElementaryFluxModesSystem
 
@@ -55,7 +55,8 @@ def test_knock_out_leaves_the_second_route():
 
 def test_genome_scale_network_stops_at_the_limit():
     """Test that the modes of the E. coli core system raise the limit error within one second of a limit of 5 s."""
-    system = CompositeSystem(elements=[load_network('textbook', 'cell')], time=StaticTime())
+    network = load_network('textbook', 'cell')
+    system = System(elements=[Element('cell', values=network.get_values())], interactions=[network])
     start = time.perf_counter()
     with pytest.raises(EnumerationLimitError, match='variables'):
         elementary_modes(system, timeout=5.0)

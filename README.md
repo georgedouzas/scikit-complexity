@@ -47,8 +47,8 @@
 ## Overview
 
 `scikit-complexity` simulates and analyses complex systems from any field of science. You describe a system by its
-parts, and the library derives its equations, picks a solver unless you choose one, runs the simulation, and can stream
-it to the [Rerun](https://rerun.io) viewer.
+components, and the library derives its equations, picks a solver unless you choose one, runs the simulation, and can
+stream it to the [Rerun](https://rerun.io) viewer.
 
 Complex systems are usually modelled in separate tools, often one for each field, each with its own conventions. Here
 every field shares one small vocabulary in the style of [scikit-learn](https://scikit-learn.org). Elements carry
@@ -104,9 +104,12 @@ states, interactions change them through laws, and systems nest and compose.
 
 - **One interface for many kinds of dynamics.** Differential equations, stochastic processes, jump processes, discrete
   maps, cellular automata, agents, networks and hypergraphs, fields and partial differential equations, quantum
-  systems, and systems that learn by gradient descent all run through `simulate`.
-- **The form is inferred.** The library reads the laws of a system and decides whether it is an ordinary differential
-  equation, a stochastic differential equation, or a jump process. It then compiles it for NumPy, Numba, or JAX.
+  systems, and systems that learn by gradient descent all run through `prepare` and `simulate`.
+- **The problem is inferred.** The library reads the kinds of law of a system and decides what it is, such as
+  ordinary differential equations for rates, a jump process for random events, a map for next values, or a
+  minimisation for an objective. It then picks a default solver and compiles the system for NumPy, Numba, or JAX.
+- **Solvers are settings.** The same reaction network runs as random jumps or as rate equations by changing only
+  `solver=`, as `LogisticRegression` changes `solver` beside `C`.
 - **Symbolic or numeric laws.** A law is a Sage symbolic expression, which you can inspect and solve exactly, or a
   Python function.
 - **Live runs.** A simulation streams to Rerun as it runs, and a schedule changes its parameters during the run.
@@ -114,8 +117,8 @@ states, interactions change them through laws, and systems nest and compose.
   scaling laws, and system identification. The experiment functions run parameter sweeps, sensitivity analyses,
   calibrations, and studies of basin stability.
 - **Mature libraries underneath.** SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX, and others do the numerical work.
-- **Parts of your own.** The ready-made systems use the same public classes as you do, so each one is also an example
-  for a system of your own.
+- **Components of your own.** The ready-made systems use the same public classes as you do, so each one is also an
+  example for a system of your own.
 
 ## Installation
 
@@ -139,37 +142,35 @@ pdm install
 
 ## Usage
 
-The library follows the conventions of scikit-learn. What you define is an estimator, a class with `get_params`,
-`set_params`, and `clone`, such as an element, an interaction, or a system. What you do to it is a function. `simulate`
-runs a system as `cross_validate` runs a model, an analysis measures the run as `sklearn.metrics` scores a model, and
-an experiment runs many systems as the model selection functions do.
+The library follows the conventions of scikit-learn. A system is built from components that hold parameters. It is
+prepared once, as a model is fitted, and simulated many times, as a fitted model predicts:
 
-You can start in two ways. Select a ready-made system from the catalog, or build a custom system from the general
-classes of `skcomplex.core.components`.
+- `prepare()` checks every component, works out the equations, chooses a solver, and returns the system.
+- `simulate(until=...)` runs the prepared system and returns a trajectory, the values at every recorded time.
+- `get_params`, `set_params`, and `clone` read, change, and copy the parameters, with nested names such as
+  `gravity__g`.
+
+Analyses and experiments are functions. An analysis measures a run, as `sklearn.metrics` scores a model, and an
+experiment runs many copies of a system, as the model selection functions do.
+
+You can start in two ways. Select a ready-made system from the catalog, or build a custom system from the classes of
+`skcomplex.core`.
 
 ### Select a ready-made system
 
-This section finds a system of the catalog, reads its description, and simulates it. Every ready-made system is a
-class with a field, topics, references, and parameters. You import it from its subfield, the package
-`skcomplex.systems.<field>.<subfield>`, and `all_systems` lists the classes, as `all_estimators` does in scikit-learn.
-
-The systems of one field, here ecology, are listed by their field path.
+Every ready-made system is a class with a field, topics, references, and parameters. You import it from its subfield,
+the package `skcomplex.systems.<field>.<subfield>`, and `all_systems` lists the classes, as `all_estimators` does in
+scikit-learn.
 
 ```python
 from skcomplex.systems import all_systems
 
 ecology = [name for name, _ in all_systems(field='biology/ecology')]
-```
-
-A search by topic covers every field, and a search by capability tags selects systems by what they do, such as
-running with random events.
-
-```python continuation
 oscillators = [name for name, _ in all_systems(topics='oscillation')]
 stochastic = [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
 ```
 
-The class you choose is imported from its subfield, and its attributes say what it models and where it comes from.
+The class you choose says what it models and where it comes from.
 
 ```python continuation
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
@@ -178,14 +179,12 @@ LotkaVolterraSystem.topics, LotkaVolterraSystem.references, LotkaVolterraSystem(
 ```
 
 The topics of `LotkaVolterraSystem` are `predator-prey`, `ode`, and `oscillation`, its references are Lotka (1925) and
-Volterra (1926), and its parameters start from 40 prey and 9 predators. `simulate` runs it with its tuned settings, or
-with parameters and settings of your own.
+Volterra (1926), and its parameters start from 40 prey and 9 predators. `prepare().simulate()` runs it with its tuned
+settings, or with parameters and settings of your own.
 
 ```python continuation
-from skcomplex.core.engine.runtime import simulate
-
-trajectory = simulate(LotkaVolterraSystem())
-fast_prey = simulate(LotkaVolterraSystem(r=1.5), until=50, dt=0.1)
+trajectory = LotkaVolterraSystem().prepare().simulate()
+fast_prey = LotkaVolterraSystem(r=1.5).prepare().simulate(until=50, dt=0.1)
 round(float(fast_prey.get_values('prey.x').max()))
 ```
 
@@ -204,64 +203,234 @@ and the page of each system shows the classes it is built from.
 
 ### Build a custom system
 
-This section writes a predator and prey system from the core alone. An element declares its states. An interaction
-declares its roles, the names of the elements it reads and changes, and returns its laws. In `_get_laws`, the
-namespace `s` holds the symbols of its parameters and of the elements bound to its roles. The system takes one element
-class, the general `RateInteraction`, and one new interaction.
+A custom system has three kinds of component:
+
+- An `Element` holds values, such as `Element('ball', values={'x': 10.0, 'm': 1.0})` for a ball at the height 10 with
+  the mass 1.
+- An `Interaction` binds elements through its roles and sets the laws that change their values. A class of your own
+  sets them in `laws_` from its method `_prepare`, where `s` holds the values of the bound elements, the parameters of
+  the interaction, and the time `s.t`. A rule used once needs no class: `Interaction(label, roles=..., laws=...)`.
+- A `System` holds the elements and the interactions, and optionally a space, a solver, and a backend.
+
+A value that some law changes is a state, and every other value is a parameter. Nobody declares which is which. Each
+law is one of seven kinds, and the kinds a system holds decide what problem it is and which solver runs it by default.
+
+| Law | What it says | Example |
+| --- | --- | --- |
+| `RateLaw` | how fast a value changes, `dx/dt = f(x)` | a falling ball, heat in a rod |
+| `NoiseLaw` | a random kick added to the rate, `dx = g(x) dW` | a stock price |
+| `JumpLaw` | a random event that changes values by whole amounts | one reaction between two molecules |
+| `UpdateLaw` | the next value from the current one, `x_next = F(x)` | a cellular automaton |
+| `ConstraintLaw` | an equation that must hold, `0 = g(x)` | the currents at a node of a circuit |
+| `EventLaw` | a change made when a value crosses zero | a ball that bounces |
+| `ObjectiveLaw` | a number to make small or to sample by | the energy of a magnet |
+
+Four short systems follow, each on one kind of law.
+
+#### A falling ball
+
+Gravity pulls a ball down at 9.81 metres per second squared. The interaction `Gravity` binds the role `target` to the
+ball and owns the parameter `g`. Its law says that the second derivative of the height `x` is `-g`, written in Sage as
+`x.diff(t, 2)`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import Interaction, RateInteraction
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class PopulationElement(Element):
-    def __init__(self, label, visual=None, *, n: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
-        self.n = n
-
-
-class PredationInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        predator: Annotated[str, RoleSpec(states=('n',))],
-        prey: Annotated[str, RoleSpec(states=('n',))],
-        a: Annotated[float, ParameterSpec()] = 0.4,
-        b: Annotated[float, ParameterSpec()] = 0.1,
-    ):
+class Gravity(Interaction):
+    def __init__(self, label, *, target: Role, g=9.81):
         super().__init__(label)
-        self.predator = predator
-        self.prey = prey
-        self.a = a
-        self.b = b
+        self.target = target
+        self.g = g
 
-    def _get_laws(self, s):
-        contacts = s.predator.n * s.prey.n
-        return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.target.x.diff(s.t, 2), -s.g)]
 
 
-system = CompositeSystem(
-    elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
-    interactions=[
-        RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 1.1 * s.target.n * (1 - s.target.n / 1000)),
-        PredationInteraction('hunt', predator='foxes', prey='rabbits'),
-        RateInteraction('death', target='foxes', state='n', rate=lambda s: -0.4 * s.target.n),
-    ],
-)
-trajectory = simulate(system, until=30, dt=0.05)
-round(float(trajectory.get_values('rabbits.n').max()))
+ball = Element('ball', values={'x': 10.0, 'm': 1.0})
+system = System(elements=[ball], interactions=[Gravity('gravity', target='ball')]).prepare()
+earth = system.simulate(until=1.4, dt=0.7)
+system.states_, system.parameters_, system.equations_
 ```
 
-The rabbits peak at 51. A `RerunObserver` records the run for the Rerun viewer, and
-`RerunObserver('predators', spawn=True)` opens the viewer during the run. A schedule changes a parameter while the
-system runs. Here it halves the hunting rate at time 15.
+The states are the height `ball.x` and its velocity `ball.x'`, the parameters are `ball.m` and `gravity.g`, and the
+equations say that the height changes at the velocity and the velocity at `-gravity.g`. The run above starts the ball
+at rest. One prepared system runs many times, here also thrown up at 3 metres per second, and `set_params` moves it to
+the Moon.
+
+```python continuation
+thrown = system.simulate(until=1.4, dt=0.7, initial_state={"ball.x'": 3.0})
+moon = system.set_params(gravity__g=1.62).prepare().simulate(until=1.4, dt=0.7)
+earth.get_values('ball.x').round(2), thrown.get_values('ball.x').round(2), moon.get_values('ball.x').round(2)
+```
+
+After 1.4 seconds the ball is 0.39 metres above the ground on Earth, 4.59 metres when thrown up, and 8.41 metres on the
+Moon. The same gravity written once, without a class, gives the same run.
+
+```python continuation
+gravity = Interaction('gravity', roles={'target': 'ball'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t, 2), -9.81)])
+System(elements=[ball], interactions=[gravity]).prepare().simulate(until=1.4, dt=0.7).get_values('ball.x').round(2)
+```
+
+#### A reaction network with two solvers
+
+In the reaction `A + B -> C`, each meeting of one molecule of `A` and one of `B` makes one molecule of `C`. A `JumpLaw`
+fires at the rate `k a b` and changes the counts by whole molecules. Its system is a jump process, run by the exact
+algorithm of Gillespie. The same system given an ODE solver runs the mean of the jumps instead, as the rate equations
+of chemistry.
+
+```python continuation
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import JumpLaw
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
+
+
+class Reaction(Interaction):
+    def __init__(self, label, *, a: Role, b: Role, c: Role, k=0.01):
+        super().__init__(label)
+        self.a = a
+        self.b = b
+        self.c = c
+        self.k = k
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        a, b, c = s.a.n, s.b.n, s.c.n
+        self.laws_ = [JumpLaw(s.k * a * b, {a: -1, b: -1, c: +1})]
+
+
+molecules = [Element('A', values={'n': 100}), Element('B', values={'n': 80}), Element('C', values={'n': 0})]
+reaction = Reaction('bind', a='A', b='B', c='C')
+jumps = System(elements=molecules, interactions=[reaction]).prepare()
+mean = System(elements=molecules, interactions=[reaction], solver=ScipyODESolver()).prepare()
+jumps.form_, mean.form_
+```
+
+The first system is a jump process and the second ordinary differential equations. Both make about 70 molecules of `C`
+in five time units.
+
+```python continuation
+counted = jumps.simulate(until=5, dt=1, random_state=0).get_values('C.n')
+averaged = mean.simulate(until=5, dt=1).get_values('C.n')
+counted.tolist(), averaged.round(1).tolist()
+```
+
+The jumps count 43, 58, 65, 68, and 69 molecules after one to five time units, whole numbers that change with the
+seed, and the mean grows smoothly through 42.0, 56.9, 64.3, 68.8, and 71.7.
+
+#### Heat in a rod
+
+A rod of 21 cells starts cold, with one unit of heat in its middle cell, and its two ends are held at zero. An element
+with `space=` holds one member on every site of the space, here a `LatticeSpace` of 21 sites, so its value `u` is one
+number per cell. The law reads `laplacian(u)`, which the space works out from the neighbours of each cell, and gives
+the heat equation `du/dt = D laplacian(u)`.
+
+```python continuation
+import numpy as np
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import laplacian
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
+
+
+class Conduction(Interaction):
+    def __init__(self, label, *, target: Role, D=1.0):
+        super().__init__(label)
+        self.target = target
+        self.D = D
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        u = s.target.u
+        self.laws_ = [RateLaw(u.diff(s.t), s.D * laplacian(u))]
+
+
+start = np.zeros(21)
+start[10] = 1.0
+rod = Element('rod', values={'u': start}, space=LatticeSpace(21, boundary={'u': ('fixed', 0.0)}))
+heat = System(elements=[rod], interactions=[Conduction('conduction', target='rod')]).prepare()
+heat.equations_
+```
+
+The prepared system has one equation for every cell `i`, `conduction.D*laplacian(rod.u[i])`.
+
+```python continuation
+heat.simulate(until=2, dt=1).get_values('rod.u').max(axis=1).round(3).tolist()
+```
+
+The hottest cell cools from 1 to 0.309 after one time unit and to 0.207 after two, as the heat spreads to its
+neighbours.
+
+#### A magnet
+
+In the Ising model every site of a square lattice holds a spin of plus or minus one, and neighbouring spins lower the
+energy when they point the same way. An `ObjectiveLaw` gives the energy of each spin over the temperature `T`, and the
+`MetropolisSolver` flips spins at random, keeping a flip more often the more it lowers the energy. `neighbors` reads
+the spins of the four nearest sites.
+
+```python continuation
+import numpy as np
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import ObjectiveLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.engine.solvers import MetropolisSolver
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
+
+NEAREST = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
+
+
+class Ising(Interaction):
+    def __init__(self, label, *, target: Role, J=1.0, T=2.0):
+        super().__init__(label)
+        self.target = target
+        self.J = J
+        self.T = T
+
+    def _prepare(self, s):
+        super()._prepare(s)
+        spin = s.target.spin
+        energy = -s.J * spin * sum(neighbors(spin, NEAREST, reduce='each'))
+        self.laws_ = [ObjectiveLaw(energy / s.T, spin)]
+
+
+spins = Element('spins', values={'spin': np.ones(256)}, space=LatticeSpace((16, 16)))
+magnet = System(
+    elements=[spins],
+    interactions=[Ising('ising', target='spins', T=1.5)],
+    solver=MetropolisSolver(moves={'spins.spin': 'flip'}, neighborhood=NEAREST),
+)
+order = []
+for temperature in (1.5, 3.5):
+    run = magnet.set_params(ising__T=temperature).prepare().simulate(until=200, random_state=0)
+    order.append(float(np.abs(run.get_values('spins.spin')[50:].mean(axis=1)).mean().round(2)))
+order
+```
+
+One unit of time is one sweep, a proposed flip of every spin. After 50 sweeps the mean spin stays near 0.99 at
+`T = 1.5`, where the spins stay aligned, and falls to 0.12 at `T = 3.5`, where heat scrambles them. The exact
+transition of the square lattice lies at about 2.27.
+
+### Record a run and change it as it runs
+
+A `RerunObserver` records a run for the [Rerun](https://rerun.io) viewer, and `RerunObserver('ball', spawn=True)`
+opens the viewer during the run. A schedule changes a parameter while the system runs, here gravity that weakens to a
+tenth after 0.7 seconds.
 
 ```python continuation
 import tempfile
@@ -269,97 +438,43 @@ from pathlib import Path
 
 from skcomplex.core.engine.viz import RerunObserver
 
-recording = Path(tempfile.mkdtemp()) / 'predators.rrd'
-trajectory = simulate(
-    system,
-    until=30,
-    dt=0.05,
-    observers=[RerunObserver('predators', save_path=recording)],
-    schedule={'hunt.a': lambda t: 0.4 if t < 15 else 0.2},
+recording = Path(tempfile.mkdtemp()) / 'ball.rrd'
+falling = System(elements=[ball], interactions=[Gravity('gravity', target='ball')]).prepare()
+trajectory = falling.simulate(
+    until=1.4,
+    dt=0.7,
+    observers=[RerunObserver('ball', save_path=recording)],
+    schedule={'gravity.g': lambda t: 9.81 if t < 0.7 else 0.981},
 )
-float(trajectory.times[-1])
+trajectory.get_values('ball.x').round(2).tolist()
 ```
 
-The run ends at time 30.0, with the hunting rate halved for its second half. A new process takes one more
-interaction. Here a fishery harvests a fish stock in proportion to its size, and the analysis `symbolic` returns the
-equations of the system.
-
-```python continuation
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
-
-from skcomplex.core.analysis import symbolic
-
-
-class HarvestInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec(states=('n',))],
-        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ):
-        super().__init__(label)
-        self.target = target
-        self.h = h
-
-    def _get_laws(self, s):
-        return [RateLaw(s.target.n, -s.h * s.target.n)]
-
-
-harvested = CompositeSystem(
-    elements=[PopulationElement('fish', n=500)],
-    interactions=[
-        RateInteraction('growth', target='fish', state='n', rate=lambda s: 0.5 * s.target.n * (1 - s.target.n / 1000)),
-        HarvestInteraction('fishing', target='fish', h=0.1),
-    ],
-)
-symbolic(harvested).equations['fish.n']
-```
-
-The equation of the stock is the logistic growth `-0.0005 (n - 1000) n` minus the harvest `h n`.
+The ball falls to 7.6 metres in the first 0.7 seconds. It then gains speed more slowly and ends at 2.55 metres, where
+full gravity would have brought it to 0.39.
 
 ### Find out which components fit
 
-This section checks that parts fit before you build a system with them. An interaction states what it needs from each
-role, and an element states what it carries.
-
-```python continuation
-hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
-hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states())
-```
-
-The role `prey` reads the state `n`, and `PopulationElement` carries `n`, so they fit. When a role is bound to an
-element without the state it reads, `simulate` raises a `RoleElementError`.
+`prepare` checks that every element bound to a role carries the values its interaction reads. Here the role `target`
+of `Gravity` is bound to a tank, which carries a level and no height.
 
 ```python continuation
 from skcomplex.core.errors import RoleElementError
 
-
-class TankElement(Element):
-    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
-        self.level = level
-
-
-wrong = CompositeSystem(
-    elements=[TankElement('tank'), PopulationElement('foxes')],
-    interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
-)
+wrong = System(elements=[Element('tank', values={'level': 1.0})], interactions=[Gravity('gravity', target='tank')])
 try:
-    simulate(wrong, until=1)
+    wrong.prepare()
 except RoleElementError as error:
     message = str(error)
 message
 ```
 
-The message says that the role `prey` reads `n` but the element `tank` carries `level`. It proposes three fixes: bind
-the role to an element that carries the state, declare the state on the element, or read another state.
+The message says that the role `target` reads `x` but the element `tank` carries `level`, and it proposes three fixes:
+bind the role to an element that carries the value, give the element that value, or read another value.
 
-The [parts pages](https://georgedouzas.github.io/scikit-complexity/parts/elements/) list every element, interaction, law,
-solver, and backend with the tags they accept, and the
-[user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/check/#what-an-interaction-needs)
-walks through the choices in order.
+The [component pages](https://georgedouzas.github.io/scikit-complexity/components/elements/) list every element,
+interaction, law, solver, and backend with the tags they accept, and the
+[user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/) walks through the whole workflow
+with these four systems.
 
 ## Spec-driven development
 

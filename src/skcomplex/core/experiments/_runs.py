@@ -13,31 +13,29 @@ from dataclasses import fields, is_dataclass
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import clone
 
-from ..components.specs import ScenarioSpec
-from ..components.systems import BaseSystem
-from ..engine.compile._pass_compiler import PassCompiler
+from ..components import Observable
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Trajectory
-from ..engine.runtime._simulate import _compile_problem, _simulate
+from ..engine.problems._composite_system import _CompositeSystem
+from ..engine.runtime import Trajectory, compile_problem, run_problem
 from ..engine.solvers import BaseSolver
+from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
-from ..specs import ObservableSpec
-from ..specs._run_result_spec import _RunResultSpec
+from ..systems import BaseSystem
 from ._results import ExperimentResult
-from ._utils import build_system
+from ._run_result_spec import _RunResultSpec
+from ._scenario_spec import ScenarioSpec
+from ._utils import build_system, get_problem
 from .specs._task_spec import _TaskSpec
-from .types import Output, Row, Source
+from .types import Output, Row, SystemSource
 
-EXECUTORS = ('serial', 'thread', 'process')
 TIME_TOLERANCE = 1e-12
 
 
-type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver]]
+type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver] | BaseSystem]
 
 
-def _check_source(source: object) -> Source:
+def _check_source(source: object) -> SystemSource:
     """Return the system of an experiment after checking it.
 
     It is a system or a factory of systems.
@@ -60,7 +58,7 @@ def _check_source(source: object) -> Source:
             'of the system class, such as `SIRSystem()`, or the class itself.'
         )
         raise ExperimentError(error_msg)
-    if isinstance(source, BaseSystem) or callable(source):
+    if isinstance(source, BaseSystem | _CompositeSystem) or callable(source):
         return source
     error_msg = f'An experiment takes a system or a factory of systems, not {source!r}.'
     raise ExperimentError(error_msg)
@@ -114,7 +112,7 @@ def _map_calls[Argument, Value](
         ValidationError:
             The executor is unknown.
     """
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     if executor == 'serial':
@@ -159,24 +157,6 @@ def _name_analyses(
         seen[name] += 1
         prefixes.append(f'{name}-{seen[name]}' if counts[name] > 1 else name)
     return tuple(zip(prefixes, analyses or (), strict=True))
-
-
-def _compile(system: BaseSystem) -> BaseProblemSpec:
-    """Return the compiled problem of a system.
-
-    Its layouts name the states and parameters of the system.
-
-    Args:
-        system:
-            The system.
-
-    Returns:
-        problem:
-            The compiled problem.
-    """
-    compiler = system.get_run_settings()['compiler'] or PassCompiler()
-    problem: BaseProblemSpec = clone(compiler).prepare(system.prepare().system_).run().problem_
-    return problem
 
 
 def _split_paths(problem: BaseProblemSpec, paths: Mapping[str, object]) -> tuple[Row, Row]:
@@ -339,71 +319,123 @@ def _read_outputs(
 def _get_structure(task: _TaskSpec, arguments: Mapping[str, object]) -> tuple[int, str]:
     """Return the key of the structure of the system of a task.
 
-    The key holds its source or scenario system, and model parameters. Runs that share the key differ only by dotted
-    paths of initial states and parameters, and by seeds, so they share one compiled problem. Arrays are written in
-    full, so two arrays that differ never share a key.
+    The key holds its source or scenario system, and the parameters set on its clone. Runs that share the key differ
+    only by dotted paths of initial states and parameters, and by seeds, so they share one prepared system. Arrays are
+    written in full, so two arrays that differ never share a key.
 
     Args:
         task:
             The task.
 
         arguments:
-            The model parameters of the task by name.
+            The parameters of the task by name.
 
     Returns:
         key:
-            The identity of the source or the scenario system, and the model parameters written out.
+            The identity of the source or the scenario system, and the parameters written out.
     """
     source = task.scenario.system if task.scenario.system is not None else task.source
     with np.printoptions(threshold=sys.maxsize):
         return id(source), repr(sorted(arguments.items()))
 
 
-def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSpec:
-    """Run one task as `simulate` does and keep its outputs.
+def _simulate_prepared(
+    task: _TaskSpec,
+    system: BaseSystem,
+    paths: Mapping[str, object],
+    store: Problems,
+    key: Hashable,
+) -> Trajectory:
+    """Return the trajectory of a task whose system has `prepare` and `simulate`.
 
-    It keeps its series and scalar outputs, and runs its analyses on its trajectory. Values without a dot are model
-    parameters, set on a copy of the system or passed to the factory. Dotted paths of states replace initial values, and
-    dotted paths of parameters keep their value for the whole run. The system is compiled once per structure of the
-    running experiment, its source and model parameters, and the runs of one structure reuse its problem with their own
-    values and seeds. A system that brings its own compiler is compiled for every run.
+    The copy of the system is prepared once per structure with the observables of the task, and every run of the
+    structure simulates the prepared copy with its own initial states, dotted parameters, and seed.
 
     Args:
         task:
             The task.
 
-        problems:
-            The compiled problems of the running experiment by structure, filled as tasks compile them, or `None` to
-            compile for this run alone.
+        system:
+            The copy of the system with the parameters of the task.
+
+        paths:
+            The values of the task by dotted path.
+
+        store:
+            The prepared systems of the running experiment by structure.
+
+        key:
+            The structure of the task.
 
     Returns:
-        result:
-            The result of the run.
-
-    Raises:
-        ExperimentError:
-            An analysis returns no result of an analysis.
+        trajectory:
+            The trajectory of the run.
     """
-    values = {**task.row, **(task.scenario.overrides or {})}
-    arguments = {name: value for name, value in values.items() if '.' not in name}
-    paths = {name: value for name, value in values.items() if '.' in name}
-    system = build_system(task.scenario.system if task.scenario.system is not None else task.source, arguments)
-    settings = system.get_run_settings()
-    compiled = None
-    if settings['compiler'] is None:
-        store = {} if problems is None else problems
-        key = _get_structure(task, arguments)
-        if key not in store:
-            store[key] = _compile_problem(system, solver=task.solver, observables=task.observables)
-        compiled = store[key]
+    prepared = store.get(key)
+    if not isinstance(prepared, BaseSystem):
+        prepared = system.prepare(task.observables or None)
+        store[key] = prepared
     initial_state, schedule = None, None
     if paths or task.scenario.schedule:
-        problem = compiled[0] if compiled is not None else _compile(system)
+        problem = get_problem(prepared)
+        states, parameters = _split_paths(problem, paths)
+        functions = _schedule(problem, task.scenario, parameters)
+        initial_state = {**(prepared.initial_state or {}), **states} if states else None
+        schedule = {**(prepared.schedule or {}), **functions} if functions else None
+    return prepared.simulate(
+        task.until,
+        dt=task.dt,
+        initial_state=initial_state,
+        schedule=schedule,
+        random_state=np.random.default_rng(task.seed),
+    )
+
+
+def _simulate_composite(
+    task: _TaskSpec,
+    system: _CompositeSystem,
+    paths: Mapping[str, object],
+    store: Problems,
+    key: Hashable,
+) -> Trajectory:
+    """Return the trajectory of a task whose system runs through `simulate`.
+
+    The system is compiled once per structure, unless it brings its own compiler, which compiles every run.
+
+    Args:
+        task:
+            The task.
+
+        system:
+            The system with the parameters of the task.
+
+        paths:
+            The values of the task by dotted path.
+
+        store:
+            The compiled problems of the running experiment by structure.
+
+        key:
+            The structure of the task.
+
+    Returns:
+        trajectory:
+            The trajectory of the run.
+    """
+    settings = system.get_run_settings()
+    found = store.get(key)
+    compiled = found if isinstance(found, tuple) else None
+    if compiled is None:
+        compiled = compile_problem(system, solver=task.solver, observables=task.observables)
+        store[key] = compiled
+    initial_state, schedule = None, None
+    if paths or task.scenario.schedule:
+        problem = compiled[0] if compiled is not None else get_problem(system)
         states, parameters = _split_paths(problem, paths)
         functions = _schedule(problem, task.scenario, parameters)
         initial_state = {**(settings['initial_state'] or {}), **states} if states else None
         schedule = {**(settings['schedule'] or {}), **functions} if functions else None
-    trajectory = _simulate(
+    return run_problem(
         system,
         compiled,
         until=task.until,
@@ -414,6 +446,62 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
         schedule=schedule,
         random_state=np.random.default_rng(task.seed),
     )
+
+
+def _simulate_task(task: _TaskSpec, problems: Problems | None) -> Trajectory:
+    """Return the trajectory of one task.
+
+    Names without a dot are parameters, set on a clone of the system with `set_params` or passed to the factory, such
+    as the model parameter `r` or the nested name `growth__r`. Dotted paths of states replace initial values, and dotted
+    paths of parameters keep their value for the whole run. The runs of one structure, the source and the parameters,
+    share one prepared system and differ only by dotted paths and seeds.
+
+    Args:
+        task:
+            The task.
+
+        problems:
+            The prepared systems and compiled problems of the running experiment by structure, or `None` to prepare
+            for this run alone.
+
+    Returns:
+        trajectory:
+            The trajectory of the run.
+    """
+    values = {**task.row, **(task.scenario.overrides or {})}
+    arguments = {name: value for name, value in values.items() if '.' not in name}
+    paths = {name: value for name, value in values.items() if '.' in name}
+    store: Problems = {} if problems is None else problems
+    source = task.scenario.system if task.scenario.system is not None else task.source
+    system = build_system(source, arguments, task.solver)
+    key = _get_structure(task, arguments)
+    if isinstance(system, BaseSystem):
+        return _simulate_prepared(task, system, paths, store, key)
+    return _simulate_composite(task, system, paths, store, key)
+
+
+def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSpec:
+    """Run one task and keep its outputs.
+
+    It keeps its series and scalar outputs, and runs its analyses on its trajectory.
+
+    Args:
+        task:
+            The task.
+
+        problems:
+            The prepared systems and compiled problems of the running experiment by structure, filled as tasks prepare
+            them, or `None` to prepare for this run alone.
+
+    Returns:
+        result:
+            The result of the run.
+
+    Raises:
+        ExperimentError:
+            An analysis returns no result of an analysis.
+    """
+    trajectory = _simulate_task(task, problems)
     keep = trajectory.times >= task.warmup - TIME_TOLERANCE
     series, scalars = _read_outputs(trajectory, task.outputs, keep)
     for prefix, analysis in task.analyses:
@@ -449,7 +537,7 @@ def _run_experiment(
     solver: BaseSolver | None,
     outputs: Sequence[Output] | None,
     warmup: float,
-    observables: Sequence[ObservableSpec],
+    observables: Sequence[Observable],
     random_state: int | None,
     executor: str | Executor,
 ) -> ExperimentResult:
@@ -464,7 +552,7 @@ def _run_experiment(
             The system, or the factory of systems.
 
         rows:
-            The values of every row, by model parameter or dotted path.
+            The values of every row, by parameter name or dotted path.
 
         scenarios:
             The scenarios.
@@ -512,7 +600,7 @@ def _run_experiment(
     """
     system = _check_source(source)
     _check_count('replicates', replicates)
-    if isinstance(executor, str) and executor not in EXECUTORS:
+    if isinstance(executor, str) and executor not in ExecutorKind:
         error_msg = f"executor = {executor!r} must be 'serial', 'thread', 'process', or an executor."
         raise ValidationError(error_msg)
     named = _name_analyses(analyses)

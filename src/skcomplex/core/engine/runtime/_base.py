@@ -11,27 +11,28 @@ from ..problems import BaseProblemSpec, FrameSpec
 
 
 class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
-    """An abstract observer, which receives the frames of a simulation.
+    """An abstract observer, which receives the frames of a run one by one.
 
-    An observer follows the common API of the engine. A simulation checks it, calls `prepare(problem)` with the
-    compiled problem before the first frame, `run(frame)` with every frame, and `run(final=True)` without a frame once
-    the run stops, which releases what preparing acquired. Subclasses override any of the hooks `_prepare`, `_run`,
-    and `_release`.
+    A run calls `prepare(problem)` with the compiled problem before the first frame, `run(frame)` with every frame, such
+    as the frame of time 0 that holds the starting values, and `run(final=True)` once the run stops, which frees what
+    `prepare` took, such as an open file. A subclass writes any of the private methods `_prepare`, `_run`, and
+    `_release`. Observers record the course of an epidemic, check that the money of an economy is conserved, and draw a
+    flock as it moves.
+
+    Read more in the user guide, under Observe.
+
+    See Also:
+        RecorderObserver: Keeps every frame.
+        ConservationObserver: Checks that conserved quantities hold.
+        InvariantObserver: Checks that observables stay near their first value.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import BaseObserver, simulate
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> class CountingObserver(BaseObserver):
-        ...     def _prepare(self, context):
-        ...         self.count_ = 0
-        ...
-        ...     def _run(self, inputs):
-        ...         self.count_ += inputs is not None
-        >>> observer = CountingObserver()
-        >>> _ = simulate(CompositeSystem(elements=[PopulationElement('a')]), until=3, dt=1, observers=[observer])
-        >>> observer.count_
-        4
+        >>> from skcomplex.core.engine.runtime import BaseObserver, RecorderObserver
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> recorder = RecorderObserver()
+        >>> _ = LogisticGrowthSystem().prepare().simulate(until=2, dt=1, observers=[recorder])
+        >>> isinstance(recorder, BaseObserver), len(recorder.frames_)
+        (True, 3)
     """
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
@@ -80,11 +81,14 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
 
 
 class BaseClock(BaseConfig[None, float]):
-    """An abstract clock, which paces a simulation against wall time.
+    """An abstract clock, which paces a run against wall time.
 
-    A clock decides how long to wait between frames. A clock follows the common API of the engine. It is prepared at the
-    start of a run with `prepare()`, which marks the wall time, and `run(elapsed)` waits until a frame that is `elapsed`
-    simulated time units after the start is due. Subclasses implement `_run`.
+    A clock decides how long a run waits between frames. `prepare()` marks the wall time at the start of a run, and
+    `run(elapsed)` waits until the frame `elapsed` time units after the start is due, so `RealTimeClock(speed=100.0)`
+    shows 100 time units per second. A subclass writes the private method `_run`. Clocks pace a live view of a pendulum,
+    a demo of a traffic jam, and a game against a model of a market.
+
+    Read more in the user guide, under Observe.
 
     Attributes:
         started_:
@@ -92,6 +96,16 @@ class BaseClock(BaseConfig[None, float]):
 
         max_lag_:
             The largest delay of a frame behind its due time, in seconds.
+
+    See Also:
+        AsFastAsPossibleClock: Never waits.
+        RealTimeClock: Runs at a fixed speed against wall time.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime import BaseClock, RealTimeClock
+        >>> clock = RealTimeClock(speed=100.0).prepare()
+        >>> isinstance(clock, BaseClock)
+        True
     """
 
     def _prepare(self, context: None) -> None:

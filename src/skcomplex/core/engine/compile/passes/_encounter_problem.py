@@ -1,4 +1,4 @@
-"""Pass that makes the problem of a system with encounter laws kinetic."""
+"""Make the problem of a system with encounter laws a kinetic problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +13,19 @@ from .._compilation import Compilation
 class EncounterProblemPass(BasePass):
     """A pass that makes the problem of a system with encounter laws kinetic.
 
-    The kinetic problem holds the encounter laws.
+    The kinetic problem holds the encounter laws beside the rates, for a solver of densities of classes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CompileEncountersPass: Compiles the encounters.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> compilation = PassCompiler().prepare(KineticOpinionSystem()).run().compilation_
+        >>> type(compilation.problem).__name__
+        'KineticProblemSpec'
     """
 
     def _get_reads(self) -> tuple[str, ...]:

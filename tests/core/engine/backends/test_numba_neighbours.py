@@ -1,74 +1,61 @@
 """Test that compiled pair kernels find neighbours in the bounded cell grids of the neighbour search."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 import pytest
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 CUTOFF = 2.5
 
 
-class BallElement(Element):
-    """Point of a continuous space, with a vector state `x` of order 2."""
+class SoftSphereInteraction(Interaction):
+    """Repulsive pair potential `epsilon * (sigma / r) ** 12` between the members of a group within the cutoff."""
 
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, points at the values of `x`."""
-        super()._prepare(context)
-        self.default_visual_ = VisualSpec('points', {'position': 'x'})
-
-
-class SoftSphereInteraction(PairInteraction):
-    """Repulsive pair potential `epsilon * (sigma / r) ** 12`."""
-
-    def __init__(
-        self,
-        label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        period: float | None = None,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        cutoff: float = 1.0,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            potential=self._get_pair_energy,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.epsilon = epsilon
         self.sigma = sigma
 
-    def _get_pair_energy(self, s, r):
-        """Return `epsilon * (sigma / r) ** 12`."""
-        return s.epsilon * (s.sigma / r) ** 12
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the force of the neighbours within the cutoff on every member."""
+        super()._prepare(context)
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = s.epsilon * (s.sigma / distance) ** 12
+        slope = energy.diff(distance).subs({distance: r})
+        force = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(x.diff(s.t, 2), force)]
+
+
+def _gas(positions, space, **settings):
+    """Return a gas at positions in a space whose members repel within the cutoff."""
+    gas = Element('gas', values={'x': positions, "x'": np.zeros_like(positions)}, size=len(positions))
+    soft = SoftSphereInteraction('soft', target='gas', cutoff=CUTOFF, **settings)
+    return System(elements=[gas], interactions=[soft], space=space)
 
 
 @pytest.fixture(scope='module')
@@ -81,21 +68,15 @@ def _accelerations(system, numba_backend):
     """Return the accelerations of a system at its initial state on the NumPy and the Numba backends."""
     accelerations = []
     for backend in (NumpyBackend(), numba_backend):
-        problem = PassCompiler(backend=backend).prepare(system).run().problem_
+        problem = system.set_params(backend=backend).prepare()._problem
         drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-        accelerations.append(problem.states.read(drift, 'gas.x_d1'))
+        accelerations.append(problem.states.read(drift, "gas.x'"))
     return accelerations
 
 
 def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
     """Test that two particles 1000 cutoffs apart in three dimensions bin into a small grid and feel no force."""
-    system = CompositeSystem(
-        elements=[
-            GroupElement('gas', element=BallElement, size=2, values={'x': [[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]}),
-        ],
-        interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF)],
-        space=ContinuousSpace(n_dim=3),
-    )
+    system = _gas(np.array([[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]), ContinuousSpace(n_dim=3))
     reference, compiled = _accelerations(system, numba_backend)
     np.testing.assert_array_equal(compiled, reference)
     assert not np.any(compiled)
@@ -105,15 +86,8 @@ def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
 def test_pair_kernel_visits_every_cell_of_narrow_periodic_box_once(numba_backend, period):
     """Test that periodic boxes of one, two, and three cells per side count every pair once on both backends."""
     rng = np.random.default_rng(0)
-    system = CompositeSystem(
-        elements=[
-            GroupElement('gas', element=BallElement, size=30, values={'x': rng.uniform(0, period, (30, 2))}),
-        ],
-        interactions=[
-            SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF, sigma=0.3, period=period),
-        ],
-        space=ContinuousSpace(extent=(period, period), boundary='periodic'),
-    )
+    space = ContinuousSpace(extent=(period, period), boundary='periodic')
+    system = _gas(rng.uniform(0, period, (30, 2)), space, sigma=0.3)
     reference, compiled = _accelerations(system, numba_backend)
     assert np.any(reference)
     np.testing.assert_allclose(compiled, reference, rtol=1e-12, atol=1e-12)

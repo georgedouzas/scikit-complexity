@@ -6,9 +6,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.engine.problems import RunStateSpec
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import IMEXEulerSolver
-from skcomplex.core.specs import RunStateSpec
 from skcomplex.systems.biology.ecology import CometsSystem
 
 STEP = 0.1
@@ -50,13 +50,13 @@ def _taken_up(trajectory: Trajectory) -> float:
 def _run_small(shape: tuple[int, int], until: float, **parameters: float) -> Trajectory:
     """Return a run of the published scheme and step on another lattice."""
     system = CometsSystem(shape=shape, **parameters).prepare().system_
-    return simulate(system, solver=IMEXEulerSolver(dt=STEP), dt=STEP, until=until)
+    return system.set_params(solver=IMEXEulerSolver(dt=STEP)).prepare().simulate(dt=STEP, until=until)
 
 
 @pytest.fixture(scope='module')
 def published() -> Trajectory:
     """Return the default run of the system."""
-    return simulate(CometsSystem())
+    return CometsSystem().prepare().simulate()
 
 
 def test_comets_defaults_are_the_published_values():
@@ -77,7 +77,7 @@ def test_comets_defaults_are_the_published_values():
     assert {name: parameters[name].default for name in published_values} == published_values
     assert 'threshold' not in parameters
     assert CometsSystem.dt == 0.1
-    assert CometsSystem.solver.dt == 0.1
+    assert CometsSystem().prepare().solver_.dt == 0.1
 
 
 def test_comets_steps_are_the_published_diffusion_numbers():
@@ -93,12 +93,8 @@ def test_comets_steps_are_the_published_diffusion_numbers():
 
 def test_comets_inoculum_is_the_published_mass_at_the_centre():
     """Test that the central box holds 3e-7 g, with the volume under a box from the glucose of the medium."""
-    biomass = next(
-        item for item in CometsSystem(shape=(5, 5)).prepare().system_.elements if item.label == 'biomass'
-    ).values['x']
-    glucose = next(
-        item for item in CometsSystem(shape=(5, 5)).prepare().system_.elements if item.label == 'glucose'
-    ).values['c']
+    biomass = next(item for item in CometsSystem(shape=(5, 5)).prepare().system_.elements if item.label == 'biomass').x
+    glucose = next(item for item in CometsSystem(shape=(5, 5)).prepare().system_.elements if item.label == 'glucose').c
     volume = 0.0088 * 0.02**2 / glucose[0, 0]
     assert glucose[0, 0] == pytest.approx(27.753, abs=1e-3)
     assert biomass[2, 2] * volume == pytest.approx(3e-7)

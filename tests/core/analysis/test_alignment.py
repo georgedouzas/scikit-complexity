@@ -8,7 +8,6 @@ import pytest
 from scipy.spatial import cKDTree
 
 from skcomplex.core.analysis import AlignmentResult, alignment
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
@@ -103,7 +102,7 @@ def test_mean_rotation_of_a_mill():
 
 def test_alignment_of_every_frame_of_a_trajectory():
     """Test that a flock gives one mean-vector, mean-rotation, and axial order per frame between 0 and 1."""
-    trajectory = simulate(BoidsSystem(), until=3, random_state=0)
+    trajectory = BoidsSystem().prepare().simulate(until=3, random_state=0)
     for kind in ('mean-vector', 'mean-rotation', 'axial'):
         order = _order(kind, trajectory)
         assert order.shape == (len(trajectory.times),)
@@ -122,9 +121,9 @@ def test_alignment_checks_its_settings():
 
 def test_alignment_on_three_domains():
     """Test the mean vector of a Vicsek flock and of an XY lattice, and the mean phase of Kuramoto oscillators."""
-    flock = simulate(VicsekSystem(), until=3, random_state=0)
-    spins = simulate(XYSystem(), until=3, random_state=0)
-    oscillators = simulate(KuramotoSystem(), until=3, random_state=0)
+    flock = VicsekSystem().prepare().simulate(until=3, random_state=0)
+    spins = XYSystem().prepare().simulate(until=3, random_state=0)
+    oscillators = KuramotoSystem().prepare().simulate(until=3, random_state=0)
     runs = (
         (_alignment('mean-vector', flock), flock),
         (_alignment('mean-vector', spins), spins),
@@ -150,11 +149,13 @@ def test_alignment_of_a_field_of_vectors():
 
 def test_alignment_of_velocities_along_a_line():
     """Test that agents moving along a line align by the sign of their velocities, per frame and per member."""
-    trajectory = simulate(RandomWalkWithMemorySystem(n_walkers=200), until=5.0, random_state=0)
+    trajectory = RandomWalkWithMemorySystem(n_walkers=200).prepare().simulate(until=5.0, random_state=0)
     signs = np.sign(trajectory.get_values('walkers.v'))
     expected = np.abs(np.where(signs == 0, 0.0, signs).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
-    assert _alignment('mean-phase', simulate(OptimalVelocitySystem(), until=1.0, random_state=0)).order[-1] == 1.0
+    assert (
+        _alignment('mean-phase', OptimalVelocitySystem().prepare().simulate(until=1.0, random_state=0)).order[-1] == 1.0
+    )
 
 
 @pytest.mark.parametrize(
@@ -162,15 +163,15 @@ def test_alignment_of_velocities_along_a_line():
     [(SwarmalatorsSystem, 'units.theta'), (KuramotoSystem, 'oscillators.theta')],
 )
 def test_alignment_reads_phases(system, state):
-    """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""
-    trajectory = simulate(system(), until=1.0, random_state=0)
+    """Test that particles and series of periodic values give the synchrony of their angles, not their observables."""
+    trajectory = system().prepare().simulate(until=1.0, random_state=0)
     expected = np.abs(np.exp(1j * trajectory.get_values(state)).mean(axis=1))
     assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
 
 
 def test_alignment_rejects_a_source_without_a_readable_kind():
     """Test that a trajectory with no agents, field, or series names the kinds read and the kinds held."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=3.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(3.0, random_state=0)
     with pytest.raises(AnalysisError, match='reads agents, field, series, but the trajectory holds path'):
         _alignment('mean-vector', trajectory)
 

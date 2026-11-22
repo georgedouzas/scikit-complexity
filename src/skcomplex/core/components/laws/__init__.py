@@ -1,64 +1,58 @@
-"""Define laws, the rules by which states change.
+"""Define laws, the equations and rules that change the values of elements.
 
-A law is one equation or rule for the states it targets, such as a rate, the next value at a step, a random jump, or an
-algebraic equation. Elements, interactions, and systems return laws, and the compiler lowers them to a problem.
+A law says how one value changes, such as `RateLaw(s.ball.x.diff(s.t, 2), -s.g)` for a falling ball, the next value
+after a step, a random jump, or an equation the compiler solves. Interactions return laws in `laws_`, and the compiler
+turns them into a problem that a solver runs. The specs here hold the settings that laws and their rules read.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._array_update import ArrayUpdateLaw
 from ._base import BaseLaw
-from ._bilinear import BilinearLaw
-from ._boundary import BoundaryLaw
-from ._cascade import CascadeLaw
-from ._crossing import CrossingLaw
-from ._dissipator import DissipatorLaw
-from ._equation import EquationLaw
-from ._extremal import ExtremalLaw
-from ._flux import FluxLaw
-from ._generator import GeneratorLaw
-from ._gradient_step import GradientStepLaw
+from ._call_spec import CallSpec
+from ._constraint import ConstraintLaw
+from ._dataset_spec import DatasetSpec
+from ._draw_spec import DrawSpec
+from ._event import EventLaw
 from ._jump import JumpLaw
-from ._linear_program import LinearProgramLaw
-from ._local_rule import LocalRuleLaw
-from ._match import MatchLaw
+from ._linear_objective_spec import LinearObjectiveSpec
+from ._linear_rule_spec import LinearRuleSpec
+from ._move_spec import MoveSpec
 from ._noise import NoiseLaw
-from ._production import ProductionLaw
+from ._objective import ObjectiveLaw
+from ._objective_spec import ObjectiveSpec
+from ._outer_totalistic_spec import OuterTotalisticSpec
+from ._partner_spec import PartnerSpec
 from ._rate import RateLaw
-from ._rule import RuleLaw
-from ._sample import SampleLaw
-from ._substitution import SubstitutionLaw
-from ._transfer import Sink, Source, TransferLaw
-from ._transition import TransitionLaw
+from ._requirement_spec import RequirementSpec
+from ._sampler_spec import SamplerSpec
+from ._table_spec import TableSpec
+from ._topology_request_spec import EDGE_KINDS, TopologyRequestSpec
+from ._totalistic_spec import TotalisticSpec
 from ._update import UpdateLaw
 
 __all__: list[str] = [
-    'ArrayUpdateLaw',
+    'EDGE_KINDS',
     'BaseLaw',
-    'BilinearLaw',
-    'BoundaryLaw',
-    'CascadeLaw',
-    'CrossingLaw',
-    'DissipatorLaw',
-    'EquationLaw',
-    'ExtremalLaw',
-    'FluxLaw',
-    'GeneratorLaw',
-    'GradientStepLaw',
+    'CallSpec',
+    'ConstraintLaw',
+    'DatasetSpec',
+    'DrawSpec',
+    'EventLaw',
     'JumpLaw',
-    'LinearProgramLaw',
-    'LocalRuleLaw',
-    'MatchLaw',
+    'LinearObjectiveSpec',
+    'LinearRuleSpec',
+    'MoveSpec',
     'NoiseLaw',
-    'ProductionLaw',
+    'ObjectiveLaw',
+    'ObjectiveSpec',
+    'OuterTotalisticSpec',
+    'PartnerSpec',
     'RateLaw',
-    'RuleLaw',
-    'SampleLaw',
-    'Sink',
-    'Source',
-    'SubstitutionLaw',
-    'TransferLaw',
-    'TransitionLaw',
+    'RequirementSpec',
+    'SamplerSpec',
+    'TableSpec',
+    'TopologyRequestSpec',
+    'TotalisticSpec',
     'UpdateLaw',
 ]

@@ -1,4 +1,4 @@
-"""Read the residence of states through hidden states."""
+"""Count how long the states of a map keep their values."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,14 +9,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....components import EntrySpec
 from ....components.laws import BaseLaw, UpdateLaw
 from ....components.laws.utils import where
 from ....errors import ValidationError
-from ....specs import EntrySpec
 from ..._utils import components_of, symbol, vector
+from ...enums import ReadKind
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._layout import LayoutPass
@@ -25,9 +25,24 @@ RESIDENCE_PREFIX = '__residence'
 
 
 class ResidencesPass(BasePass):
-    """A pass that reads the residence of states through hidden states.
+    """A pass that counts how long the states of a map keep their values.
 
-    The hidden states keep their previous values and counts.
+    A law may read `residence(x)`, the number of steps a state has kept its value, such as the time a cell has stayed
+    alive. The pass adds two hidden states per state read, its previous value and the count, and laws that update them
+    at every step.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OrdersPass: Rewrites derivatives and past values.
+
+    Examples:
+        >>> from skcomplex.core.components.laws.utils import residence
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.general.dynamics import DynamicalSystem
+        >>> system = DynamicalSystem({'x': 0.0}, {'x': lambda s: residence(s.target.x)}, time='discrete')
+        >>> [entry.name for entry in PassCompiler().prepare(system).compilation_.layout.states]
+        ['state.x', '__residence_0.previous', '__residence_0.count']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -117,7 +132,7 @@ class ResidencesPass(BasePass):
             for call in ResidencesPass._get_calls_in(law):
                 if not isinstance(law, UpdateLaw):
                     error_msg = (
-                        f'A {type(law).__name__} of {spec.owner} reads {call}, which only update laws of discrete time '
+                        f'A {law._get_name()} of {spec.owner} reads {call}, which only update laws of discrete time '
                         'read.'
                     )
                     raise ValidationError(error_msg)

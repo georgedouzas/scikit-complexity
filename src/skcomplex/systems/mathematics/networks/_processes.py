@@ -6,120 +6,190 @@ The module covers random walks, diffusion, and PageRank on graphs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
-from ...general.agents import MovementInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import laplacian, neighbors
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 
 
 class NodeRankElement(Element):
-    """Page of a network with its PageRank and degree.
-
-    The page also holds the number of pages and the damping of the surfer.
+    """Pages of a network, each with its rank `rank` and its number `degree` of links.
 
     Args:
         label:
-            The label of the page or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the pages.
 
         rank:
-            The initial rank.
-
-        damping:
-            The probability that the surfer follows a link rather than jumping to a random page.
+            The initial rank, one per page or shared.
 
         degree:
-            The number of links of the page.
+            The number of links, one per page or shared.
 
-        n_nodes:
-            The number of pages of the network.
+        space:
+            The network with one page per node, or `None` for one page.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import NodeRankElement
-        >>> NodeRankElement('page', damping=0.9).damping
-        0.9
+        >>> NodeRankElement('pages', degree=2.0).degree
+        2.0
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rank: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        damping: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.85,
-        degree: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n_nodes: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rank: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rank = rank
-        self.damping = damping
         self.degree = degree
+
+
+class PagerankInteraction(Interaction):
+    """The PageRank iteration `r_i' = Σ_j A_ij (d r_j / k_j + (1 - d) / (n k_i))` of a random surfer.
+
+    The surfer follows a link with the probability `d` and jumps to a random page of the `n` pages otherwise, so the
+    ranks of an undirected network without isolated pages stay normalized.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The pages whose ranks the iteration sets.
+
+        damping:
+            The probability `d` that the surfer follows a link rather than jumping to a random page.
+
+        n_nodes:
+            The number `n` of pages of the network.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import PagerankInteraction
+        >>> PagerankInteraction('links', damping=0.9).damping
+        0.9
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'pages', damping: float = 0.85, n_nodes: int = 1) -> None:
+        super().__init__(label)
+        self.target = target
+        self.damping = damping
         self.n_nodes = n_nodes
 
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next rank, summed over the links of every page, as the law.
 
-class NetworkWalkerView(AgentView):
-    """View of a walker on a network, with its states as attributes."""
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        page, other, damping = context.target, context.target.other, context.damping
+        term = damping * other.rank / other.degree + (1 - damping) / (context.n_nodes * page.degree)
+        self.laws_: list[BaseLaw] = [UpdateLaw(page.rank, neighbors(term))]
+
+
+class NetworkWalkerView(AgentViewProtocol, Protocol):
+    """View of a walker on a network, with its values as attributes."""
 
     steps: float
 
 
 class NetworkWalkerElement(Element):
-    """Walker on the nodes of a network.
-
-    The walker counts the steps it takes.
+    """Walkers on the nodes of a network, each with its number `steps` of steps taken.
 
     Args:
         label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the walkers.
 
         steps:
-            The initial number of steps taken.
+            The initial number of steps taken, one per walker or shared.
+
+        size:
+            The number of walkers, or `None` for one.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.mathematics.networks import NetworkWalkerElement
-        >>> group = GroupElement('walkers', element=NetworkWalkerElement, size=5)
-        >>> group.label, group.element.__name__, group.size
-        ('walkers', 'NetworkWalkerElement', 5)
+        >>> NetworkWalkerElement('walkers', size=5).size
+        5
     """
+
+    visual = VisualSpec('agents', {'color_by': 'steps'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'steps'}),
         *,
-        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        steps: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.steps = steps
 
-    @classmethod
-    def _get_view(cls) -> type[NetworkWalkerView]:
-        """Return the view of the agents.
 
-        The view types their states.
+class NetworkStepInteraction(Interaction):
+    """Step of a walker on a network to a neighbouring node drawn uniformly, counted in `steps`.
+
+    Every walker runs the rule once per step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The walkers that step.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import NetworkStepInteraction
+        >>> NetworkStepInteraction('walk').target
+        'walkers'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'walkers') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the step of every walker as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return NetworkWalkerView
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._step)]
+
+    def _step(self, agent: NetworkWalkerView, system: SystemView) -> None:
+        """Move a walker to a random neighbouring node and count the step."""
+        nodes = agent.get_neighbor_cells()
+        if nodes:
+            agent.move_to(nodes[int(system.rng.integers(len(nodes)))])
+            agent.steps += 1
 
 
 class NetworkRandomWalkSystem(BaseSystem):
@@ -139,10 +209,16 @@ class NetworkRandomWalkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.mathematics.networks import NetworkRandomWalkSystem
-        >>> NetworkRandomWalkSystem(nx.cycle_graph(6), n_walkers=3).prepare().system_.elements[0].prepare().size_
+        >>> NetworkRandomWalkSystem(nx.cycle_graph(6), n_walkers=3).prepare().system_.elements[0].size
         3
     """
 
@@ -162,26 +238,21 @@ class NetworkRandomWalkSystem(BaseSystem):
         *,
         n_walkers: int = 50,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.n_walkers = n_walkers
 
-    @staticmethod
-    def _count_step(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-        """Count a step the walker takes."""
-        if isinstance(agent, NetworkWalkerView):
-            agent.steps += 1
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
-        walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers on the network and their steps."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[GroupElement('walkers', element=NetworkWalkerElement, size=self.n_walkers)],
-            interactions=[walk],
-            space=NetworkSpace(graph),
+            elements=[NetworkWalkerElement('walkers', size=self.n_walkers)],
+            interactions=[NetworkStepInteraction('walk', target='walkers')],
+            space=NetworkSpace(NetworkRandomWalkSystem._get_graph_or_default(self.graph)),
         )
 
 
@@ -206,11 +277,17 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
-        >>> NetworkDiffusionSystem(nx.path_graph(4)).prepare().system_.elements[0].prepare().size_
-        4
+        >>> NetworkDiffusionSystem(nx.path_graph(4)).prepare().simulate(until=0.0).get_values('nodes.u').shape
+        (1, 4)
     """
 
     field = 'mathematics/networks'
@@ -226,8 +303,10 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
         D: float = 1.0,
         source: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.graph = graph
         self.D = D
         self.source = source
@@ -236,14 +315,15 @@ class NetworkDiffusionSystem(NetworkDynamicalSystem):
         """Return the graph, Zachary's karate club by default."""
         return NetworkRandomWalkSystem._get_graph_or_default(self.graph)
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the content, one at the source and zero elsewhere, and the diffusion constant."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the content, one at the source and zero elsewhere."""
         initial = np.zeros(self._get_graph().number_of_nodes())
         initial[self.source] = 1.0
-        return {
-            'u': DeclaredVariableSpec(initial, StateSpec()),
-            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-        }
+        return {'u': initial}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the diffusion constant."""
+        return {'D': self.D}
 
     def _get_equations(self) -> Equations:
         """Return the diffusion `D L u` of the content by the graph Laplacian."""
@@ -268,11 +348,17 @@ class PagerankSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.mathematics.networks import PagerankSystem
-        >>> PagerankSystem(nx.cycle_graph(5)).prepare().system_.elements[0].prepare().size_
-        5
+        >>> PagerankSystem(nx.cycle_graph(5)).prepare().system_.elements[0].rank.tolist()
+        [0.2, 0.2, 0.2, 0.2, 0.2]
     """
 
     field = 'mathematics/networks'
@@ -287,36 +373,22 @@ class PagerankSystem(BaseSystem):
         *,
         damping: float = 0.85,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.damping = damping
 
-    @staticmethod
-    def _get_link_term(s: SimpleNamespace) -> object:
-        """Return what one link brings to the rank of a page.
-
-        The link brings a share of the rank of the other page and of the jumps.
-        """
-        member, other = s.member, s.other
-        return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j`.
-
-        The network is undirected.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the pages with uniform ranks and their iteration."""
+        super()._prepare(context)
         graph = NetworkRandomWalkSystem._get_graph_or_default(self.graph)
         size = graph.number_of_nodes()
         degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
-        values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': self.damping}
-        pages = FieldElement('pages', element=NodeRankElement, space=NetworkSpace(graph), values=values)
-        links = CouplingInteraction(
-            'links',
-            target='pages',
-            read='rank',
-            write='rank',
-            function=self._get_link_term,
-            form='map',
+        pages = NodeRankElement('pages', rank=np.full(size, 1 / size), degree=degrees, space=NetworkSpace(graph))
+        self.system_ = System(
+            self.label,
+            elements=[pages],
+            interactions=[PagerankInteraction('links', target='pages', damping=self.damping, n_nodes=size)],
         )
-        return CompositeSystem(self.label, elements=[pages], interactions=[links])

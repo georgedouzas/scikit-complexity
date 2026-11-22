@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import expit
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import FairFoodSystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'fair_food'
 
 system = FairFoodSystem(width=20, height=20, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=30, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=30, observers=[observer], random_state=0)
 
 # %%
 # Price premium and social influence
@@ -43,7 +42,9 @@ expected = [np.mean((budgets >= 1 + premium) * expit(2 * ethics - 5 * premium / 
 shares = {}
 for social_weight in (0.0, 2.0):
     shares[social_weight] = [
-        simulate(FairFoodSystem(premium=premium, social_weight=social_weight, random_state=0), until=15, random_state=0)
+        FairFoodSystem(premium=premium, social_weight=social_weight, random_state=0)
+        .prepare()
+        .simulate(until=15, random_state=0)
         .get_values('fair_share')[-5:]
         .mean()
         for premium in premiums

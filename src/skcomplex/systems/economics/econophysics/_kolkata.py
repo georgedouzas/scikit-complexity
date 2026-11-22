@@ -9,25 +9,28 @@ Diners choose among restaurants.
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GroupingInteraction
-from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.agents import ChoiceInteraction
 
 STRATEGIES = ('random', 'crowd_avoiding')
 
 
-class DinerView(AgentView):
+@runtime_checkable
+class DinerView(AgentViewProtocol, Protocol):
     """Diner as the rules see it.
 
     It reads its `restaurant`, the `crowd` there, and whether it was `served`.
@@ -47,9 +50,6 @@ class DinerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         restaurant:
             The restaurant chosen last, from 0 to the number of restaurants minus one.
 
@@ -59,31 +59,28 @@ class DinerElement(Element):
         served:
             Whether the diner got a meal, 1 or 0.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import DinerElement
-        >>> GroupElement('diners', element=DinerElement, size=10).size
+        >>> DinerElement('diners', size=10).size
         10
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        restaurant: Annotated[float, StateSpec(domain=NN)] = 0,
-        crowd: Annotated[float, StateSpec(domain=NN)] = 0,
-        served: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        restaurant: Annotated[object, NN] = 0.0,
+        crowd: Annotated[object, NN] = 0.0,
+        served: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.restaurant = restaurant
         self.crowd = crowd
         self.served = served
-
-    @classmethod
-    def _get_view(cls) -> type[DinerView]:
-        """Return the view of the agents of the element."""
-        return DinerView
 
 
 class CrowdAvoidanceInteraction(ChoiceInteraction):
@@ -142,7 +139,7 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
             rule='metropolis',
             intensity=intensity,
             activity=activity,
-            form='agent',
+            schedule='synchronous',
             phase=phase,
         )
 
@@ -158,7 +155,7 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
         return -math.log1p(-1 / agent.crowd)
 
 
-class RestaurantsInteraction(GroupingInteraction):
+class RestaurantsInteraction(Interaction):
     """Restaurants that each serve one meal every evening.
 
     The meal goes to one of the diners who come, chosen at random. The diners are grouped by their restaurant. Every
@@ -183,11 +180,11 @@ class RestaurantsInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.systems.economics.econophysics import RestaurantsInteraction
-        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).groups
-        'state'
+        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).by
+        'restaurant'
     """
 
-    law_classes = (MatchLaw, RuleLaw, UpdateLaw)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
 
@@ -195,13 +192,49 @@ class RestaurantsInteraction(GroupingInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         n_restaurants: int = 100,
         by: str = 'restaurant',
         phase: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, groups='state', by=by, phase=phase)
+        super().__init__(label)
+        self.target = target
         self.n_restaurants = n_restaurants
+        self.by = by
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the serving and then the reporting of every evening as rules of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(context, self.serve, phase=self.phase),
+            UpdateLaw(context, self.report, phase=self.phase),
+        ]
+
+    def serve(self, system: SystemViewProtocol) -> None:
+        """Group the diners by their restaurant and serve every restaurant, in random order.
+
+        The diners of a restaurant come in a random order, and the restaurants are visited in a random order.
+
+        Args:
+            system:
+                The system view of the restaurants.
+        """
+        shared: dict[float, list[AgentViewProtocol]] = {}
+        for agent in system.get_agents('target'):
+            if agent.alive:
+                shared.setdefault(float(getattr(agent, self.by)), []).append(agent)
+        groups = []
+        for value in sorted(shared):
+            members = shared[value]
+            groups.append([members[int(index)] for index in system.rng.permutation(len(members))])
+        for index in system.rng.permutation(len(groups)):
+            self.act_on(groups[int(index)], system)
 
     def act_on(self, members: list[AgentViewProtocol], system: SystemViewProtocol) -> None:
         """Tell every diner of a restaurant its crowd and serve the first diner.
@@ -225,23 +258,8 @@ class RestaurantsInteraction(GroupingInteraction):
             system:
                 The system view of the restaurants.
         """
-        visited = {float(getattr(agent, str(self.by))) for agent in system.get_agents('target')}
+        visited = {float(getattr(agent, self.by)) for agent in system.get_agents('target')}
         system.report('utilization', len(visited) / self.n_restaurants)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that serves the diners and the utilization report.
-
-        The report is a rule of its own.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The serving and the reporting rules.
-        """
-        return [*super()._get_laws(namespace), RuleLaw(self.report, phase=self.phase)]
 
 
 class KolkataRestaurantSystem(BaseSystem):
@@ -269,6 +287,12 @@ class KolkataRestaurantSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The strategy is unknown.
@@ -292,15 +316,18 @@ class KolkataRestaurantSystem(BaseSystem):
         strategy: str = 'random',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.n_restaurants = n_restaurants
         self.strategy = strategy
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         n_restaurants = self.n_restaurants
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {STRATEGIES}.'
@@ -308,7 +335,7 @@ class KolkataRestaurantSystem(BaseSystem):
         n_restaurants = self.n_agents if n_restaurants is None else n_restaurants
         options = [float(restaurant) for restaurant in range(n_restaurants)]
         choices = np.random.default_rng(self.random_state).integers(n_restaurants, size=self.n_agents).astype(float)
-        diners = GroupElement('diners', element=DinerElement, size=self.n_agents, values={'restaurant': choices})
+        diners = DinerElement('diners', restaurant=choices, size=self.n_agents)
         choice = (
             CrowdAvoidanceInteraction('choice', target='diners', options=options)
             if self.strategy == 'crowd_avoiding'
@@ -319,8 +346,8 @@ class KolkataRestaurantSystem(BaseSystem):
                 options=options,
                 utility=lambda agent, system, option: 0.0,
                 intensity=0.0,
-                form='agent',
+                schedule='synchronous',
             )
         )
         restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
-        return CompositeSystem(self.label, elements=[diners], interactions=[choice, restaurants])
+        self.system_ = System(self.label, elements=[diners], interactions=[choice, restaurants])

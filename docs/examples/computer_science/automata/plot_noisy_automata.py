@@ -13,18 +13,16 @@ new defects as fast as they annihilate, and their density levels off at a value 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import NoisyAutomataSystem
 
 SYSTEM = 'noisy_automata'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    NoisyAutomataSystem(rule=18, noise=0.01, size=200),
-    until=200,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    NoisyAutomataSystem(rule=18, noise=0.01, size=200)
+    .prepare()
+    .simulate(until=200, observers=[observer], random_state=0)
 )
 
 # %%
@@ -36,7 +34,7 @@ trajectory = simulate(
 
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for noise in (0.0, 0.001, 0.01):
-    run = simulate(NoisyAutomataSystem(rule=18, noise=noise, size=2000), until=1000, random_state=0)
+    run = NoisyAutomataSystem(rule=18, noise=noise, size=2000).prepare().simulate(until=1000, random_state=0)
     alive = run.get_lattice('cells.alive')
     defects = (alive[:, :-1] * alive[:, 1:]).mean(axis=1)
     ax.loglog(run.times[1:], defects[1:], label=f'noise {noise}')

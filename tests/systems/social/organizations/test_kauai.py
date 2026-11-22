@@ -4,10 +4,9 @@ import numpy as np
 import pytest
 from shapely import Point
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.social.organizations import (
     KauaiPopulationSystem,
     ResidentElement,
@@ -66,35 +65,36 @@ def test_kauai_residents_commute_through_their_regions():
 
 def _pair(first, second, **parameters):
     """Return a system of two residents at one point who meet, with a sentiment each and no topic in common."""
-    values = {'sentiment': np.array([first, second]), 'weights': np.array([[1.0, 0.0], [0.0, 1.0]]), **parameters}
-    residents = GroupElement(
+    space = ContinuousSpace(extent=(1000.0, 1000.0))
+    residents = ResidentElement(
         'residents',
-        element=ResidentElement,
+        sentiment=np.array([first, second]),
+        weights=np.array([[1.0, 0.0], [0.0, 1.0]]),
+        home=np.full((2, 2), np.nan),
+        **parameters,
+        values={'x': [500.0, 500.0], 'y': [500.0, 500.0]},
         size=2,
-        values=values,
-        location=[(500.0, 500.0), (500.0, 500.0)],
+        space=space,
     )
-    return CompositeSystem(
-        elements=[residents],
-        interactions=[SentimentInteraction('sentiment', target='residents')],
-        space=ContinuousSpace(extent=(1000.0, 1000.0)),
-    )
+    return System(elements=[residents], interactions=[SentimentInteraction('sentiment', target='residents')])
 
 
 def test_kauai_event_follows_equation_five_of_the_chapter():
     """Test the terms of the example of equation 6, which the chapter sums to -0.2755 by a slip of sign."""
-    residents = GroupElement(
+    residents = ResidentElement(
         'residents',
-        element=ResidentElement,
+        sentiment=np.array([-0.3]),
+        weights=np.array([[0.5, 0.1, 0.0, 0.2]]),
+        event_rate=0.05,
+        home=np.full((1, 2), np.nan),
+        values={'x': [500.0], 'y': [500.0]},
         size=1,
-        values={'sentiment': np.array([-0.3]), 'weights': np.array([[0.5, 0.1, 0.0, 0.2]]), 'event_rate': 0.05},
-        location=[(500.0, 500.0)],
+        space=ContinuousSpace(extent=(1000.0, 1000.0)),
     )
     event = [(1, 0, 0.8), (1, 1, -0.1), (1, 2, 0.4), (1, 3, 0.1)]
-    system = CompositeSystem(
+    system = System(
         elements=[residents],
         interactions=[SentimentInteraction('sentiment', target='residents', events=event)],
-        space=ContinuousSpace(extent=(1000.0, 1000.0)),
     )
     sentiment = _run(system, 1).get_agents('residents', 1).values['sentiment']
     assert sentiment[0] == pytest.approx(-0.3 + 0.0275 + 0.001 + 0.0 + 0.004)
@@ -124,18 +124,16 @@ def test_kauai_strong_opinion_moves_less_than_an_undecided_one():
 
 def test_kauai_interaction_stops_at_the_grid_cell():
     """Test that residents of different grid cells keep their sentiments, though they stand close."""
-    residents = GroupElement(
+    residents = ResidentElement(
         'residents',
-        element=ResidentElement,
+        sentiment=np.array([0.5, -0.5]),
+        weights=np.zeros((2, 1)),
+        home=np.full((2, 2), np.nan),
+        values={'x': [990.0, 1010.0], 'y': [500.0, 500.0]},
         size=2,
-        values={'sentiment': np.array([0.5, -0.5])},
-        location=[(990.0, 500.0), (1010.0, 500.0)],
-    )
-    system = CompositeSystem(
-        elements=[residents],
-        interactions=[SentimentInteraction('sentiment', target='residents')],
         space=ContinuousSpace(extent=(2000.0, 1000.0)),
     )
+    system = System(elements=[residents], interactions=[SentimentInteraction('sentiment', target='residents')])
     np.testing.assert_array_equal(_run(system, 3).get_agents('residents', 3).values['sentiment'], [0.5, -0.5])
 
 

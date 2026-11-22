@@ -1,35 +1,17 @@
 """Test the `_sensitivity` module of `skcomplex.core.experiments`."""
 
 import math
-from typing import Annotated
 
 import pytest
 from sage.all__sagemath_symbolics import sin
 
+from skcomplex.core.components import Observable
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.experiments import sensitivity
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
-
-
-class PointElement(Element):
-    """Point element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x1: Annotated[object, ParameterSpec()] = 0.0,
-        x2: Annotated[object, ParameterSpec()] = 0.0,
-        x3: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x1 = x1
-        self.x2 = x2
-        self.x3 = x3
+from skcomplex.systems.mathematics.dynamical_systems import HenonMapInteraction
 
 
 def _ishigami(s):
@@ -40,9 +22,9 @@ def _ishigami(s):
 @pytest.mark.slow
 def test_sobol_indices_of_ishigami():
     """Test that Sobol first-order indices of the Ishigami function match the known values within 0.05."""
-    system = CompositeSystem(elements=[PointElement('p')])
+    system = System(elements=[Element('p', values={'x1': 0.0, 'x2': 0.0, 'x3': 0.0})])
     bounds = {f'p.x{index}': (-math.pi, math.pi) for index in (1, 2, 3)}
-    observables = [ObservableSpec('y', _ishigami)]
+    observables = [Observable('y', _ishigami)]
     analysis = sensitivity(system, bounds, output='y', n=2048, until=0, observables=observables, random_state=0)
     expected = {'p.x1': 0.3139, 'p.x2': 0.4424, 'p.x3': 0.0}
     for name, value in expected.items():
@@ -80,3 +62,20 @@ def test_sensitivity_check_rejects_an_unknown_method_and_a_missing_output():
         sensitivity(LogisticGrowthSystem(), {'r': (0.5, 1.0)}, method='fast', output='y')
     with pytest.raises(AnalysisError, match='output = None'):
         sensitivity(LogisticGrowthSystem(), {'r': (0.5, 1.0)}, output=None)
+
+
+def _henon():
+    """Return the Hénon map as a `System` of one element and one interaction."""
+    return System(
+        'henon_map',
+        elements=[Element('map', values={'x': 0.0, 'y': 0.0})],
+        interactions=[HenonMapInteraction('henon', target='map')],
+    )
+
+
+def test_sensitivity_of_a_system_by_nested_name_and_path():
+    """Test that the inputs of a `System` may be nested parameters and dotted paths, and that both move the output."""
+    bounds = {'henon__a': (1.1, 1.3), 'henon.b': (0.2, 0.3)}
+    result = sensitivity(_henon(), bounds, output='map.x', method='oat', until=3)
+    assert sorted(result.ranking) == ['henon.b', 'henon__a']
+    assert all(effect != 0 for effect in result.effects.values())

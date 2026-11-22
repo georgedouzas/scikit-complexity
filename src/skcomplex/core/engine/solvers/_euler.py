@@ -7,11 +7,13 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, CrossingLaw, FluxLaw, RateLaw, TransferLaw
-from ...components.spaces import ContinuousTime
+from ...components.laws import EventLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems._steps import step_count
 from ..types import Interpolant
 from ._base import BaseSolver
@@ -22,11 +24,12 @@ from ._solver import Solver
 class EulerSolver(Solver):
     """A solver that steps ordinary differential equations by the explicit Euler rule.
 
-    It takes a fixed internal step. Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so
-    a run with the time step of a system file reproduces the run of those tools step by step.
+    Every step of length `h` sets `x + h f(t, x)`, so a population that doubles its rate grows from 1 to 2.25 over one
+    time unit in two steps of 0.5. It is the rule that Vensim and Stella use by default, so a run with the time step of
+    a model file of those tools matches it step by step. Choose it for teaching and for quick checks with a small step,
+    in models of populations, stocks and flows, and cooling.
 
-    Choose it for teaching and for quick checks with a small step. It appears in every field, as the simplest
-    integrator.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -38,30 +41,25 @@ class EulerSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        RK4Solver: Steps with the classical Runge-Kutta rule of fourth order.
+        ScipyODESolver: Steps with adaptive steps of SciPy.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = EulerSolver(dt=0.5, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> float(stepper.run(step).state_[0])
-        2.25
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> system = ExponentialGrowthSystem(n=1.0, r=1.0, solver=EulerSolver(dt=0.5)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('population.x').tolist()
+        [1.0, 2.25]
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None},
-            laws={RateLaw, FluxLaw, CrossingLaw, BoundaryLaw, TransferLaw},
+            laws={RateLaw, EventLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

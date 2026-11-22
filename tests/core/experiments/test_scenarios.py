@@ -1,11 +1,14 @@
 """Test the `_scenarios` module of `skcomplex.core.experiments`."""
 
+import numpy as np
 import pytest
 
-from skcomplex.core.components.specs import ScenarioSpec
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import compare_scenarios
+from skcomplex.core.experiments import ScenarioSpec, compare_scenarios
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SIRSystem
+from skcomplex.systems.mathematics.dynamical_systems import HenonMapInteraction
 
 
 def test_scenarios_override_model_parameters():
@@ -24,3 +27,25 @@ def test_scenarios_must_be_scenario_specs():
         compare_scenarios(SIRSystem(), [])
     with pytest.raises(ValidationError, match='nonempty sequence of ScenarioSpec'):
         compare_scenarios(SIRSystem(), ['baseline'])
+
+
+def _henon():
+    """Return the Hénon map as a `System` of one element and one interaction."""
+    return System(
+        'henon_map',
+        elements=[Element('map', values={'x': 0.0, 'y': 0.0})],
+        interactions=[HenonMapInteraction('henon', target='map')],
+    )
+
+
+def test_scenarios_of_a_system_set_nested_parameters_and_schedules():
+    """Test that a nested parameter set before the run and a dotted parameter set from the start give the same run."""
+    scenarios = [
+        ScenarioSpec(),
+        ScenarioSpec('weaker', overrides={'henon__a': 1.2}),
+        ScenarioSpec('switched', schedule=[(0.0, 'henon.a', 1.2)]),
+    ]
+    result = compare_scenarios(_henon(), scenarios, until=10, outputs=['map.x'])
+    baseline, weaker, switched = result.get_series('map.x')
+    np.testing.assert_allclose(weaker, switched, atol=1e-12)
+    assert not np.allclose(baseline, weaker)

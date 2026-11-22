@@ -3,24 +3,29 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
-class NeuronView(AgentView):
+@runtime_checkable
+class NeuronView(AgentViewProtocol, Protocol):
     """View of a neuron of a Hopfield network, with its states as attributes."""
 
     spin: float
@@ -37,44 +42,46 @@ class NeuronElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         spin:
             The initial state, -1 or 1.
 
         weights:
             The weights of the links from every node, an array with one value per node.
 
+        values:
+            Further values by name, such as the node `node` of every neuron.
+
+        size:
+            The number of neurons, or `None` for one.
+
+        space:
+            The complete graph whose nodes hold the neurons, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import NeuronElement
-        >>> group = GroupElement('neurons', element=NeuronElement, size=4, values={'spin': 1.0})
-        >>> group.label, group.element.__name__, group.size
-        ('neurons', 'NeuronElement', 4)
+        >>> group = NeuronElement('neurons', spin=1.0, size=4)
+        >>> group.label, group.size
+        ('neurons', 4)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'spin', 'color_range': (-1.0, 1.0)}),
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        weights: Annotated[object, StateSpec()] = 0.0,
+        spin: Annotated[object, ZZ] = 1.0,
+        weights: object = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.spin = spin
         self.weights = weights
 
-    @classmethod
-    def _get_view(cls) -> type[NeuronView]:
-        """Return the view of the neurons.
 
-        It types their states.
-        """
-        return NeuronView
-
-
-class HopfieldUpdateInteraction(MapInteraction):
+class HopfieldUpdateInteraction(Interaction):
     """Asynchronous update of a Hopfield network.
 
     Every neuron in turn takes the sign of its weighted input. The neurons update one after the other in a new random
@@ -90,30 +97,41 @@ class HopfieldUpdateInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import HopfieldUpdateInteraction
-        >>> HopfieldUpdateInteraction('update', target='neurons').schedule
-        'random-sequential'
+        >>> HopfieldUpdateInteraction('update', target='neurons').target
+        'neurons'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='spin',
-            function=self._get_spin,
-            schedule='random-sequential',
-            form='agent',
-        )
+    law_classes = (UpdateLaw,)
 
-    def _get_spin(self, agent: NeuronView, system: SystemViewProtocol) -> float:
-        """Return the sign of the weighted input of a neuron from the other neurons.
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-        A zero input returns its state.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of every neuron, which the agent solver runs in a new random order every step.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.update)]
+
+    def update(self, agent: NeuronView, system: SystemViewProtocol) -> None:
+        """Set a neuron to the sign of its weighted input from the other neurons, or keep it for a zero input.
+
+        Args:
+            agent:
+                The neuron.
+
+            system:
+                The system.
         """
         del system
         weights = np.asarray(agent.weights)
         neighbors = [other for other in agent.get_neighbors() if isinstance(other, NeuronView)]
         field = sum(weights[int(np.asarray(other.location))] * other.spin for other in neighbors)
-        return float(np.sign(field)) if field != 0 else float(agent.spin)
+        agent.spin = float(np.sign(field)) if field != 0 else float(agent.spin)
 
 
 class HopfieldSystem(BaseSystem):
@@ -143,9 +161,15 @@ class HopfieldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import HopfieldSystem
-        >>> HopfieldSystem(n_neurons=16, n_patterns=2).prepare().system_.elements[0].prepare().size_
+        >>> HopfieldSystem(n_neurons=16, n_patterns=2).prepare().system_.elements[0].size
         16
     """
 
@@ -163,8 +187,10 @@ class HopfieldSystem(BaseSystem):
         noise: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.patterns = patterns
         self.n_neurons = n_neurons
         self.n_patterns = n_patterns
@@ -181,8 +207,9 @@ class HopfieldSystem(BaseSystem):
         np.fill_diagonal(weights, 0.0)
         return weights
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         stored: Array = np.asarray(
             rng.choice([-1.0, 1.0], size=(self.n_patterns, self.n_neurons)) if self.patterns is None else self.patterns,
@@ -190,15 +217,18 @@ class HopfieldSystem(BaseSystem):
         )
         size = stored.shape[1]
         spins = np.where(rng.random(size) < self.noise, -stored[0], stored[0])
-        neurons = GroupElement(
+        graph = NetworkSpace(nx.complete_graph(size))
+        neurons = NeuronElement(
             'neurons',
-            element=NeuronElement,
+            spin=spins,
+            weights=self._get_hebbian_weights(stored),
+            values={'node': np.arange(size)},
             size=size,
-            values={'spin': spins, 'weights': self._get_hebbian_weights(stored)},
+            space=graph,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[neurons],
             interactions=[HopfieldUpdateInteraction('update', target='neurons')],
-            space=NetworkSpace(nx.complete_graph(size)),
+            space=graph,
         )

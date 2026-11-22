@@ -11,10 +11,10 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...components.elements import FieldElement
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs._base_spec import BaseSpec
 from ...types import Indices
+from ._field_element import _FieldElement
 from ._problem_spec import ProblemSpec
 from ._reference_spec import PairsSearch, ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
@@ -22,9 +22,14 @@ from ._set_symbol_spec import SetSymbolSpec
 
 @dataclass(frozen=True)
 class KernelSpec(BaseSpec):
-    """A spec of the namespace, references, and indices of the laws of one part.
+    """A spec of what the laws of one component read while the engine compiles them.
 
-    The laws of the component are lowered with them.
+    It holds the namespace the laws of a component read, the value every symbol stands for, the number of rows the laws
+    run over, and how they bind their roles, such as the members of a group, the pairs of a neighbourhood, or the edges
+    of a network. The compiler turns the laws into kernels with it. It compiles the growth of a population, the
+    infection along contacts, and the forces between particles.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         owner:
@@ -65,8 +70,8 @@ class KernelSpec(BaseSpec):
             evaluates once per member of the group on the nodes, or `None`.
 
         hyperedge:
-            `'member'` for the laws of the focal member of every hyperedge of a hyperedge interaction, `'hyperedge'`
-            for its laws of the member of a group on hyperedges or edges, or `None` for other components.
+            `'member'` for the laws of the focal member of every hyperedge of a hyperedge interaction, `'hyperedge'` for
+            its laws of the member of a group on hyperedges or edges, or `None` for other components.
 
         reduce:
             `'sum'` or `'mean'` for the update laws of a grouping, which set every member to the sum or the mean of
@@ -78,6 +83,15 @@ class KernelSpec(BaseSpec):
         place:
             The field on the nodes of an interaction over neighbours, whose laws per edge lower to the field's
             Laplacian, or on a lattice to whole-site shifted reads, or `None`.
+
+    See Also:
+        LawKernel: The kernel the laws compile to.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from skcomplex.core.engine.problems._kernel_spec import KernelSpec
+        >>> KernelSpec('growth', SimpleNamespace(), {}, 1).rows
+        1
     """
 
     owner: str
@@ -95,7 +109,7 @@ class KernelSpec(BaseSpec):
     hyperedge: str | None = None
     reduce: str | None = None
     counts: Indices | None = field(default=None, compare=False, repr=False)
-    place: FieldElement | None = field(default=None, compare=False, repr=False)
+    place: _FieldElement | None = field(default=None, compare=False, repr=False)
 
     def _get_target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""

@@ -7,25 +7,28 @@ Self-propelled particles align their headings when they meet.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 from scipy.spatial import KDTree
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, Period, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
-class FlockerView(AgentView):
+class FlockerView(AgentViewProtocol, Protocol):
     """Flocker as rules see it, with its heading.
 
     Args:
@@ -36,21 +39,34 @@ class FlockerView(AgentView):
             The stepper that runs the system.
     """
 
+    x: float
+    y: float
     theta: float
 
 
 class FlockerElement(Element):
-    """Self-propelled point particle with a heading `theta`, in a periodic square.
+    """Self-propelled point particles at the points `x` and `y` of a periodic square, with the headings `theta`.
+
+    The heading wraps around the circle.
 
     Args:
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+        x:
+            The initial first coordinate, one per particle or shared.
+
+        y:
+            The initial second coordinate, one per particle or shared.
 
         theta:
-            The initial heading.
+            The initial heading, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import FlockerElement
@@ -58,20 +74,22 @@ class FlockerElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)}),
         *,
-        theta: Annotated[float, StateSpec(role='direction')] = 0.0,
+        x: object = 0.0,
+        y: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.y = y
         self.theta = theta
-
-    @classmethod
-    def _get_view(cls) -> type:
-        """Return the class of the views of the element's agents."""
-        return FlockerView
 
 
 class BinaryCollisionsInteraction(Interaction):
@@ -114,18 +132,18 @@ class BinaryCollisionsInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        d0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        substeps: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        target: Role,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        lam: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        d0: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        substeps: Annotated[float, RealSet.open(0, oo)] = 10.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -135,18 +153,15 @@ class BinaryCollisionsInteraction(Interaction):
         self.d0 = d0
         self.substeps = substeps
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that moves the particles for one unit of time.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the whole system that moves the particles for one unit of time.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RuleLaw(self.fly)]
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.fly)]
 
     def fly(self, system: SystemView) -> None:
         """Move the particles for one unit of time.
@@ -157,10 +172,10 @@ class BinaryCollisionsInteraction(Interaction):
             system:
                 The system.
         """
-        agents = system.get_agents(self.target, FlockerView)
+        agents = cast(list[FlockerView], system.get_agents(self.target))
         size = np.asarray(system.dimensions, dtype=float)
-        positions = np.array([agent.location for agent in agents], dtype=float)
-        headings = np.array([agent.theta for agent in agents], dtype=float)
+        positions = np.array([(agent.x, agent.y) for agent in agents], dtype=np.float64)
+        headings = np.array([agent.theta for agent in agents], dtype=np.float64)
         speed, lam, sigma, d0 = (system.get_parameter(name) for name in ('speed', 'lam', 'sigma', 'd0'))
         substeps = max(1, round(system.get_parameter('substeps')))
         tau, rng = 1.0 / substeps, system.rng
@@ -173,7 +188,7 @@ class BinaryCollisionsInteraction(Interaction):
             BinaryCollisionsInteraction._collide(headings, sorted(now - touching), sigma, rng)
             touching = now
         for agent, position, heading in zip(agents, positions, np.mod(headings, 2 * math.pi), strict=True):
-            agent.move_to(position)
+            agent.x, agent.y = float(position[0]), float(position[1])
             agent.theta = float(heading)
 
     @staticmethod
@@ -193,12 +208,12 @@ class BinaryCollisionsInteraction(Interaction):
 
 def _get_cosine(agent: FlockerView) -> float:
     """Return the first component of an agent's heading."""
-    return math.cos(agent.theta)
+    return cos(agent.theta)
 
 
 def _get_sine(agent: FlockerView) -> float:
     """Return the second component of an agent's heading."""
-    return math.sin(agent.theta)
+    return sin(agent.theta)
 
 
 def _get_polarization(s: SimpleNamespace) -> Expression:
@@ -246,6 +261,12 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import BinaryCollisionFlockingSystem
         >>> BinaryCollisionFlockingSystem(10).prepare().system_.interactions[0].sigma
@@ -258,9 +279,9 @@ class BinaryCollisionFlockingSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('mean_cos', _get_cosine, group='birds'),
-        ObservableSpec('mean_sin', _get_sine, group='birds'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_cos', _get_cosine, group='birds'),
+        Observable('mean_sin', _get_sine, group='birds'),
+        Observable('polarization', _get_polarization),
     )
 
     def __init__(
@@ -275,8 +296,10 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         substeps: int = 10,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.size = size
         self.speed = speed
@@ -286,15 +309,24 @@ class BinaryCollisionFlockingSystem(BaseSystem):
         self.substeps = substeps
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of self-propelled particles that flock through aligning binary collisions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        birds = GroupElement(
+        headings = rng.uniform(0.0, 2 * math.pi, self.n_particles)
+        positions = rng.uniform(0.0, self.size, (self.n_particles, 2))
+        birds = FlockerElement(
             'birds',
-            element=FlockerElement,
+            x=positions[:, 0],
+            y=positions[:, 1],
+            theta=headings,
             size=self.n_particles,
-            values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_particles)},
-            location=rng.uniform(0.0, self.size, (self.n_particles, 2)),
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
         )
         collisions = BinaryCollisionsInteraction(
             'collisions',
@@ -305,9 +337,4 @@ class BinaryCollisionFlockingSystem(BaseSystem):
             d0=self.d0,
             substeps=float(self.substeps),
         )
-        return CompositeSystem(
-            self.label,
-            elements=[birds],
-            interactions=[collisions],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
-        )
+        self.system_ = System(self.label, elements=[birds], interactions=[collisions])

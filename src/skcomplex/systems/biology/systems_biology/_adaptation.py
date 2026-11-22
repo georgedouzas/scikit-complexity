@@ -11,14 +11,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import step
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 NODES = ('A', 'B', 'C')
 NEGATIVE_FEEDBACK_BUFFER = ((0, -1, 0), (0, 0, 1), (1, 0, 0))
@@ -37,9 +39,6 @@ class EnzymeNodeElement(Element):
         label:
             The label of the enzyme.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         X:
             The initial active fraction.
 
@@ -52,11 +51,10 @@ class EnzymeNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        X: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        X: Annotated[float, RealSet.closed(0, 1)] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.X = X
 
 
@@ -103,11 +101,11 @@ class EnzymeRegulationInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
         sign: int = 1,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -116,34 +114,28 @@ class EnzymeRegulationInteraction(Interaction):
         self.k = k
         self.K = K
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Check the sign.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The sign is neither 1 nor -1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.sign not in {1, -1}:
             error_msg = f'The sign of a regulation must be 1 or -1, not {self.sign}.'
             raise ValidationError(error_msg)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conversion of the target by the source.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the conversion of the target by the source.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
-        return [RateLaw(s.target.X, self._get_conversion(s.source.X, s.target.X, s.k, s.K))]
+        super()._prepare(context)
+        s = context
+        self.laws_ = [RateLaw(s.target.X, self._get_conversion(s.source.X, s.target.X, s.k, s.K))]
 
     def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by a regulator.
@@ -201,11 +193,11 @@ class EnzymeStimulusInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         sign: int = 1,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        level: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        level: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
         change: float = 0.0,
         at: float = 0.0,
     ) -> None:
@@ -218,19 +210,17 @@ class EnzymeStimulusInteraction(Interaction):
         self.change = change
         self.at = at
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conversion of the target by the stimulus.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the conversion of the target by the stimulus.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         regulator = s.level + step(s.t, self.at, self.change)
-        return [RateLaw(s.target.X, self._get_conversion(regulator, s.target.X, s.k, s.K))]
+        self.laws_ = [RateLaw(s.target.X, self._get_conversion(regulator, s.target.X, s.k, s.K))]
 
     def _get_conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
         """Return the Michaelis-Menten conversion of the target by the stimulus.
@@ -285,6 +275,12 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The links are not a three by three matrix of 1, -1, and 0.
@@ -313,8 +309,10 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
         change: float = 0.1,
         at: float = 300.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.links = links
         self.k = k
         self.K = K
@@ -324,8 +322,14 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
         self.change = change
         self.at = at
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a circuit of three enzymes A, B, and C of Ma et al."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a circuit of three enzymes A, B, and C of Ma et al.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         signs = np.asarray(self.links)
         if signs.shape != (3, 3) or not np.isin(signs, (-1, 0, 1)).all():
             error_msg = f'The links must be a 3 by 3 matrix of 1, -1, and 0, not {self.links!r}.'
@@ -366,7 +370,7 @@ class EnzymeAdaptationCircuitSystem(BaseSystem):
                             K=float(self.K_basal[index]),
                         ),
                     )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[EnzymeNodeElement(node) for node in NODES],
             interactions=interactions,

@@ -11,18 +11,19 @@ import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
-from ..components.systems import CompositeSystem
 from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._expression_printer import ExpressionPrinter
 from ..engine.problems._source_loader import SourceLoader
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind, VectorFunction
+from ..types import Array, VectorFunction
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
 from ._stability import StabilityResult
-from .types import Source
+from .types import DataSource
 
 KINDS = ('spectrum', 'largest')
 SETTINGS = {
@@ -95,7 +96,11 @@ def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n:
 class LyapunovResult:
     """A result of `lyapunov`, the Lyapunov exponents of a system or of series.
 
-    The series are those recorded.
+    It holds the exponents, the rates at which nearby runs separate along each direction, with the dimension and the
+    entropy they give, or the largest exponent of every recorded series, such as `ln 2` for the logistic map at
+    `r = 4`. It reports how fast small errors grow in the weather, a double pendulum, and the orbits of asteroids.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -121,6 +126,14 @@ class LyapunovResult:
 
         largest_exponent:
             The largest exponent per unit time of every series of `'largest'`, or `None` for `'spectrum'`.
+
+    See Also:
+        lyapunov: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import lyapunov
+        >>> round(lyapunov([0.906, 0.0, -14.572]).kaplan_yorke_dimension, 2)
+        2.06
     """
 
     problem: ProblemSpec | None = None
@@ -133,7 +146,7 @@ class LyapunovResult:
 
 
 def lyapunov(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'spectrum',
     variables: Sequence[str] | None = None,
@@ -150,24 +163,12 @@ def lyapunov(
 ) -> LyapunovResult:
     """Return the Lyapunov exponents of a system, or the largest exponent of series.
 
-    The exponents of a system come from its tangent dynamics.
+    An exponent is the average rate at which two nearby runs separate, `|δx(t)| ≈ |δx(0)| exp(λ t)`, and a positive
+    largest exponent means chaos, such as `ln 2` per step for the logistic map at `r = 4`. The exponents of a system
+    come from its equations, and the largest exponent of a series from how fast its close returns drift apart. It
+    measures how fast small errors grow in the weather, a double pendulum, and the orbits of asteroids.
 
-    The kinds read a system or data:
-
-    - `'spectrum'`: the largest `n_exponents` exponents of a flow or a map from the system's initial state. The
-      tangent dynamics use the symbolic Jacobian, in which `abs(u)` has the derivative `sign(u)`, and the compiled
-      functions take the parameters as an argument, so a sweep over parameter values compiles them once. Tangent
-      vectors are re-orthonormalised by QR after every step, as in the Benettin algorithm, and the exponents are the
-      average logarithmic growth of the diagonal of `R`. The Kaplan-Yorke dimension and the Kolmogorov-Sinai entropy,
-      by Pesin's identity the sum of the positive exponents, follow from the spectrum. An array of exponents passes
-      through as the spectrum.
-    - `'largest'`: Rosenstein's estimate of the largest exponent of every series, from the divergence of neighbours of
-      its delay embedding.
-
-    A positive largest exponent indicates chaos.
-
-    It appears in many fields. It measures how fast nearby runs diverge in the weather, in a double pendulum, and in the
-    orbits of asteroids.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -175,7 +176,15 @@ def lyapunov(
             the trajectory or the array of series for `'largest'`.
 
         kind:
-            The exponents to compute, one of the kinds above.
+            What to return. `'spectrum'` gives the largest `n_exponents` exponents of a flow or a map from the initial
+            state of the system. The tangent dynamics use the symbolic Jacobian, in which `abs(u)` has the derivative
+            `sign(u)`, and the compiled functions take the parameters as an argument, so a sweep over parameter values
+            compiles them once. Tangent vectors are made orthonormal again by QR after every step, as in the algorithm
+            of Benettin, and the exponents are the average logarithmic growth of the diagonal of `R`. The Kaplan-Yorke
+            dimension and the Kolmogorov-Sinai entropy, by the identity of Pesin the sum of the positive exponents,
+            follow from the spectrum, and an array of exponents passes through as the spectrum. `'largest'` gives the
+            estimate of Rosenstein of the largest exponent of every series, from the divergence of neighbours of its
+            delay embedding.
 
         variables:
             The variables of a trajectory to read for `'largest'`, or `None` for every scalar series.
@@ -224,13 +233,15 @@ def lyapunov(
         TagError:
             The system of the source is stochastic, since the exponents need a deterministic system.
 
+    See Also:
+        embedding: Gives the points made of delayed copies of one series.
+        stability: Finds the fixed points of a system and whether they are stable.
+
     Examples:
         >>> from skcomplex.core.analysis import lyapunov
         >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
         >>> float(lyapunov(LogisticMapSystem(r=4.0), until=20000).exponents[0].round(2))
         0.69
-        >>> round(lyapunov([0.906, 0.0, -14.572]).kaplan_yorke_dimension, 2)
-        2.06
     """
     source = _composite(source)
     _check_choice('lyapunov', 'kind', kind, KINDS)
@@ -275,7 +286,7 @@ def lyapunov(
         )
         return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
     problem = None
-    if isinstance(source, CompositeSystem | BaseProblemSpec | Trajectory):
+    if isinstance(source, _CompositeSystem | BaseProblemSpec | Trajectory):
         dynamics = StabilityResult._get_dynamics_of(_read_system(source), parameters)
         problem = dynamics.problem
         exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)

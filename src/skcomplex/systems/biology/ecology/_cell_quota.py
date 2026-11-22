@@ -5,10 +5,10 @@
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -52,9 +52,15 @@ class DroopCellQuotaSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import DroopCellQuotaSystem
-        >>> DroopCellQuotaSystem(R=4.0).prepare().system_.elements[0].get_value('R')
+        >>> DroopCellQuotaSystem(R=4.0).prepare().system_.elements[0].values['R']
         4.0
     """
 
@@ -76,8 +82,10 @@ class DroopCellQuotaSystem(DynamicalSystem):
         R: float = 1.0,
         d: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.Q = Q
         self.P = P
         self.r_inf = r_inf
@@ -91,17 +99,22 @@ class DroopCellQuotaSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'algae'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'Q': DeclaredVariableSpec(self.Q, StateSpec(domain=RealSet.open(0, oo))),
-            'P': DeclaredVariableSpec(self.P, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'r_inf': DeclaredVariableSpec(self.r_inf, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'q': DeclaredVariableSpec(self.q, ParameterSpec(domain=RealSet.open(0, oo))),
-            'vmax': DeclaredVariableSpec(self.vmax, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'g': DeclaredVariableSpec(self.g, ParameterSpec(domain=RealSet.open(0, oo))),
-            'R': DeclaredVariableSpec(self.R, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'd': DeclaredVariableSpec(self.d, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'Q': self.Q,
+            'P': self.P,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'r_inf': self.r_inf,
+            'q': self.q,
+            'vmax': self.vmax,
+            'g': self.g,
+            'R': self.R,
+            'd': self.d,
         }
 
     def _get_equations(self) -> Equations:

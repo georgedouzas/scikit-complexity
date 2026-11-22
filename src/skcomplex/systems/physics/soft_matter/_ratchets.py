@@ -7,24 +7,28 @@ The module covers tilted washboards and flashing ratchets.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo
+from sage.all__sagemath_symbolics import SR, oo, sin, vector
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import GradientInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import mod, series, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, RoleSpec
-from ..common.particles import BrownianParticleElement, ThermalNoiseInteraction
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.particles import FrictionNoiseInteraction
 
 
-class FlashingSawtoothInteraction(RateInteraction):
+class FlashingSawtoothInteraction(Interaction):
     """Sawtooth potential on overdamped particles on a line.
 
     The potential is turned on and off at given times.
@@ -40,7 +44,7 @@ class FlashingSawtoothInteraction(RateInteraction):
             The label of the interaction.
 
         target:
-            The path of the particle or the group.
+            The path of the particles, whose positions are `x` and friction `gamma`.
 
         barrier:
             The height of the sawtooth.
@@ -60,41 +64,42 @@ class FlashingSawtoothInteraction(RateInteraction):
         (1.0, 2.5)
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        barrier: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        asymmetry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        target: Role,
+        barrier: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        L: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        asymmetry: Annotated[float, RealSet.open(0, oo)] = 0.1,
         switches: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label, target=target, state='x', divisor='gamma')
+        super().__init__(label)
+        self.target = target
         self.barrier = barrier
         self.L = L
         self.asymmetry = asymmetry
         self.switches = switches
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the force of the sawtooth while it is on.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drift of the positions of the target by the force of the sawtooth while it is on.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use.
-
-        Returns:
-            rate:
-                The force, before the division by the friction.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
+        super()._prepare(context)
+        s, x = context, context.target.x
         times = (0.0, *self.switches)
         on = series(s.t, times, [float(index % 2 == 0) for index in range(len(times))], 'previous')
         rise = s.asymmetry * s.L
-        return on * where(mod(s.target.x[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
+        force = on * where(mod(x[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
+        self.laws_ = [RateLaw(x, vector(SR, [force / s.target.gamma]))]
 
 
-class TiltedWashboardInteraction(GradientInteraction):
+class TiltedWashboardInteraction(Interaction):
     """Tilted periodic potential `U(x) - f x` on overdamped particles on a line.
 
     The periodic part is `U(x) = U0 cos(2 pi x / L)`.
@@ -106,7 +111,7 @@ class TiltedWashboardInteraction(GradientInteraction):
             The label of the interaction.
 
         target:
-            The path of the particle or the group.
+            The path of the particles, whose positions are `x` and friction `gamma`.
 
         U0:
             The amplitude of the periodic potential, half its barrier height.
@@ -123,33 +128,34 @@ class TiltedWashboardInteraction(GradientInteraction):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        U0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        f: Annotated[float, ParameterSpec()] = 0.0,
+        target: Role,
+        U0: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        L: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        f: float = 0.0,
     ) -> None:
-        super().__init__(label, target=target, states='x', divisor='gamma')
+        super().__init__(label)
+        self.target = target
         self.U0 = U0
         self.L = L
         self.f = f
 
-    def _get_potential(self, s: SimpleNamespace) -> Expression:
-        """Return the tilted potential `U0 cos(2 pi x / L) - f x`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drift of the positions of the target down the tilted potential `U0 cos(2 pi x / L) - f x`.
 
         Args:
-            s:
-                The namespace of the symbols the potential can use.
-
-        Returns:
-            potential:
-                The potential.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        position = s.target.x[0]
-        return s.U0 * cos(2 * math.pi * position / s.L) - s.f * position
+        super()._prepare(context)
+        s, x = context, context.target.x
+        force = 2 * math.pi * s.U0 / s.L * sin(2 * math.pi * x[0] / s.L) + s.f
+        self.laws_ = [RateLaw(x, vector(SR, [force / s.target.gamma]))]
 
 
 class TiltedPeriodicPotentialSystem(BaseSystem):
@@ -184,6 +190,12 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import TiltedPeriodicPotentialSystem
         >>> TiltedPeriodicPotentialSystem(10, f=2.0).prepare().system_.interactions[0].f
@@ -195,7 +207,6 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
     references = ('Bertin 2021', 'Risken 1996', 'Reimann 2002')
     until = 50.0
     dt = 0.25
-    solver = EulerMaruyamaSolver(dt=0.005)
 
     def __init__(
         self,
@@ -207,8 +218,10 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         gamma: float = 1.0,
         kT: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.f = f
         self.U0 = U0
@@ -216,24 +229,27 @@ class TiltedPeriodicPotentialSystem(BaseSystem):
         self.gamma = gamma
         self.kT = kT
 
-    def _build_system(self) -> CompositeSystem:
-        """Return overdamped particles in a tilted periodic potential.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of overdamped particles in a tilted periodic potential.
 
-        The potential is `V(x) = U0 cos(2 pi x / L) - f x`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        particles = GroupElement(
+        super()._prepare(context)
+        particles = Element(
             'particles',
-            element=BrownianParticleElement,
+            values={'x': np.zeros((self.n_particles, 1)), 'gamma': self.gamma},
             size=self.n_particles,
-            values={'x': np.zeros((self.n_particles, 1)), 'gamma': self.gamma, 'temperature': self.kT},
         )
         washboard = TiltedWashboardInteraction('washboard', target='particles', U0=self.U0, L=self.L, f=self.f)
-        bath = ThermalNoiseInteraction('bath', target='particles')
-        return CompositeSystem(
+        bath = FrictionNoiseInteraction('bath', target='particles', temperature=self.kT)
+        self.system_ = System(
             self.label,
             elements=[particles],
             interactions=[washboard, bath],
             space=ContinuousSpace(n_dim=1),
+            solver=EulerMaruyamaSolver(dt=0.005),
         )
 
 
@@ -280,6 +296,12 @@ class FlashingRatchetSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import FlashingRatchetSystem
         >>> len(FlashingRatchetSystem(10, rate=2.0, duration=5.0).prepare().system_.interactions[0].switches) > 0
@@ -291,7 +313,6 @@ class FlashingRatchetSystem(BaseSystem):
     references = ('Bertin 2021', 'Ajdari and Prost 1992', 'Reimann 2002')
     until = 100.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.002)
 
     def __init__(
         self,
@@ -306,8 +327,10 @@ class FlashingRatchetSystem(BaseSystem):
         kT: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.barrier = barrier
         self.asymmetry = asymmetry
@@ -318,15 +341,20 @@ class FlashingRatchetSystem(BaseSystem):
         self.kT = kT
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Brownian particles in a sawtooth potential switched at random times.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         times = np.cumsum(rng.exponential(1 / self.rate, int(2 * self.rate * self.duration) + 10))
-        particles = GroupElement(
+        particles = Element(
             'particles',
-            element=BrownianParticleElement,
+            values={'x': np.zeros((self.n_particles, 1)), 'gamma': self.gamma},
             size=self.n_particles,
-            values={'x': np.zeros((self.n_particles, 1)), 'gamma': self.gamma, 'temperature': self.kT},
         )
         sawtooth = FlashingSawtoothInteraction(
             'sawtooth',
@@ -336,10 +364,11 @@ class FlashingRatchetSystem(BaseSystem):
             asymmetry=self.asymmetry,
             switches=tuple(float(time) for time in times[times < self.duration]),
         )
-        bath = ThermalNoiseInteraction('bath', target='particles')
-        return CompositeSystem(
+        bath = FrictionNoiseInteraction('bath', target='particles', temperature=self.kT)
+        self.system_ = System(
             self.label,
             elements=[particles],
             interactions=[sawtooth, bath],
             space=ContinuousSpace(n_dim=1),
+            solver=EulerMaruyamaSolver(dt=0.002),
         )

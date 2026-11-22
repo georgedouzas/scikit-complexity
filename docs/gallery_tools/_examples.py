@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 from pathlib import Path
 
-from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.systems import BaseSystem
 from skcomplex.systems import all_systems
 
 from ._errors import GalleryError
@@ -40,14 +40,13 @@ SCAFFOLD = '''"""
 {caption}
 """
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from {module} import {class_name}
 
 SYSTEM = '{name}'
 
 observer = RerunObserver(SYSTEM, save_path=f'{{SYSTEM}}.rrd', blueprint='default', interval={interval})
-trajectory = simulate({class_name}({parameters}), observers=[observer])
+trajectory = {class_name}({parameters}).prepare().simulate(observers=[observer])
 '''
 
 
@@ -304,7 +303,7 @@ def scaffold_example(name: str, system: type[BaseSystem], title: str, budget: Bu
         >>> from gallery_tools import scaffold_example
         >>> from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
         >>> print(scaffold_example('lorenz', LorenzSystem, 'Lorenz').splitlines()[-1])
-        trajectory = simulate(LorenzSystem(), observers=[observer])
+        trajectory = LorenzSystem().prepare().simulate(observers=[observer])
     """
     budget = budget or Budget()
     interval = gallery_interval(*_settings_of(system), budget.max_frames)

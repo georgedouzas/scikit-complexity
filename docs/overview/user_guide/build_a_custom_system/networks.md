@@ -31,7 +31,7 @@ Watts and Strogatz drawn with the same seed are compared.
 import networkx as nx
 
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.specs import LayerSpec
+from skcomplex.core.components.spaces import LayerSpec
 
 first = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 second = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
@@ -61,69 +61,39 @@ node in compressed sparse row form.
 
 ## Interactions over edges
 
-This section gives every edge a state of its own, such as the weight of a synapse, and changes it from the states at
-both ends. A [`GroupElement`](../core_components/elements.md#groupelement) with `on='edges'` holds one member per edge
-of its layer. A [`NeighborInteraction`](../core_components/interactions.md#neighborinteraction) binds a group on the
-nodes and, optionally, a group on the edges of the same network, and its laws run once per edge. In the Hebbian rule,
-the weight of a synapse grows with the product of the activities at its two ends. Here the first three neurons of a
-ring of six are active.
+This section gives every edge a value of its own, such as the weight of a synapse, and changes it from the values at
+both ends. An [`Element`](../core_components/elements.md#element) with `on='edges'` holds one member per edge of the
+network. An [`Interaction`](../core_components/interactions.md#interaction) with `among`, the group on the nodes, and
+`along=True`, the edges of its network, runs its laws once per edge. In the Hebbian rule, the weight of a synapse grows
+with the product of the activities at its two ends. Here the first three neurons of a ring of six are active.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import NeighborInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class NeuronElement(Element):
-    def __init__(self, label, *, a: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.a = a
-
-
-class SynapseElement(Element):
-    def __init__(self, label, *, w: Annotated[float, StateSpec()] = 0.1):
-        super().__init__(label)
-        self.w = w
-
-
-class HebbianInteraction(NeighborInteraction):
-    def __init__(
-        self,
-        label,
-        *,
-        neurons: Annotated[str, RoleSpec()],
-        synapses: Annotated[str, RoleSpec()],
-        eta: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.neurons = neurons
-        self.synapses = synapses
+class Hebbian(Interaction):
+    def __init__(self, label, *, among: Role = 'neurons', along=True, eta=1.0):
+        super().__init__(label, among=among, along=along)
         self.eta = eta
 
-    def _get_laws(self, s):
-        return [RateLaw(s.edge.w, s.eta * s.source.a * s.target.a)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.edge.w, s.eta * s.source.a * s.target.a)]
 
 
 space = NetworkSpace(nx.cycle_graph(6))
-system = CompositeSystem(
-    elements=[
-        GroupElement(
-            'neurons', element=NeuronElement, space=space, on='sites', values={'a': [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]}
-        ),
-        GroupElement('synapses', element=SynapseElement, space=space, on='edges'),
-    ],
-    interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
-)
-trajectory = simulate(system, until=1.0, dt=0.5)
+neurons = Element('neurons', values={'a': [1.0, 1.0, 1.0, 0.0, 0.0, 0.0]}, space=space)
+synapses = Element('synapses', values={'w': 0.1}, space=space, on='edges')
+system = System(elements=[neurons, synapses], interactions=[Hebbian('hebb')]).prepare()
+trajectory = system.simulate(until=1.0, dt=0.5)
 np.round(trajectory.get_values('synapses.w')[-1], 3).tolist()
 ```
 
@@ -132,7 +102,7 @@ other four stay at 0.1.
 
 - The laws read `s.source` and `s.target`, the members at both ends, and `s.edge`, the member of the edge.
 - Rate, noise, and jump laws may target any of the three, and update laws the edge member.
-- The argument `layer` chooses the layer of an interaction without an edge group.
+- `along` takes the name of a layer in place of `True`, such as `along='work'`, for the edges of that layer.
 
 ## Hypergraphs and laws per hyperedge
 
@@ -144,56 +114,45 @@ A hyperedge is a set of nodes that interact together, and a hypergraph is a set 
 - an XGI `Hypergraph`,
 - an XGI `SimplicialComplex`, whose faces of at least two nodes are its hyperedges.
 
-A [`HyperedgeInteraction`](../core_components/interactions.md#hyperedgeinteraction) binds a group on the nodes and runs
-its laws once per hyperedge of its `size`, or of every size when the size is `None`. Here five phase oscillators on a
-complete graph pull on each other through the three-body term `K sin(theta_j + theta_k - 2 theta_i)` over all triangles.
-The `problem` of a trajectory is the compiled system. Its `drift` gives the rates of every state at a time, a state, and
-parameters, and `problem.states.read` picks the rates of one state.
+An [`Interaction`](../core_components/interactions.md#interaction) with `among`, the group on the nodes, and
+`along=('hyperedges', 3)` runs its laws once per hyperedge of three members, and `along='hyperedges'` once per hyperedge
+of every size. Here five phase oscillators on a complete graph pull on each other through the three-body term
+`K sin(theta_j + theta_k - 2 theta_i)` over all triangles. The `problem` of a trajectory is the compiled system. Its
+`drift` gives the rates of every state at a time, a state, and parameters, and `problem.states.read` picks the rates of
+one state.
 
 ```python
 import itertools
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import xgi
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import HyperedgeInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class PhaseElement(Element):
-    def __init__(self, label, *, theta: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.theta = theta
-
-
-class TriadInteraction(HyperedgeInteraction):
-    def __init__(self, label, *, phases: Annotated[str, RoleSpec()], K: Annotated[float, ParameterSpec()] = 1.0):
-        super().__init__(label, size=3)
-        self.phases = phases
+class Triads(Interaction):
+    def __init__(self, label, *, among: Role = 'phases', along=('hyperedges', 3), K=1.0):
+        super().__init__(label, among=among, along=along)
         self.K = K
 
-    def _get_laws(self, s):
+    def _prepare(self, s):
+        super()._prepare(s)
         first, second = (other.theta for other in s.others)
-        return [RateLaw(s.member.theta, s.K * sin(first + second - 2 * s.member.theta))]
+        self.laws_ = [RateLaw(s.member.theta, s.K * sin(first + second - 2 * s.member.theta))]
 
 
 triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
 space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles)
-system = CompositeSystem(
-    elements=[
-        GroupElement('phases', element=PhaseElement, space=space, on='sites', values={'theta': np.linspace(0, 1, 5)}),
-    ],
-    interactions=[TriadInteraction('triads', phases='phases')],
-)
-problem = simulate(system, until=0.0).problem
+phases = Element('phases', values={'theta': np.linspace(0, 1, 5)}, space=space)
+system = System(elements=[phases], interactions=[Triads('triads')]).prepare()
+problem = system.simulate(until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 len(space.prepare().hyperedges_), np.round(problem.states.read(drift, 'phases.theta'), 3).tolist()
 ```
@@ -203,7 +162,7 @@ The space holds 10 triangles, all sets of three of five nodes. The rates of the 
 
 The members of an XGI hyperedge follow the order of the nodes of the graph. The prepared space holds `hyperedges_`, the
 node indices of every hyperedge, `incidence_`, the sparse incidence matrix of nodes and hyperedges, and `memberships_`,
-the hyperedges around every node. The laws of a hyperedge interaction read three names.
+the hyperedges around every node. The laws of an interaction along hyperedges read three names.
 
 - `s.member`, the focal member,
 - `s.others`, the other members in hyperedge order,
@@ -213,213 +172,147 @@ A law of the focal member runs once per member of every hyperedge and adds into 
 gather table per size of hyperedge, so the laws run as gathers and scatter-adds on the NumPy and Numba backends. The
 blocks below read rates through `drift` as this one does.
 
-A second role may bind a group on the hyperedges, read as `s.hyperedge`, or a group on the edges, read as `s.edge`, the
-edge that joins the first two members of the hyperedge. A law that targets either runs once per hyperedge. Hyperedges
-that share an edge would set it several times, so a link that several nodes act on lists them all in one hyperedge.
-The catalog system `SpatialTriadicPercolationSystem` lists the negative and then the positive regulators of every link,
-whose numbers the link holds, and pads the hyperedges to one size with members its law leaves out.
+An element on the hyperedges is read as `s.hyperedge`, or else an element on the edges as `s.edge`, the edge that joins
+the first two members of the hyperedge. A law that targets either runs once per hyperedge. Hyperedges that share an
+edge would set it several times, so a link that several nodes act on lists them all in one hyperedge. The catalog
+system `SpatialTriadicPercolationSystem` lists the negative and then the positive regulators of every link, whose
+numbers the link holds, and pads the hyperedges to one size with members its law leaves out.
 
-`simulate` rejects two mistakes with the issue code `binding`, an interaction whose size no hyperedge of the network
-has, and an edge group whose edge does not join the first two members of a hyperedge.
+Validation rejects two mistakes with the issue code `binding`, an interaction whose size no hyperedge of the network
+has, and an element on the edges whose edge does not join the first two members of a hyperedge.
 
-### Symbolic groupings
+### Random groups and neighbourhoods
 
-This section lets members meet in small groups that form anew at every step. A
-[`GroupingInteraction`](../core_components/interactions.md#groupinginteraction) in its symbolic form runs a function of
-one group and writes the result into a state of each member. In the majority rule of Galam, voters talk in random
-groups of three, and every group adopts the opinion of its majority. Here each of 30 voters starts with opinion 1 with a
-probability of 0.7.
+This section lets members meet in small groups that form anew at every step. An
+[`Interaction`](../core_components/interactions.md#interaction) with `among`, a group, and `along=RandomPartition(k)`
+splits the group into random groups of `k` members at every step, and runs its laws once for every member of every
+group. In the majority rule of Galam, voters talk in random groups of three, and every group adopts the opinion of its
+majority. Here each of 30 voters starts with opinion 1 with a probability of 0.7.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import GroupingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, RandomPartition
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import mean, where
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class PlayerElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        s: Annotated[float, StateSpec()] = 0.0,
-        payoff: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.s = s
-        self.payoff = payoff
+def majority(s):
+    return [UpdateLaw(s.member.s, where(mean(s.members.s, over=s.members) > 1 / 2, 1, 0))]
 
 
 opinions = (np.random.default_rng(0).random(30) < 0.7).astype(float)
-voters = GroupElement('voters', element=PlayerElement, size=30, values={'s': opinions})
-galam = GroupingInteraction(
-    'galam',
-    target='voters',
-    groups='partition',
-    size=3,
-    form='symbolic',
-    write='s',
-    function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
-)
-run = simulate(CompositeSystem(elements=[voters], interactions=[galam]), until=5, random_state=0)
+voters = Element('voters', values={'s': opinions}, size=30)
+galam = Interaction('galam', among='voters', along=RandomPartition(3), laws=majority)
+run = System(elements=[voters], interactions=[galam]).prepare().simulate(until=5, random_state=0)
 run.get_values('voters.s').mean(axis=1).round(2).tolist()
 ```
 
 The share of opinion 1 rises from 0.67 to 0.7, 0.8, 0.9, and then 1.0, where it stays. The majority takes over.
 
 The groups can also be fixed by the space. In the public goods game, each player in a group pays 1 to cooperate, and
-the group shares the total multiplied by a factor. Here every player of a lattice forms a group with its four
-neighbours, contributes its strategy `s`, and sums its payoffs over the groups it belongs to.
+the group shares the total multiplied by a factor. With `along='neighborhoods'`, every player of a lattice forms a
+group with its four neighbours, contributes its strategy `s`, and sums its payoffs over the groups it belongs to.
 
 ```python continuation
-players = GroupElement(
-    'players',
-    element=PlayerElement,
-    space=LatticeSpace((10, 10), metric='manhattan'),
-    values={'s': (np.random.default_rng(1).random(100) < 0.5).astype(float)}, on='sites',
-)
-goods = GroupingInteraction(
-    'goods',
-    target='players',
-    groups='neighborhood',
-    form='symbolic',
-    write='payoff',
-    function=lambda g: 4.5 * mean(g.members.s, over=g.members) - g.member.s,
-)
-run = simulate(CompositeSystem(elements=[players], interactions=[goods]), until=1)
+def goods(s):
+    return [UpdateLaw(s.member.payoff, 4.5 * mean(s.members.s, over=s.members) - s.member.s)]
+
+
+strategies = (np.random.default_rng(1).random(100) < 0.5).astype(float)
+lattice = LatticeSpace((10, 10), metric='manhattan')
+players = Element('players', values={'s': strategies, 'payoff': 0.0}, space=lattice)
+game = Interaction('goods', among='players', along='neighborhoods', laws=goods)
+run = System(elements=[players], interactions=[game]).prepare().simulate(until=1)
 run.get_values('players.payoff')[-1][:5].round(2).tolist()
 ```
 
 The first five players earn `[6.3, 9.9, 8.5, 14.4, 11.2]` after one round, the sums of the shares of the five groups
 that hold each of them.
 
-`GroupingInteraction(form='symbolic', write=..., function=..., reduce='sum')` runs on the same path as the laws per
-hyperedge, and the groups of a step are its hyperedges.
+The laws of a group run on the same path as the laws per hyperedge, and the groups of a step are its hyperedges.
 
-- The function reads the namespace of one group: `s.member`, the member it gives a value to, `s.others`, and
-  `s.members`.
-- It returns the value of the state `write` for that member in the next step, so the system runs in discrete time.
-- A member takes the sum of the values of the groups that hold it, or the mean with `reduce='mean'`. A member in no
-  group keeps its value.
-
-The groups come in four kinds.
-
-- `'pairs'` and `'partition'` are drawn again at every step from the random stream of the simulation. Two runs with one
-  seed draw the same groups, on the NumPy and the Numba backends alike.
-- `'neighborhood'` takes every member and the members around it in the space, fixed for the run.
-- `'state'` groups the members that share a value of the state `by`, and every reduction over `s.members` reads only
-  them.
-
-`act` and `capacity` belong to the agent form, and `prepare` rejects them in the symbolic form.
+- The laws read the namespace of one group: `s.member`, the member they change, `s.others`, and `s.members`.
+- An update law gives the value of the member in the next step, so the system runs in discrete time.
+- A member takes the sum of the values of the groups that hold it. A member in no group keeps its value.
+- `RandomPartition(k)` draws the groups again at every step from the random stream of the simulation, and
+  `RandomPartition(2)` draws pairs. Two runs with one seed draw the same groups, on the NumPy and the Numba backends
+  alike.
+- `'neighborhoods'` takes every member and the members around it in the space, fixed for the run.
 
 ### Coupling over the hyperedges of a member
 
-This section couples every member to the hyperedges around it with the interaction of the core, without a class of
-your own. A [`CouplingInteraction`](../core_components/interactions.md#couplinginteraction) with
-`mode='hyperedges'` sums a function of one hyperedge over the hyperedges of each member. Here it repeats the three-body
-coupling of the oscillators above.
+This section couples every member to the hyperedges around it with one reduction. The reduction
+`hyperedges(expression, reduce='sum', size=None, weight=None, over=None)` of `skcomplex.core.components.laws.utils`
+reduces an expression written for one hyperedge over the hyperedges around every member of a group on the nodes of a
+network with hyperedges, as `neighbors` does for one neighbour. Here it repeats the three-body coupling of the
+oscillators above, as one rate of a member.
 
 ```python
 import itertools
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
-from skcomplex.core.components.laws.utils import count, total
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import count, hyperedges, total
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class PlayerElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec()] = 0.0,
-        s: Annotated[float, StateSpec()] = 0.0,
-        payoff: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.s = s
-        self.payoff = payoff
+def triads(s):
+    theta, others = s.target.theta, s.target.others
+    return [RateLaw(theta, hyperedges(sin(others[0].theta + others[1].theta - 2 * theta), size=3))]
 
 
 triangles = [list(nodes) for nodes in itertools.combinations(range(5), 3)]
 space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles)
-triads = CouplingInteraction(
-    'triads',
-    target='oscillators',
-    mode='hyperedges',
-    size=3,
-    read='theta',
-    write='theta',
-    function=lambda s: sin(s.others[0].theta + s.others[1].theta - 2 * s.member.theta),
-)
-oscillators = GroupElement(
-    'oscillators', element=PlayerElement, space=space, on='sites', values={'theta': np.linspace(0, 1, 5)}
-)
-problem = simulate(CompositeSystem(elements=[oscillators], interactions=[triads]), until=0.0).problem
+oscillators = Element('oscillators', values={'theta': np.linspace(0, 1, 5)}, space=space)
+coupling = Interaction('triads', roles={'target': 'oscillators'}, laws=triads)
+problem = System(elements=[oscillators], interactions=[coupling]).prepare().simulate(until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 np.round(problem.states.read(drift, 'oscillators.theta'), 3).tolist()
 ```
 
-The rates `[5.403, 3.199, 0.0, -3.199, -5.403]` equal those of the interaction class above.
+The rates `[5.403, 3.199, 0.0, -3.199, -5.403]` equal those of the interaction along hyperedges above.
 
-In its map form the same interaction sets the next value of a state. Here five players meet in three groups of
+An update law with the same reduction sets the next value of a state. Here five players meet in three groups of
 different sizes, and each earns three times the mean contribution of each group, less its own contribution, summed over
 its groups.
 
 ```python continuation
+def goods(s):
+    members = s.target.members
+    share = 3 * total(members.s, over=members) / count(over=members) - s.target.s
+    return [UpdateLaw(s.target.payoff, hyperedges(share))]
+
+
 groups = NetworkSpace(nx.complete_graph(5), hyperedges=[[0, 1, 2], [1, 2, 3, 4], [0, 4]])
-players = GroupElement(
-    'players', element=PlayerElement, space=groups, on='sites', values={'s': [1.0, 0.0, 1.0, 1.0, 0.0]}
-)
-goods = CouplingInteraction(
-    'goods',
-    target='players',
-    mode='hyperedges',
-    form='map',
-    write='payoff',
-    function=lambda s: 3 * total(s.members.s, over=s.members) / count(over=s.members) - s.member.s,
-)
-run = simulate(CompositeSystem(elements=[players], interactions=[goods]), until=1)
+players = Element('players', values={'s': [1.0, 0.0, 1.0, 1.0, 0.0], 'payoff': 0.0}, space=groups)
+game = Interaction('goods', roles={'target': 'players'}, laws=goods)
+run = System(elements=[players], interactions=[game]).prepare().simulate(until=1)
 run.get_values('players.payoff')[-1].round(2).tolist()
 ```
 
 The payoffs are `[1.5, 3.5, 1.5, 0.5, 3.0]`. The second player, a defector in two groups with two cooperators each,
 earns the most.
 
-The reduction `hyperedges(expression, reduce='sum', size=None, weight=None, over=None)` of
-`skcomplex.core.components.laws.utils` does the work. It reduces an expression written for one hyperedge over the
-hyperedges around every member of a group on the nodes of a network with hyperedges, as `neighbors` does for one
-neighbour. Inside the expression these names hold.
+Inside the expression these names hold.
 
-- `s.others` holds the other members of the hyperedge in its order,
-- `s.members` holds all its members, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with
-  `over=s.members`,
-- `s` is the reading member.
+- `s.target.others` holds the other members of the hyperedge in its order,
+- `s.target.members` holds all its members, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with
+  `over=s.target.members`,
+- `s.target` is the reading member.
 
-The reductions are those of `neighbors`. Without a size the expression reads `s.members`, and only the sum, the mean,
-and the count run over hyperedges of several sizes. A law that reads it outside a network with hyperedges gets the
-issue code `law-space`, and a size the network lacks gets the code `binding`.
-
-`CouplingInteraction(mode='hyperedges', size=...)` couples every member through this reduction. The function reads
-`s.member`, `s.others`, cut to `size - 1` members when the size is given, and `s.members`. The default term is the sum
-over the other members of the difference of `read`. In the map form it sets the next value of `write` in discrete time.
+The reductions are those of `neighbors`. Without a size the expression reads `s.target.members`, and only the sum, the
+mean, and the count run over hyperedges of several sizes. A law that reads it outside a network with hyperedges gets
+the issue code `law-space`, and a size the network lacks gets the code `binding`.
 
 ### Hyperedges of current neighbours
 
@@ -433,62 +326,41 @@ enters or leaves the neighbourhood joins or leaves every set at once.
 many-body terms of flocks and schools, three-body potentials such as Axilrod-Teller and Stillinger-Weber, and group
 interactions in crowds and social models.
 
-`CouplingInteraction(mode='hyperedges', size=k, neighborhood=...)` couples every member through these sets. Here four
-gliders move in a [`ContinuousSpace`](../core_components/spaces.md#continuousspace), and a three-body alignment acts
-only on a member whose two neighbours flank it. The weight `(1 - cos) / 2` is 1 when the neighbours sit on opposite
-sides and 0 when they sit on the same side.
+Here four gliders move in a [`ContinuousSpace`](../core_components/spaces.md#continuousspace), and a three-body
+alignment acts only on a member whose two neighbours flank it. The value `x` of a glider is its position, since it is
+named after an axis of the space. The weight `(1 - cos) / 2` is 1 when the neighbours sit on opposite sides and 0 when
+they sit on the same side.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import hyperedges
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class GliderElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-        u: Annotated[object, StateSpec(vector=True)] = 0.0,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.u = u
-
-    def _get_laws(self, s):
-        return [RateLaw(s.x, s.u)]
+from skcomplex.core.systems import System
 
 
 def flank(s):
-    first, second = s.others[0].x - s.member.x, s.others[1].x - s.member.x
+    member, others = s.target, s.target.others
+    first, second = others[0].x - member.x, others[1].x - member.x
     cosine = first * second / sqrt((first * first) * (second * second))
-    return (1 - cosine) / 2 * ((s.others[0].u - s.member.u) + (s.others[1].u - s.member.u)) / 2
+    return (1 - cosine) / 2 * ((others[0].u - member.u) + (others[1].u - member.u)) / 2
 
 
+def glide(s):
+    alignment = hyperedges(flank(s), size=3, over=RadiusNeighborhood(1.0))
+    return [RateLaw(s.target.x, s.target.u), RateLaw(s.target.u, alignment)]
+
+
+plane = ContinuousSpace(extent=(10.0, 10.0))
 x = np.array([[5.0, 5.0], [4.5, 5.0], [5.5, 5.0], [8.0, 8.0]])
 u = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 0.0]])
-gliders = GroupElement('gliders', element=GliderElement, size=4, values={'x': x, 'u': u})
-alignment = CouplingInteraction(
-    'alignment',
-    target='gliders',
-    write='u',
-    mode='hyperedges',
-    size=3,
-    neighborhood=RadiusNeighborhood(1.0),
-    function=flank,
-)
-system = CompositeSystem(elements=[gliders], interactions=[alignment], space=ContinuousSpace(extent=(10.0, 10.0)))
-problem = simulate(system, until=0.0).problem
+gliders = Element('gliders', values={'x': x, 'u': u}, size=4, space=plane)
+system = System(elements=[gliders], interactions=[Interaction('glide', roles={'target': 'gliders'}, laws=glide)])
+problem = system.prepare().simulate(until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 problem.states.read(drift, 'gliders.u').round(3).tolist()
 ```
@@ -507,78 +379,49 @@ every set as it visits it, without storing the sets. A neighbourhood outside a c
 This section lets a later rule of a step read what an earlier rule of the same step wrote. By default every update law
 of a step reads the states at the start of the step, so a payoff and an imitation that reads it would need two steps.
 Phases order the laws within a step. Here the public goods game of a lattice plays in the phase `play`. In the phase
-`imitate`, a player whose payoff is below the mean payoff of its neighbours adopts the strategy of their majority. A
-[`DiscreteTime`](../core_components/spaces.md#discretetime) with a `PhasesScheduleSpec` declares the order, and a
-[`MapInteraction`](../core_components/interactions.md#mapinteraction) runs the imitation.
+`imitate`, a player whose payoff is below the mean payoff of its neighbours adopts the strategy of their majority.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import GroupingInteraction, MapInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import mean, neighbors, where
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.systems import System
 
 
-class PlayerElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        s: Annotated[float, StateSpec()] = 0.0,
-        payoff: Annotated[float, StateSpec()] = 0.0,
-    ):
-        super().__init__(label)
-        self.s = s
-        self.payoff = payoff
+def play(s):
+    return [UpdateLaw(s.member.payoff, 5.5 * mean(s.members.s, over=s.members) - s.member.s, phase='play')]
 
 
-players = GroupElement(
-    'players',
-    element=PlayerElement,
-    space=LatticeSpace((20, 20), metric='manhattan'),
-    values={'s': (np.random.default_rng(0).random(400) < 0.5).astype(float)}, on='sites',
-)
-play = GroupingInteraction(
-    'play',
-    target='players',
-    groups='neighborhood',
-    form='symbolic',
-    write='payoff',
-    function=lambda g: 5.5 * mean(g.members.s, over=g.members) - g.member.s,
-    phase='play',
-)
+def imitate(s):
+    player = s.target
+    behind = player.payoff < neighbors(player.other.payoff, reduce='mean')
+    majority = where(neighbors(player.other.s, reduce='mean') > 0.5, 1, 0)
+    return [UpdateLaw(player.s, where(behind, majority, player.s), phase='imitate')]
 
 
-def adopt(s):
-    behind = s.target.payoff < neighbors(s.target.other.payoff, reduce='mean')
-    majority = where(neighbors(s.target.other.s, reduce='mean') > 0.5, 1, 0)
-    return where(behind, majority, s.target.s)
-
-
-imitation = MapInteraction('imitation', target='players', state='s', function=adopt, phase='imitate')
-time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-system = CompositeSystem(elements=[players], interactions=[play, imitation], time=time)
-run = simulate(system, until=30, random_state=0)
+strategies = (np.random.default_rng(0).random(400) < 0.5).astype(float)
+lattice = LatticeSpace((20, 20), metric='manhattan')
+players = Element('players', values={'s': strategies, 'payoff': 0.0}, space=lattice)
+interactions = [
+    Interaction('play', among='players', along='neighborhoods', laws=play),
+    Interaction('imitation', roles={'target': 'players'}, laws=imitate),
+]
+run = System(elements=[players], interactions=interactions).prepare().simulate(until=30, random_state=0)
 round(float(run.get_values('players.s')[0].mean()), 2), round(float(run.get_values('players.s')[-1].mean()), 2)
 ```
 
 The share of cooperators falls from 0.46 to 0.04 over 30 steps.
 
-- [`UpdateLaw(state, value, phase=...)`](../core_components/laws.md#updatelaw) names a phase. The interactions with
-  update laws pass a `phase` to theirs: `MapInteraction`, `GroupingInteraction` in its symbolic form, and
-  `CouplingInteraction` in its map form. So does the general realization `ImitationInteraction` in its probability
-  form.
-- The phases of the `PhasesScheduleSpec` of the `DiscreteTime` run one after the other within a step, on the NumPy and
-  Numba backends. Each reads the states the phases before it set.
-- Laws without a phase run in the default phase, first unless the schedule places it.
+- [`UpdateLaw(state, value, phase=...)`](../core_components/laws.md#updatelaw) names a phase.
+- The phases run one after the other within a step, on the NumPy and Numba backends. Each reads the states the phases
+  before it set.
+- Laws without a phase run in the default phase.
 - The draws of a step are made once, before the first phase.
-- A law in a phase the schedule does not declare raises `ValidationError`.
+- The phases run in the order their laws first appear, so the order of the interactions of a system orders them.
 
 ## Reductions over neighbourhoods
 
@@ -589,51 +432,33 @@ second edge conducts ten times better than the first, and the interaction is a c
 [`Interaction`](../core_components/interactions.md#interaction).
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class NodeElement(Element):
-    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.u = u
-
-
-class LinkElement(Element):
-    def __init__(self, label, *, w: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.w = w
-
-
-class BondExchangeInteraction(Interaction):
-    def __init__(self, label, *, nodes: Annotated[str, RoleSpec()], links: Annotated[str, RoleSpec()]):
+class BondExchange(Interaction):
+    def __init__(self, label, *, nodes: Role = 'nodes', links: Role = 'links'):
         super().__init__(label)
         self.nodes = nodes
         self.links = links
 
-    def _get_laws(self, s):
-        return [RateLaw(s.nodes.u, neighbors(s.nodes.other.u - s.nodes.u, weight=s.links.w))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.nodes.u, neighbors(s.nodes.other.u - s.nodes.u, weight=s.links.w))]
 
 
 space = NetworkSpace(nx.path_graph(3))
-system = CompositeSystem(
-    elements=[
-        GroupElement('nodes', element=NodeElement, space=space, values={'u': [0.0, 1.0, 4.0]}, on='sites'),
-        GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': [1.0, 10.0]}),
-    ],
-    interactions=[BondExchangeInteraction('diffusion', nodes='nodes', links='links')],
-)
-problem = simulate(system, until=0.0).problem
+nodes = Element('nodes', values={'u': [0.0, 1.0, 4.0]}, space=space)
+links = Element('links', values={'w': [1.0, 10.0]}, space=space, on='edges')
+system = System(elements=[nodes, links], interactions=[BondExchange('diffusion')])
+problem = system.prepare().simulate(until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 problem.states.read(drift, 'nodes.u').tolist()
 ```
@@ -666,36 +491,26 @@ connected component is a set of members that links join, directly or through oth
 occupied except the fourth, and every site reads the size of its cluster of occupied sites.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import components, where
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class SiteElement(Element):
-    def __init__(self, label, *, occupied: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.occupied = occupied
-
-    def _get_laws(self, s):
-        both = where(s.occupied > 0, 1, 0) * where(s.other.occupied > 0, 1, 0)
-        return [RateLaw(s.occupied, components(both, reduce='size'))]
+def clusters(s):
+    site = s.target
+    both = where(site.occupied > 0, 1, 0) * where(site.other.occupied > 0, 1, 0)
+    return [RateLaw(site.occupied, components(both, reduce='size'))]
 
 
-sites = GroupElement(
-    'sites',
-    element=SiteElement,
-    space=NetworkSpace(nx.path_graph(6)),
-    values={'occupied': [1.0, 1.0, 1.0, 0.0, 1.0, 1.0]}, on='sites',
-)
-problem = simulate(CompositeSystem(elements=[sites]), until=0.0).problem
+occupied = [1.0, 1.0, 1.0, 0.0, 1.0, 1.0]
+sites = Element('sites', values={'occupied': occupied}, space=NetworkSpace(nx.path_graph(6)))
+system = System(elements=[sites], interactions=[Interaction('clusters', roles={'target': 'sites'}, laws=clusters)])
+problem = system.prepare().simulate(until=0.0).problem
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 problem.states.read(drift, 'sites.occupied').tolist()
 ```
@@ -720,41 +535,36 @@ The NumPy backend runs the `connected_components` of SciPy on the active links, 
 
 This section reads a quantity of the shortest paths on the network as it is now, such as the load of a node, the number
 of shortest paths through it. In the cascade of Motter and Lai (2002), every node has a capacity a little above its
-initial load, and a node fails once its load exceeds it. A
-[`TopologyInteraction`](../core_components/interactions.md#topologyinteraction) removes such a node. Here the node of
-the largest load on a scale-free graph of 100 nodes fails first, with a capacity of -1.
+initial load, and a node fails once its load exceeds it. An
+[`UpdateLaw`](../core_components/laws.md#updatelaw) whose target is the request `TopologyRequestSpec('remove-node')`
+removes such a node with the probability its value gives, here 1 for an overloaded node and 0 for the others. Here
+the node of the largest load on a scale-free graph of 100 nodes fails first, with a capacity of -1.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
-from skcomplex.core.components.laws.utils import shortest_paths
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.laws.utils import shortest_paths, where
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
 
-class NodeElement(Element):
-    def __init__(self, label, *, capacity: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.capacity = capacity
+def overload(s):
+    failure = where(shortest_paths(1) > s.target.capacity, 1, 0)
+    return [UpdateLaw(TopologyRequestSpec('remove-node'), failure)]
 
 
 graph = nx.barabasi_albert_graph(100, 2, seed=0)
 loads = nx.betweenness_centrality(graph, normalized=False)
 capacity = [1.2 * loads[node] for node in graph.nodes]
 capacity[max(loads, key=loads.get)] = -1.0
-nodes = GroupElement('nodes', element=NodeElement, on='sites', variable=True, values={'capacity': capacity})
-links = GroupElement('links', element=Element, on='edges', variable=True)
-overload = TopologyInteraction(
-    'overload', target='nodes', action='remove-node', condition=lambda s: shortest_paths(1) > s.source.capacity
-)
-system = CompositeSystem(elements=[nodes, links], interactions=[overload], space=NetworkSpace(graph), time=DiscreteTime())
-trajectory = simulate(system, until=10)
+space = NetworkSpace(graph)
+nodes = Element('nodes', values={'capacity': capacity}, space=space)
+links = Element('links', space=space, on='edges')
+cascade = Interaction('overload', roles={'target': 'nodes'}, laws=overload)
+trajectory = System(elements=[nodes, links], interactions=[cascade], space=space).prepare().simulate(until=10)
 [len(trajectory.get_network(frame).nodes) for frame in range(4)]
 ```
 
@@ -779,52 +589,32 @@ degree, or a random node, and lets the cascade run.
 This section grows, shrinks, and rewires a network while it runs. A change of structure is a `TopologyRequestSpec`, and
 an [`UpdateLaw`](../core_components/laws.md#updatelaw) fires it with a probability at every step. In the growth of
 Barabási and Albert, one node joins with two edges at every step, and the new edges prefer nodes of high degree. Here
-the growth starts from a triangle and runs 200 steps. The links carry no state, so their group takes the core
-[`Element`](../core_components/elements.md#element) itself as its element.
+the growth starts from a triangle and runs 200 steps. The links carry no value, so their element on the edges takes
+no values. An interaction without roles, such as `growth` below, runs its laws once per step for the whole network.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import neighbors
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec, TopologyRequestSpec
-
-
-class NodeElement(Element):
-    def __init__(self, label, *, age: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.age = age
-
-    def _get_laws(self, s):
-        return [UpdateLaw(s.age, s.age + 1)]
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
 
 def degree(node):
     return neighbors(1)
 
 
-class GrowthElement(Element):
-    def _get_laws(self, s):
-        return [UpdateLaw(TopologyRequestSpec('add-node', edges=2, toward=degree), 1)]
-
-
-system = CompositeSystem(
-    elements=[
-        GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=203),
-        GroupElement('links', element=Element, on='edges', variable=True, capacity=403),
-        GrowthElement('growth'),
-    ],
-    space=NetworkSpace(nx.complete_graph(3)),
-    time=DiscreteTime(),
-)
-trajectory = simulate(system, until=200, dt=50.0, random_state=1)
+space = NetworkSpace(nx.complete_graph(3))
+nodes = Element('nodes', values={'age': 0.0}, space=space)
+links = Element('links', space=space, on='edges')
+ageing = Interaction('ageing', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1)])
+growth = Interaction('growth', laws=[UpdateLaw(TopologyRequestSpec('add-node', edges=2, toward=degree), 1)])
+system = System(elements=[nodes, links], interactions=[ageing, growth], space=space)
+trajectory = system.prepare().simulate(until=200, dt=50.0, random_state=1)
 snapshot = trajectory.get_network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10
@@ -833,9 +623,9 @@ snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10
 The network ends with 203 nodes and 403 edges, the triangle plus 200 nodes with two edges each, and its largest degree
 exceeds 10, the hubs that preferential attachment grows.
 
-A network that changes needs room to grow. A variable group on the sites or edges of a network,
-`GroupElement(..., on='sites', variable=True, capacity=n)`, holds rows for up to `capacity` members, and marks the
-members present as active. The NumPy and Numba backends run such groups with fixed array shapes.
+A network that changes needs no setting to grow. When a law requests a change of the network, the elements on its
+nodes and edges become variable, and the engine enlarges their arrays as a Python list grows. The NumPy and Numba
+backends run them with fixed array shapes between enlargements, and mark the members present as active.
 
 - laws leave the free rows unchanged,
 - reductions read the members present,
@@ -851,8 +641,7 @@ of update and jump laws.
 
 The iteration and Gillespie steppers apply the requests between steps. A request that joins nodes draws the new ends
 with weights from `toward`. This is a module-level function of the namespace of a candidate node, such as `degree`
-above, which returns `neighbors(1)`. A request on a group that is not variable gets the validation issue
-`group-fixed`, and a full capacity raises `CapacityError`.
+above, which returns `neighbors(1)`.
 
 Trajectories hold the values of absent members as NaN, and `trajectory.get_network(frame)` returns the nodes and edges
 present at a frame. Rerun draws the nodes present, and the edges at every frame where they change.
@@ -861,38 +650,27 @@ New nodes can also attach by their distance to the others. Here every new node d
 whose angle lies within 0.1 of its own.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import where
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
-
-class PlacedElement(Element):
-    def __init__(self, label, visual=None, *, angle: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
-        self.angle = angle
-
-
-angles = np.linspace(0.0, 6.0, 80).tolist()
-nodes = GroupElement('nodes', element=PlacedElement, on='sites', variable=True, capacity=130, values={'angle': angles})
-links = GroupElement('links', element=Element, on='edges', variable=True, capacity=130)
-growth = TopologyInteraction(
-    'growth',
-    action='add-node',
-    values={'angle': lambda rng: rng.uniform(0.0, 6.0)},
+space = NetworkSpace(nx.empty_graph(80))
+nodes = Element('nodes', values={'angle': np.linspace(0.0, 6.0, 80)}, space=space)
+links = Element('links', space=space, on='edges')
+request = TopologyRequestSpec(
+    'add-node',
+    values=(('angle', lambda rng: rng.uniform(0.0, 6.0)),),
     toward=lambda node: where(abs(node.angle - node.source.angle) <= 0.1, 1, 0),
 )
-space = NetworkSpace(nx.empty_graph(80))
-system = CompositeSystem(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
-trajectory = simulate(system, until=50, random_state=0)
+growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
+system = System(elements=[nodes, links], interactions=[growth], space=space)
+trajectory = system.prepare().simulate(until=50, random_state=0)
 network = trajectory.get_network(-1)
 placed = trajectory.get_values('nodes.angle')[-1]
 network.sources.size, bool((abs(placed[network.sources] - placed[network.targets]) <= 0.1).all())
@@ -902,10 +680,8 @@ After 50 steps the network holds 50 edges, and every one of them joins two nodes
 
 - The weight `toward` reads the node a new edge starts from as `node.source`, beside the candidate. That node is the new
   node of `'add-node'`, with the values it drew, the adding node of `'add-edge'`, and the kept end of `'rewire'`.
-- Without a target, the condition and a probability of `'add-node'` read the drawn values of the node being added as
-  `s.source`, so a node that does not fire is never added. A rate does not read them, since no node exists before the
-  jump, and neither does a reduction.
-- With a target, the condition keeps reading the node it runs for.
+- An interaction without roles fires its requests once per step, and an interaction with a role once for every member
+  it binds, with the probability its law gives that member.
 - Where fewer candidates have a positive weight than the edges to draw, the new ends are drawn uniformly.
 
 The catalog systems `PopularitySimilarityNetworkSystem` and `UrbanScalingInteractionsSystem` grow by the hyperbolic
@@ -919,38 +695,35 @@ triangle with the two ends of an existing edge.
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
-system = CompositeSystem(
-    elements=[
-        GroupElement('nodes', element=Element, on='sites', variable=True, capacity=23),
-        GroupElement('links', element=Element, on='edges', variable=True, capacity=43),
-        GroupElement('triangles', element=Element, on='hyperedges', variable=True, capacity=21),
-    ],
-    interactions=[TopologyInteraction('growth', action='add-node', hyperedge=3)],
-    space=NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]]),
-    time=DiscreteTime(),
-)
-trajectory = simulate(system, until=20, random_state=0)
+space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
+elements = [
+    Element('nodes', space=space),
+    Element('links', space=space, on='edges'),
+    Element('triangles', space=space, on='hyperedges'),
+]
+growth = Interaction('growth', laws=[UpdateLaw(TopologyRequestSpec('add-node', hyperedge=3), 1)])
+trajectory = System(elements=elements, interactions=[growth], space=space).prepare().simulate(until=20, random_state=0)
 trajectory.get_network(-1).hyperedges.shape, trajectory.get_network(-1).sources.size
 ```
 
 After 20 steps the network holds 21 triangles of 3 members and 43 edges, the first triangle and its 3 edges plus 20
 triangles with 2 new edges each.
 
-`TopologyInteraction(action='add-node', hyperedge=k)`, or `TopologyRequestSpec('add-node', hyperedge=k)`, makes every
-new node form a hyperedge of `k` members with `k - 1` existing nodes, and join each of them by an edge.
+`TopologyRequestSpec('add-node', hyperedge=k)` makes every new node form a hyperedge of `k` members with `k - 1`
+existing nodes, and join each of them by an edge.
 
 - The first two members are the ends of an edge drawn uniformly, the others are drawn by `toward`, and the new node is
   the last member. So an edge joins the first two members of every hyperedge.
-- The hyperedges are the rows of a variable group on the hyperedges, `GroupElement(on='hyperedges', variable=True,
-  capacity=n)`. The initial hyperedges and the new ones have one size.
-- Hyperedge interactions read the hyperedges present at every step, and `trajectory.get_network(frame).hyperedges` holds
-  the members of those present at a frame.
+- The hyperedges are the members of the element on the hyperedges, `Element(label, space=space, on='hyperedges')`.
+  The initial hyperedges and the new ones have one size.
+- Interactions along hyperedges read the hyperedges present at every step, and
+  `trajectory.get_network(frame).hyperedges` holds the members of those present at a frame.
 
 Hyperedges also come and go on their own, and hyperedges of several sizes share one group. Here nodes form random
 triangles that dissolve, and new nodes join hyperedges of two to four members.
@@ -958,40 +731,40 @@ triangles that dissolve, and new nodes join hyperedges of two to four members.
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
-system = CompositeSystem(
-    elements=[
-        GroupElement('nodes', element=Element, on='sites', variable=True, capacity=40),
-        GroupElement('links', element=Element, on='edges', variable=True, capacity=40),
-        GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=200, rank=4),
-    ],
-    interactions=[
-        TopologyInteraction('form', target='nodes', action='add-hyperedge', hyperedge=3, probability=0.1),
-        TopologyInteraction('dissolve', target='groups', action='remove-hyperedge', probability=0.2),
-        *(TopologyInteraction(f'join_{size}', action='add-node', hyperedge=size, edges=0) for size in (2, 3, 4)),
-    ],
-    space=NetworkSpace(nx.empty_graph(10)),
-    time=DiscreteTime(),
-)
-trajectory = simulate(system, until=10, random_state=0)
+space = NetworkSpace(nx.empty_graph(10))
+elements = [
+    Element('nodes', space=space),
+    Element('links', space=space, on='edges'),
+    Element('groups', space=space, on='hyperedges'),
+]
+form, dissolve = TopologyRequestSpec('add-hyperedge', hyperedge=3), TopologyRequestSpec('remove-hyperedge')
+interactions = [
+    Interaction('form', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(form, 0.1)]),
+    Interaction('dissolve', roles={'target': 'groups'}, laws=lambda s: [UpdateLaw(dissolve, 0.2)]),
+    *(
+        Interaction(f'join_{size}', laws=[UpdateLaw(TopologyRequestSpec('add-node', hyperedge=size, edges=0), 1)])
+        for size in (2, 3, 4)
+    ),
+]
+system = System(elements=elements, interactions=interactions, space=space)
+trajectory = system.prepare().simulate(until=10, random_state=0)
 trajectory.get_network(-1).hyperedges[:3].tolist()
 ```
 
-The first three hyperedges at the end are `[[11, 25, -1, -1], [30, 34, -1, -1], [4, 10, 11, -1]]`, two pairs and a
-triangle, with -1 in the unused places.
+The first three hyperedges at the end are `[[16, 28, -1, -1], [18, 19, -1, -1], [13, 37, -1, -1]]`, three pairs,
+with -1 in the unused places.
 
-- `'add-hyperedge'`, as an action or a `TopologyRequestSpec` kind, runs for every node, which forms a hyperedge of
+- `'add-hyperedge'` runs for every node, which forms a hyperedge of
   size `hyperedge` with nodes drawn by `toward` and is its last member.
-- `'remove-hyperedge'` runs for every hyperedge of the variable group on the hyperedges that the target binds, and its
-  laws read the hyperedge member as `s.source`.
-- A variable group with a rank, `GroupElement(on='hyperedges', variable=True, rank=k)`, holds hyperedges of every size
-  up to `k`. Its rows hold `k` members, and a smaller hyperedge fills its last ones with -1, as
-  `trajectory.get_network(frame).hyperedges` shows. Hyperedge interactions run on groups of one size, without a rank.
+- `'remove-hyperedge'` runs for every hyperedge of the element on the hyperedges that the role binds.
+- An element on the hyperedges holds hyperedges of every size. Its rows hold as many members as the largest
+  hyperedge, and a smaller hyperedge fills its last ones with -1, as `trajectory.get_network(frame).hyperedges` shows.
 - With `edges=0` or `independent=True`, a new node with a hyperedge draws every other member by `toward`, and joins
   them by no edge of its own.
 
@@ -1008,43 +781,31 @@ percolation, each step draws two candidate edges and adds the one whose product 
 joins is smaller, which delays the giant component. Here 400 edges join 500 nodes.
 
 ```python
-from typing import Annotated
-
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import MapInteraction, TopologyInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
 from skcomplex.core.components.laws.utils import components
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import StateSpec
-
-
-class ClusteredElement(Element):
-    def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label, visual=visual)
-        self.size = size
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
 
 def product(node):
-    return node.size * node.source.size
+    return node.cluster_size * node.source.cluster_size
 
 
-system = CompositeSystem(
-    elements=[
-        GroupElement('nodes', element=ClusteredElement, on='sites', variable=True, capacity=500),
-        GroupElement('links', element=Element, on='edges', variable=True, capacity=500),
-    ],
-    interactions=[
-        MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
-        TopologyInteraction('linking', action='add-edge', candidates=2, score=product),
-    ],
-    space=NetworkSpace(nx.empty_graph(500)),
-    time=DiscreteTime(),
+space = NetworkSpace(nx.empty_graph(500))
+nodes = Element('nodes', values={'cluster_size': 1.0}, space=space)
+links = Element('links', space=space, on='edges')
+size = Interaction(
+    'size', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(s.target.cluster_size, components(1, reduce='size'))]
 )
-trajectory = simulate(system, until=400, random_state=0)
-int(trajectory.get_values('nodes.size')[-1].max()) < 100
+linking = Interaction('linking', laws=[UpdateLaw(TopologyRequestSpec('add-edge', candidates=2, score=product), 1)])
+system = System(elements=[nodes, links], interactions=[size, linking], space=space)
+trajectory = system.prepare().simulate(until=400, random_state=0)
+largest = int(trajectory.get_values('nodes.cluster_size')[-1].max())
+largest < 100
 ```
 
 The largest cluster holds fewer than 100 nodes, 33 in this run. With 400 random edges the mean degree would be 1.6,
@@ -1077,25 +838,22 @@ nodes.
 ```python
 import networkx as nx
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.systems import System
 
-system = CompositeSystem(
-    elements=[
-        GroupElement('nodes', element=Element, on='sites', variable=True, capacity=50),
-        GroupElement('links', element=Element, on='edges', variable=True, capacity=400),
-    ],
-    interactions=[
-        TopologyInteraction('closure', target='nodes', action='close-triangle', one=True),
-        TopologyInteraction('turnover', target='nodes', action='replace-node', one=True, probability=0.2),
-    ],
-    space=NetworkSpace(nx.gnm_random_graph(50, 50, seed=0)),
-    time=DiscreteTime(),
-)
-trajectory = simulate(system, until=500, random_state=0)
+closure = TopologyRequestSpec('close-triangle', one=True)
+turnover = TopologyRequestSpec('replace-node', one=True)
+space = NetworkSpace(nx.gnm_random_graph(50, 50, seed=0))
+interactions = [
+    Interaction('closure', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(closure, 1)]),
+    Interaction('turnover', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(turnover, 0.2)]),
+]
+elements = [Element('nodes', space=space), Element('links', space=space, on='edges')]
+system = System(elements=elements, interactions=interactions, space=space)
+trajectory = system.prepare().simulate(until=500, random_state=0)
 len(trajectory.get_network(-1).nodes)
 ```
 

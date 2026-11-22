@@ -4,7 +4,8 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
+from types import SimpleNamespace
+from typing import Annotated, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -13,33 +14,36 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction, MapInteraction
-from ....core.components.spaces import BallNeighborhood, LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
-from ....core.types import Array, IntArray
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, TotalisticSpec, UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace, RadiusNeighborhood
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, IntArray, Role
 
 MAJORITY = 5
+MOORE = RadiusNeighborhood(1, metric='chebyshev', center=True)
 
 
 class MajorityVoterElement(Element):
     """Cell that takes the majority opinion of its Moore neighbourhood.
 
-    The neighbourhood includes the cell itself. The majority rule is a `LocalRuleInteraction` of the lattice, which
+    The neighbourhood includes the cell itself. The majority rule is a `MajorityRuleInteraction` of the lattice, which
     `MajorityRuleSystem` adds.
 
     Args:
         label:
             The label of the cell or the lattice group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
+
+        space:
+            The space with one member per site, or `None` for one member.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import MajorityVoterElement
@@ -50,15 +54,15 @@ class MajorityVoterElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        opinion: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.opinion = opinion
 
 
-class VariantVoterView(AgentView):
+class VariantVoterView(AgentViewProtocol, Protocol):
     """View of an agent of the voter system variants.
 
     Its states and parameters are attributes.
@@ -81,9 +85,6 @@ class VariantVoterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
@@ -94,38 +95,34 @@ class VariantVoterElement(Element):
             The share of disagreeing neighbours above which the agent changes its opinion, or 0 to copy a random
             neighbour.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import VariantVoterElement
-        >>> group = GroupElement('voters', element=VariantVoterElement, size=10, values={'threshold': 0.5})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = VariantVoterElement('voters', threshold=0.5, size=10)
+        >>> group.label, type(group).__name__, group.size
         ('voters', 'VariantVoterElement', 10)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
-        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        contrarian: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        opinion: Annotated[object, NN] = 0.0,
+        contrarian: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.opinion = opinion
         self.contrarian = contrarian
         self.threshold = threshold
 
-    @classmethod
-    def _get_view(cls) -> type[VariantVoterView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return VariantVoterView
-
-
-class VoterView(AgentView):
+class VoterView(AgentViewProtocol, Protocol):
     """View of an agent of the voter system.
 
     Its states and parameters are attributes.
@@ -143,40 +140,33 @@ class VoterElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The initial opinion, 0 or 1.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.opinion_dynamics import VoterElement
-        >>> group = GroupElement('voters', element=VoterElement, size=20, values={'opinion': 1.0})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = VoterElement('voters', opinion=1.0, size=20)
+        >>> group.label, type(group).__name__, group.size
         ('voters', 'VoterElement', 20)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
-        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        opinion: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.opinion = opinion
 
-    @classmethod
-    def _get_view(cls) -> type[VoterView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return VoterView
-
-
-class VariantVotingInteraction(MapInteraction):
+class VariantVotingInteraction(Interaction):
     """Voting of the voter system variants.
 
     Every voter in turn takes the opinion of its variant. A voter of threshold 0 copies a random neighbour. A voter of
@@ -194,19 +184,34 @@ class VariantVotingInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import VariantVotingInteraction
-        >>> VariantVotingInteraction('voting', target='voters').schedule
-        'random-sequential'
+        >>> VariantVotingInteraction('voting', target='voters').target
+        'voters'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='opinion',
-            function=self._get_opinion,
-            schedule='random-sequential',
-            form='agent',
-        )
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the opinion of the agents, one after the other in a new random order, as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._update)]
+
+    def _update(self, system: SystemView) -> None:
+        """Set the opinion of the agents one after the other in a new random order."""
+        agents = cast(list[VariantVoterView], system.get_agents('target'))
+        for index in system.rng.permutation(len(agents)):
+            agent = agents[int(index)]
+            if agent.alive:
+                agent.opinion = float(self._get_opinion(agent, system))
 
     def _get_choice(
         self,
@@ -222,14 +227,14 @@ class VariantVotingInteraction(MapInteraction):
 
     def _get_opinion(self, agent: VariantVoterView, system: SystemViewProtocol) -> float:
         """Return the opinion of the voter's variant, inverted for a contrarian."""
-        neighbors = [item for item in agent.get_neighbors() if isinstance(item, VariantVoterView)]
+        neighbors = cast(list[VariantVoterView], [item for item in agent.get_neighbors() if item.group == agent.group])
         if not neighbors:
             return float(agent.opinion)
         choice = self._get_choice(agent, neighbors, system)
         return 1 - choice if agent.contrarian else choice
 
 
-class VoterImitationInteraction(MapInteraction):
+class VoterImitationInteraction(Interaction):
     """Imitation of the voter system.
 
     Every voter in turn adopts the opinion of a random neighbour. The voters update one after the other in a new random
@@ -245,29 +250,88 @@ class VoterImitationInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import VoterImitationInteraction
-        >>> VoterImitationInteraction('imitation', target='voters').schedule
-        'random-sequential'
+        >>> VoterImitationInteraction('imitation', target='voters').target
+        'voters'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='opinion',
-            function=self._get_opinion,
-            schedule='random-sequential',
-            form='agent',
-        )
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the opinion of the agents, one after the other in a new random order, as the rule of the system.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._update)]
+
+    def _update(self, system: SystemView) -> None:
+        """Set the opinion of the agents one after the other in a new random order."""
+        agents = cast(list[VoterView], system.get_agents('target'))
+        for index in system.rng.permutation(len(agents)):
+            agent = agents[int(index)]
+            if agent.alive:
+                agent.opinion = float(self._get_opinion(agent, system))
 
     def _get_opinion(self, agent: VoterView, system: SystemViewProtocol) -> float:
         """Return the opinion of a random neighbouring voter.
 
         Without one, it is the voter's own.
         """
-        neighbors = [item for item in agent.get_neighbors() if isinstance(item, VoterView)]
+        neighbors = cast(list[VoterView], [item for item in agent.get_neighbors() if item.group == agent.group])
         if not neighbors:
             return float(agent.opinion)
         return float(neighbors[int(system.rng.integers(len(neighbors)))].opinion)
+
+
+class MajorityRuleInteraction(Interaction):
+    """Majority rule of voters on a lattice: every voter takes the opinion of most of its Moore neighbourhood.
+
+    The neighbourhood holds the voter and its eight neighbours, so it has no ties, and a voter takes opinion 1 when at
+    least five of the nine hold it.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The voters whose state `opinion` the rule updates.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import MajorityRuleInteraction
+        >>> MajorityRuleInteraction('majority', target='voters').target
+        'voters'
+    """
+
+    def __init__(self, label: str, *, target: Role = 'voters') -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _is_majority(total: IntArray) -> npt.NDArray[np.bool_]:
+        """Return whether the opinions 1 of a Moore neighbourhood are a majority.
+
+        The neighbourhood has nine cells.
+        """
+        return total >= MAJORITY
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the majority rule of the opinions as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        opinion = context.target.opinion
+        rule = TotalisticSpec(self._is_majority)
+        self.laws_: list[BaseLaw] = [UpdateLaw(opinion, rule, neighborhood=MOORE, label=self.label)]
 
 
 class MajorityRuleSystem(BaseSystem):
@@ -290,9 +354,15 @@ class MajorityRuleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import MajorityRuleSystem
-        >>> MajorityRuleSystem((10, 10)).prepare().system_.elements[0].prepare().size_
+        >>> MajorityRuleSystem((10, 10)).prepare().system_.elements[0].opinion.size
         100
     """
 
@@ -309,19 +379,13 @@ class MajorityRuleSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.density = density
         self.random_state = random_state
-
-    @staticmethod
-    def _is_majority(total: IntArray) -> npt.NDArray[np.bool_]:
-        """Return whether the opinions 1 of a Moore neighbourhood are a majority.
-
-        The neighbourhood has nine cells.
-        """
-        return total >= MAJORITY
 
     @staticmethod
     def _get_random_cells(
@@ -332,28 +396,17 @@ class MajorityRuleSystem(BaseSystem):
         """Return cells that are 1 with a probability and 0 otherwise."""
         return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         values = self._get_random_cells(self.shape, self.density, self.random_state)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'voters',
-                    element=MajorityVoterElement,
-                    space=LatticeSpace(tuple(self.shape)),
-                    values={'opinion': values},
-                    on='sites',
-                ),
+                MajorityVoterElement('voters', opinion=values, space=LatticeSpace(tuple(self.shape))),
             ],
             interactions=[
-                LocalRuleInteraction(
-                    'majority',
-                    target='voters',
-                    state='opinion',
-                    rule=TotalisticSpec(self._is_majority),
-                    neighborhood=BallNeighborhood(center='first'),
-                ),
+                MajorityRuleInteraction('majority', target='voters'),
             ],
         )
 
@@ -376,10 +429,16 @@ class VoterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.social.opinion_dynamics import VoterSystem
-        >>> VoterSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> VoterSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].size
         8
     """
 
@@ -395,22 +454,25 @@ class VoterSystem(BaseSystem):
         share: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
         size = nx.number_of_nodes(graph)
         opinions = (rng.random(size) < self.share).astype(float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[GroupElement('voters', element=VoterElement, size=size, values={'opinion': opinions})],
+            elements=[VoterElement('voters', opinion=opinions, size=size)],
             interactions=[VoterImitationInteraction('imitation', target='voters')],
             space=NetworkSpace(graph),
         )
@@ -441,10 +503,16 @@ class VoterVariantsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.social.opinion_dynamics import VoterVariantsSystem
-        >>> VoterVariantsSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> VoterVariantsSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].size
         8
     """
 
@@ -462,31 +530,31 @@ class VoterVariantsSystem(BaseSystem):
         share: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.threshold = threshold
         self.contrarians = contrarians
         self.share = share
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
         size = nx.number_of_nodes(graph)
-        voters = GroupElement(
+        voters = VariantVoterElement(
             'voters',
-            element=VariantVoterElement,
+            opinion=(rng.random(size) < self.share).astype(float),
+            contrarian=(rng.random(size) < self.contrarians).astype(float),
+            threshold=self.threshold,
             size=size,
-            values={
-                'opinion': (rng.random(size) < self.share).astype(float),
-                'contrarian': (rng.random(size) < self.contrarians).astype(float),
-                'threshold': self.threshold,
-            },
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[voters],
             interactions=[VariantVotingInteraction('voting', target='voters')],

@@ -8,37 +8,38 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import Expression, exp, oo, tanh, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import (
     coordinate,
     cumulative_integral,
     integral_transform,
     integration_variable,
 )
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import AxisSpec, BaseSpace, LatticeSpace, PhaseSpace
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 
 
 class AmountElement(Element):
-    """Element that holds one nonnegative scalar `x`, an amount."""
+    """Element that holds one nonnegative scalar `x`, an amount, or one per site of a space."""
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[npt.ArrayLike, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.x = x
 
 
@@ -65,22 +66,22 @@ def light(s: SimpleNamespace) -> object:
 def _observed(values: np.ndarray, axis: AxisSpec, function: Callable[[SimpleNamespace], object]) -> np.ndarray:
     """Return an observable of a constant density on one class axis at every cell."""
     space = PhaseSpace(LatticeSpace((1,)), [axis]).prepare()
-    field = FieldElement('g', element=AmountElement, space=space, values={'x': values})
-    observables = [ObservableSpec('value', function, group='g', reduce=np.asarray)]
-    trajectory = simulate(CompositeSystem(elements=[field]), until=0.1, dt=0.1, observables=observables)
+    observables = [Observable('value', function, group='g', reduce=np.asarray)]
+    system = System(elements=[AmountElement('g', x=values, space=space)]).prepare(observables)
+    trajectory = system.simulate(until=0.1, dt=0.1, observables=observables)
     return np.asarray(trajectory.get_values('value'), dtype=float)[-1].ravel()
 
 
 def test_integration_variable_rejects_a_name_that_is_no_identifier() -> None:
     """Raise a named error for an axis name that is no identifier."""
-    with pytest.raises(ValidationError, match='identifier'):
+    with pytest.raises(ValidationError, match='valid Python name'):
         integration_variable('not a name')
 
 
 def test_cumulative_integral_rejects_an_axis_that_is_no_integer() -> None:
     """Raise a named error for an axis that is not a nonnegative integer."""
     for axis in (-1, 1.5, True):
-        with pytest.raises(ValidationError, match='nonnegative integer'):
+        with pytest.raises(ValidationError, match='whole number of 0 or more'):
             cumulative_integral(var('x'), axis)
 
 
@@ -104,9 +105,13 @@ def test_integral_transform_with_an_antisymmetric_kernel_conserves_the_total() -
 
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)]).prepare()
     start = 1.0 + np.sin(3 * space.coordinates_['z'])[None, :]
-    field = FieldElement('g', element=AmountElement, space=space, values={'x': start})
-    system = CompositeSystem(elements=[field], interactions=[RateInteraction('r', target='g', state='x', rate=rate)])
-    final = simulate(system, until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
+    transform = Interaction('r', roles={'target': 'g'}, laws=lambda s: [RateLaw(s.target.x.diff(s.t), rate(s))])
+    system = System(
+        elements=[AmountElement('g', x=start, space=space)],
+        interactions=[transform],
+        solver=RK4Solver(dt=0.05),
+    )
+    final = system.prepare().simulate(until=5.0, dt=1.0)
     values = final.get_values('g.x')
     assert abs(values[-1].sum() / values[0].sum() - 1.0) < 1e-10
     assert not np.allclose(values[-1], values[0])

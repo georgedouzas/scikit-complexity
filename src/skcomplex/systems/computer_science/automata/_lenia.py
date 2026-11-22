@@ -18,15 +18,17 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, exp, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, clip, convolve, displacement, where
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import AnyArray, Array
+from ....core.systems import BaseSystem, System
+from ....core.types import AnyArray, Array, Role
 
 ORBIUM = np.array(
     [
@@ -60,23 +62,23 @@ class LeniaSiteElement(Element):
     """Site of a Lenia world, with a value in `[0, 1]` for each of its channels.
 
     A world has up to three channels. The updates of the world change the channels, and a world of one channel leaves
-    `B` and `C` at 0.
+    `B` and `C` at 0. With `space`, the element holds one site on every site of the space.
 
     Args:
         label:
-            The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the sites.
 
         A:
-            The initial value of the first channel.
+            The initial value of the first channel, or one value per site.
 
         B:
-            The initial value of the second channel.
+            The initial value of the second channel, or one value per site.
 
         C:
-            The initial value of the third channel.
+            The initial value of the third channel, or one value per site.
+
+        space:
+            The space of the world, such as a torus of sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LeniaSiteElement
@@ -87,13 +89,13 @@ class LeniaSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        B: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        A: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        B: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        C: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.A = A
         self.B = B
         self.C = C
@@ -140,13 +142,11 @@ class LeniaUpdateInteraction(Interaction):
         10.0
     """
 
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role = 'world',
         channel: str = 'A',
         kernels: Sequence[RingKernel] = (('A', 13.0, 1.0, (1.0,), 0.15, 0.015),),
         T: float = 10.0,
@@ -159,26 +159,23 @@ class LeniaUpdateInteraction(Interaction):
         self.T = T
         self.n_dim = n_dim
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the channel by the kernels.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the channel by the growths of the kernels as the law.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(context)
         distance = sqrt(sum(displacement(axis) ** 2 for axis in range(self.n_dim)))
         total = sum(kernel[2] for kernel in self.kernels)
         growth: Expression = 0
         for source, radius, weight, peaks, mu, sigma in self.kernels:
             kernel = self._get_shell(distance / radius, peaks) / self._get_norm(radius, peaks)
-            potential = convolve(getattr(s.target, source), kernel, math.ceil(radius))
+            potential = convolve(getattr(context.target, source), kernel, math.ceil(radius))
             growth += weight / total * (2 * exp(-((potential - mu) ** 2) / (2 * sigma**2)) - 1)
-        value = getattr(s.target, self.channel)
-        return [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
+        value = getattr(context.target, self.channel)
+        self.laws_: list[BaseLaw] = [UpdateLaw(value, clip(value + growth / self.T, 0, 1))]
 
     @staticmethod
     def _get_shell(q: Expression, peaks: Sequence[float]) -> Expression:
@@ -264,6 +261,12 @@ class LeniaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The world has fewer than two axes or not one to three channels, Orbium does not fit a default world, the
@@ -271,8 +274,8 @@ class LeniaSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LeniaSystem
-        >>> LeniaSystem().prepare().system_.elements[0].values['A'].shape
-        (64, 64)
+        >>> LeniaSystem().prepare().system_.elements[0].A.shape
+        (4096,)
     """
 
     field = 'computer_science/automata'
@@ -281,7 +284,7 @@ class LeniaSystem(BaseSystem):
     until = 200
     dt = 1
     observables = tuple(
-        ObservableSpec(f'mass_{channel}', group='world', variable=channel, reduce=_get_mass) for channel in CHANNELS
+        Observable(f'mass_{channel}', group='world', variable=channel, reduce=_get_mass) for channel in CHANNELS
     )
 
     def __init__(
@@ -297,8 +300,10 @@ class LeniaSystem(BaseSystem):
         channels: int = 1,
         kernels: Sequence[Kernel] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.initial = initial
         self.R = R
@@ -328,11 +333,9 @@ class LeniaSystem(BaseSystem):
             raise ParameterError(error_msg)
         return values
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Lenia, a continuous automaton of ring-kernel convolutions.
-
-        Its convolutions grow solitons. The solitons are gliding and lifelike.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the world and the updates of its channels."""
+        super()._prepare(context)
         shape = tuple(self.shape)
         if len(shape) < MIN_AXES or not 1 <= self.channels <= len(CHANNELS):
             error_msg = (
@@ -346,12 +349,8 @@ class LeniaSystem(BaseSystem):
         if any(not 0 <= index < self.channels for kernel in rings for index in kernel[:2]):
             error_msg = f'Every kernel needs a source and a destination among the {self.channels} channels.'
             raise ParameterError(error_msg)
-        world = FieldElement(
-            'world',
-            element=LeniaSiteElement,
-            space=LatticeSpace(shape),
-            values={CHANNELS[index]: values[index] for index in range(self.channels)},
-        )
+        channels = {CHANNELS[index]: values[index].ravel() for index in range(self.channels)}
+        world = LeniaSiteElement('world', **channels, space=LatticeSpace(shape))
         updates = [
             LeniaUpdateInteraction(
                 f'update_{CHANNELS[index]}',
@@ -368,4 +367,4 @@ class LeniaSystem(BaseSystem):
             for index in range(self.channels)
             if any(kernel[1] == index for kernel in rings)
         ]
-        return CompositeSystem(self.label, elements=[world], interactions=updates, time=DiscreteTime())
+        self.system_ = System(self.label, elements=[world], interactions=updates)

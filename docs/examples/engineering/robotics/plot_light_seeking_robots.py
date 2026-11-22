@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem
@@ -38,10 +37,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = LightSeekingRobotsSystem()
 solver = EulerMaruyamaSolver(dt=0.01)
+system = LightSeekingRobotsSystem(solver=solver).prepare()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, solver=solver, observers=[observer], random_state=0)
+trajectory = system.simulate(until=100.0, dt=0.5, observers=[observer], random_state=0)
 
 # %%
 # The delay decides
@@ -53,8 +52,8 @@ trajectory = simulate(system, solver=solver, observers=[observer], random_state=
 delays = [0.0, 1.0, 2.0, 3.0, 5.0, 8.0]
 intensities, distances = [], {}
 for delay in delays:
-    run = simulate(LightSeekingRobotsSystem(n_robots=40, delay=delay), until=150, solver=solver, random_state=1)
-    trajectory = run
+    system = LightSeekingRobotsSystem(n_robots=40, delay=delay, solver=solver)
+    trajectory = system.prepare().simulate(until=150, dt=0.5, random_state=1)
     r = np.hypot(trajectory.get_values('robots.x'), trajectory.get_values('robots.y'))[trajectory.times > 50]
     intensities.append(np.exp(-(r**2)).mean())
     distances[delay] = r.ravel()

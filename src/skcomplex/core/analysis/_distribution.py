@@ -11,11 +11,12 @@ import numpy as np
 import numpy.typing as npt
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_real, _read_samples_of
-from .types import Source
+from .types import DataSource
 
 ORDER_COUNT = 2
 KINDS = (
@@ -52,6 +53,13 @@ KIND_TAGS = {
 @dataclass(frozen=True)
 class DistributionResult:
     """A result of `distribution`, the distribution of the values of a source.
+
+    It holds what the kind measures: a histogram, the share of values at or above each value, the moments, the Gini
+    coefficient, the tail index, the count of records, or the distance between two distributions, such as a Gini
+    coefficient of 0.75 when one of four holds everything. It reports the spread of incomes, the sizes of cities, and
+    the avalanches of a sandpile.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -104,6 +112,14 @@ class DistributionResult:
 
         distance:
             The total variation distance between the two groups, for `'total-variation'`.
+
+    See Also:
+        distribution: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import distribution
+        >>> distribution([0, 0, 0, 4], kind='gini').gini
+        0.75
     """
 
     values: Array
@@ -126,7 +142,7 @@ class DistributionResult:
 
 
 def distribution(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'histogram',
     variables: Sequence[str] | None = None,
@@ -139,41 +155,27 @@ def distribution(
 ) -> DistributionResult:
     """Return the distribution of the values of a source, of one kind.
 
-    The source gives samples as columns: the series of a trajectory or an array, or the speeds of the agents of a
-    trajectory, one sample per frame. The first kinds pool every sample into one:
+    It reads samples as columns, the series of a trajectory or an array, or the speeds of the agents at every frame, and
+    measures how the values spread, such as the Gini coefficient, 0 when all hold the same and near 1 when one holds
+    everything. Some kinds pool every sample into one and others describe every sample. It describes the spread of
+    incomes in an economy, the sizes of cities, and the avalanches of a sandpile.
 
-    - `'histogram'`: the edges and the probability density of `bins` bins, equally spaced in the logarithm of the
-      values with `log=True` for heavy tails.
-    - `'ccdf'`: the complementary cumulative distribution, the share of samples at or above every distinct value.
-    - `'gini'`: the Gini coefficient of nonnegative values, 0 for equality and close to 1 when one holds everything.
-    - `'tail-index'`: the Hill estimate of the tail index from the `tail` largest positive samples, the exponent
-      `alpha - 1` of the survival function of a density `p(x) ∝ x^-alpha`.
-
-    The other kinds describe every sample:
-
-    - `'moments'`: the mean, the variance, the skewness, and the excess kurtosis of every sample, or of its absolute
-      values with `absolute=True`.
-    - `'moment-ratio'`: the ratio `<x^p> / <x^q>^(p / q)` of the moments of the even `orders` `(p, q)`, and the
-      cumulant `1 - ratio / ratio_gauss`, normalized by the ratio of a centred Gaussian so that it is 0 for Gaussian
-      samples. For the orders 4 and 2 the ratio is the kurtosis about 0 and the cumulant `1 - <x^4> / (3 <x^2>^2)`, 2/3
-      for samples at ±1.
-    - `'dispersion-index'`: the variance over the mean of every sample of counts, 1 for Poisson counts, above 1 for
-      overdispersed and below 1 for underdispersed counts.
-    - `'records'`: the number of records of every series, the values larger than every value before them, about the
-      harmonic number of the length for independent values.
-    - `'total-variation'`: the total variation distance `1/2 Σ_u |a_u / A - b_u / B|` between the distributions of
-      two groups across units, from one row per item with its group and its unit, 0 for identical distributions and
-      1 for disjoint ones.
-
-    It appears in many fields. It describes the spread of incomes in an economy, of city sizes, and of the sizes of
-    avalanches of a sandpile.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array with one column per sample.
 
         kind:
-            The description to compute, one of the kinds above.
+            Pooled kinds: `'histogram'` gives the edges and density of `bins` bins, spaced in the logarithm with
+            `log=True`. `'ccdf'` gives the share of values at or above every distinct value. `'gini'` gives the Gini
+            coefficient of nonnegative values. `'tail-index'` gives the Hill estimate of the tail index from the `tail`
+            largest values. Per sample kinds: `'moments'` gives the mean, variance, skewness, and excess kurtosis, of
+            the absolute values with `absolute=True`. `'moment-ratio'` gives `<x^p> / <x^q>^(p / q)` of the even
+            `orders` and the cumulant `1 - ratio / ratio_gauss`, 0 for Gaussian samples. `'dispersion-index'` gives the
+            variance over the mean of counts, 1 for Poisson counts. `'records'` counts the values larger than all before
+            them. `'total-variation'` gives the distance `1/2 sum |a_u / A - b_u / B|` between the distributions of two
+            groups across units, from one row per item with its group and unit.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
@@ -207,20 +209,14 @@ def distribution(
             The kind is unknown, a setting the kind does not read is changed, a setting is out of range, or the
             samples do not suit the kind.
 
+    See Also:
+        scaling: Fits power laws and exponents.
+        coarse_grain: Counts members at values.
+
     Examples:
         >>> from skcomplex.core.analysis import distribution
-        >>> distribution([1, 2, 4, 8], kind='histogram', bins=3, log=True).edges.round(2).tolist()
-        [1.0, 2.0, 4.0, 8.0]
         >>> distribution([1, 1, 2, 4], kind='ccdf').survival.tolist()
         [1.0, 0.5, 0.25]
-        >>> distribution([0, 0, 0, 4], kind='gini').gini
-        0.75
-        >>> distribution([1.0, -1.0, 1.0], kind='moment-ratio').cumulant.round(4).tolist()
-        [0.6667]
-        >>> distribution([1, 3, 1, 3], kind='dispersion-index').index.tolist()
-        [0.5]
-        >>> distribution([[0, 0], [0, 0], [1, 1], [1, 1]], kind='total-variation').distance
-        1.0
     """
     _check_choice('distribution', 'kind', kind, KINDS)
     _check_settings(

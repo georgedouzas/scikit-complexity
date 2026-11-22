@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.econophysics import KolkataRestaurantSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 system = KolkataRestaurantSystem(n_agents=200, strategy='crowd_avoiding', random_state=0)
-trajectory = simulate(system, until=EVENINGS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=EVENINGS, observers=[observer], random_state=0)
 
 # %%
 # Utilization of the two strategies
@@ -44,10 +43,13 @@ trajectory = simulate(system, until=EVENINGS, observers=[observer], random_state
 # `1 - 1/e ~ 0.632` of the restaurants. Ghosh, Chatterjee, Mitra, and Chakrabarti found about 0.8 for the stochastic
 # crowd avoiding strategy, reached within a few evenings.
 
-random = simulate(
-    KolkataRestaurantSystem(n_agents=200, strategy='random', random_state=0),
-    until=EVENINGS,
-    random_state=0,
+random = (
+    KolkataRestaurantSystem(n_agents=200, strategy='random', random_state=0)
+    .prepare()
+    .simulate(
+        until=EVENINGS,
+        random_state=0,
+    )
 )
 fig, ax = plt.subplots(figsize=(7, 4))
 times = trajectory.times

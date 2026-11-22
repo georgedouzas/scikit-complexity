@@ -1,4 +1,4 @@
-"""Hold the state of one compilation."""
+"""Hold what one compilation of a system has found so far."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,18 +8,22 @@ from dataclasses import replace
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.symbolic.function import SymbolicFunction
+from sage.symbolic.operators import FDerivativeOperator
 
-from ...components.laws import BaseLaw, CrossingLaw, RuleLaw
-from ...components.specs import CensusSpec, NodeSpec
-from ...components.systems import CompositeSystem
+from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, TopologyRequestSpec
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.spaces._static_time import _StaticTime
+from ...enums import FormKind, VariableKind
 from ...errors import PipelineError
-from ...specs import MatrixLawSpec, TopologyRequestSpec
-from ...specs._plan_spec import _PlanSpec
-from ...types import FormKind
+from .._utils import declarations_of
 from ..backends import BaseBackend
+from ..enums import ReadKind
 from ..problems import ProblemSpec
 from ..problems._block_spec import BlockSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._delayed_state_spec import _DelayedStateSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
@@ -30,7 +34,7 @@ from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
-from ..problems._markov_kernel import MarkovKernel
+from ..problems._node_spec import _NodeSpec
 from ..problems._output_spec import OutputSpec
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
@@ -38,21 +42,26 @@ from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ..types import ReadKind
 from ._bound_renewal_spec import BoundRenewalSpec
+from ._census_spec import _CensusSpec
+from ._plan_spec import _PlanSpec
+
+TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
 
 
 class Compilation:
-    """A state of one compilation of a system, which passes read and write.
+    """A record of one compilation of a system, which passes read and write.
 
-    Its passes read and write its fields in order. The constructor stores the inputs of the compilation, and the passes
-    set every other field, from `nodes` to `problem` in the order they are listed. A field that no pass has set yet is
-    `None`. A pass may also declare hidden states and parameters on the layout, which only grows. Kernel specs are
-    frozen: a pass that adds references to a spec builds a copy, which `_replace_specs` puts in every field that holds
-    the spec.
+    The constructor stores the system and its settings, and the passes fill in every other field in turn, from `nodes`,
+    the components of the system in a flat list, to `problem`, the finished problem. A field that no pass has set yet is
+    `None`. For a population model the compilation holds the states of its elements in `layout`, their laws in
+    `collected`, and the equations in `functions`. A pass may also add hidden states and parameters to the layout, which
+    only grows.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         system:
@@ -69,6 +78,10 @@ class Compilation:
 
         held:
             The paths of the observables that roles bind to and laws read only at synchronisation points.
+
+        trained:
+            The dotted paths of the parameters a training trains, such as `recurrence.A`, which the compilation makes
+            adaptive states.
 
     Attributes:
         nodes:
@@ -96,13 +109,7 @@ class Compilation:
             The linear program laws of every kernel spec, which never reach a kernel of their spec.
 
         lowered:
-            The laws of every kernel spec with complex states split and Markov laws taken out.
-
-        markov:
-            The Markov laws of every kernel spec.
-
-        matrices:
-            The Markov matrices, checked at the initial parameters.
+            The laws of every kernel spec with complex states split.
 
         ordered:
             The laws with derivatives and lags read through companion states and equations solved.
@@ -209,10 +216,21 @@ class Compilation:
 
         done:
             The passes that ran.
+
+    See Also:
+        BasePass: The base of the steps that read and write a compilation.
+        PassCompiler: Runs the passes over a compilation.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [entry.name for entry in compilation.layout.states]
+        ['prey.x', 'predators.x']
     """
 
-    nodes: list[NodeSpec] | None = None
-    census: CensusSpec | None = None
+    nodes: list[_NodeSpec] | None = None
+    census: _CensusSpec | None = None
     plan: _PlanSpec | None = None
     layout: DeclarationsSpec | None = None
     specs: list[tuple[KernelSpec, BlockSpec]] | None = None
@@ -220,15 +238,13 @@ class Compilation:
     apart: Laws | None = None
     programs: Laws | None = None
     lowered: BlockLaws | None = None
-    markov: list[tuple[KernelSpec, MatrixLawSpec]] | None = None
-    matrices: tuple[MarkovKernel, ...] | None = None
     ordered: Laws | None = None
     delayed: Laws | None = None
     corrected: Laws | None = None
     shifted: Laws | None = None
     drawn: Laws | None = None
     drawn_apart: Laws | None = None
-    kinds: dict[str, set[type]] | None = None
+    kinds: dict[str, set[type[BaseLaw]]] | None = None
     draws: DrawKernel | None = None
     form: FormKind | None = None
     reduced: Laws | None = None
@@ -240,7 +256,7 @@ class Compilation:
     problem: ProblemSpec | None = None
     delays: list[_DelayedStateSpec] | None = None
     placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
-    events: list[tuple[KernelSpec, CrossingLaw]] | None = None
+    events: list[tuple[KernelSpec, EventLaw]] | None = None
     renewals: list[BoundRenewalSpec] | None = None
     outputs: dict[int, list[OutputSpec]] | None = None
     written: dict[tuple[str, int], list[tuple[Expression, Expression]]] | None = None
@@ -253,24 +269,27 @@ class Compilation:
     encounters: tuple[EncounterKernel, ...] | None = None
     transfer: TransferStateSpec | None = None
     transfer_network: TransferNetworkSpec | None = None
-    rules: list[tuple[KernelSpec, tuple[RuleLaw, ...]]] | None = None
+    rules: list[tuple[KernelSpec, tuple[_RuleLaw, ...]]] | None = None
     request_jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]] | None = None
     topology: TopologyKernel | None = None
     done: set[object] | None = None
 
     def __init__(
         self,
-        system: CompositeSystem,
+        system: _CompositeSystem,
         backend: BaseBackend | None = None,
         solver: object = None,
         owners: frozenset[str] | None = None,
         held: tuple[str, ...] = (),
+        *,
+        trained: tuple[str, ...] = (),
     ) -> None:
         self.system = system
         self.backend = backend
         self.solver = solver
         self.owners = owners
         self.held = held
+        self.trained = trained
 
     def _replace_specs(self, replaced: Mapping[int, KernelSpec]) -> None:
         """Replace kernel specs by their copies in every field that holds them.
@@ -284,7 +303,6 @@ class Compilation:
         if not replaced:
             return
         self._replace_in(self.specs or [], replaced)
-        self._replace_in(self.markov or [], replaced)
         self._replace_in(self.events or [], replaced)
         self._replace_in(self.rules or [], replaced)
         for block_laws in (self.collected, self.lowered):
@@ -355,3 +373,80 @@ class Compilation:
             error_msg = f'No pass has set the field {name!r} of the compilation yet. Run the pass that writes it first.'
             raise PipelineError(error_msg)
         return value
+
+    @staticmethod
+    def _has_motion(layout: DeclarationsSpec) -> bool:
+        """Return whether a state of the layout has a derivative, as a moving point does.
+
+        A point given a starting velocity has one. Such a state moves at its derivative without any law, so its system
+        is not static.
+        """
+        return any(
+            declaration.derivative_of is not None
+            for block in layout.blocks.values()
+            if not block.node.interaction
+            for declaration in declarations_of(block.node.component_type, VariableKind.STATE).values()
+        )
+
+    @staticmethod
+    def _is_balance(law: BaseLaw) -> bool:
+        """Return whether a law is a constraint free of the time and of derivatives.
+
+        Such a constraint, such as the best response `q1 == (a - q2) / 2` of a firm, holds at one moment only, while
+        a source `v == E * sin(t)` or a circuit `L * q.diff(t, 2) + q / C == V` changes with time.
+        """
+        if not isinstance(law, ConstraintLaw):
+            return False
+        relation = SR(law.lhs) - SR(0 if law.rhs is None else law.rhs)
+        return not Compilation._reads_time(relation)
+
+    @staticmethod
+    def _reads_time(expression: Expression) -> bool:
+        """Return whether an expression reads a derivative or the time itself."""
+        operator = expression.operator()
+        if isinstance(operator, FDerivativeOperator):
+            return True
+        name = getattr(operator, 'name', None)
+        if callable(name) and name() in TIME_FUNCTIONS:
+            return True
+        if isinstance(operator, SymbolicFunction):
+            return False
+        if operator is None:
+            return expression.is_symbol() and str(expression) == 't'
+        return any(Compilation._reads_time(operand) for operand in expression.operands())
+
+    def is_static(self) -> bool:
+        """Return whether the system is static.
+
+        It is static by its time, by an objective law without controls, by constraint laws and linear programs alone,
+        or by having no laws at all. An objective law with controls steers a run in time, and a linear program beside
+        rate or update laws is solved at every time of the run.
+
+        A system with no laws and no time of its own, such as `System(elements=[Element('ball', values={'x': 1.0})])`
+        or disks placed in a square, changes nothing, so it is static and records one frame. A point given a starting
+        velocity moves at it without a law, so its system is not static. A system whose laws
+        are all constraints and that has no time of its own, such as the best responses of the firms of a Cournot game,
+        is solved once, so it is static too.
+
+        Returns:
+            static:
+                Whether the system has static time, an objective law without controls, constraint laws alone, or no
+                laws and no time.
+        """
+        if isinstance(self.system.time, _StaticTime):
+            return True
+        census = self.census
+        if census is None:
+            return False
+        unchanged = self.layout is not None and not self.layout.agents and not self._has_motion(self.layout)
+        if not census.records and unchanged and self.system.time is None:
+            return True
+        if (
+            census.records
+            and self.system.time is None
+            and all(
+                isinstance(record.law, _LinearProgramLaw) or self._is_balance(record.law) for record in census.records
+            )
+        ):
+            return True
+        return any(isinstance(record.law, ObjectiveLaw) and record.law.controls is None for record in census.records)

@@ -1,12 +1,18 @@
 """Test the section analysis: Poincaré sections and stroboscopic samples."""
 
 import math
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
 from skcomplex.core.analysis import section
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.errors import AnalysisError, TagError
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
@@ -22,7 +28,7 @@ def _section(kind, source, **settings):
 def test_forced_duffing_stroboscopic_section_is_fractal():
     """Test that the chaotic forced Duffing section has thousands of distinct points, not a periodic orbit."""
     section = _section('stroboscopic', DuffingSystem().prepare().system_, period=2 * math.pi / 1.2, n_points=2000)
-    points = np.round(np.column_stack([section.values['duffing.x'], section.values['duffing.x_d1']]), 4)
+    points = np.round(np.column_stack([section.values['duffing.x'], section.values["duffing.x'"]]), 4)
     assert len(section.times) == 2000
     assert len(np.unique(points, axis=0)) > 1900
 
@@ -36,7 +42,7 @@ def test_periodic_duffing_section_is_finite():
         n_points=50,
         transient=200,
     )
-    points = np.column_stack([section.values['duffing.x'], section.values['duffing.x_d1']])
+    points = np.column_stack([section.values['duffing.x'], section.values["duffing.x'"]])
     assert np.ptp(points, axis=0) == pytest.approx([0.0, 0.0], abs=1e-4)
 
 
@@ -50,7 +56,7 @@ def test_harmonic_oscillator_section_crosses_upward():
         until=20.0,
     )
     assert np.diff(section.times) == pytest.approx(2 * math.pi, abs=1e-5)
-    assert section.values['mass.x_d1'] == pytest.approx(np.ones(len(section.times)), abs=1e-5)
+    assert section.values["mass.x'"] == pytest.approx(np.ones(len(section.times)), abs=1e-5)
     both = _section('poincare', HarmonicOscillatorSystem().prepare().system_, state='mass.x', direction=0, until=20.0)
     assert len(both.times) == 2 * len(section.times)
 
@@ -72,11 +78,11 @@ def test_section_reads_the_named_variables():
     section = _section(
         'poincare',
         HarmonicOscillatorSystem().prepare().system_,
-        variables=['mass.x_d1'],
+        variables=["mass.x'"],
         state='mass.x',
         until=20.0,
     )
-    assert list(section.values) == ['mass.x_d1']
+    assert list(section.values) == ["mass.x'"]
 
 
 def test_section_rejects_maps_and_unknown_states():
@@ -93,3 +99,24 @@ def test_section_needs_its_settings():
         section(HarmonicOscillatorSystem().prepare().system_, kind='stroboscopic')
     with pytest.raises(AnalysisError, match='does not read period'):
         section(HarmonicOscillatorSystem().prepare().system_, kind='poincare', state='mass.x', period=3.0)
+
+
+class _Spring(Interaction):
+    """Interaction of a unit spring, `x'' = -x`."""
+
+    def __init__(self, label: str, *, target: Role = 'mass') -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        super()._prepare(context)
+        x, t = context.target.x, context.t
+        self.laws_ = [RateLaw(x.diff(t, 2), -x)]
+
+
+def test_section_reads_derivatives_by_their_names_with_a_prime():
+    """Test that a section of a spring crosses `x' = 0` where the position is at its largest, read as `mass.x'`."""
+    spring = System(elements=[Element('mass', values={'x': 1.0})], interactions=[_Spring('spring')])
+    points = section(spring, state="mass.x'", value=0.0, until=20.0, variables=['mass.x', "mass.x'"])
+    assert np.abs(points.values['mass.x']) == pytest.approx(np.ones(len(points.times)), abs=1e-4)
+    assert points.values["mass.x'"] == pytest.approx(np.zeros(len(points.times)), abs=1e-6)

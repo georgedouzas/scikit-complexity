@@ -6,18 +6,18 @@
 from collections.abc import Callable, Sequence
 from concurrent.futures import Executor
 
-from ..components.specs import ScenarioSpec
+from ..components import Observable
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
-from ..specs import ObservableSpec
 from ._results import ExperimentResult
 from ._runs import _run_experiment
-from .types import Output, Source
+from ._scenario_spec import ScenarioSpec
+from .types import Output, SystemSource
 
 
 def compare_scenarios(
-    system: Source,
+    system: SystemSource,
     scenarios: Sequence[ScenarioSpec],
     *,
     replicates: int = 1,
@@ -27,22 +27,22 @@ def compare_scenarios(
     solver: BaseSolver | None = None,
     outputs: Sequence[Output] | None = None,
     warmup: float = 0.0,
-    observables: Sequence[ObservableSpec] = (),
+    observables: Sequence[Observable] = (),
     random_state: int | None = None,
     executor: str | Executor = 'serial',
 ) -> ExperimentResult:
     """Return the runs of every scenario of a system.
 
-    The scenarios share their random streams per replicate. A scenario overrides model parameters or dotted paths before
-    the run, changes parameters at given times, or replaces the system for structural changes. Every scenario of a
-    replicate runs with the same random stream, so the scenarios differ only through what they change.
+    It runs every `ScenarioSpec` on a copy of the system, `replicates` times, and every scenario of a replicate draws
+    the same random numbers, so the scenarios differ only through what they change. A scenario overrides values before
+    the run, changes parameters at given times, or replaces the system. It compares early and late lockdowns of an
+    epidemic, paths of emissions of a climate model, and tax policies of an economy.
 
-    It appears in many fields. It compares early and late lockdowns of an epidemic, emission paths of a climate model,
-    and tax policies of an economy, each under the same random draws.
+    Read more in the user guide, under Run experiments.
 
     Args:
         system:
-            The system, whose copies take model parameters through `set_params`, or a factory of systems, such as a
+            The system, whose clones take parameters through `set_params`, or a factory of systems, such as a
             system class, which takes them as keyword arguments.
 
         scenarios:
@@ -93,9 +93,12 @@ def compare_scenarios(
         ExperimentError:
             The system is a name, or the worker processes stop before finishing.
 
+    See Also:
+        ScenarioSpec: Names one variant of a system.
+        sweep: Runs a system over values of its parameters.
+
     Examples:
-        >>> from skcomplex.core.components.specs import ScenarioSpec
-        >>> from skcomplex.core.experiments import compare_scenarios
+        >>> from skcomplex.core.experiments import ScenarioSpec, compare_scenarios
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> scenarios = [ScenarioSpec(), ScenarioSpec('distancing', overrides={'beta': 0.0001})]
         >>> result = compare_scenarios(SIRSystem(), scenarios, until=50, outputs=['I.x'])

@@ -7,13 +7,21 @@
 import numpy as np
 from scipy.spatial import cKDTree
 
-from ...specs import EntrySpec, RunStateSpec
+from ...components import EntrySpec
 from ...types import Array, Indices
 from ._base import BaseSearch
+from ._run_state_spec import RunStateSpec
 
 
 class PairSearch(BaseSearch):
-    """A search that returns the pairs of members closer than a cutoff.
+    """A search of the pairs of members of two groups that are closer than a cutoff.
+
+    An interaction with `within=RadiusNeighborhood(r)` runs its laws once for every pair of members closer than `r`,
+    such as two molecules that repel each other. The search reads the positions of both groups at every evaluation and
+    returns the pairs, with distances that wrap around a periodic box when it has one. It finds the colliding molecules
+    of a gas, the pedestrians of two crowds who avoid each other, and the cells of a tissue that touch.
+
+    Read more in the user guide, under Spaces.
 
     Args:
         first:
@@ -23,7 +31,7 @@ class PairSearch(BaseSearch):
             The entry of the positions of the second members.
 
         cutoff:
-            The parameter entry of the cutoff distance.
+            The parameter entry of the cutoff distance, or the distance itself.
 
         period:
             The side of a periodic box, or `None` for an open space.
@@ -31,11 +39,22 @@ class PairSearch(BaseSearch):
     Attributes:
         pairs_:
             The indices of the first and second members of every pair of the last run.
+
+    See Also:
+        MetricSearch: The neighbours of every member of one group.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import RR
+        >>> from skcomplex.core.components import EntrySpec
+        >>> from skcomplex.core.engine.problems._pair_search import PairSearch
+        >>> positions = EntrySpec('walkers.x', 0, (2,), RR, 3)
+        >>> PairSearch(positions, positions, 1.5, None).cutoff
+        1.5
     """
 
     pairs_: tuple[Indices, Indices]
 
-    def __init__(self, first: EntrySpec, second: EntrySpec, cutoff: EntrySpec, period: float | None) -> None:
+    def __init__(self, first: EntrySpec, second: EntrySpec, cutoff: EntrySpec | float, period: float | None) -> None:
         self.first = first
         self.second = second
         self.cutoff = cutoff
@@ -51,7 +70,7 @@ class PairSearch(BaseSearch):
         They are the first and second members of every pair.
         """
         x, p = state.x, state.p
-        cutoff = float(self.cutoff.get_view(p)[0, 0])
+        cutoff = self.cutoff if isinstance(self.cutoff, float) else float(self.cutoff.get_view(p)[0, 0])
         first, second = self._get_positions(self.first.get_view(x)), self._get_positions(self.second.get_view(x))
         boxsize = self.period
         first_tree = cKDTree(first, boxsize=boxsize)

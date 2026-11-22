@@ -1,4 +1,4 @@
-"""Pass that adds the gain and loss rates of encounter laws to the drift."""
+"""Add the gains and losses of encounter laws to the rates."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,8 +8,8 @@ from dataclasses import replace
 import numpy as np
 
 from ....errors import PipelineError
-from ....specs import RunStateSpec
 from ....types import Array, VectorFunction
+from ...problems import RunStateSpec
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BasePass
@@ -17,7 +17,23 @@ from .._compilation import Compilation
 
 
 class EncounterFunctionsPass(BasePass):
-    """A pass that adds the gain and loss rates of encounter laws to the drift."""
+    """A pass that adds the gains and losses of encounter laws to the rates.
+
+    Every encounter moves density from one class to another, and the pass adds the gain of the new class and the loss of
+    the old one to the rates that the solver integrates.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CompileEncountersPass: Compiles the encounters.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> compilation = PassCompiler().prepare(KineticOpinionSystem()).run().compilation_
+        >>> list(compilation.functions.equations)
+        ['opinions.x[i]']
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

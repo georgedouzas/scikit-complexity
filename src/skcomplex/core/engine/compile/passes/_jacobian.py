@@ -1,20 +1,34 @@
-"""Derive the exact Jacobian of an ODE or static problem from its kernels."""
+"""Derive the exact Jacobian of a problem of rates from its kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 
 from ....components.laws import RateLaw
-from ....types import FormKind
+from ....enums import FormKind
 from ...problems._jacobian_kernel import JacobianKernel
 from .._base import BasePass
 from .._compilation import Compilation
 
 
 class JacobianPass(BasePass):
-    """A pass that derives the exact Jacobian of an ODE or static problem.
+    """A pass that derives the exact Jacobian of a problem of rates.
 
-    It derives none for other forms.
+    The Jacobian holds how fast every rate changes with every state, which implicit solvers of stiff problems use. The
+    pass derives it exactly from the laws of a problem of rates or of a static problem, and derives none for others.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FieldJacobianPass: Adds the terms of fields.
+        EncounterJacobianPass: Drops it for encounters.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).run().compilation_
+        >>> compilation.jacobian.size
+        2
     """
 
     def _get_reads(self) -> tuple[str, ...]:

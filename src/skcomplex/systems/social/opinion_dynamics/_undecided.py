@@ -6,8 +6,9 @@ They live on a network and in the mean-field flows between them.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -15,16 +16,19 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TransferInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
-class UndecidedView(AgentView):
+@runtime_checkable
+class UndecidedView(AgentViewProtocol, Protocol):
     """View of a voter of the three-state opinion system.
 
     Its states and parameters are attributes.
@@ -43,14 +47,14 @@ class UndecidedElement(Element):
         label:
             The label of the voter or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, -1, 0, or 1.
 
         sensitivity:
             The sensitivity `beta` of the opinion to the sum of the opinions of the neighbours.
+
+        size:
+            The number of members, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import UndecidedElement
@@ -58,25 +62,19 @@ class UndecidedElement(Element):
         2.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)}),
         *,
-        opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 0, 1]))] = 0.0,
-        sensitivity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        opinion: Annotated[object, FiniteEnumeratedSet([-1, 0, 1])] = 0.0,
+        sensitivity: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.opinion = opinion
         self.sensitivity = sensitivity
-
-    @classmethod
-    def _get_view(cls) -> type[UndecidedView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return UndecidedView
 
 
 class UndecidedFlowsElement(Element):
@@ -85,9 +83,6 @@ class UndecidedFlowsElement(Element):
     Args:
         label:
             The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         against:
             The number `A` of agents against.
@@ -120,17 +115,16 @@ class UndecidedFlowsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        against: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 0.0,
-        undecided: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 100.0,
-        support: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='agents')] = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        eta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        drive: Annotated[object, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        against: Annotated[object, RealSet.closed_open(0, oo), Quantity('agents')] = 0.0,
+        undecided: Annotated[object, RealSet.closed_open(0, oo), Quantity('agents')] = 100.0,
+        support: Annotated[object, RealSet.closed_open(0, oo), Quantity('agents')] = 0.0,
+        omega: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        eta: Annotated[object, RealSet.closed_open(0, oo)] = 0.02,
+        drive: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.against = against
         self.undecided = undecided
         self.support = support
@@ -168,9 +162,15 @@ class ThreeStateOpinionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ThreeStateOpinionSystem
-        >>> ThreeStateOpinionSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> ThreeStateOpinionSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -195,8 +195,10 @@ class ThreeStateOpinionSystem(BaseSystem):
         sensitivity: float = 2.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.degree = degree
         self.sensitivity = sensitivity
@@ -213,25 +215,28 @@ class ThreeStateOpinionSystem(BaseSystem):
             return -1.0
         return 1.0 if draw < against + support else 0.0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _vote(system: SystemViewProtocol) -> None:
+        """Let every voter redraw its opinion, one after the other in a new random order."""
+        voters = list(system.get_agents('target'))
+        for index in system.rng.permutation(len(voters)):
+            voter = voters[int(index)]
+            if voter.alive and isinstance(voter, UndecidedView):
+                voter.opinion = ThreeStateOpinionSystem._redraw(voter, system)
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = nx.random_regular_graph(self.degree, self.n_agents, seed=int(rng.integers(2**31)))
-        voters = GroupElement(
+        voters = UndecidedElement(
             'voters',
-            element=UndecidedElement,
+            opinion=rng.choice([-1.0, 0.0, 1.0], self.n_agents),
+            sensitivity=self.sensitivity,
             size=self.n_agents,
-            values={'opinion': rng.choice([-1.0, 0.0, 1.0], self.n_agents), 'sensitivity': self.sensitivity},
         )
-        redraw = MapInteraction(
-            'redraw',
-            target='voters',
-            state='opinion',
-            function=self._redraw,
-            schedule='random-sequential',
-            form='agent',
-        )
-        return CompositeSystem(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
+        redraw = Interaction('redraw', roles={'target': 'voters'}, laws=lambda s: [UpdateLaw(s, self._vote)])
+        self.system_ = System(self.label, elements=[voters], interactions=[redraw], space=NetworkSpace(graph))
 
 
 def _get_critical_size(s: SimpleNamespace) -> Expression:
@@ -276,6 +281,12 @@ class UndecidedFlowsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import UndecidedFlowsSystem
         >>> UndecidedFlowsSystem(driven=False).prepare().system_.elements[0].drive
@@ -287,7 +298,7 @@ class UndecidedFlowsSystem(BaseSystem):
     references = ('Jensen 2023',)
     until = 20.0
     dt = 0.1
-    observables = (ObservableSpec('critical_size', _get_critical_size, element='population'),)
+    observables = (Observable('critical_size', _get_critical_size, element='population'),)
 
     def __init__(
         self,
@@ -298,8 +309,10 @@ class UndecidedFlowsSystem(BaseSystem):
         eta: float = 0.02,
         driven: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.omega = omega
         self.gamma = gamma
@@ -309,25 +322,53 @@ class UndecidedFlowsSystem(BaseSystem):
     @staticmethod
     def _get_joining_against(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents against, `omega C`."""
-        return s.source.omega * s.source.undecided
+        return s.target.omega * s.target.undecided
 
     @staticmethod
     def _get_joining_support(s: SimpleNamespace) -> Expression:
         """Return the flow of undecided agents for, `omega C`."""
-        return s.source.omega * s.source.undecided
+        return s.target.omega * s.target.undecided
 
     @staticmethod
     def _get_doubting_against(s: SimpleNamespace) -> Expression:
         """Return the flow of agents against into the undecided, `gamma A C^drive`."""
-        return s.source.gamma * s.source.against * s.source.undecided**s.source.drive
+        return s.target.gamma * s.target.against * s.target.undecided**s.target.drive
 
     @staticmethod
     def _get_doubting_support(s: SimpleNamespace) -> Expression:
         """Return the flow of agents for into the undecided, `eta B C^drive`."""
-        return s.source.eta * s.source.support * s.source.undecided**s.source.drive
+        return s.target.eta * s.target.support * s.target.undecided**s.target.drive
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _get_flows(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flows of undecided agents to both sides and back."""
+        undecided, against, support = s.target.undecided, s.target.against, s.target.support
+        return [
+            RateLaw(
+                {undecided: -1, against: +1},
+                UndecidedFlowsSystem._get_joining_against(s),
+                label='joining_against',
+            ),
+            RateLaw(
+                {undecided: -1, support: +1},
+                UndecidedFlowsSystem._get_joining_support(s),
+                label='joining_support',
+            ),
+            RateLaw(
+                {against: -1, undecided: +1},
+                UndecidedFlowsSystem._get_doubting_against(s),
+                label='doubting_against',
+            ),
+            RateLaw(
+                {support: -1, undecided: +1},
+                UndecidedFlowsSystem._get_doubting_support(s),
+                label='doubting_support',
+            ),
+        ]
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         population = UndecidedFlowsElement(
             'population',
             undecided=self.n_agents,
@@ -336,18 +377,5 @@ class UndecidedFlowsSystem(BaseSystem):
             eta=self.eta,
             drive=1.0 if self.driven else 0.0,
         )
-        flows = TransferInteraction(
-            'flows',
-            source='population',
-            target='population',
-            state='undecided',
-            into='against',
-            amount=self._get_joining_against,
-            flow='joining_against',
-            legs=[
-                ('undecided', 'support', self._get_joining_support, 'joining_support'),
-                ('against', 'undecided', self._get_doubting_against, 'doubting_against'),
-                ('support', 'undecided', self._get_doubting_support, 'doubting_support'),
-            ],
-        )
-        return CompositeSystem(self.label, elements=[population], interactions=[flows])
+        flows = Interaction('flows', roles={'target': 'population'}, laws=self._get_flows)
+        self.system_ = System(self.label, elements=[population], interactions=[flows])

@@ -17,7 +17,6 @@ warm and cold plumes side by side.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import RayleighBenardSystem
@@ -27,7 +26,7 @@ SYSTEM = 'rayleigh_benard'
 system = RayleighBenardSystem(Ra=2000.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='flow/theta', interval=1)
 solver = ETDRK4Solver(dt=0.005)
-trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer])
+trajectory = system.set_params(solver=solver).prepare().simulate(dt=0.05, observers=[observer])
 
 # %%
 # Onset of convection
@@ -40,7 +39,7 @@ trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer])
 rayleighs = np.array([500.0, 700.0, 900.0, 1300.0, 2000.0])
 amplitudes = []
 for rayleigh in rayleighs:
-    run = simulate(RayleighBenardSystem(Ra=rayleigh, shape=(16, 16)), solver=solver)
+    run = RayleighBenardSystem(Ra=rayleigh, shape=(16, 16)).set_params(solver=solver).prepare().simulate()
     amplitudes.append(np.abs(run.get_values('flow.theta')[-1]).max())
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rayleighs, amplitudes, 'o-', label='largest temperature departure at t = 10')

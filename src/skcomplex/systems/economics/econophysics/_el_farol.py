@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -13,13 +13,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
 from ..common.learning import PayoffLearningInteraction
@@ -28,7 +31,7 @@ N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0
 
 
-class PatronView(AgentView):
+class PatronView(AgentViewProtocol, Protocol):
     """Patron as the rules of the bar see it.
 
     It reads the bit mask of its `predictors`, its `forecast`, whether it `attends`, and the `capacity` of the bar.
@@ -40,7 +43,7 @@ class PatronView(AgentView):
     capacity: float
 
 
-class PredictorPoolView(AgentView):
+class PredictorPoolView(AgentViewProtocol, Protocol):
     """Pool of predictors as the rules of the bar see it.
 
     It holds the `forecasts` and the `errors` of its predictors.
@@ -108,17 +111,13 @@ class PredictorPoolElement(Element):
     """Pool of Arthur's predictors that the patrons share.
 
     It holds the forecast and the accuracy of every predictor. The accuracy of a predictor depends only on the history
-    of attendance, the observable `attendance` of the run, so one member holds it for every patron. Every week the pool
-    forecasts the attendance with every predictor, from ten random weeks it draws at the first week followed by the
-    observed attendances, and a `PayoffLearningInteraction` moves the error of every predictor towards its last absolute
-    error, a discounted mean of the errors.
+    of attendance, the observable `attendance` of the run, so one member holds it for every patron. Every week
+    `ForecastingInteraction` forecasts the attendance with every predictor, and a `PayoffLearningInteraction` moves the
+    error of every predictor towards its last absolute error, a discounted mean of the errors.
 
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         forecasts:
             The forecast of next week's attendance by every predictor of the pool.
@@ -126,46 +125,69 @@ class PredictorPoolElement(Element):
         errors:
             The discounted mean absolute error of every predictor of the pool.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import PredictorPoolElement
-        >>> GroupElement('pool', element=PredictorPoolElement, size=1).size
+        >>> PredictorPoolElement('pool', size=1).size
         1
     """
-
-    law_classes = (RuleLaw,)
-
-    attendance: ClassVar[str] = 'attendance'
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        forecasts: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        errors: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        forecasts: npt.ArrayLike = 0.0,
+        errors: npt.ArrayLike = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.forecasts = forecasts
         self.errors = errors
 
-    @classmethod
-    def _get_view(cls) -> type[PredictorPoolView]:
-        """Return the view of the pool."""
-        return PredictorPoolView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the forecasting rule.
+class ForecastingInteraction(Interaction):
+    """Forecasts of next week's attendance by every predictor of the pool of the El Farol bar.
+
+    Every week the pool forecasts the attendance with every predictor, from ten random weeks it draws at the first week
+    followed by the attendances of the observable `attendance` of the run.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the pool.
+
+        phase:
+            The phase the pool forecasts in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.econophysics import ForecastingInteraction
+        >>> ForecastingInteraction('forecasting', target='pool').phase
+        'forecast'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    attendance: ClassVar[str] = 'attendance'
+
+    def __init__(self, label: str, *, target: Role, phase: str | None = 'forecast') -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the forecast of the pool as its rule.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.forecast, phase='forecast')]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.forecast, phase=self.phase)]
 
     def _get_history(self, system: SystemView) -> Array:
         """Return the attendances, after ten random weeks drawn at the first week."""
@@ -207,7 +229,7 @@ class PredictorPoolElement(Element):
             error:
                 The absolute error of the forecast of the predictor.
         """
-        attendance = system.get_history(PredictorPoolElement.attendance)
+        attendance = system.get_history(ForecastingInteraction.attendance)
         if not len(attendance):
             return float(np.ravel(agent.errors)[index])
         return float(abs(np.ravel(agent.forecasts)[index] - attendance[-1]))
@@ -216,16 +238,13 @@ class PredictorPoolElement(Element):
 class PatronElement(Element):
     """Patron of the El Farol bar.
 
-    It forecasts the attendance with its most accurate predictor. Every patron holds a few predictors of the pool, the
-    set bits of `predictors`, and forecasts with the one of smallest error in the pool. A choice then sends the patron
-    to the bar when the forecast is below the capacity.
+    It forecasts the attendance with its most accurate predictor, by the rule of `PredictingInteraction`. Every patron
+    holds a few predictors of the pool, the set bits of `predictors`. A choice then sends the patron to the bar when the
+    forecast is below the capacity.
 
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         predictors:
             The bit mask of the predictors of the pool that the patron holds.
@@ -239,50 +258,73 @@ class PatronElement(Element):
         capacity:
             The attendance above which the bar is too crowded to enjoy.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import PatronElement
-        >>> GroupElement('patrons', element=PatronElement, size=100, values={'predictors': 7}).size
+        >>> PatronElement('patrons', predictors=7, size=100).size
         100
     """
-
-    law_classes = (RuleLaw,)
-
-    pool: ClassVar[str] = 'pool'
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        predictors: Annotated[float, StateSpec(domain=NN)] = 1,
-        forecast: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        attends: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
+        predictors: Annotated[object, NN] = 1,
+        forecast: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        attends: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        capacity: Annotated[object, RealSet.closed_open(0, oo)] = 60.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.predictors = predictors
         self.forecast = forecast
         self.attends = attends
         self.capacity = capacity
 
-    @classmethod
-    def _get_view(cls) -> type[PatronView]:
-        """Return the view of the agents of the element."""
-        return PatronView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the predicting rule.
+class PredictingInteraction(Interaction):
+    """Forecast of every patron of the El Farol bar with its most accurate predictor.
+
+    Every patron forecasts with the predictor of smallest error in the pool among those it holds.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of patrons.
+
+        pool:
+            The path of the pool of predictors.
+
+        phase:
+            The phase the patrons predict in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.econophysics import PredictingInteraction
+        >>> PredictingInteraction('predicting', target='patrons', pool='pool').pool
+        'pool'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, pool: Role, phase: str | None = 'predict') -> None:
+        super().__init__(label)
+        self.target = target
+        self.pool = pool
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the forecast of every patron as its rule.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.predict, phase='predict')]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.predict, phase=self.phase)]
 
     def predict(self, agent: PatronView, system: SystemView) -> None:
         """Forecast the attendance with the most accurate predictor held.
@@ -294,7 +336,7 @@ class PatronElement(Element):
             system:
                 The system.
         """
-        pool = system.get_agents(self.pool, PredictorPoolView)[0]
+        pool = cast(list[PredictorPoolView], system.get_agents('pool'))[0]
         errors, predicted = np.ravel(pool.errors), np.ravel(pool.forecasts)
         mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]
@@ -333,9 +375,15 @@ class ElFarolSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.econophysics import ElFarolSystem
-        >>> ElFarolSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> ElFarolSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -343,7 +391,7 @@ class ElFarolSystem(BaseSystem):
     topics = ('el farol', 'agents', 'inductive reasoning', 'bounded rationality')
     references = ('Arthur 1994', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9')
     until = 200
-    observables = (ObservableSpec('attendance', group='patrons', variable='attends', reduce='sum'),)
+    observables = (Observable('attendance', group='patrons', variable='attends', reduce='sum'),)
 
     def __init__(
         self,
@@ -354,40 +402,38 @@ class ElFarolSystem(BaseSystem):
         discount: float = 0.9,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.capacity = capacity
         self.n_predictors = n_predictors
         self.discount = discount
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         masks = [
             float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), self.n_predictors, replace=False)))
             for _ in range(self.n_agents)
         ]
-        patrons = GroupElement(
-            'patrons',
-            element=PatronElement,
-            size=self.n_agents,
-            values={'predictors': masks, 'capacity': self.capacity},
-        )
-        pool = GroupElement(
+        patrons = PatronElement('patrons', predictors=masks, capacity=self.capacity, size=self.n_agents)
+        pool = PredictorPoolElement(
             'pool',
-            element=PredictorPoolElement,
+            forecasts=np.zeros((1, len(PREDICTORS))),
+            errors=np.zeros((1, len(PREDICTORS))),
             size=1,
-            values={'forecasts': np.zeros((1, len(PREDICTORS))), 'errors': np.zeros((1, len(PREDICTORS)))},
         )
         scoring = PayoffLearningInteraction(
             'scoring',
             target='pool',
             scores='errors',
-            payoff=PredictorPoolElement.get_error,
+            payoff=ForecastingInteraction.get_error,
             rate=1 - self.discount,
-            form='agent',
+            schedule='synchronous',
             phase='learn',
         )
         choice = ChoiceInteraction(
@@ -397,16 +443,17 @@ class ElFarolSystem(BaseSystem):
             options=(0.0, 1.0),
             utility=lambda agent, system, option: option if agent.forecast < agent.capacity else -option,
             rule='best',
-            form='agent',
+            schedule='synchronous',
             phase='decide',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patrons, pool],
-            interactions=[scoring, choice],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec(
-                    [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')],
-                ),
-            ),
+            interactions=[
+                scoring,
+                ForecastingInteraction('forecasting', target='pool'),
+                PredictingInteraction('predicting', target='patrons', pool='pool'),
+                choice,
+            ],
+            solver=MesaSolver(phases=[PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')]),
         )

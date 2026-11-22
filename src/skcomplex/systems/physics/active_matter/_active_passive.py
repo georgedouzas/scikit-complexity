@@ -8,26 +8,27 @@ The agents combine self-propulsion, flocking, noise, and a soft repulsion betwee
 
 import functools
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, sqrt
-from sage.modules.free_module_element import FreeModuleElement
+from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import PairInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.backends import NumbaBackend
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.elements import PointElement
 
 SOFTENING = 1e-12
@@ -46,14 +47,20 @@ class FlockingAgentElement(PointElement):
         x:
             The initial position.
 
-        x_d1:
-            The initial velocity.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         active:
             The mark, 1 for an active agent or 0 for a passive one.
+
+        radius:
+            The radius `r_0` of the agent, which it is drawn with.
+
+        values:
+            Further values by name, such as the starting velocity `"x'"`.
+
+        size:
+            The number of agents, or `None` for one.
+
+        space:
+            The continuous space of the agents, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import FlockingAgentElement
@@ -61,17 +68,129 @@ class FlockingAgentElement(PointElement):
         0.0
     """
 
+    visual = VisualSpec(
+        'points',
+        {'position': 'x', 'radius': 'radius', 'color_by': 'active', 'color_range': (0.0, 1.0)},
+    )
+
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
+        x: npt.ArrayLike = 0.0,
         *,
-        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([PASSIVE_AGENT, ACTIVE_AGENT]))] = ACTIVE_AGENT,
+        active: Annotated[object, FiniteEnumeratedSet([PASSIVE_AGENT, ACTIVE_AGENT])] = ACTIVE_AGENT,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, x=x, x_d1=x_d1, visual=visual)
+        super().__init__(label, x=x, values=values, size=size, space=space)
         self.active = active
+        self.radius = radius
+
+
+class TargetSpeedInteraction(Interaction):
+    """Propulsion towards a target speed with a random force, which only active agents feel at full strength.
+
+    Every agent feels `mu (active v0 - |v|) v / |v|` on its velocity `v = x'`, so active agents speed up to `v0` and
+    passive ones slow to rest, and a random force of amplitude `active eta`. It is a self-propelled bacterium among
+    dead ones, a walking pedestrian among standing ones, or a running fan in a crowd.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the agents, whose values are `x` and `active`.
+
+        mu:
+            The strength of the propulsion.
+
+        v0:
+            The target speed of the active agents.
+
+        eta:
+            The amplitude of the random force on an active agent.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import TargetSpeedInteraction
+        >>> TargetSpeedInteraction('propulsion', target='agents', v0=0.5).v0
+        0.5
+    """
+
+    law_classes = (RateLaw, NoiseLaw)
+
+    def __init__(self, label: str, *, target: Role, mu: float = 10.0, v0: float = 0.02, eta: float = 0.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.mu = mu
+        self.v0 = v0
+        self.eta = eta
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the propulsion and the random force on the velocity of the agents.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t = context, context.t
+        x = s.target.x
+        velocity = x.diff(t)
+        speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
+        self.laws_ = [
+            RateLaw(x.diff(t, 2), velocity * (s.mu * (s.target.active * s.v0 - speed) / speed)),
+            NoiseLaw(x.diff(t, 2), s.target.active * s.eta),
+        ]
+
+
+class VelocityFlockingInteraction(Interaction):
+    """Flocking force of size `alpha` along the summed velocities of the neighbours, felt by active agents.
+
+    The force is `active alpha V / |V|`, with `V` the sum of the velocities `x'` of the other agents within `reach`. It
+    is the alignment of birds in a flock, of fish in a school, or of marching locusts.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the agents, whose values are `x` and `active`.
+
+        alpha:
+            The size of the flocking force.
+
+        reach:
+            The radius within which an agent reads the velocities of the others.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import VelocityFlockingInteraction
+        >>> VelocityFlockingInteraction('flocking', target='agents', reach=0.2).reach
+        0.2
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, alpha: float = 1.0, reach: float = 0.1) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+        self.reach = reach
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flocking force on the velocity of the agents.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t = context, context.t
+        x = s.target.x
+        summed = neighbors(s.target.other.x.diff(t), over=RadiusNeighborhood(self.reach))
+        force = summed * (s.target.active * s.alpha / sqrt(summed.dot_product(summed) + SOFTENING))
+        self.laws_ = [RateLaw(x.diff(t, 2), force)]
 
 
 class ActivePassiveFlockingSystem(BaseSystem):
@@ -86,7 +205,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
     velocity components uniform up to `initial_speed`. The defaults are those of figure 10.7 at the compactness `C = pi
     N r_0^2 / size^2 = 0.672`. The values `exponent=2.5`, `epsilon=100`, `mu=0.05`, `radius=1`, `flocking_radius=4`, and
     `v0=1` are those of Silverberg et al. (2013). The system has the group `agents` that holds the active agents first,
-    the positions `agents.x`, the velocities `agents.x_d1`, the marks `agents.active`, and the observables
+    the positions `agents.x`, the velocities `agents.x'`, the marks `agents.active`, and the observables
     `polarization`, `active_distance`, and `passive_distance`.
 
     Args:
@@ -136,6 +255,12 @@ class ActivePassiveFlockingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for Euler-Maruyama with the step `time_step`.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for Numba.
+
     Raises:
         ValidationError:
             The number of active agents is not between 1 and `n_agents`.
@@ -151,23 +276,22 @@ class ActivePassiveFlockingSystem(BaseSystem):
     references = ('Charbonneau 2017', 'Silverberg et al. 2013')
     until = 50.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=TIME_STEP)
-    backend = NumbaBackend()
 
     @staticmethod
     def _get_velocity_x(member: SimpleNamespace) -> Expression:
         """Return the first velocity component of a member when active, and 0 otherwise."""
-        return member.active * member.x_d1[0]
+        return member.active * member.x.diff(member.t)[0]
 
     @staticmethod
     def _get_velocity_y(member: SimpleNamespace) -> Expression:
         """Return the second velocity component of a member when active, and 0 otherwise."""
-        return member.active * member.x_d1[1]
+        return member.active * member.x.diff(member.t)[1]
 
     @staticmethod
     def _get_speed(member: SimpleNamespace) -> Expression:
         """Return the speed of a member when active, and 0 otherwise."""
-        return member.active * sqrt(member.x_d1.dot_product(member.x_d1))
+        velocity = member.x.diff(member.t)
+        return member.active * sqrt(velocity.dot_product(velocity))
 
     @staticmethod
     def _get_polarization(s: SimpleNamespace) -> Expression:
@@ -208,8 +332,10 @@ class ActivePassiveFlockingSystem(BaseSystem):
         initial_speed: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.n_active = n_active
         self.size = size
@@ -242,32 +368,29 @@ class ActivePassiveFlockingSystem(BaseSystem):
         overlap = 1 - r / (2 * radius)
         return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
 
-    @staticmethod
-    def _get_propulsion(s: SimpleNamespace, *, mu: float, v0: float) -> FreeModuleElement:
-        """Return the force `mu (v_t - |v|) v / |v|` towards the target speed `v_t`.
+    def _get_repulsion_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the push of every agent by the agents that overlap it.
 
-        The target speed is `v0` when active and 0 when passive.
+        The push of one agent is minus the slope of the repulsion energy along the line of centres, summed over the
+        agents within two radii.
         """
-        velocity = s.target.x_d1
-        speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
-        return velocity * (mu * (s.target.active * v0 - speed) / speed)
+        x = s.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        energy = self._get_repulsion_energy(
+            s,
+            distance,
+            epsilon=self.epsilon,
+            radius=self.radius,
+            exponent=self.exponent,
+        )
+        slope = SR(energy).diff(distance).subs({distance: r})
+        push = neighbors(-slope * separation / r, RadiusNeighborhood(2 * self.radius))
+        return [RateLaw(x.diff(s.t, 2), push)]
 
     @staticmethod
-    def _get_flocking(s: SimpleNamespace, *, alpha: float, reach: float) -> FreeModuleElement:
-        """Return the flocking force of size `alpha` on an active agent.
-
-        The force points along the summed velocities of the others in reach.
-        """
-        summed = neighbors(s.target.other.x_d1, over=RadiusNeighborhood(reach))
-        return summed * (s.target.active * alpha / sqrt(summed.dot_product(summed) + SOFTENING))
-
-    @staticmethod
-    def _get_random_force(s: SimpleNamespace, *, amplitude: float) -> Expression:
-        """Return the amplitude of the noise of an agent, 0 when passive."""
-        return s.target.active * amplitude
-
-    @staticmethod
-    def _get_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_observables(system: System) -> list[Observable]:
         """Return the observables of the agents.
 
         They are the velocity of the active agents, their polarization, and the mean distance within each kind.
@@ -279,11 +402,11 @@ class ActivePassiveFlockingSystem(BaseSystem):
             raise ValidationError(error_msg)
         size = float(system.space.extent[0])
         return [
-            ObservableSpec('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
-            ObservableSpec('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
-            ObservableSpec('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
-            ObservableSpec('polarization', ActivePassiveFlockingSystem._get_polarization),
-            ObservableSpec(
+            Observable('velocity_x', ActivePassiveFlockingSystem._get_velocity_x, group='agents'),
+            Observable('velocity_y', ActivePassiveFlockingSystem._get_velocity_y, group='agents'),
+            Observable('mean_speed', ActivePassiveFlockingSystem._get_speed, group='agents'),
+            Observable('polarization', ActivePassiveFlockingSystem._get_polarization),
+            Observable(
                 'active_distance',
                 function=functools.partial(
                     ActivePassiveFlockingSystem._get_mean_distance,
@@ -291,7 +414,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
                     size=size,
                 ),
             ),
-            ObservableSpec(
+            Observable(
                 'passive_distance',
                 function=functools.partial(
                     ActivePassiveFlockingSystem._get_mean_distance,
@@ -301,20 +424,18 @@ class ActivePassiveFlockingSystem(BaseSystem):
             ),
         ]
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the active and passive agents at random places and velocities in a periodic box.
 
-        The observables of the parts are built from the model parameters.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The number of active agents is not between 1 and `n_agents`.
         """
-        settings = super().get_run_settings()
-        settings['observables'] = tuple(self._get_observables(self._build_system()))
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the active and passive agents of Charbonneau (2017) in a periodic box.
-
-        The system is that of section 10.4.
-        """
+        super()._prepare(context)
         if not 1 <= self.n_active <= self.n_agents:
             error_msg = (
                 f'The system has {self.n_active} active agents among {self.n_agents}. Give at least one, and at most '
@@ -322,49 +443,33 @@ class ActivePassiveFlockingSystem(BaseSystem):
             )
             raise ValidationError(error_msg)
         rng = np.random.default_rng(self.random_state)
-        agents = GroupElement(
+        box = ContinuousSpace(extent=(self.size, self.size), boundary='periodic')
+        agents = FlockingAgentElement(
             'agents',
-            element=FlockingAgentElement,
-            size=self.n_agents,
-            values={
-                'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
-                'x_d1': rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
-                'active': np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
-            },
-            visual=VisualSpec(
-                'points',
-                {'position': 'x', 'radius': self.radius, 'color_by': 'active', 'color_range': (0.0, 1.0)},
-            ),
-        )
-        energy = functools.partial(
-            self._get_repulsion_energy,
-            epsilon=self.epsilon,
+            x=rng.uniform(0.0, self.size, (self.n_agents, 2)),
+            active=np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
             radius=self.radius,
-            exponent=self.exponent,
+            values={"x'": rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2))},
+            size=self.n_agents,
+            space=box,
         )
-        return CompositeSystem(
+        interactions = [
+            Interaction('repulsion', roles={'target': 'agents'}, laws=self._get_repulsion_laws),
+            TargetSpeedInteraction(
+                'propulsion',
+                target='agents',
+                mu=self.mu,
+                v0=self.v0,
+                eta=self.eta * math.sqrt(self.time_step / 3),
+            ),
+            VelocityFlockingInteraction('flocking', target='agents', alpha=self.alpha, reach=self.flocking_radius),
+        ]
+        self.system_ = System(
             self.label,
             elements=[agents],
-            interactions=[
-                PairInteraction(
-                    'repulsion',
-                    'agents',
-                    'agents',
-                    cutoff=2 * self.radius,
-                    potential=energy,
-                    period=self.size,
-                ),
-                RateInteraction(
-                    'propulsion',
-                    target='agents',
-                    rate=functools.partial(self._get_propulsion, mu=self.mu, v0=self.v0),
-                    noise=functools.partial(self._get_random_force, amplitude=self.eta * math.sqrt(self.time_step / 3)),
-                ),
-                RateInteraction(
-                    'flocking',
-                    target='agents',
-                    rate=functools.partial(self._get_flocking, alpha=self.alpha, reach=self.flocking_radius),
-                ),
-            ],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+            interactions=interactions,
+            space=box,
+            solver=EulerMaruyamaSolver(dt=self.time_step),
+            backend=NumbaBackend(),
         )
+        self.observables_ = tuple(self._get_observables(self.system_))

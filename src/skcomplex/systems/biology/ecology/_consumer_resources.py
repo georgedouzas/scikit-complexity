@@ -8,17 +8,20 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 KINDS = ('substitutable', 'essential')
 SUPPLIES = ('logistic', 'chemostat')
@@ -35,9 +38,6 @@ class ConsumerElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         N:
             The initial population size.
 
@@ -46,6 +46,9 @@ class ConsumerElement(Element):
 
         m:
             The maintenance energy, the intake at which the population neither grows nor declines.
+
+        size:
+            The number of species, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import ConsumerElement
@@ -56,13 +59,13 @@ class ConsumerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        N: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 0.1,
+        e: Annotated[float | npt.ArrayLike, RealSet.open(0, oo)] = 1.0,
+        m: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.N = N
         self.e = e
         self.m = m
@@ -79,9 +82,6 @@ class ResourceElement(Element):
     Args:
         label:
             The label of the resource or of the group of resources.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         R:
             The initial abundance.
@@ -101,6 +101,9 @@ class ResourceElement(Element):
         omega:
             The dilution rate of a supplied resource.
 
+        size:
+            The number of resources, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import ResourceElement
         >>> ResourceElement('resources', K=4.8).K
@@ -110,16 +113,16 @@ class ResourceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        R: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 1.0,
+        w: Annotated[float | npt.ArrayLike, RealSet.open(0, oo)] = 1.0,
+        r: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[float | npt.ArrayLike, RealSet.open(0, oo)] = 1.0,
+        kappa: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 1.0,
+        omega: Annotated[float | npt.ArrayLike, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.R = R
         self.w = w
         self.r = r
@@ -172,8 +175,8 @@ class ConsumptionInteraction(Interaction):
         self,
         label: str,
         *,
-        consumers: Annotated[str, RoleSpec()],
-        resources: Annotated[str, RoleSpec()],
+        consumers: Role,
+        resources: Role,
         c: Sequence[Sequence[float]] = ((1.0,),),
         kind: str = 'substitutable',
         n: float = -10.0,
@@ -185,18 +188,14 @@ class ConsumptionInteraction(Interaction):
         self.kind = kind
         self.n = n
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Check the kind and the exponent.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The kind is unknown, or the exponent of essential resources is not below -1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.kind not in KINDS:
             error_msg = f'The kind must be one of {", ".join(KINDS)}, not {self.kind!r}.'
             raise ValidationError(error_msg)
@@ -246,24 +245,22 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
 
     law_classes = (RateLaw,)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth of the consumers.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the growth of the consumers.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         consumers, resources = s.consumers, s.resources
         if self.kind == 'essential':
             growth = self._get_essential_growth(resources.R) - consumers.m
         else:
             intake = total(resources.w * resources.R, weights=np.asarray(self.c, dtype=float))
             growth = consumers.e * (intake - consumers.m)
-        return [RateLaw(consumers.N, consumers.N * growth)]
+        self.laws_ = [RateLaw(consumers.N, consumers.N * growth)]
 
 
 class ResourceTurnoverInteraction(ConsumptionInteraction):
@@ -316,8 +313,8 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         self,
         label: str,
         *,
-        consumers: Annotated[str, RoleSpec()],
-        resources: Annotated[str, RoleSpec()],
+        consumers: Role,
+        resources: Role,
         c: Sequence[Sequence[float]] = ((1.0,),),
         kind: str = 'substitutable',
         n: float = -10.0,
@@ -328,33 +325,27 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         self.supply = supply
         self.v = v
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Check the supply, the kind, and the exponent.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The supply or the kind is unknown, or the exponent of essential resources is not below -1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.supply not in SUPPLIES:
             error_msg = f'The supply must be one of {", ".join(SUPPLIES)}, not {self.supply!r}.'
             raise ValidationError(error_msg)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the supply and the depletion of the resources.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the supply and the depletion of the resources, checking the supply, the kind, and the exponent.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         consumers, resources = s.consumers, s.resources
         R = resources.R
         if self.supply == 'logistic':
@@ -366,7 +357,7 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
             depletion = total(consumers.N * self._get_essential_growth(R), weights=stoichiometry.T)
         else:
             depletion = R * total(consumers.N, weights=np.asarray(self.c, dtype=float).T)
-        return [RateLaw(R, renewal - depletion)]
+        self.laws_ = [RateLaw(R, renewal - depletion)]
 
 
 class ConsumerResourceSystem(BaseSystem):
@@ -433,13 +424,19 @@ class ConsumerResourceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The uptake rates are not one row per consumer with one column per resource.
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import ConsumerResourceSystem
-        >>> [group.prepare().size_ for group in ConsumerResourceSystem().prepare().system_.elements]
+        >>> [group.size for group in ConsumerResourceSystem().prepare().system_.elements]
         [2, 2]
     """
 
@@ -467,8 +464,10 @@ class ConsumerResourceSystem(BaseSystem):
         n: float = -10.0,
         v: Sequence[Sequence[float]] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.consumers = consumers
         self.resources = resources
         self.c = c
@@ -484,11 +483,16 @@ class ConsumerResourceSystem(BaseSystem):
         self.n = n
         self.v = v
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of consumer species that compete only through resources.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of consumer species that compete only through resources.
 
         They compete only through the resources they take up.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         uptake = np.atleast_2d(np.asarray(self.c, dtype=float))
         n_consumers, n_resources = uptake.shape
         sizes = np.full(n_consumers, 0.1) if self.consumers is None else np.asarray(self.consumers, dtype=float)
@@ -503,24 +507,16 @@ class ConsumerResourceSystem(BaseSystem):
                 'initial resources.'
             )
             raise ValidationError(error_msg)
-        consumer_group = GroupElement(
-            'consumers',
-            element=ConsumerElement,
-            size=n_consumers,
-            values={'N': sizes, 'm': self.m, 'e': self.e},
-        )
-        resource_group = GroupElement(
+        consumer_group = ConsumerElement('consumers', N=sizes, m=self.m, e=self.e, size=n_consumers)
+        resource_group = ResourceElement(
             'resources',
-            element=ResourceElement,
+            R=np.array(abundances, dtype=float),
+            w=self.w,
+            r=self.r,
+            K=self.K,
+            kappa=self.kappa,
+            omega=self.omega,
             size=n_resources,
-            values={
-                'R': np.array(abundances, dtype=float),
-                'w': self.w,
-                'r': self.r,
-                'K': self.K,
-                'kappa': self.kappa,
-                'omega': self.omega,
-            },
         )
         uptake_rates = tuple(map(tuple, uptake.tolist()))
         growth = ConsumerGrowthInteraction(
@@ -539,6 +535,6 @@ class ConsumerResourceSystem(BaseSystem):
             kind=self.kind,
             n=self.n,
             supply=self.supply,
-            v=self.v,
+            v=None if self.v is None else tuple(map(tuple, np.asarray(self.v, dtype=float).tolist())),
         )
-        return CompositeSystem(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])
+        self.system_ = System(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])

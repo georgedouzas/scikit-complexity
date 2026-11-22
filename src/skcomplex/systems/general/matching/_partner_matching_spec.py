@@ -5,8 +5,8 @@
 
 from dataclasses import dataclass
 
+from ....core.components.laws import PartnerSpec
 from ....core.errors import ValidationError
-from ....core.specs import PartnerSpec
 from ._random_search_spec import CLEARINGS
 
 

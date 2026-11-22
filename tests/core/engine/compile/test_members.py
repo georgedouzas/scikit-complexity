@@ -1,48 +1,29 @@
 """Test the lowering of member offset reads along the order of a group."""
 
 import time
-from typing import Annotated
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._members import MemberLowering
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.statistical_mechanics import (
-    ParticleSiteElement,
     ZeroRangeHopInteraction,
     ZeroRangeHopsInteraction,
     ZeroRangeProcessSystem,
 )
-
-
-class CarElement(Element):
-    """Car element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        ahead: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.ahead = ahead
 
 
 class LookAheadInteraction(Interaction):
@@ -52,7 +33,7 @@ class LookAheadInteraction(Interaction):
         self,
         label: str,
         *,
-        cars: Annotated[str, RoleSpec()],
+        cars: Role,
         offset: int = 1,
         boundary: str = 'periodic',
         fill: float = 0.0,
@@ -63,10 +44,11 @@ class LookAheadInteraction(Interaction):
         self.boundary = boundary
         self.fill = fill
 
-    def _get_laws(self, s):
-        """Return the update of the read position."""
-        value = shift_member(s.cars.x, self.offset, boundary=self.boundary, fill=self.fill)
-        return [UpdateLaw(s.cars.ahead, value)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the read position."""
+        super()._prepare(context)
+        value = shift_member(context.cars.x, self.offset, boundary=self.boundary, fill=self.fill)
+        self.laws_ = [UpdateLaw(context.cars.ahead, value)]
 
 
 class RingInteraction(Interaction):
@@ -76,24 +58,26 @@ class RingInteraction(Interaction):
         self,
         label: str,
         *,
-        cars: Annotated[str, RoleSpec()],
+        cars: Role,
     ) -> None:
         super().__init__(label)
         self.cars = cars
 
-    def _get_laws(self, s):
-        """Return the rate of a member from its neighbours on the ring."""
-        x = s.cars.x
-        return [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of a member from its neighbours on the ring."""
+        super()._prepare(context)
+        x = context.cars.x
+        self.laws_ = [RateLaw(x, sin(shift_member(x, 1) - x) + 0.5 * sin(shift_member(x, -2) - x))]
 
 
 def _ahead(backend, **settings):
     """Return the read positions of a group of four cars after one update."""
-    system = CompositeSystem(
-        elements=[GroupElement('cars', element=CarElement, size=4, values={'x': [10.0, 11.0, 12.0, 13.0]})],
+    system = System(
+        elements=[Element('cars', values={'x': [10.0, 11.0, 12.0, 13.0], 'ahead': 0.0}, size=4)],
         interactions=[LookAheadInteraction('look', cars='cars', **settings)],
+        backend=backend,
     )
-    problem = PassCompiler(backend=backend).prepare(system).run().problem_
+    problem = system.prepare()._problem
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     return problem.states.read(state, 'cars.ahead').tolist()
 
@@ -118,11 +102,13 @@ def test_shift_member_runs_the_same_on_both_backends():
     x = np.random.default_rng(0).uniform(0, 2 * np.pi, 1000)
     trajectories = []
     for backend in (NumpyBackend(), NumbaBackend()):
-        system = CompositeSystem(
-            elements=[GroupElement('cars', element=CarElement, size=1000, values={'x': x})],
+        system = System(
+            elements=[Element('cars', values={'x': x}, size=1000)],
             interactions=[RingInteraction('ring', cars='cars')],
+            solver=RK4Solver(dt=0.01),
+            backend=backend,
         )
-        trajectory = simulate(system, until=2.0, solver=RK4Solver(dt=0.01), dt=0.5, backend=backend)
+        trajectory = system.prepare().simulate(until=2.0, dt=0.5)
         assert trajectory.problem.backend == backend._get_name()
         trajectories.append(trajectory.get_values('cars.x'))
     np.testing.assert_allclose(trajectories[1], trajectories[0], rtol=1e-10)
@@ -130,12 +116,12 @@ def test_shift_member_runs_the_same_on_both_backends():
 
 def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
-    system = CompositeSystem(
-        elements=[CarElement('car', x=1.0)],
+    system = System(
+        elements=[Element('car', values={'x': 1.0, 'ahead': 0.0})],
         interactions=[LookAheadInteraction('look', cars='car')],
     )
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
-        PassCompiler().prepare(system).run()
+        system.prepare()
 
 
 class ShiftedGapInteraction(Interaction):
@@ -145,25 +131,27 @@ class ShiftedGapInteraction(Interaction):
         self,
         label: str,
         *,
-        cars: Annotated[str, RoleSpec()],
-        gap: Annotated[float, ParameterSpec()] = 1.0,
+        cars: Role,
+        gap: float = 1.0,
     ) -> None:
         super().__init__(label)
         self.cars = cars
         self.gap = gap
 
-    def _get_laws(self, s):
-        """Return the update of the read position."""
-        return [UpdateLaw(s.cars.ahead, shift_member(s.cars.x + s.gap, 1))]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the read position."""
+        super()._prepare(context)
+        s = context
+        self.laws_ = [UpdateLaw(s.cars.ahead, shift_member(s.cars.x + s.gap, 1))]
 
 
 def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
     """Test that a parameter of an interaction read at a member offset is the same at every member."""
-    system = CompositeSystem(
-        elements=[GroupElement('cars', element=CarElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
+    system = System(
+        elements=[Element('cars', values={'x': [1.0, 2.0, 3.0], 'ahead': 0.0}, size=3)],
         interactions=[ShiftedGapInteraction('gap', cars='cars', gap=0.5)],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(state, 'cars.ahead').tolist() == [2.5, 3.5, 1.5]
 
@@ -171,7 +159,7 @@ def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
 def test_shift_member_rejects_unknown_boundary():
     """Test that the boundary of an offset read is periodic, reflecting, or fixed."""
     with pytest.raises(ValidationError, match="'open'"):
-        shift_member(GroupElement('cars', element=CarElement, size=2).size, 1, boundary='open')
+        shift_member(symbol('x'), 1, boundary='open')
 
 
 class HopInteraction(Interaction):
@@ -181,53 +169,35 @@ class HopInteraction(Interaction):
         self,
         label: str,
         *,
-        sites: Annotated[str, RoleSpec()],
+        sites: Role,
         boundary: str = 'periodic',
     ) -> None:
         super().__init__(label)
         self.sites = sites
         self.boundary = boundary
 
-    def _get_laws(self, s):
-        """Return the hop to the next site."""
-        n = s.sites.n
-        return [JumpLaw(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
-
-
-class SiteElement(Element):
-    """Site element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        n: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the hop to the next site."""
+        super()._prepare(context)
+        n = context.sites.n
+        self.laws_ = [JumpLaw(n, {n: -1, shift_member(n, 1, boundary=self.boundary): 1})]
 
 
 def _hopping(occupations, boundary='periodic'):
     """Return a group of sites whose particles hop to the next site."""
-    sites = GroupElement(
-        'sites',
-        element=SiteElement,
-        size=len(occupations),
-        values={'n': np.asarray(occupations, dtype=float)},
-    )
-    return CompositeSystem(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
+    sites = Element('sites', values={'n': np.asarray(occupations, dtype=float)}, size=len(occupations))
+    return System(elements=[sites], interactions=[HopInteraction('hop', sites='sites', boundary=boundary)])
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
     """Test that a hop to the next member of a ring keeps every particle and moves one per event."""
-    system = _hopping(np.full(50, 3.0))
-    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
+    system = _hopping(np.full(50, 3.0)).set_params(backend=backend()).prepare()
+    problem = system._problem
     assert problem.jumps[0].size == 50
     np.testing.assert_array_equal(problem.stoichiometry, np.roll(np.eye(50), 1, axis=1) - np.eye(50))
     for seed in range(3):
-        trajectory = simulate(system, until=20, dt=1.0, backend=backend(), random_state=seed)
+        trajectory = system.simulate(until=20, dt=1.0, random_state=seed)
         totals = np.asarray(trajectory.get_values('sites.n')).sum(axis=1)
         assert (totals == 150).all()
 
@@ -235,10 +205,10 @@ def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_leaves_past_a_fixed_end(backend):
     """Test that the hop of the last member past a fixed end removes the particle and changes no other member."""
-    system = _hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed')
-    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
+    system = _hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed').set_params(backend=backend()).prepare()
+    problem = system._problem
     assert problem.stoichiometry[4].tolist() == [0.0, 0.0, 0.0, 0.0, -1.0]
-    trajectory = simulate(system, until=100, dt=10.0, backend=backend(), random_state=0)
+    trajectory = system.simulate(until=100, dt=10.0, random_state=0)
     assert np.asarray(trajectory.get_values('sites.n'))[-1].tolist() == [0.0] * 5
 
 
@@ -247,27 +217,20 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     """Test that a zero-range process of offset jumps and one of per-link interactions have one mean profile."""
     occupations = np.zeros(20)
     occupations[0] = 40.0
-    sites = GroupElement(
-        'sites',
-        element=ParticleSiteElement,
-        space=LatticeSpace(20),
-        values={'n': occupations},
-        on='sites',
-    )
+    sites = Element('sites', values={'n': occupations}, space=LatticeSpace(20))
     links = [
         ZeroRangeHopInteraction(f'hop_{index}', link=[f'sites[{index}]', f'sites[{(index + 1) % 20}]'], q=0.5)
         for index in range(20)
     ]
     systems = [
-        CompositeSystem(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
-        CompositeSystem(elements=[sites], interactions=links),
+        System(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', q=0.5)]),
+        System(elements=[sites], interactions=links),
     ]
     profiles = []
     for system in systems:
+        prepared = system.set_params(backend=backend()).prepare()
         finals = [
-            np.asarray(simulate(system, until=2, dt=2.0, backend=backend(), random_state=seed).get_values('sites.n'))[
-                -1
-            ]
+            np.asarray(prepared.simulate(until=2, dt=2.0, random_state=seed).get_values('sites.n'))[-1]
             for seed in range(200)
         ]
         profiles.append((np.mean(finals, axis=0), np.std(finals, axis=0) / np.sqrt(200)))
@@ -279,12 +242,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
 def test_jump_at_member_offset_compiles_many_sites_fast():
     """Test that a zero-range process of 1000 sites compiles one group law and runs until 5 within 10 seconds."""
     start = time.perf_counter()
-    trajectory = simulate(
-        ZeroRangeProcessSystem(1000).prepare().system_,
-        until=5,
-        backend=NumbaBackend(),
-        random_state=0,
-    )
+    trajectory = ZeroRangeProcessSystem(1000, backend=NumbaBackend()).prepare().simulate(until=5, random_state=0)
     assert time.perf_counter() - start < 10
     assert len(trajectory.problem.interactions) == 1
     assert [channels.size for channels in trajectory.problem.jumps] == [1000, 1000]

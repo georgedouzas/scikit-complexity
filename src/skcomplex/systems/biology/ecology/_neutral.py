@@ -3,72 +3,53 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import JumpInteraction
-from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..common.kinetics import CompartmentElement
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ..common.populations import NeutralBirthInteraction, NeutralDeathInteraction
 
 
-class NeutralSpeciesElement(CompartmentElement):
+class NeutralSpeciesElement(Element):
     """Species of neutral theory, a compartment of `x` individuals.
-
-    Its birth and death rates are shared by every species.
-
-    The births of `NeutralMacroecologySystem` occur at the rate `b0 + b1 x`, with immigration or speciation `b0`, and
-    its deaths at the rate `d0 + d1 x`, with emigration or extinction `d0` while the species has members.
 
     Args:
         label:
-            The label of the species or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the species or of the group of species.
 
         x:
             The initial number of individuals.
 
-        b0:
-            The rate of immigration or speciation.
+        size:
+            The number of species, or `None` for one.
 
-        b1:
-            The per capita birth rate.
-
-        d0:
-            The rate of emigration or extinction.
-
-        d1:
-            The per capita death rate.
+        space:
+            The space with one species per site, or `None` for none.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import NeutralSpeciesElement
-        >>> GroupElement('trees', element=NeutralSpeciesElement, size=50).size
+        >>> NeutralSpeciesElement('trees', size=50).size
         50
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=NN)] = 10.0,
-        b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        d0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float | npt.ArrayLike, NN] = 10.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
-        self.b0 = b0
-        self.b1 = b1
-        self.d0 = d0
-        self.d1 = d1
+        super().__init__(label, size=size, space=space)
+        self.x = x
 
 
 class NeutralMacroecologySystem(BaseSystem):
@@ -102,9 +83,15 @@ class NeutralMacroecologySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import NeutralMacroecologySystem
-        >>> NeutralMacroecologySystem(20).prepare().system_.elements[0].prepare().size_
+        >>> NeutralMacroecologySystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -124,8 +111,10 @@ class NeutralMacroecologySystem(BaseSystem):
         d0: float = 0.0,
         d1: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.species = species
         self.n = n
         self.b0 = b0
@@ -133,30 +122,19 @@ class NeutralMacroecologySystem(BaseSystem):
         self.d0 = d0
         self.d1 = d1
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of many species under neutral birth."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of many species under neutral birth.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'species',
-                    element=NeutralSpeciesElement,
-                    size=self.species,
-                    values={'x': self.n, 'b0': self.b0, 'b1': self.b1, 'd0': self.d0, 'd1': self.d1},
-                ),
-            ],
+            elements=[NeutralSpeciesElement('species', x=self.n, size=self.species)],
             interactions=[
-                JumpInteraction(
-                    'birth',
-                    target='species',
-                    changes={'x': 1},
-                    rate=lambda s: s.target.b0 + s.target.b1 * s.target.x,
-                ),
-                JumpInteraction(
-                    'death',
-                    target='species',
-                    changes={'x': -1},
-                    rate=lambda s: where(s.target.x > 0, s.target.d0, 0) + s.target.d1 * s.target.x,
-                ),
+                NeutralBirthInteraction('birth', target='species', b0=self.b0, b1=self.b1),
+                NeutralDeathInteraction('death', target='species', d0=self.d0, d1=self.d1),
             ],
         )

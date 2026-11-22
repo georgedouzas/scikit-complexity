@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....errors import ValidationError
-from ....specs import DrawSpec
+from .._draw_spec import DrawSpec
 from ._operators import _OperatorFunction
 
 DRAWS: dict[str, DrawSpec] = {}
@@ -42,7 +42,7 @@ def _call(
     The name and the relaxation are checked first. A relaxed draw has its own label, which names its temperature.
     """
     if not isinstance(name, str) or not name.isidentifier():
-        error_msg = f'A {kind} draw takes a name that is a Python identifier, such as `turn`, but got {name!r}.'
+        error_msg = f'The name of a {kind} draw must be a valid Python name, such as `turn`, but it is {name!r}.'
         raise ValidationError(error_msg)
     spec = DrawSpec(kind, name, distribution, keywords, temperature=temperature, hard=hard)
     spec._check()
@@ -58,12 +58,15 @@ def _call(
 def uniform(name: str, low: object = 0, high: object = 1) -> Expression:
     """Return a value drawn uniformly between two bounds at every step.
 
-    Every use of the same name in one element reads the same value within a step, and every member of a group draws
-    its own value.
+    A new value between `low` and `high` is drawn at every step, every use of the same name in one element reads the
+    same value within a step, and every member of a group draws its own, so `uniform('u', 0, x) + uniform('u', 0, x)` is
+    twice one draw. It gives the random heading of a walker, the noise of a sensor, and the time a customer waits.
+
+    Read more in the user guide, under Laws.
 
     Args:
         name:
-            The name of the draw, a Python identifier.
+            The name of the draw, a valid Python name.
 
         low:
             The lower bound, a number or an expression of states and parameters.
@@ -77,7 +80,11 @@ def uniform(name: str, low: object = 0, high: object = 1) -> Expression:
 
     Raises:
         ValidationError:
-            The name is not a Python identifier.
+            The name is not a valid Python name.
+
+    See Also:
+        normal: Draws from a normal distribution.
+        draw: Draws from any distribution of `scipy.stats`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -92,9 +99,15 @@ def uniform(name: str, low: object = 0, high: object = 1) -> Expression:
 def normal(name: str, mean: object = 0, deviation: object = 1) -> Expression:
     """Return a value drawn from a normal distribution at every step.
 
+    A new value of mean `mean` and standard deviation `deviation` is drawn at every step, shared by every use of the
+    same name in one element and drawn apart for every member of a group, such as `x + normal('step', 0, 1)` for a
+    random walk. It gives the shocks to a price, the errors of a measurement, and the jitter of a firing neuron.
+
+    Read more in the user guide, under Laws.
+
     Args:
         name:
-            The name of the draw, a Python identifier.
+            The name of the draw, a valid Python name.
 
         mean:
             The mean, a number or an expression of states and parameters.
@@ -108,7 +121,11 @@ def normal(name: str, mean: object = 0, deviation: object = 1) -> Expression:
 
     Raises:
         ValidationError:
-            The name is not a Python identifier.
+            The name is not a valid Python name.
+
+    See Also:
+        uniform: Draws uniformly between two bounds.
+        draw: Draws from any distribution of `scipy.stats`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -122,22 +139,26 @@ def normal(name: str, mean: object = 0, deviation: object = 1) -> Expression:
 def bernoulli(name: str, p: object, temperature: float | None = None, hard: bool = False) -> Expression:
     """Return 1 with a probability and 0 otherwise, drawn at every step.
 
-    With a temperature `T`, the JAX backend draws the continuous relaxation of the uniform value `u` of the step,
-    `sigmoid((logit p - logit u) / T)` (Maddison et al. 2017), which tends to the exact draw as `T` tends to 0, so runs
-    have gradients in `p`. Every other backend draws exactly.
+    A new value is drawn at every step, 1 with probability `p`, such as `1 - bernoulli('flip', q)` that is 0 with
+    probability `q`. With a temperature `T`, the JAX backend gives a smooth value close to the draw,
+    `sigmoid((logit p - logit u) / T)` for the uniform value `u` of the step (Maddison et al. 2017), which tends to the
+    exact draw as `T` tends to 0, so runs have gradients in `p`. Every other backend draws exactly. It decides whether a
+    contact infects, whether a trader buys, and whether a spin flips.
+
+    Read more in the user guide, under Laws.
 
     Args:
         name:
-            The name of the draw, a Python identifier.
+            The name of the draw, a valid Python name.
 
         p:
             The probability of 1, a number or an expression of states and parameters.
 
         temperature:
-            The positive temperature of the relaxation on JAX, or `None` for no relaxation.
+            The positive temperature of the smooth value on JAX, or `None` for the exact draw.
 
         hard:
-            Whether the JAX value is the exact draw with the gradient of the relaxation, a straight-through estimator.
+            Whether the JAX value is the exact draw with the gradient of the smooth value.
 
     Returns:
         draw:
@@ -145,16 +166,17 @@ def bernoulli(name: str, p: object, temperature: float | None = None, hard: bool
 
     Raises:
         ValidationError:
-            The name is not a Python identifier, the temperature is not positive, or `hard` is given without a
+            The name is not a valid Python name, the temperature is not positive, or `hard` is given without a
             temperature.
+
+    See Also:
+        categorical: Draws one of several categories.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import bernoulli
         >>> 1 - bernoulli('flip', var('q'))
         -bernoulli_flip(q) + 1
-        >>> bernoulli('flip', 0.5, temperature=0.1, hard=True)
-        bernoulli_flip_relaxed0_1_hard(0.5)
     """
     return _call('bernoulli', name, (p,), temperature=temperature, hard=hard)
 
@@ -167,24 +189,27 @@ def categorical(
 ) -> Expression:
     """Return the index of a category drawn at every step.
 
-    The probabilities of the categories are proportional to the weights. The index is the number of cumulative
-    weights `c_k` below `u W`, for the uniform value `u` of the step and the total weight `W`. With a temperature `T`,
-    the JAX backend draws the continuous relaxation `sum_k sigmoid((u - c_k / W) / T)` of the same uniform value, so
-    runs have gradients in the weights. Every other backend draws exactly.
+    A new index is drawn at every step, each category with a probability proportional to its weight, such as
+    `categorical('map', [1, 1, 2])` that gives 2 half the time. The index is the number of running totals `c_k` of the
+    weights below `u W`, for the uniform value `u` of the step and the total weight `W`. With a temperature `T`, the JAX
+    backend gives the smooth value `Σ_k sigmoid((u - c_k / W) / T)`, so runs have gradients in the weights, and every
+    other backend draws exactly. It picks the action of an agent, the strategy of a player, and the next word of a text.
+
+    Read more in the user guide, under Laws.
 
     Args:
         name:
-            The name of the draw, a Python identifier.
+            The name of the draw, a valid Python name.
 
         weights:
             The nonnegative weights of the categories `0` to `len(weights) - 1`, numbers or expressions of states and
             parameters.
 
         temperature:
-            The positive temperature of the relaxation on JAX, or `None` for no relaxation.
+            The positive temperature of the smooth value on JAX, or `None` for the exact draw.
 
         hard:
-            Whether the JAX value is the exact draw with the gradient of the relaxation, a straight-through estimator.
+            Whether the JAX value is the exact draw with the gradient of the smooth value.
 
     Returns:
         draw:
@@ -192,8 +217,11 @@ def categorical(
 
     Raises:
         ValidationError:
-            The name is not a Python identifier, there are no weights, the temperature is not positive, or `hard` is
+            The name is not a valid Python name, there are no weights, the temperature is not positive, or `hard` is
             given without a temperature.
+
+    See Also:
+        bernoulli: Draws 1 with a probability and 0 otherwise.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils import categorical
@@ -201,7 +229,7 @@ def categorical(
         categorical_map(1, 1, 2)
     """
     if isinstance(weights, str) or not len(weights):
-        error_msg = f'The categorical draw {name!r} takes a nonempty sequence of weights, but got {weights!r}.'
+        error_msg = f'The categorical draw {name!r} needs a list of at least one weight, but got {weights!r}.'
         raise ValidationError(error_msg)
     return _call('categorical', name, tuple(weights), temperature=temperature, hard=hard)
 
@@ -209,13 +237,16 @@ def categorical(
 def draw(name: str, distribution: str, **parameters: object) -> Expression:
     """Return a value drawn from a distribution of `scipy.stats`.
 
-    A new value is drawn at every step or renewal. The compiler checks the distribution name against `scipy.stats` and
-    the keywords against the distribution's shape parameters, `loc`, and `scale`, and samples with the distribution's
-    `rvs` and the simulation's random stream.
+    A new value is drawn at every step or renewal, such as `draw('wait', 'pareto', b=alpha, scale=2)` for a waiting time
+    with a heavy tail. The compiler checks that `scipy.stats` has the distribution and that the keywords are its shape
+    parameters, `loc`, or `scale`, and it samples with the `rvs` method of the distribution and the random numbers of
+    the run. It gives the sizes of firms, the waiting times between trades, and the jumps of a foraging animal.
+
+    Read more in the user guide, under Laws.
 
     Args:
         name:
-            The name of the draw, a Python identifier.
+            The name of the draw, a valid Python name.
 
         distribution:
             The name of a distribution of `scipy.stats`, such as `'pareto'`, `'lomax'`, or `'levy_stable'`.
@@ -230,28 +261,35 @@ def draw(name: str, distribution: str, **parameters: object) -> Expression:
 
     Raises:
         ValidationError:
-            The name is not a Python identifier, or the distribution is not given by its name.
+            The name is not a valid Python name, or the distribution is not given by its name.
+
+    See Also:
+        uniform: Draws uniformly between two bounds.
+        normal: Draws from a normal distribution.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import draw
-        >>> from skcomplex.core.components.laws.utils._draws import draws_in
-        >>> wait = draw('wait', 'pareto', b=var('alpha'), scale=2)
-        >>> wait
+        >>> draw('wait', 'pareto', b=var('alpha'), scale=2)
         pareto_wait_b_scale(alpha, 2)
-        >>> draws_in(wait)[0].parameters
-        {'b': alpha, 'scale': 2}
     """
     if not isinstance(distribution, str):
-        error_msg = f'The draw {name!r} takes the name of a scipy.stats distribution, but got {distribution!r}.'
+        error_msg = (
+            f"The draw {name!r} takes the name of a distribution of scipy.stats, such as 'pareto', not "
+            f'{distribution!r}.'
+        )
         raise ValidationError(error_msg)
     return _call('draw', name, tuple(parameters.values()), distribution, tuple(parameters))
 
 
 def draws_in(expression: object) -> list[DrawSpec]:
-    """Return every draw of an expression with its arguments.
+    """Return every random draw of an expression with its arguments.
 
-    Draws in the arguments of other draws are included.
+    The compiler reads them to draw the values of every step, such as the draws `u` and `flip` in
+    `x * uniform('u') + bernoulli('flip', uniform('u'))`, each call listed once and outer draws before the draws in
+    their arguments. It finds the random headings of walkers, the shocks to prices, and the flips of spins.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -260,6 +298,9 @@ def draws_in(expression: object) -> list[DrawSpec]:
     Returns:
         draws:
             The draws, each call listed once, outer draws before the draws in their arguments.
+
+    See Also:
+        draw: Builds a draw from a distribution of `scipy.stats`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

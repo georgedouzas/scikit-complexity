@@ -15,7 +15,6 @@ import math
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import section
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'duffing'
 
 system = DuffingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=16)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Stroboscopic section
@@ -33,14 +32,14 @@ trajectory = simulate(system, observers=[observer])
 # attractor, with points in both wells.
 
 points = section(
-    DuffingSystem().prepare().system_,
+    DuffingSystem(),
     kind='stroboscopic',
     period=2 * math.pi / 1.2,
     n_points=3000,
     transient=50,
 )
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(points.values['duffing.x'], points.values['duffing.x_d1'], ',', color='black', alpha=0.6)
+ax.plot(points.values['duffing.x'], points.values["duffing.x'"], ',', color='black', alpha=0.6)
 ax.set_xlabel('x')
 ax.set_ylabel("x'")
 ax.set_title('Stroboscopic section: a strange attractor')

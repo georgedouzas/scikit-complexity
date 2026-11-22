@@ -12,7 +12,6 @@ to a steady amplitude far larger than the push, the resonance of the response cu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import DrivenDampedOscillatorSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'driven_damped_oscillator'
 
 system = DrivenDampedOscillatorSystem(x=0.0, v=0.0, c=0.1, F=0.5, omega=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-trajectory = simulate(system, until=90, observers=[observer])
+trajectory = system.prepare().simulate(until=90, observers=[observer])
 
 # %%
 # Resonance curve
@@ -32,7 +31,7 @@ trajectory = simulate(system, until=90, observers=[observer])
 frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for frequency in frequencies:
-    run = simulate(DrivenDampedOscillatorSystem(x=0.0, v=0.0, c=0.1, F=0.5, omega=frequency), until=150)
+    run = DrivenDampedOscillatorSystem(x=0.0, v=0.0, c=0.1, F=0.5, omega=frequency).prepare().simulate(until=150)
     steady = np.ravel(run.get_values('mass.x'))[np.asarray(run.times) > 100]
     amplitudes.append(np.abs(steady).max())
 grid = np.linspace(0.5, 1.5, 300)

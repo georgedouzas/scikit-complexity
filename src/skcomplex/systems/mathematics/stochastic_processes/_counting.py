@@ -3,114 +3,172 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated, Protocol
 
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import JumpInteraction, MapInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class PoissonCounterElement(Element):
-    """Counter of the events of a Poisson process.
-
-    The counter has the rate of events it is counted at.
+    """Counters of the events of Poisson processes, one count per process.
 
     Args:
         label:
-            The label of the counter or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the counters.
 
         count:
-            The initial number of events.
+            The initial number of events, one per counter or shared.
 
-        rate:
-            The rate of events, which the jump of the counter reads.
+        size:
+            The number of counters, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonCounterElement
-        >>> PoissonCounterElement('counter', rate=2.0).rate
+        >>> PoissonCounterElement('counter', count=2.0).count
         2.0
     """
+
+    def __init__(self, label: str, *, count: Annotated[float, NN] = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.count = count
+
+
+class PoissonEventsInteraction(Interaction):
+    """The events of a Poisson process, which add one to a count at the rate `rate`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The counters whose counts the events add to.
+
+        rate:
+            The rate of the events.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonEventsInteraction
+        >>> PoissonEventsInteraction('events', target='counters', rate=2.0).rate
+        2.0
+    """
+
+    law_classes = (JumpLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'counters', rate: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.rate = rate
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the event that adds one to the count as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [JumpLaw(context.rate, {context.target.count: 1})]
+
+
+class BernoulliTrialView(AgentViewProtocol, Protocol):
+    """View of a sequence of Bernoulli trials, with its values as attributes."""
+
+    outcome: float
+    successes: float
+
+
+class BernoulliTrialElement(Element):
+    """Sequences of trials, each with the outcome `outcome` of its last trial and its number `successes` of successes.
+
+    Args:
+        label:
+            The label of the sequences.
+
+        outcome:
+            The initial outcome, 1 for a success and 0 for a failure, one per sequence or shared.
+
+        successes:
+            The initial number of successes, one per sequence or shared.
+
+        size:
+            The number of sequences, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliTrialElement
+        >>> BernoulliTrialElement('trials', successes=2.0, size=4).successes
+        2.0
+    """
+
+    visual = VisualSpec('histograms', {'color_by': 'successes'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        count: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        outcome: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        successes: Annotated[object, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.count = count
-        self.rate = rate
+        super().__init__(label, size=size)
+        self.outcome = outcome
+        self.successes = successes
 
 
-class BernoulliTrialView(AgentView):
-    """View of a Bernoulli trial, with its states and parameters as attributes."""
+class BernoulliTrialInteraction(Interaction):
+    """A Bernoulli trial at every step, a success with the probability `p`, counted in `successes`.
 
-    outcome: float
-    successes: float
-    p: float
-
-
-class BernoulliTrialElement(Element):
-    """Sequence of independent trials and the count of its successes.
-
-    Each trial is a success with the same probability.
+    Every sequence runs the rule once per step.
 
     Args:
         label:
-            The label of the agent or group.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        outcome:
-            The initial outcome, 1 for a success and 0 for a failure.
-
-        successes:
-            The initial number of successes.
+        target:
+            The sequences whose outcomes and numbers of successes the rule sets.
 
         p:
             The probability of a success.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliTrialElement
-        >>> group = GroupElement('trials', element=BernoulliTrialElement, size=4, values={'p': 0.2})
-        >>> group.label, group.element.__name__, group.size
-        ('trials', 'BernoulliTrialElement', 4)
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliTrialInteraction
+        >>> BernoulliTrialInteraction('trial', p=0.2).p
+        0.2
     """
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'successes'}),
-        *,
-        outcome: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        successes: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.outcome = outcome
-        self.successes = successes
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'trials', p: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.p = p
 
-    @classmethod
-    def _get_view(cls) -> type[BernoulliTrialView]:
-        """Return the view of the agents.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the trial of every sequence as the rule.
 
-        The view types their states and parameters.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return BernoulliTrialView
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._run_trial)]
+
+    def _run_trial(self, agent: BernoulliTrialView, system: SystemView) -> None:
+        """Run one trial of a sequence and count its success."""
+        agent.outcome = float(system.rng.random() < self.p)
+        agent.successes += agent.outcome
 
 
 class BernoulliProcessSystem(BaseSystem):
@@ -130,13 +188,17 @@ class BernoulliProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import BernoulliProcessSystem
-        >>> BernoulliProcessSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> BernoulliProcessSystem(3).prepare().system_.elements[0].size
         3
     """
-
-    draws = True
 
     field = 'mathematics/stochastic_processes'
     topics = ('counting process', 'agents', 'independent trials')
@@ -149,34 +211,20 @@ class BernoulliProcessSystem(BaseSystem):
         *,
         p: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sequences = n_sequences
         self.p = p
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        trial = MapInteraction(
-            'trial',
-            target='trials',
-            state='outcome',
-            function=lambda agent, system: float(system.rng.random() < agent.p),
-            form='agent',
-        )
-        count = MapInteraction(
-            'count',
-            target='trials',
-            state='successes',
-            function=lambda agent, system: agent.outcome,
-            mode='increment',
-            form='agent',
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the sequences and their trials."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('trials', element=BernoulliTrialElement, size=self.n_sequences, values={'p': self.p}),
-            ],
-            interactions=[trial, count],
+            elements=[BernoulliTrialElement('trials', size=self.n_sequences)],
+            interactions=[BernoulliTrialInteraction('trial', target='trials', p=self.p)],
         )
 
 
@@ -197,9 +245,15 @@ class PoissonProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
-        >>> PoissonProcessSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> PoissonProcessSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -215,18 +269,18 @@ class PoissonProcessSystem(BaseSystem):
         *,
         rate: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_processes = n_processes
         self.rate = rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        counters = GroupElement(
-            'counters',
-            element=PoissonCounterElement,
-            size=self.n_processes,
-            values={'rate': self.rate},
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the counters and their events."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[PoissonCounterElement('counters', size=self.n_processes)],
+            interactions=[PoissonEventsInteraction('events', target='counters', rate=self.rate)],
         )
-        events = JumpInteraction('events', target='counters', changes={'count': 1}, rate=lambda s: s.target.rate)
-        return CompositeSystem(self.label, elements=[counters], interactions=[events])

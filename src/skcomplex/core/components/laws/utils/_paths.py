@@ -5,10 +5,10 @@
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....enums import PathReductionKind
 from ....errors import ValidationError
-from ....specs import LayerSpec
-from ...spaces import BaseNeighborhood
-from ._reductions import PATH_REDUCTIONS, SHORTEST_PATHS, _neighborhood_symbol
+from ...spaces import BaseNeighborhood, LayerSpec
+from ._reductions import SHORTEST_PATHS, _neighborhood_symbol
 
 
 def shortest_paths(
@@ -16,19 +16,15 @@ def shortest_paths(
     over: BaseNeighborhood | LayerSpec | None = None,
     reduce: str = 'betweenness',
 ) -> Expression:
-    """Return a reduction over the shortest paths of the active links.
+    """Return how central every member is on the shortest paths of active links.
 
-    The links are those between the members of a group. The links are the pairs of neighbours of the neighbourhood, the
-    graph of a network space by default, read without direction, and a link is active when `active`, written for one
-    link as in `components`, is not 0. The reduction reads the graph of the active links at every evaluation, so it
-    follows a network whose topology changes during a run, and NetworkX computes it again only when the active links
-    changed since the last evaluation.
+    A link joins two neighbours of a group, read in both directions, and it is active where `active` is not 0, as in
+    `components`, such as `shortest_paths(edges.up, reduce='closeness')` for how close every member is to the others
+    over the links that are up. The graph of active links is read again at every step, so the measure follows a network
+    that changes during a run, and NetworkX computes it again only when the active links changed. It gives the load on
+    the nodes of a power grid, the brokers of a trade network, and the hubs of a road network.
 
-    The reductions are `'betweenness'`, the number of shortest paths between other pairs of members that pass through
-    every member, each path between a pair counted as a share of the shortest paths of the pair, as
-    `networkx.betweenness_centrality(graph, normalized=False)` gives it, the load of the cascades of Motter and Lai,
-    and `'closeness'`, the closeness of every member as `networkx.closeness_centrality(graph)` gives it, scaled by the
-    share of members it reaches.
+    Read more in the user guide, under Laws.
 
     Args:
         active:
@@ -39,7 +35,10 @@ def shortest_paths(
             The neighbourhood, or `None` for the neighbours of the network or lattice the group lives on.
 
         reduce:
-            `'betweenness'` or `'closeness'`.
+            What to give every member. `'betweenness'` gives the number of shortest paths between other members that
+            pass through it, each path counted as its share of the shortest paths of its pair, as
+            `networkx.betweenness_centrality(graph, normalized=False)` gives it. `'closeness'` gives the closeness of
+            `networkx.closeness_centrality(graph)`, scaled by the share of members it reaches.
 
     Returns:
         reduction:
@@ -49,16 +48,17 @@ def shortest_paths(
         ValidationError:
             The reduction is unknown.
 
+    See Also:
+        components: Finds the clusters of the active links.
+        neighbors: Reduces the values of the neighbours of every member.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import shortest_paths
-        >>> from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
-        >>> shortest_paths(1)
-        shortest_paths(1, reduce='betweenness')
-        >>> [item.kind for item in neighborhoods_in(var('c') - shortest_paths(var('up'), reduce='closeness'))]
-        ['path-closeness']
+        >>> shortest_paths(var('up'), reduce='closeness')
+        shortest_paths(up, reduce='closeness')
     """
-    if reduce not in PATH_REDUCTIONS:
-        error_msg = f'Unknown shortest paths reduction {reduce!r}. Use one of {", ".join(PATH_REDUCTIONS)}.'
+    if reduce not in PathReductionKind:
+        error_msg = f'Unknown shortest paths reduction {reduce!r}. Use one of {", ".join(PathReductionKind)}.'
         raise ValidationError(error_msg)
-    return SHORTEST_PATHS(SR(active), _neighborhood_symbol(over), PATH_REDUCTIONS.index(reduce))
+    return SHORTEST_PATHS(SR(active), _neighborhood_symbol(over), tuple(PathReductionKind).index(reduce))

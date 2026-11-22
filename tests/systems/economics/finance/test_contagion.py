@@ -15,14 +15,14 @@ def test_debtrank_spreads_distress_once_through_the_loans():
     pair = _run(
         DebtrankSystem([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).prepare().system_,
         5,
-        observables=DebtrankSystem().get_run_settings()['observables'],
+        observables=DebtrankSystem().prepare().observables_,
     )
     assert np.allclose(_agents(pair, 'banks', 5)['h'], [1.0, 0.5])
     assert pair.get_values('value_at_risk')[-1] - pair.get_values('value_at_risk')[0] == pytest.approx(0.5)
     network = _run(
         DebtrankSystem().prepare().system_,
         10,
-        observables=DebtrankSystem().get_run_settings()['observables'],
+        observables=DebtrankSystem().prepare().observables_,
     )
     assert np.all(np.diff(network.get_values('value_at_risk')) >= 0)
     assert network.get_values('value_at_risk')[-1] <= 1.0

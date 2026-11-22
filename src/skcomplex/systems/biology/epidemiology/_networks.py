@@ -6,6 +6,7 @@ The infection is in the mean-field limit and between subpopulations.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,11 +15,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.laws.utils import laplacian
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import laplacian, total
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -35,9 +40,6 @@ class DegreeClassElement(Element):
         label:
             The label of the class or the group of classes.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial infected density.
 
@@ -50,26 +52,26 @@ class DegreeClassElement(Element):
         P:
             The probability `P(k)` of the degree.
 
+        size:
+            The number of degree classes, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.epidemiology import DegreeClassElement
-        >>> GroupElement(
-        ...     'network', element=DegreeClassElement, size=2, values={'k': [1.0, 2.0], 'P': [0.5, 0.5]}
-        ... ).prepare().size_
+        >>> DegreeClassElement('network', k=[1.0, 2.0], P=[0.5, 0.5], size=2).size
         2
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rho: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.01,
+        lam: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.2,
+        k: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        P: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.rho = rho
         self.lam = lam
         self.k = k
@@ -103,9 +105,15 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSISSystem
-        >>> HeterogeneousMeanFieldSISSystem(k_min=2, k_max=5).prepare().system_.elements[0].prepare().size_
+        >>> HeterogeneousMeanFieldSISSystem(k_min=2, k_max=5).prepare().system_.elements[0].size
         4
     """
 
@@ -124,8 +132,10 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         lam: float = 0.2,
         rho: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.exponent = exponent
         self.k_min = k_min
         self.k_max = k_max
@@ -151,31 +161,35 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         member = namespace.member
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on a network with power-law degrees."""
+    @staticmethod
+    def _get_infection_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the infection of every degree class by every class, weighted by the share of the ends of edges."""
+        pair = SimpleNamespace(member=s.target, other=s.target.other)
+        infection = HeterogeneousMeanFieldSISSystem._get_infection(pair)
+        weight = HeterogeneousMeanFieldSISSystem._get_edge_weight(pair)
+        mean = total(weight * infection, over=s.target.other) / total(weight, over=s.target.other)
+        return [RateLaw(s.target.rho, mean)]
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIS epidemic on a network with power-law degrees.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
-        classes = GroupElement(
-            'network',
-            element=DegreeClassElement,
-            size=len(degrees),
-            values={'rho': self.rho, 'lam': self.lam, 'k': degrees, 'P': weights},
-        )
+        classes = DegreeClassElement('network', rho=self.rho, lam=self.lam, k=degrees, P=weights, size=len(degrees))
         interactions = [
-            RateInteraction('recovery', target='network', state='rho', rate=self._get_recovery),
-            CouplingInteraction(
-                'infection',
-                target='network',
-                read='rho',
-                write='rho',
-                function=self._get_infection,
-                reduce='normalized-mean',
-                mode='group',
-                weights=self._get_edge_weight,
-                include_self=True,
+            Interaction(
+                'recovery',
+                roles={'target': 'network'},
+                laws=lambda s: [RateLaw(s.target.rho, self._get_recovery(s))],
             ),
+            Interaction('infection', roles={'target': 'network'}, laws=self._get_infection_laws),
         ]
-        return CompositeSystem(self.label, elements=[classes], interactions=interactions)
+        self.system_ = System(self.label, elements=[classes], interactions=interactions)
 
 
 class MetapopulationSystem(NetworkDynamicalSystem):
@@ -209,11 +223,17 @@ class MetapopulationSystem(NetworkDynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.epidemiology import MetapopulationSystem
-        >>> MetapopulationSystem(nx.path_graph(4)).prepare().system_.elements[0].prepare().size_
-        4
+        >>> MetapopulationSystem(nx.path_graph(4)).prepare().simulate(until=0.0).get_values('cities.S').shape
+        (1, 4)
     """
 
     field = 'biology/epidemiology'
@@ -232,8 +252,10 @@ class MetapopulationSystem(NetworkDynamicalSystem):
         gamma: float = 0.1,
         D: float = 0.01,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.graph = graph
         self.population = population
         self.infected = infected
@@ -249,20 +271,16 @@ class MetapopulationSystem(NetworkDynamicalSystem):
         """Return the label of the field of the nodes."""
         return 'cities'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the compartments, the infected ones in the first node, and the rates."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the compartments, the infected ones in the first node."""
         size = nx.number_of_nodes(self._get_graph())
         sick = np.zeros(size)
         sick[0] = self.infected
-        nonnegative = RealSet.closed_open(0, oo)
-        return {
-            'S': DeclaredVariableSpec(np.full(size, self.population) - sick, StateSpec(domain=nonnegative)),
-            'I': DeclaredVariableSpec(sick, StateSpec(domain=nonnegative)),
-            'R': DeclaredVariableSpec(np.zeros(size), StateSpec(domain=nonnegative)),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=nonnegative)),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=nonnegative)),
-            'D': DeclaredVariableSpec(self.D, ParameterSpec(domain=nonnegative)),
-        }
+        return {'S': np.full(size, self.population) - sick, 'I': sick, 'R': np.zeros(size)}
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the rates."""
+        return {'beta': self.beta, 'gamma': self.gamma, 'D': self.D}
 
     def _get_equations(self) -> Equations:
         """Return the infections, recoveries, and hops of every node."""

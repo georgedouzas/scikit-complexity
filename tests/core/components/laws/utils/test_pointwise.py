@@ -1,20 +1,17 @@
 """Test the `_pointwise` module of `skcomplex.core.components.laws.utils`."""
 
-from typing import Annotated
-
 import jax
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cosh, log, pi, sin, var
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import clip, hill, logistic, sign, stop_gradient
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._expression_printer import ExpressionPrinter
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 VALUES = np.array([-3.0, -1.0, 0.0, 0.25, 1.0, 2.0, 5.0])
@@ -29,28 +26,21 @@ FUNCTIONS = {
 }
 
 
+def _rate_system(label, state, rate, backend='auto', size=None, **values):
+    """Return one element, or a group of a size, whose state changes at a rate, a function of the namespace."""
+    laws = Interaction(
+        'rate',
+        roles={'target': label},
+        laws=lambda s: [RateLaw(getattr(s.target, state).diff(s.t), rate(s))],
+    )
+    return System(elements=[Element(label, values=values, size=size)], interactions=[laws], backend=backend)
+
+
 def _rates(function, backend):
     """Return the rate of every member of a group whose rate is a function of its state."""
 
-    class ValueElement(Element):
-        """Element whose rate is a function of its value."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            x: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the rate of the value."""
-            return [RateLaw(s.x, function(s.x))]
-
-    group = GroupElement('g', element=ValueElement, size=VALUES.size, values={'x': VALUES})
-    problem = PassCompiler(backend=backend).prepare(CompositeSystem(elements=[group])).run().problem_
+    system = _rate_system('g', 'x', lambda s: function(s.target.x), backend, VALUES.size, x=VALUES)
+    problem = system.prepare()._problem
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
 
 
@@ -106,3 +96,10 @@ def test_stop_gradient_stops_gradients_on_jax():
     function = ExpressionPrinter._get_function_of(printer.run([x * stop_gradient(x**2)]).code_)
     value, gradient = jax.value_and_grad(lambda y: function(0.0, y)[0])(3.0)
     assert (float(value), float(gradient)) == (27.0, 9.0)
+
+
+def test_stop_gradient_differentiates_to_zero_symbolically():
+    """Test that Sage differentiates through `stop_gradient` as through a constant."""
+    x = var('x')
+    assert str(stop_gradient(x**2)) == 'stop_gradient(x^2)'
+    assert str((x * stop_gradient(x)).diff(x)) == 'stop_gradient(x)'

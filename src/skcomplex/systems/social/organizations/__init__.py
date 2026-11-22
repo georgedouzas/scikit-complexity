@@ -1,7 +1,7 @@
 """Organizations: hierarchies, queues, workplaces, and institutions."""
 
-from ._employment import EmploymentTakeoverSystem, WorkplaceElement
-from ._hierarchies import BonabeauHierarchiesSystem, ContenderElement, ContenderView
+from ._employment import EmploymentTakeoverInteraction, EmploymentTakeoverSystem, WorkplaceElement
+from ._hierarchies import BonabeauHierarchiesSystem, ContenderElement, ContenderView, WanderInteraction
 from ._kauai import (
     CommuteInteraction,
     KauaiPopulationSystem,
@@ -20,7 +20,15 @@ from ._mobility import (
     ExplorerElement,
     ExplorerView,
 )
-from ._obesity import EaterElement, EaterView, ObesitySystem, RestaurantElement, RestaurantView, basal_metabolic_rate
+from ._obesity import (
+    DietInteraction,
+    EaterElement,
+    EaterView,
+    ObesitySystem,
+    RestaurantElement,
+    RestaurantView,
+    basal_metabolic_rate,
+)
 from ._queues import ExecutionInteraction, PriorityQueuesSystem, TaskElement, TaskView
 from ._sabotage import EmployeeElement, EmployeeView, InsiderSabotageSystem
 from ._supply_chains import SupplierElement, SupplierView, SupplyChainDiffusionSystem
@@ -64,11 +72,13 @@ __all__: list[str] = [
     'ContenderView',
     'ContestElement',
     'DailyMovementsInteraction',
+    'DietInteraction',
     'DriftToLowPerformanceSystem',
     'EaterElement',
     'EaterView',
     'EmployeeElement',
     'EmployeeView',
+    'EmploymentTakeoverInteraction',
     'EmploymentTakeoverSystem',
     'EscalationSystem',
     'ExecutionInteraction',
@@ -109,6 +119,7 @@ __all__: list[str] = [
     'TravellerElement',
     'TravellerView',
     'UrbanScalingInteractionsSystem',
+    'WanderInteraction',
     'WatchmakerElement',
     'WatchmakerView',
     'WatchmakersSystem',

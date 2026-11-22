@@ -6,7 +6,8 @@ It is the diffusion of good working conditions from buyers to suppliers.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -14,16 +15,19 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
-class SupplierView(AgentView):
+@runtime_checkable
+class SupplierView(AgentViewProtocol, Protocol):
     """View of a firm of the supply chain diffusion system.
 
     Its states are attributes.
@@ -43,9 +47,6 @@ class SupplierElement(Element):
         label:
             The label of the firm or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         adopted:
             Whether the firm has adopted good working conditions.
 
@@ -55,30 +56,30 @@ class SupplierElement(Element):
         outflow:
             The total value `w_j->` of the goods that flow out of the firm to its buyers.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import SupplierElement
         >>> SupplierElement('factory', outflow=6.0).outflow
         6.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'adopted', 'color_range': (0.0, 1.0)}),
         *,
-        adopted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        inflow: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        outflow: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        adopted: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        inflow: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        outflow: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.adopted = adopted
         self.inflow = inflow
         self.outflow = outflow
-
-    @classmethod
-    def _get_view(cls) -> type[SupplierView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return SupplierView
 
 
 class SupplyChainDiffusionSystem(BaseSystem):
@@ -117,9 +118,15 @@ class SupplyChainDiffusionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import SupplyChainDiffusionSystem
-        >>> SupplyChainDiffusionSystem(factories=10).prepare().system_.elements[0].prepare().size_
+        >>> SupplyChainDiffusionSystem(factories=10).prepare().system_.elements[0].size
         13
     """
 
@@ -137,8 +144,10 @@ class SupplyChainDiffusionSystem(BaseSystem):
         seeds: int = 2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.buyers = buyers
         self.factories = factories
@@ -160,6 +169,14 @@ class SupplyChainDiffusionSystem(BaseSystem):
         return float(any(buyer.adopted and buyer.inflow > firm.outflow for buyer in buyers))
 
     @staticmethod
+    def _spread(system: SystemViewProtocol) -> None:
+        """Set every firm that has adopted or can be forced to adopt, from the adoptions at the start of the step."""
+        firms = [firm for firm in system.get_agents('target') if isinstance(firm, SupplierView)]
+        adopted = [SupplyChainDiffusionSystem._adopt(firm, system) for firm in firms]
+        for firm, value in zip(firms, adopted, strict=True):
+            firm.adopted = value
+
+    @staticmethod
     def _supply_network(buyers: int, factories: int, rng: np.random.Generator) -> nx.DiGraph:
         """Return a random supply network.
 
@@ -173,8 +190,9 @@ class SupplyChainDiffusionSystem(BaseSystem):
                 graph.add_edge(factory, client, weight=float(rng.integers(1, 11)))
         return graph
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         network = self._supply_network(self.buyers, self.factories, rng) if self.graph is None else self.graph
         if not isinstance(network, nx.DiGraph):
@@ -182,15 +200,12 @@ class SupplyChainDiffusionSystem(BaseSystem):
         nodes = list(network.nodes)
         adopted = np.zeros(len(nodes))
         adopted[: self.seeds] = 1.0
-        firms = GroupElement(
+        firms = SupplierElement(
             'firms',
-            element=SupplierElement,
+            adopted=adopted,
+            inflow=[float(network.in_degree(node, weight='weight')) for node in nodes],
+            outflow=[float(network.out_degree(node, weight='weight')) for node in nodes],
             size=len(nodes),
-            values={
-                'adopted': adopted,
-                'inflow': [float(network.in_degree(node, weight='weight')) for node in nodes],
-                'outflow': [float(network.out_degree(node, weight='weight')) for node in nodes],
-            },
         )
-        adoption = MapInteraction('adoption', target='firms', state='adopted', function=self._adopt, form='agent')
-        return CompositeSystem(self.label, elements=[firms], interactions=[adoption], space=NetworkSpace(network))
+        adoption = Interaction('adoption', roles={'target': 'firms'}, laws=lambda s: [UpdateLaw(s, self._spread)])
+        self.system_ = System(self.label, elements=[firms], interactions=[adoption], space=NetworkSpace(network))

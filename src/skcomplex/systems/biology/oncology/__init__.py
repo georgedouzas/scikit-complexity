@@ -4,11 +4,7 @@ They cover tumour growth, the vessels that feed it, and the therapies that treat
 """
 
 from ._angiogenesis import SproutElement, TissueElement, TumourAngiogenesisSystem, TumourCellElement, VesselElement
-from ._antiangiogenic import (
-    AngiogenicTumourElement,
-    HahnfeldtSystem,
-    VascularCorePeripherySystem,
-)
+from ._antiangiogenic import AngiogenicTumourElement, HahnfeldtSystem, VascularCorePeripherySystem
 from ._cell_cycle_invasion import CellCycleInvasionInteraction, CellCycleInvasionSystem, CellSiteElement
 from ._cell_kinetics import (
     CellCycleChemotherapySystem,
@@ -17,7 +13,11 @@ from ._cell_kinetics import (
     ErythropoiesisElement,
     ErythropoiesisMercaptopurineSystem,
 )
-from ._cell_survival import LinearQuadraticSurvivalElement, LQCellSurvivalSystem
+from ._cell_survival import (
+    LinearQuadraticSurvivalElement,
+    LinearQuadraticSurvivalInteraction,
+    LQCellSurvivalSystem,
+)
 from ._chemotherapy import (
     DelayedMetastasisSystem,
     DelayedRestingHuntingChemotherapySystem,
@@ -74,6 +74,7 @@ from ._hormone_therapy import (
     ContinuousAndrogenSuppressionSystem,
     IdetaIntermittentAndrogenSystem,
     IntermittentSuppressionElement,
+    PiecewiseLinearAndrogenInteraction,
     PiecewiseLinearIASSystem,
     PiecewiseLinearProstateElement,
     ProstateAndrogenReceptorSystem,
@@ -130,7 +131,7 @@ from ._stem_cells import (
     StemCellDifferentiationElement,
     StemCellDifferentiationSystem,
 )
-from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement, TumourImmuneChemotherapyInteraction
 
 __all__: list[str] = [
     'AndrogenReceptorProstateElement',
@@ -188,6 +189,7 @@ __all__: list[str] = [
     'LeukaemiaStemCellsElement',
     'LeukaemiaStemCellsSystem',
     'LinearQuadraticSurvivalElement',
+    'LinearQuadraticSurvivalInteraction',
     'LogKillInteraction',
     'MetastasisChemotherapyElement',
     'MultidrugResistanceElement',
@@ -202,6 +204,7 @@ __all__: list[str] = [
     'OptimalChemotherapySystem',
     'OptimalImmunotherapyElement',
     'OptimalImmunotherapySystem',
+    'PiecewiseLinearAndrogenInteraction',
     'PiecewiseLinearIASSystem',
     'PiecewiseLinearProstateElement',
     'PowerLawGrowthInteraction',
@@ -230,6 +233,7 @@ __all__: list[str] = [
     'TumourCellElement',
     'TumourGrowthInteraction',
     'TumourImmuneChemotherapyElement',
+    'TumourImmuneChemotherapyInteraction',
     'TumourImmuneSuppressionSystem',
     'VaccinatedTumourElement',
     'VascularCorePeripherySystem',

@@ -7,9 +7,8 @@ import math
 
 import numpy as np
 
-from ...specs import RunStateSpec
 from ...types import Array
-from ..problems import ProblemSpec
+from ..problems import ProblemSpec, RunStateSpec
 from ..types import StepFunction
 from ._event_locator import EventLocator
 
@@ -17,9 +16,12 @@ from ._event_locator import EventLocator
 class RenewalClock:
     """A clock of the next renewal time of every member of every renewal law.
 
-    It holds the renewals that fire as time passes. Members of one component renew in time order across its renewal
-    laws. Every firing pass draws for all the members it renews at once, so the stream of random values depends only on
-    the random state.
+    It holds the renewals that fire as time passes, such as the next jump of each walker of a random walk, and `inf`
+    when nothing renews. Members of one component renew in time order across its renewal laws, and every firing pass
+    draws for all the members it renews at once, so the random numbers depend only on the random state. The renewal
+    solvers use it for walkers in a glass, firing neurons, and failing machines.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         problem:
@@ -30,6 +32,17 @@ class RenewalClock:
 
         locator:
             The event locator whose records receive the records of fired renewals.
+
+    See Also:
+        RenewalSolver: Runs renewal processes with it.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.engine.solvers._renewals import EventLocator, RenewalClock
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> RenewalClock(problem, np.random.default_rng(0), EventLocator(problem)).get_earliest()
+        inf
     """
 
     def __init__(

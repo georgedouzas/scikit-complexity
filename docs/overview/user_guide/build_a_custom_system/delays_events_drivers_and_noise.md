@@ -1,57 +1,43 @@
 # Delays, events, drivers, and noise
 
 This page makes laws read the past, change states at discrete events, follow inputs that switch in time, and take
-noise in the convention of your field. Each section writes the laws in the `_get_laws` method of an
-[`Element`](../core_components/elements.md#element) of its own.
+noise in the convention of your field. Each section holds the values in an
+[`Element`](../core_components/elements.md#element) and writes the laws in an
+[`Interaction`](../core_components/interactions.md#interaction), whose laws read every state as a function of the time
+`t`.
 
 ## Delays
 
-Here a law reads a state as it was some time ago, as in a feedback that acts with a lag. `delayed(x, tau)` from
-`skcomplex.core.components.laws.utils` is the state `x` at `t - tau`. The Mackey and Glass model of blood cell
+Here a law reads a state as it was some time ago, as in a feedback that acts with a lag. `x(t=t - tau)`, written in
+Sage, is the state `x` at `t - tau`. The Mackey and Glass model of blood cell
 production feeds back the cell count of 17 days before through a [`RateLaw`](../core_components/laws.md#ratelaw).
 
 ```python
-from typing import Annotated
-
-import numpy as np
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import delayed
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-def wavy_history(t):
-    return 0.5 + 0.1 * np.sin(t)
-
-
-class MackeyGlassElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec(history=wavy_history)] = 0.5,
-        beta: Annotated[float, ParameterSpec()] = 0.2,
-        gamma: Annotated[float, ParameterSpec()] = 0.1,
-        n: Annotated[float, ParameterSpec()] = 10.0,
-        tau: Annotated[float, ParameterSpec()] = 17.0,
-    ):
+class MackeyGlass(Interaction):
+    def __init__(self, label, *, target: Role, beta=0.2, gamma=0.1, n=10.0, tau=17.0):
         super().__init__(label)
-        self.x = x
+        self.target = target
         self.beta = beta
         self.gamma = gamma
         self.n = n
         self.tau = tau
 
-    def _get_laws(self, s):
-        past = delayed(s.x, s.tau)
-        return [RateLaw(s.x, s.beta * past / (1 + past**s.n) - s.gamma * s.x)]
+    def _prepare(self, s):
+        super()._prepare(s)
+        x = s.target.x
+        past = x(t=s.t - s.tau)
+        self.laws_ = [RateLaw(x, s.beta * past / (1 + past**s.n) - s.gamma * x)]
 
 
-cells = CompositeSystem(elements=[MackeyGlassElement('cells')])
-round(float(simulate(cells, until=300, dt=0.5).get_values('cells.x')[-1]), 3)
+cells = System(elements=[Element('cells', values={'x': 0.5})], interactions=[MackeyGlass('feedback', target='cells')])
+round(float(cells.prepare().simulate(until=300, dt=0.5).get_values('cells.x')[-1]), 3)
 ```
 
 The count is 1.004 at the day 300. With this delay the model is chaotic, so the value depends on the history before the
@@ -59,46 +45,30 @@ start.
 
 - The delay is a constant or depends on the state.
 - The solvers keep a history of dense output and step no further than the smallest delay, by the method of steps.
-- Before the start, the history is the initial value, or what the state declares with `StateSpec(history=...)`, a
-  number or a function of time.
+- Before the start, the history is the initial value.
 
 ## Events
 
 Here a law changes states at the moment a condition is met, such as a ball that bounces off the floor. A
-[`CrossingLaw`](../core_components/laws.md#crossinglaw), `CrossingLaw(guard, reset, direction, terminal, label='')`, fires when the
-guard crosses zero. The ball falls from the height 1 and keeps 0.8 of its speed at each impact.
+[`EventLaw`](../core_components/laws.md#eventlaw), `EventLaw(guard, reset, direction, terminal, label='')`, fires when the
+guard crosses zero. The ball falls from the height 1 and keeps 0.8 of its speed `h'` at each impact.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.laws import CrossingLaw, RateLaw
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import EventLaw, RateLaw
+from skcomplex.core.systems import System
 
 
-class BallElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        h: Annotated[float, StateSpec(order=2)] = 1.0,
-        g: Annotated[float, ParameterSpec()] = 9.81,
-        e: Annotated[float, ParameterSpec()] = 0.8,
-    ):
-        super().__init__(label)
-        self.h = h
-        self.g = g
-        self.e = e
-
-    def _get_laws(self, s):
-        bounce = {derivative(s.h, 1): -s.e * derivative(s.h, 1)}
-        return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
+def bouncing(s):
+    h, g, e = s.target.h, 9.81, 0.8
+    speed = h.diff(s.t)
+    return [RateLaw(h.diff(s.t, 2), -g), EventLaw(h, {speed: -e * speed}, direction=-1, label='impact')]
 
 
-trajectory = simulate(CompositeSystem(elements=[BallElement('ball')]), until=3, dt=0.01)
+fall = Interaction('fall', roles={'target': 'ball'}, laws=bouncing)
+ball = System(elements=[Element('ball', values={'h': 1.0})], interactions=[fall])
+trajectory = ball.prepare().simulate(until=3, dt=0.01)
 [round(event.time, 6) for event in trajectory.events]
 ```
 
@@ -120,33 +90,21 @@ Here a system follows an input that switches or bends in time, such as a step, a
 A first-order filter receives a unit step at the time 5.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import step
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class FilterElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        y: Annotated[float, StateSpec()] = 0.0,
-        k: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.y = y
-        self.k = k
-
-    def _get_laws(self, s):
-        return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
+def respond(s):
+    y = s.target.y
+    return [RateLaw(y, -s.target.k * y + step(s.t, 5.0))]
 
 
-filtered = simulate(CompositeSystem(elements=[FilterElement('filter')]), until=10, dt=0.5)
+lowpass = Element('filter', values={'y': 0.0, 'k': 1.0})
+system = System(elements=[lowpass], interactions=[Interaction('response', roles={'target': 'filter'}, laws=respond)])
+filtered = system.prepare().simulate(until=10, dt=0.5)
 round(float(filtered.get_values('filter.y')[-1]), 4)
 ```
 
@@ -164,36 +122,22 @@ noise is evaluated: at the start for Itô, at the midpoint for Stratonovich, and
 example grows an asset at the rate 0.5 with a noise of amplitude `0.8 x`.
 
 ```python
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import MilsteinSolver
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class GrowthElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        mu: Annotated[float, ParameterSpec()] = 0.5,
-        sigma: Annotated[float, ParameterSpec()] = 0.8,
-    ):
-        super().__init__(label)
-        self.x = x
-        self.mu = mu
-        self.sigma = sigma
-
-    def _get_laws(self, s):
-        return [RateLaw(s.x, s.mu * s.x), NoiseLaw(s.x, s.sigma * s.x, convention='stratonovich')]
+def grow(s):
+    x = s.target.x
+    return [RateLaw(x, s.target.mu * x), NoiseLaw(x, s.target.sigma * x, convention='stratonovich')]
 
 
-growth = CompositeSystem(elements=[GrowthElement('asset')])
-round(float(simulate(growth, until=1, solver=MilsteinSolver(dt=0.01), random_state=0).states[-1][0]), 3)
+asset = Element('asset', values={'x': 1.0, 'mu': 0.5, 'sigma': 0.8})
+growing = Interaction('growth', roles={'target': 'asset'}, laws=grow)
+growth = System(elements=[asset], interactions=[growing], solver=MilsteinSolver(dt=0.01))
+round(float(growth.prepare().simulate(until=1, random_state=0).states[-1][0]), 3)
 ```
 
 The asset is worth 4.235 after one time unit on this draw. The compiler adds the drift correction `α g ∂g/∂x`, with
@@ -207,54 +151,40 @@ Itô equation.
 ## Shared and correlated noise
 
 Here several states share one source of noise, or sources that move together, such as the prices of two related
-assets. `NoiseLaw(..., process=...)` names the Wiener process a law draws. The interaction below binds two processes
-with the correlation 0.8 through a role of its own.
+assets. `NoiseLaw(..., process=...)` names the Wiener process a law draws. The interaction below takes two processes
+with the correlation 0.8 as an argument.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.interactions import Interaction, WienerProcessSpec
 from skcomplex.core.components.laws import NoiseLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.specs import RoleSpec, StateSpec, WienerProcessSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class StockElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.n = n
-
-
-class CorrelatedNoiseInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        noise: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
-    ):
+class CorrelatedNoise(Interaction):
+    def __init__(self, label, *, first: Role, second: Role, noise: WienerProcessSpec):
         super().__init__(label)
         self.first = first
         self.second = second
         self.noise = noise
 
-    def _get_laws(self, s):
-        return [NoiseLaw(s.first.n, 1.0, process=s.noise.dW[0]), NoiseLaw(s.second.n, 1.0, process=s.noise.dW[1])]
+    def _prepare(self, s):
+        super()._prepare(s)
+        first, second = s.noise.dW[0], s.noise.dW[1]
+        self.laws_ = [NoiseLaw(s.first.n, 1.0, process=first), NoiseLaw(s.second.n, 1.0, process=second)]
 
 
 processes = WienerProcessSpec('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
-market = CompositeSystem(
-    elements=[StockElement('a'), StockElement('b')],
-    interactions=[CorrelatedNoiseInteraction('drive', first='a', second='b', noise=processes)],
+market = System(
+    elements=[Element('a', values={'n': 0.0}), Element('b', values={'n': 0.0})],
+    interactions=[CorrelatedNoise('drive', first='a', second='b', noise=processes)],
+    solver=EulerMaruyamaSolver(dt=1.0),
 )
-solver = EulerMaruyamaSolver(dt=1.0)
-trajectory = simulate(market, until=2000, solver=solver, dt=1.0, random_state=0)
+trajectory = market.prepare().simulate(until=2000, dt=1.0, random_state=0)
 round(float(np.corrcoef(np.diff(trajectory.get_values('a.n')), np.diff(trajectory.get_values('b.n')))[0, 1]), 1)
 ```
 
@@ -263,10 +193,10 @@ The measured correlation of the increments is the 0.8 of the covariance.
 - Without a process, every element and every group member takes its own independent process.
 - Laws of one element, or of one member, that name the same label share one increment. So a reaction can drive every
   species it changes with one process.
-- A `WienerProcessSpec(label, dimension, covariance)` from `skcomplex.core.specs` declares processes whose increments
-  over a step `h` have the covariance `h C`.
-- A `WienerProcessSpec` is no element. An interaction binds it through a role annotated with `RoleSpec(noise=True)`, and
-  its noise laws name process `k` with `s.<role>.dW[k]`, which every element, and every member of a group, can share.
+- A `WienerProcessSpec(label, dimension, covariance)` from `skcomplex.core.components.interactions` declares
+  processes whose increments over a step `h` have the covariance `h C`.
+- A `WienerProcessSpec` is no element. An interaction takes it as an argument, and its noise laws name process `k`
+  with `s.<argument>.dW[k]`, which every element, and every member of a group, can share.
 - Interactions of one system that bind processes of one label share them and their correlations.
 - The covariance is fixed when the system compiles. NumPy factors it once, so the steppers scale standard normal
   increments drawn from the run's random generator.
@@ -284,45 +214,30 @@ convention. Validation reports:
 
 Here thermal noise enters a field without changing its total, as in System B and active field theories.
 `NoiseLaw(target, value, conserved=True)` on a state of a field on a lattice adds the divergence of a random flux,
-`div(value eta)`. The field is a [`FieldElement`](../core_components/elements.md#fieldelement) on a
+`div(value eta)`. The field is an [`Element`](../core_components/elements.md#element) on a
 [`LatticeSpace`](../core_components/spaces.md#latticespace) of 16 by 16 sites.
 
 ```python
-from typing import Annotated
-
 from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class DensityElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        rho: Annotated[float, StateSpec()] = 1.0,
-        D: Annotated[float, ParameterSpec()] = 1.0,
-        T: Annotated[float, ParameterSpec()] = 0.1,
-    ):
-        super().__init__(label)
-        self.rho = rho
-        self.D = D
-        self.T = T
-
-    def _get_laws(self, s):
-        return [RateLaw(s.rho, s.D * laplacian(s.rho)), NoiseLaw(s.rho, sqrt(2 * s.T), conserved=True)]
+def diffuse(s):
+    rho, D, T = s.target.rho, 1.0, 0.1
+    return [RateLaw(rho, D * laplacian(rho)), NoiseLaw(rho, sqrt(2 * T), conserved=True)]
 
 
-gas = CompositeSystem(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
-solver = EulerMaruyamaSolver(dt=0.01)
-density = simulate(gas, until=5, solver=solver, random_state=0).get_values('gas.rho')
+gas = Element('gas', values={'rho': 1.0}, space=LatticeSpace((16, 16)))
+diffusion = Interaction('diffusion', roles={'target': 'gas'}, laws=diffuse)
+system = System(elements=[gas], interactions=[diffusion], solver=EulerMaruyamaSolver(dt=0.01))
+density = system.prepare().simulate(until=5, random_state=0).get_values('gas.rho')
 round(float(density[-1].sum()), 6), bool(density[-1].std() > 0)
 ```
 
@@ -348,7 +263,7 @@ This section matches a solver to the noise of a system. Solvers and backends dec
 
 `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four. `MilsteinSolver`, whose
 derivative-free correction holds for diagonal noise only, and `LammpsSolver` support diagonal noise. Validation
-reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../parts/solvers.md)
+reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../components/solvers.md)
 lists their supported tags.
 
 The solvers of SciPy, RK4, Euler-Maruyama, Milstein, and Heun integrate delays, events, and drivers. Velocity Verlet,
@@ -370,10 +285,9 @@ class of the subfield of `skcomplex.systems` in brackets.
   noise.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.mechanics import BouncingBallSystem
 
-len(simulate(BouncingBallSystem()).events) > 0
+len(BouncingBallSystem().prepare().simulate().events) > 0
 ```
 
 The bouncing ball of the catalog records its impacts as events, so the block returns `True`.

@@ -4,53 +4,43 @@
 # License: MIT
 
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...components.laws import ConstraintLaw, JumpLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ._solver import Solver
 
 
 class RenewalSolver(Solver):
-    """A solver that steps renewal processes exactly.
+    """A solver that runs renewal processes exactly, from renewal to renewal.
 
-    It jumps from renewal to renewal without a time grid. Every member renews on its own clock, and a frame holds the
-    states the last renewal at or before its time set.
+    Every member renews on its own clock, with waiting times of any law, such as a walker that rests for a heavy tailed
+    time before each jump, and the solver jumps from one renewal to the next without a time grid. A frame holds the
+    values that the last renewal at or before its time set. It runs walkers trapped in a glass, neurons that fire, and
+    machines that fail and are repaired.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        GillespieSolver: Runs jumps whose waiting times have no memory.
 
     Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import JumpLaw
-        >>> from skcomplex.core.components.laws.utils import draw
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.solvers import RenewalSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> class CounterElement(Element):
-        ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.n = n
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.n: s.n + 1})]
-        >>> system = CompositeSystem(elements=[GroupElement('counters', element=CounterElement, size=3)])
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = RenewalSolver(random_state=0).prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_
-        >>> bool(np.all(state[:3] > 50))
-        True
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> system = ContinuousTimeRandomWalkSystem(n_walkers=3).prepare()
+        >>> type(system.system_.solver_).__name__, system.simulate(until=10, dt=10).get_values('walkers.x').shape
+        ('RenewalSolver', (2, 3, 2))
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={JumpLaw, RateLaw, FluxLaw, NoiseLaw, EquationLaw, BoundaryLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={JumpLaw, RateLaw, NoiseLaw, ConstraintLaw, _BoundaryLaw},
             noise=frozenset({NoiseKind.DIAGONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

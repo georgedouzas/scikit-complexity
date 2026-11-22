@@ -13,7 +13,6 @@ their angular momentum is conserved, so halving the distance quadruples the angu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import RotatingBallsOnRodsSystem
 
@@ -28,7 +27,7 @@ def radius_at(time):
 system = RotatingBallsOnRodsSystem(omega=1.0, r=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 schedule = {'right.r': radius_at, 'left.r': radius_at}
-trajectory = simulate(system.prepare().system_, until=10, dt=0.04, observers=[observer], schedule=schedule)
+trajectory = system.prepare().simulate(until=10, dt=0.04, observers=[observer], schedule=schedule)
 
 # %%
 # Angular velocity against the radius
@@ -39,7 +38,7 @@ trajectory = simulate(system.prepare().system_, until=10, dt=0.04, observers=[ob
 fig, ax = plt.subplots(figsize=(6, 4))
 for radius in [0.9, 0.7, 0.5]:
     pulled = {'right.r': lambda time, value=radius: 1.0 if time < 5.0 else value}
-    run = simulate(RotatingBallsOnRodsSystem(omega=1.0, r=1.0).prepare().system_, until=10, dt=0.02, schedule=pulled)
+    run = RotatingBallsOnRodsSystem(omega=1.0, r=1.0).prepare().simulate(until=10, dt=0.02, schedule=pulled)
     times = np.asarray(run.times)
     angle = np.unwrap(np.ravel(run.get_values('right.theta')))
     line = ax.plot(times[1:], np.diff(angle) / np.diff(times), label=f'r = {radius} after t = 5')[0]

@@ -6,6 +6,7 @@ The Schrödinger equation runs as two real fields or as a particle on the sites 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,15 +16,18 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import CC, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction, Interaction
-from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import ETDRK4Solver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ETDRK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec
 
 FORMULATIONS = ('fields', 'operators')
 
@@ -45,54 +49,46 @@ class SiteElement(Element):
         hilbert:
             The Hilbert space of the sites, whose basis state `k` is site `k`.
 
-        visual:
-            How the particle is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.waves._quantum import SiteElement
         >>> SiteElement('particle', 3).psi
         3
     """
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 0,
+        psi: Annotated[object, CC] = 0,
         *,
         hilbert: HilbertSpec | None = None,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert
 
 
 class WaveFunctionElement(Element):
-    """Site of the wave function `psi = u + i w` of a particle with the potential `V`.
+    """Sites of the wave function `psi = u + i w` of a particle with the potential `V`.
 
-    The site holds the real and imaginary parts.
-
-    The parts follow the Schrödinger equation `i psi' = -D laplacian(psi) + V psi`, so
-    `u' = -D laplacian(w) + V w` and `w' = D laplacian(u) - V u`.
+    Every site holds the real and imaginary parts of the wave function and the potential there.
 
     Args:
         label:
-            The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
+            The label of the wave function.
 
         u:
-            The initial real part.
+            The initial real part, one value per site or one for all.
 
         w:
-            The initial imaginary part.
-
-        D:
-            The coefficient of the kinetic energy, `hbar / (2 m)`.
+            The initial imaginary part, one value per site or one for all.
 
         V:
-            The potential at the site.
+            The potential, one value per site or one for all.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import WaveFunctionElement
@@ -100,38 +96,63 @@ class WaveFunctionElement(Element):
         1.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        w: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        V: Annotated[float, ParameterSpec()] = 0.0,
+        u: object = 0.0,
+        w: object = 0.0,
+        V: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.u = u
         self.w = w
-        self.D = D
         self.V = V
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Schrödinger equation of the real and imaginary parts.
+
+class SchrodingerInteraction(Interaction):
+    """The Schrödinger equation `i psi' = -D laplacian(psi) + V psi` of a wave function `psi = u + i w`.
+
+    The real and imaginary parts of the target follow `u' = -D laplacian(w) + V w` and `w' = D laplacian(u) - V u`,
+    where `V` is the potential of the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the wave function, with the real part `u`, the imaginary part `w`, and the potential `V`.
+
+        D:
+            The coefficient of the kinetic energy, `hbar / (2 m)`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import SchrodingerInteraction
+        >>> SchrodingerInteraction('evolution', target='packet').D
+        0.5
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, D: Annotated[float, RealSet.open(0, oo)] = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
+        self.D = D
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the real and imaginary parts of the wave function of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the two parts.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.u, -s.D * laplacian(s.w) + s.V * s.w),
-            RateLaw(s.w, s.D * laplacian(s.u) - s.V * s.u),
+        super()._prepare(context)
+        s, t = context, context.t
+        u, w, V = s.target.u, s.target.w, s.target.V
+        self.laws_ = [
+            RateLaw(u.diff(t), -s.D * laplacian(w) + V * w),
+            RateLaw(w.diff(t), s.D * laplacian(u) - V * u),
         ]
 
 
@@ -158,26 +179,25 @@ class LatticeHamiltonianInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
+        D: Annotated[float, RealSet.open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Hamiltonian of the particle.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the Hamiltonian of the particle.
 
         Args:
-            s:
-                The namespace of the interaction.
-
-        Returns:
-            laws:
-                The Hamiltonian.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        psi = s.target.psi
-        return [GeneratorLaw(-s.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential'))]
+        super()._prepare(context)
+        psi = context.target.psi
+        self.laws_ = [
+            GeneratorLaw(-context.D * local_operator(psi, 'laplacian') + local_operator(psi, 'potential')),
+        ]
 
 
 class PositionDephasingInteraction(Interaction):
@@ -208,8 +228,8 @@ class PositionDephasingInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         n_sites: int = 1,
     ) -> None:
         super().__init__(label)
@@ -217,18 +237,16 @@ class PositionDephasingInteraction(Interaction):
         self.gamma = gamma
         self.n_sites = n_sites
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the dissipators of the site projectors.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the dissipators of the site projectors.
 
         Args:
-            s:
-                The namespace of the interaction.
-
-        Returns:
-            laws:
-                The dissipators.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [DissipatorLaw(local_operator(s.target.psi, f'site_{site}'), s.gamma) for site in range(self.n_sites)]
+        super()._prepare(context)
+        psi = context.target.psi
+        self.laws_ = [DissipatorLaw(local_operator(psi, f'site_{site}'), context.gamma) for site in range(self.n_sites)]
 
 
 class SchrodingerSystem(BaseSystem):
@@ -275,14 +293,21 @@ class SchrodingerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.01 of the fields and the quantum solver
+            of the operators.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The formulation is unknown, or the field formulation has a dephasing rate.
 
     Examples:
         >>> from skcomplex.systems.physics.waves import SchrodingerSystem
-        >>> SchrodingerSystem(64).prepare().system_.elements[0].prepare().size_
-        64
+        >>> SchrodingerSystem(64).prepare().system_.elements[0].space.discretization
+        'spectral'
     """
 
     field = 'physics/waves'
@@ -290,7 +315,6 @@ class SchrodingerSystem(BaseSystem):
     references = ('Schrödinger 1926', 'Schwichtenberg 2020')
     until = 4.0
     dt = 0.1
-    solver = ETDRK4Solver(dt=0.01)
 
     @staticmethod
     def _get_lattice_laplacian(lattice: LatticeSpace) -> npt.NDArray[np.float64]:
@@ -360,8 +384,10 @@ class SchrodingerSystem(BaseSystem):
         formulation: str = 'fields',
         gamma: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.D = D
@@ -371,31 +397,24 @@ class SchrodingerSystem(BaseSystem):
         self.formulation = formulation
         self.gamma = gamma
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a Gaussian wave packet that follows the Schrödinger equation.
 
-        The operator formulation gets the solver of the operator form.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
 
-        Returns:
-            settings:
-                The tuned run settings by name.
+        Raises:
+            ValidationError:
+                The formulation is unknown, or the field formulation has a dephasing rate.
         """
-        settings = super().get_run_settings()
-        if self.formulation == 'operators':
-            settings['solver'] = None
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a Gaussian wave packet that follows the Schrödinger equation.
-
-        The packet is written as its real and imaginary parts.
-        """
+        super()._prepare(context)
         spacing = self.length / self.n_sites
         positions = spacing * np.arange(self.n_sites) - self.length / 2
         envelope = np.exp(-(positions**2) / (4 * self.width**2)) / (2 * np.pi * self.width**2) ** 0.25
         psi = envelope * np.exp(1j * self.momentum * positions)
         potential = self.omega**2 * positions**2 / (4 * self.D)
-        space = LatticeSpace(self.n_sites, spacing=spacing)
+        space = LatticeSpace(self.n_sites, spacing=spacing, discretization='spectral')
         if self.formulation not in FORMULATIONS or (self.formulation == 'fields' and self.gamma):
             error_msg = (
                 f'Unknown formulation {self.formulation!r}, or dephasing in the field formulation. Use one of '
@@ -411,7 +430,7 @@ class SchrodingerSystem(BaseSystem):
                 interactions.append(
                     PositionDephasingInteraction('dephasing', target='packet', gamma=self.gamma, n_sites=self.n_sites),
                 )
-            return CompositeSystem(
+            self.system_ = System(
                 self.label,
                 elements=[
                     SiteElement(
@@ -422,11 +441,7 @@ class SchrodingerSystem(BaseSystem):
                 ],
                 interactions=interactions,
             )
-        packet = FieldElement(
-            'packet',
-            element=WaveFunctionElement,
-            space=space,
-            values={'u': psi.real, 'w': psi.imag, 'D': self.D, 'V': potential},
-            discretization='spectral',
-        )
-        return CompositeSystem(self.label, elements=[packet])
+            return
+        packet = WaveFunctionElement('packet', u=psi.real, w=psi.imag, V=potential, space=space)
+        evolution = SchrodingerInteraction('evolution', target='packet', D=self.D)
+        self.system_ = System(self.label, elements=[packet], interactions=[evolution], solver=ETDRK4Solver(dt=0.01))

@@ -9,10 +9,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import CellComplexSpace, LatticeSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ...types import Array, Indices
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import BaseVisual
 
 FACES = 'faces'
@@ -21,13 +21,14 @@ PLANE_AXES = 2
 
 
 class CellVisual(BaseVisual):
-    """A visual that logs a state of a group on the edges or faces of a complex.
+    """A visual that draws a value on the links or faces of a cell complex.
 
-    The complex is a cell complex. A state on edges logs under `<path>/<state>` as `LineStrips2D` colored by value, with
-    a cyclic palette for an angle state, and its oriented sums around the faces log under `<path>/<state>/faces`. A
-    state on hyperedges logs under `<path>/<state>`. Values on faces log as an image of the lattice shape on a lattice
-    complex, and as colored closed polygons on a network complex. A lattice of more than two dimensions logs the plane
-    and the slice it selects.
+    It draws a value on links as lines coloured by value, with a palette that wraps around for an angle, and the sum of
+    the values around each face, such as `CellVisual('theta')` for angles on the links of a grid. Values on faces are
+    an image on a grid and coloured polygons on a network, and a grid of more than two dimensions shows one plane of
+    it. It shows the angles of a gauge field, the flows of a road network, and the currents of a circuit.
+
+    Read more in the user guide, under Observe.
 
     Args:
         state:
@@ -49,11 +50,16 @@ class CellVisual(BaseVisual):
         ValidationError:
             The group lives on no edges or hyperedges of a cell complex, or the plane is not two axes of the lattice.
 
+    See Also:
+        SiteVisual: Draws values on the sites of a triangular grid or a network.
+
     Examples:
         >>> from skcomplex.core.engine.viz import CellVisual
         >>> CellVisual('theta', plane=(0, 2)).plane
         (0, 2)
     """
+
+    numeric_options = ('plane', 'section')
 
     def __init__(
         self,
@@ -236,14 +242,18 @@ class CellVisual(BaseVisual):
         values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
         period = frame.problem.states.get_entry(name).period
         cycle = None if period is None else float(period)
-        path = f'{element.path}/{state}'
+        path = BaseVisual._get_state_path(element.path, state)
         if getattr(element.element, 'on', None) == 'hyperedges':
             self._log_faces(recording, path, space, values, cycle)
             return
         self._log_segments(recording, path, space, values, cycle)
         self._log_faces(recording, f'{path}/{FACES}', space, space.incidences_[1] @ values, cycle)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 2D spatial view of the state of the group.
 
         Args:
@@ -261,4 +271,4 @@ class CellVisual(BaseVisual):
             return []
         self._get_complex_of(element)
         state = self.state if self.state is not None else next(iter(element.states))
-        return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state)]
+        return [rrb.Spatial2DView(origin=BaseVisual._get_state_path(element.path, state), name=state)]

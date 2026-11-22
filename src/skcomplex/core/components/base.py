@@ -1,4 +1,4 @@
-"""Define the abstract base of every part of a system."""
+"""Define the abstract base of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,79 +7,66 @@ from __future__ import annotations
 
 import functools
 import inspect
-from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from types import SimpleNamespace
-from typing import ClassVar
+from types import NoneType, UnionType
+from typing import Annotated, ClassVar, TypeAliasType, Union, get_args, get_origin
 
-from ..base import BaseConfig
+import numpy as np
+from sklearn.base import BaseEstimator
+
+from ..base import _BaseEstimator
 from ..errors import ValidationError
-from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
+from ..types import Role
+from ._declared_variable_spec import _DeclaredVariableSpec
+from ._parameter_spec import _ParameterSpec
+from ._role_spec import RoleSpec, _Spec
+from ._state_spec import _StateSpec
+from ._tags import STOCHASTIC_LAWS, Tags
+from ._tensor_spec import TENSOR_DIMENSIONS
+
+MATRIX_AXES = 2
+ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
 
 
-class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """An abstract part of a system, with a label, laws, and capability tags.
+class BaseComponent[ContextT](_BaseEstimator[ContextT]):
+    """An abstract component of a system, with a label, arguments, and tags.
 
-    The parts of a system are its elements, interactions, laws, spaces, times, and the system itself. Every part has a
-    label, returns its laws from `_get_laws`, and implements two hooks that the main public methods `prepare` and `run`
-    call:
+    The components of a system are its elements, interactions, spaces, and the system itself, such as the ball of
+    `Element('ball', values={'x': 10.0, 'm': 1.0})`. Every component has a label and stores its arguments under their
+    own names, so `get_params`, `set_params`, and `clone` work on it. Its method `prepare(context)` checks the arguments
+    and sets the attributes that end in `_`, such as `laws_` of an interaction. An element is prepared against the space
+    of its system and an interaction against the elements its roles bind. Which values are states and which are
+    parameters follows from the laws. `get_tags` returns what a component can do, read from its arguments alone, so the
+    tags are known before `prepare`. A component whose rules draw random numbers that its laws do not show sets the
+    class attribute `draws`. It is the base of the populations and contacts of an epidemic and of the accounts and
+    payments of an economy.
 
-    - `_prepare(context)` checks the arguments, prepares the part against its context, and sets its attributes that end
-      in `_`. It starts with `super()._prepare(context)`, so this base checks the label and the declared specs first.
-    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system, or
-      `value_`, the value of a law.
+    Read more in the user guide, under Extend the library.
 
-    The context of `prepare` depends on the family: a law is prepared against the path of its owner, an element against
-    the space of its system. A part declares which arguments of its constructor are states, parameters, or roles by
-    annotating them with `StateSpec`, `ParameterSpec`, or `RoleSpec` inside `Annotated`.
+    Args:
+        label:
+            The name of the component, unique among the components of its system, such as `'ball'`.
 
-    A part returns its capability tags from `get_tags`, which reads only its declarations and arguments, so the tags are
-    known before `prepare`. Each family derives them in `_get_tags`. A part whose run draws random numbers that its laws
-    do not show, such as an agent rule that reads `system.rng`, sets the class attribute `draws`, or returns it from
-    `_draws` when its arguments decide it. A part whose draws are all uniform, normal, or relaxed Bernoulli or
-    categorical draws sets `reparameterized`, so its runs on JAX are differentiable.
-
-    Unlike `BaseConfig`, which only stores and checks arguments, it adds laws, a context for `prepare`, and tags. Choose
-    it when a new family of parts is needed, and choose the base of an existing family, such as `BaseElement`,
-    otherwise.
-
-    It appears in every field through its families, such as the populations, infections, and contact networks of an
-    epidemic, or the accounts, payments, and markets of an economy.
+    See Also:
+        BaseConfig: The base of the engine classes, which run.
+        BaseElement: The base of the components that hold values.
 
     Examples:
-        >>> from skcomplex.core.components.base import BasePart
-        >>> class DoublingPart(BasePart):
-        ...     def __init__(self, label, factor=2):
-        ...         super().__init__(label)
-        ...         self.factor = factor
-        ...
-        ...     def _prepare(self, context=None):
-        ...         super()._prepare(context)
-        ...         self.factor_ = float(self.factor)
-        ...
-        ...     def _get_laws(self, namespace):
-        ...         return []
-        ...
-        ...     def _run(self, value):
-        ...         self.doubled_ = self.factor_ * value
-        >>> DoublingPart('doubling').prepare().run(3).doubled_
-        6.0
+        >>> from skcomplex.core.components.base import BaseComponent
+        >>> from skcomplex.core.components.elements import Element
+        >>> ball = Element('ball', values={'x': 10.0, 'm': 1.0}).prepare()
+        >>> isinstance(ball, BaseComponent), ball.label
+        (True, 'ball')
     """
 
     draws: ClassVar[bool] = False
-    """Whether the run of the part draws random numbers that the kinds of its laws do not show."""
+    """Whether the run of the component draws random numbers that the kinds of its laws do not show."""
 
     reparameterized: ClassVar[bool] = False
-    """Whether every draw of the part is a uniform, normal, or relaxed draw of its laws, which JAX differentiates."""
+    """Whether every draw of the component is a uniform, normal, or relaxed draw that JAX differentiates."""
 
     def __init__(self, label: str) -> None:
-        """Store the label of the part.
-
-        Args:
-            label:
-                The label of the part, unique among the parts of its system.
-        """
         self.label = label
 
     def _check_label(self) -> None:
@@ -93,49 +80,133 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             error_msg = f'The label of {type(self).__name__} must be a string, but it is {self.label!r}.'
             raise ValidationError(error_msg)
 
+    @staticmethod
+    def _get_shape_of(value: object) -> tuple[bool, int | None, str | None]:
+        """Return whether a value is a vector, its size, and its tensor symmetry.
+
+        The size is the number of components of a vector or of rows of a matrix. A number is no vector, a list or an
+        array of `n` numbers is a vector of `n` components, and a square matrix of 2 or 3 rows is a full tensor, which
+        laws read as a Sage matrix. Any other array is a vector of one component per dimension of the space.
+        """
+        shape = np.shape(np.asarray(value, dtype=object))
+        if not shape:
+            return False, None, None
+        if len(shape) == 1:
+            return True, shape[0], None
+        if len(shape) == MATRIX_AXES and shape[0] == shape[1] and shape[0] in TENSOR_DIMENSIONS:
+            return False, shape[0], 'full'
+        return True, None, None
+
+    @staticmethod
+    def _get_matrix_entries(value: object, tensor: str | None) -> object:
+        """Return a matrix value as its entries, row after row.
+
+        The matrices sit on the last two axes, so a group gives one matrix per member. Any other value is returned as it
+        is.
+        """
+        if tensor is None:
+            return value
+        array = np.asarray(value)
+        return array.reshape(*array.shape[:-2], array.shape[-2] * array.shape[-1])
+
+    @staticmethod
+    def _get_annotated(annotation: object) -> object:
+        """Return the `Annotated` form an annotation stands for.
+
+        A short annotation such as `State[float]` stands for the `Annotated` form it aliases, `Role` stands for a role
+        of one element, and any other annotation stands for itself. A short annotation inside `Annotated`, such as
+        `Annotated[Role, 'boolean']`, stands for the form it aliases with the further metadata added. A role that may
+        be `None`, such as `Role | None`, stands for an optional role.
+        """
+        others = [item for item in get_args(annotation) if item is not NoneType]
+        if get_origin(annotation) in (UnionType, Union) and len(others) == 1 < len(get_args(annotation)):
+            inner = BaseComponent._get_annotated(others[0])
+            if get_origin(inner) is not Annotated:
+                return annotation
+            base, *metadata = get_args(inner)
+            optional = [replace(item, optional=True) if isinstance(item, RoleSpec) else item for item in metadata]
+            return Annotated[base | None, *optional]
+        if get_origin(annotation) is Annotated:
+            inner, *extra = get_args(annotation)
+            aliased = BaseComponent._get_annotated(inner)
+            if aliased is not inner and get_origin(aliased) is Annotated:
+                base, *metadata = get_args(aliased)
+                return Annotated[base, *metadata, *extra]
+            return annotation
+        if annotation is Role:
+            return Annotated[str, RoleSpec()]
+        alias = get_origin(annotation) or annotation
+        return getattr(alias, '__value__', annotation) if isinstance(alias, TypeAliasType) else annotation
+
     @classmethod
     @functools.cache
-    def _get_specs(cls) -> dict[str, Spec]:
+    def _get_specs(cls) -> dict[str, _Spec]:
         """Return the spec of every argument of the constructor annotated with one.
 
         The specs come in the order of the constructor. The annotations of the constructors of the bases count too, and
         a subclass wins, so a subclass that takes an argument of its base again without annotating it keeps the spec of
-        the base. The specs of a class are read once, since compiling a system reads them for every part.
+        the base. The specs of a class are read once, since compiling a system reads them for every component. The
+        words after a role, such as `Annotated[Role, 'boolean']`, are the domains the role accepts.
 
         Returns:
             specs:
                 A mapping from argument name to its spec.
         """
-        specs: dict[str, Spec] = {}
+        specs: dict[str, _Spec] = {}
         for klass in reversed(cls.__mro__):
             init = vars(klass).get('__init__')
             if init is None:
                 continue
             for name, argument in inspect.signature(init, eval_str=True).parameters.items():
-                for item in getattr(argument.annotation, '__metadata__', ()):
-                    if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
+                metadata = getattr(cls._get_annotated(argument.annotation), '__metadata__', ())
+                for item in metadata:
+                    if isinstance(item, _StateSpec | _ParameterSpec | RoleSpec):
                         specs[name] = item
+                hinted = None if metadata else cls._get_role_of(argument.annotation)
+                if hinted is not None:
+                    specs[name] = hinted
+                domains = tuple(item for item in metadata if isinstance(item, str))
+                role = specs.get(name)
+                if domains and isinstance(role, RoleSpec) and role in metadata:
+                    specs[name] = replace(role, domains=(*role.domains, *domains))
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
+
+    @staticmethod
+    def _get_role_of(annotation: object) -> RoleSpec | None:
+        """Return the role a type hint states, or `None` for a hint of no role.
+
+        `Role` binds one element, `Role | None` one element or none, and a container of roles binds several, such as
+        `tuple[Role, ...]` for the reactants of a reaction or a mapping keyed by roles for their amounts.
+        """
+        annotated = BaseComponent._get_annotated(annotation)
+        if get_origin(annotated) is Annotated:
+            return next((item for item in get_args(annotated)[1:] if isinstance(item, RoleSpec)), None)
+        origin, args = get_origin(annotated), get_args(annotated)
+        if origin is Union or origin is UnionType:
+            found = [role for arg in args if (role := BaseComponent._get_role_of(arg)) is not None]
+            if not found:
+                return None
+            role = next((role for role in found if role.variadic), found[0])
+            return replace(role, optional=NoneType in args)
+        if origin in ROLE_CONTAINERS and any(BaseComponent._get_role_of(arg) is not None for arg in args):
+            return RoleSpec(variadic=True)
+        return None
 
     @classmethod
     def _get_declared_laws(cls) -> tuple[type, ...] | None:
         """Return the law classes the class lists in `law_classes`.
 
-        The result is `None` when the class writes laws it does not list. The nearest class of the method resolution
-        order that lists `law_classes` or writes `_get_laws` decides: a list gives the classes, and a method without a
-        list leaves them unknown.
+        The nearest class of the method resolution order that lists `law_classes` decides, and the result is `None`
+        when no class lists them.
 
         Returns:
             classes:
                 The law classes, or `None` when the declarations do not show them.
         """
         for klass in cls.__mro__:
-            declared = vars(klass)
-            if 'law_classes' in declared:
-                classes: tuple[type, ...] = declared['law_classes']
+            if 'law_classes' in vars(klass):
+                classes: tuple[type, ...] = vars(klass)['law_classes']
                 return classes
-            if '_get_laws' in declared:
-                return None
         return None
 
     @staticmethod
@@ -167,41 +238,69 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         randomness = 'stochastic' if drawn else 'deterministic'
         return Tags(time=common, laws=laws, randomness=randomness)
 
+    @staticmethod
+    def _is_equal(old: object, new: object) -> bool:
+        """Return whether two values of a model parameter are equal by value.
+
+        Estimators are equal when they have the same class and equal parameters, sequences and mappings when their
+        items are equal, and arrays when they have the same shape and entries. A value that cannot be compared is
+        taken as changed.
+
+        Args:
+            old:
+                The value the components were last built from.
+
+            new:
+                The current value.
+
+        Returns:
+            equal:
+                Whether the values are equal.
+        """
+        if old is new:
+            return True
+        if type(old) is not type(new):
+            return False
+        if isinstance(old, BaseEstimator) and isinstance(new, BaseEstimator):
+            old, new = old.get_params(deep=False), new.get_params(deep=False)
+        if isinstance(old, Mapping) and isinstance(new, Mapping):
+            equal = old.keys() == new.keys() and all(BaseComponent._is_equal(old[key], new[key]) for key in old)
+        elif isinstance(old, list | tuple) and isinstance(new, list | tuple):
+            equal = len(old) == len(new) and all(BaseComponent._is_equal(*pair) for pair in zip(old, new, strict=True))
+        elif isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
+            equal = old.shape == new.shape and bool(np.array_equal(old, new))
+        else:
+            try:
+                equal = bool(old == new)
+            except (TypeError, ValueError):
+                equal = False
+        return equal
+
     def _get_tags(self) -> Tags:
-        """Return the tags the declarations of the part show, none by default."""
+        """Return the tags the declarations of the component show, none by default."""
         return Tags(laws=None, randomness=None)
 
     def _get_draws(self) -> bool:
-        """Return whether the part draws random numbers its law kinds do not show.
+        """Return whether the component draws random numbers its law kinds do not show.
 
         The default is `draws`.
         """
         return self.draws
 
     def get_tags(self) -> Tags:
-        """Return the capability tags of the part.
+        """Return the capability tags of the component.
 
         They come from its declarations and its arguments alone.
 
         Returns:
             tags:
-                The tags of the part, known before it is prepared.
+                The tags of the component, known before it is prepared.
 
         Examples:
-            >>> from typing import Annotated
-            >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+            A component whose rules draw random numbers declares it, so its randomness is stochastic:
+
             >>> from skcomplex.core.components.elements import Element
-            >>> from skcomplex.core.specs import StateSpec
-            >>> class CellElement(Element):
-            ...     def __init__(self, label, alive: Annotated[int, StateSpec(FiniteEnumeratedSet([0, 1]))] = 0):
-            ...         super().__init__(label)
-            ...         self.alive = alive
-            >>> sorted(CellElement('cell').get_tags().domains)
-            ['boolean']
-
-            A part whose rules draw random numbers declares it, so its randomness is stochastic:
-
-            >>> class WalkerElement(CellElement):
+            >>> class WalkerElement(Element):
             ...     draws = True
             >>> WalkerElement('walker').get_tags().randomness
             'stochastic'
@@ -210,58 +309,39 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         tags = replace(tags, randomness='stochastic') if self._get_draws() else tags
         return replace(tags, reparameterized=True) if self.reparameterized else tags
 
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the variables the part declares from data, by name, none by default."""
+    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
+        """Return the variables the component declares from data, by name, none by default."""
         return {}
 
-    def _get_part_specs(self) -> dict[str, Spec]:
-        """Return the specs of this part.
+    def _get_component_specs(self) -> dict[str, _Spec]:
+        """Return the specs of this component.
 
         They are those of its class, then those it declares from data.
         """
         return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
 
-    def _prepare(self, context: ContextT | None) -> None:
-        """Check the label and the declared specs of the part.
+    def _prepare(self, context: ContextT) -> None:
+        """Check the label and the declared specs of the component.
 
         A child starts its own `_prepare` with `super()._prepare(context)`, so these checks come first, and then
         checks its own arguments before it sets any attribute that ends in `_`.
 
         Args:
             context:
-                The context of the part, which this base does not read.
+                The context of the component, which this base does not read.
 
         Raises:
             ValidationError:
                 The label or a declared spec is invalid, named in the message.
         """
+        self._check_specs()
+
+    def _check_specs(self) -> None:
+        """Raise an error for a label or a declared spec that is invalid."""
         self._check_label()
         for spec in [*self._get_specs().values(), *self._get_declared().values()]:
             spec._check()
 
-    @abstractmethod
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the laws the part contributes for a namespace of symbols.
-
-        A law contributes itself.
-        """
-
-    def _get_laws_of(self, inputs: object) -> Sequence[BasePart]:
-        """Return the laws of the part for a namespace of symbols.
-
-        Args:
-            inputs:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the part.
-
-        Raises:
-            ValidationError:
-                The input is not a namespace.
-        """
-        if not isinstance(inputs, SimpleNamespace):
-            error_msg = f'{type(self).__name__} returns its laws for a namespace of symbols, but got {inputs!r}.'
-            raise ValidationError(error_msg)
-        return self._get_laws(inputs)
+    def _prepare_on(self, space: ContextT | None) -> None:
+        """Prepare the component on the space of its system, checking its arguments."""
+        self.prepare(space)

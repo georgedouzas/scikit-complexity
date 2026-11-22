@@ -4,16 +4,21 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.excitable import SpikeResetInteraction
 
 PEAK = 30.0
@@ -22,21 +27,40 @@ PEAK = 30.0
 class IzhikevichElement(Element):
     """Izhikevich neuron, a quadratic potential `v` and a linear recovery `u`.
 
-    The potential follows `v' = 0.04 v² + 5 v + 140 - u + I` and the recovery `u' = a (b v - u)`. A spike reset fires
-    the neuron.
-
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         v:
             The initial potential.
 
         u:
             The initial recovery.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import IzhikevichElement
+        >>> IzhikevichElement('neuron').u
+        -13.0
+    """
+
+    def __init__(self, label: str, *, v: float = -65.0, u: float = -13.0) -> None:
+        super().__init__(label)
+        self.v = v
+        self.u = u
+
+
+class IzhikevichInteraction(Interaction):
+    """Izhikevich's quadratic potential and linear recovery of a neuron.
+
+    The potential follows `v' = 0.04 v² + 5 v + 140 - u + I` and the recovery `u' = a (b v - u)`. A spike reset fires
+    the neuron.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the neuron, with the potential `v` and the recovery `u`.
 
         a:
             The time scale of the recovery.
@@ -48,62 +72,66 @@ class IzhikevichElement(Element):
             The input current.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import IzhikevichElement
-        >>> IzhikevichElement('neuron').b
+        >>> from skcomplex.systems.biology.neuroscience import IzhikevichInteraction
+        >>> IzhikevichInteraction('membrane', target='neuron').b
         0.2
     """
 
     law_classes = (RateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        v: Annotated[float, StateSpec()] = -65.0,
-        u: Annotated[float, StateSpec()] = -13.0,
-        a: Annotated[float, ParameterSpec()] = 0.02,
-        b: Annotated[float, ParameterSpec()] = 0.2,
-        I: Annotated[float, ParameterSpec()] = 10.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.v = v
-        self.u = u
+    def __init__(self, label: str, *, target: Role, a: float = 0.02, b: float = 0.2, I: float = 10.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.b = b
         self.I = I
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the quadratic potential and the linear recovery.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the quadratic potential and the linear recovery.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the neuron, the time `t`, and the parameters.
         """
-        return [RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I), RateLaw(s.u, s.a * (s.b * s.v - s.u))]
+        super()._prepare(context)
+        s = context
+        v, u = s.target.v, s.target.u
+        self.laws_ = [RateLaw(v, 0.04 * v**2 + 5 * v + 140 - u + s.I), RateLaw(u, s.a * (s.b * v - u))]
 
 
 class LeakyIntegrateAndFireElement(Element):
-    """Leaky integrate-and-fire neuron.
+    """Leaky integrate-and-fire neuron with the potential `v`.
 
-    Its potential relaxes to `rest + resistance I` over the time `tau`.
+    Args:
+        label:
+            The label of the neuron.
+
+        v:
+            The initial potential.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import LeakyIntegrateAndFireElement
+        >>> LeakyIntegrateAndFireElement('neuron').v
+        -65.0
+    """
+
+    def __init__(self, label: str, *, v: float = -65.0) -> None:
+        super().__init__(label)
+        self.v = v
+
+
+class LeakyIntegrateAndFireInteraction(Interaction):
+    """Leak of the potential of a neuron towards `rest + resistance I` over the time `tau`.
 
     The potential follows `tau v' = -(v - rest) + resistance I`. A spike reset fires the neuron. Units are mV, ms, MΩ,
     and nA.
 
     Args:
         label:
-            The label of the neuron.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        v:
-            The initial potential.
+        target:
+            The path of the neuron, with the potential `v`.
 
         rest:
             The resting potential.
@@ -118,8 +146,8 @@ class LeakyIntegrateAndFireElement(Element):
             The input current.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import LeakyIntegrateAndFireElement
-        >>> LeakyIntegrateAndFireElement('neuron').tau
+        >>> from skcomplex.systems.biology.neuroscience import LeakyIntegrateAndFireInteraction
+        >>> LeakyIntegrateAndFireInteraction('membrane', target='neuron').tau
         10.0
     """
 
@@ -128,33 +156,31 @@ class LeakyIntegrateAndFireElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        v: Annotated[float, StateSpec()] = -65.0,
-        rest: Annotated[float, ParameterSpec()] = -65.0,
-        resistance: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        I: Annotated[float, ParameterSpec()] = 2.0,
+        target: Role,
+        rest: float = -65.0,
+        resistance: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        I: float = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.v = v
+        super().__init__(label)
+        self.target = target
         self.rest = rest
         self.resistance = resistance
         self.tau = tau
         self.I = I
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the leaky integration of the input current.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the leaky integration of the input current.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the neuron, the time `t`, and the parameters.
         """
-        return [RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau)]
+        super()._prepare(context)
+        s = context
+        v = s.target.v
+        self.laws_ = [RateLaw(v, (-(v - s.rest) + s.resistance * s.I) / s.tau)]
 
 
 class IntegrateAndFireSystem(BaseSystem):
@@ -190,10 +216,15 @@ class IntegrateAndFireSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import IntegrateAndFireSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> trajectory = simulate(IntegrateAndFireSystem(), until=50.0, dt=0.1)
+        >>> trajectory = IntegrateAndFireSystem().prepare().simulate(until=50.0, dt=0.1)
         >>> round(trajectory.events[0].time, 2)
         13.86
     """
@@ -215,8 +246,10 @@ class IntegrateAndFireSystem(BaseSystem):
         tau: float = 10.0,
         I: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.rest = rest
         self.threshold = threshold
@@ -225,18 +258,25 @@ class IntegrateAndFireSystem(BaseSystem):
         self.tau = tau
         self.I = I
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the leaky integrate-and-fire neuron."""
-        neuron = LeakyIntegrateAndFireElement(
-            'neuron',
-            v=self.v,
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the leaky integrate-and-fire neuron.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        neuron = LeakyIntegrateAndFireElement('neuron', v=self.v)
+        membrane = LeakyIntegrateAndFireInteraction(
+            'membrane',
+            target='neuron',
             rest=self.rest,
             resistance=self.resistance,
             tau=self.tau,
             I=self.I,
         )
         spike = SpikeResetInteraction('spike', target='neuron', threshold=self.threshold, after=self.reset)
-        return CompositeSystem(self.label, elements=[neuron], interactions=[spike])
+        self.system_ = System(self.label, elements=[neuron], interactions=[membrane, spike])
 
 
 class IzhikevichSystem(BaseSystem):
@@ -273,9 +313,15 @@ class IzhikevichSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import IzhikevichSystem
-        >>> IzhikevichSystem(d=2.0).prepare().system_.interactions[0].kick
+        >>> IzhikevichSystem(d=2.0).prepare().system_.interactions[1].kick
         2.0
     """
 
@@ -296,8 +342,10 @@ class IzhikevichSystem(BaseSystem):
         d: float = 8.0,
         I: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.v = v
         self.u = u
         self.a = a
@@ -306,15 +354,15 @@ class IzhikevichSystem(BaseSystem):
         self.d = d
         self.I = I
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Izhikevich neuron."""
-        neuron = IzhikevichElement(
-            'neuron',
-            v=self.v,
-            u=self.b * self.v if self.u is None else self.u,
-            a=self.a,
-            b=self.b,
-            I=self.I,
-        )
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Izhikevich neuron.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        neuron = IzhikevichElement('neuron', v=self.v, u=self.b * self.v if self.u is None else self.u)
+        membrane = IzhikevichInteraction('membrane', target='neuron', a=self.a, b=self.b, I=self.I)
         spike = SpikeResetInteraction('spike', target='neuron', threshold=PEAK, after=self.c, kicked='u', kick=self.d)
-        return CompositeSystem(self.label, elements=[neuron], interactions=[spike])
+        self.system_ = System(self.label, elements=[neuron], interactions=[membrane, spike])

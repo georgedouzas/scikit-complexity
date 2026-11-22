@@ -3,70 +3,62 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
+import math
+from collections.abc import Mapping
 from typing import Annotated
 
-from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element, Period
+from .....core.components.spaces import BaseSpace
 
 
 class PhaseOscillatorElement(Element):
-    """Phase oscillator, a phase `theta` that turns at its natural frequency.
+    """Phase oscillator, a phase `theta` on the circle with a natural frequency `omega`.
 
-    The phase follows `theta' = omega`.
-
-    Couplings to other oscillators add to the rate of the phase.
+    The phase wraps around the circle, and `PhaseRotationInteraction` turns it at the natural frequency, as for a
+    clock, a firefly, or a generator of a power grid. Couplings to other oscillators add to the rate of the phase.
 
     Args:
         label:
             The label of the oscillator or the group.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         theta:
-            The initial phase.
+            The initial phase, or one phase per member.
 
         omega:
-            The natural frequency.
+            The natural frequency, or one frequency per member.
 
-    Attributes:
-        default_visual_:
-            The visual of the oscillator when it sets none.
+        size:
+            The number of oscillators, or `None` for one or one per site of the space.
+
+        space:
+            The space of the oscillators, or `None` for none.
+
+        on:
+            `'edges'` or `'hyperedges'` for one oscillator on every link of a network, or `None` for its sites.
+
+        values:
+            Further values by name, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.physics.common.oscillators import PhaseOscillatorElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(elements=[PhaseOscillatorElement('clock', omega=2.0)])
-        >>> float(simulate(system, until=1.0, dt=0.5).get_values('clock.theta')[-1])
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.oscillators import PhaseOscillatorElement, PhaseRotationInteraction
+        >>> clock = PhaseOscillatorElement('clock', omega=2.0)
+        >>> system = System(elements=[clock], interactions=[PhaseRotationInteraction('turn', target='clock')])
+        >>> float(system.prepare().simulate(until=1.0, dt=0.5).get_values('clock.theta')[-1])
         2.0
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        theta: Annotated[float, StateSpec(role='phase')] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        omega: object = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+        on: str | None = None,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space, on=on)
         self.theta = theta
         self.omega = omega
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the turning of the phase at the natural frequency.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of the phase.
-        """
-        return [RateLaw(namespace.theta, namespace.omega)]

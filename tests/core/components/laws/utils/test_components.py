@@ -1,40 +1,25 @@
 """Test the `_components` module of `skcomplex.core.components.laws.utils`."""
 
-from typing import Annotated
+from types import SimpleNamespace
 
 import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import both, components
 from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
 from skcomplex.core.components.spaces import NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 SEEDS = pytest.mark.parametrize('seed', [0, 1, 2])
-
-
-class ValueElement(Element):
-    """Node or link with one value."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        a: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.a = a
 
 
 class ComponentsInteraction(Interaction):
@@ -44,8 +29,8 @@ class ComponentsInteraction(Interaction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
+        nodes: Role,
+        links: Role,
         reduce: str = 'label',
         sites: bool = False,
     ) -> None:
@@ -55,12 +40,14 @@ class ComponentsInteraction(Interaction):
         self.reduce = reduce
         self.sites = sites
 
-    def _get_laws(self, s):
-        """Return the drift of the reduction over the links that are open, or open between occupied nodes."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drift of the reduction over the links that are open, or open between occupied nodes."""
+        super()._prepare(context)
+        s = context
         active = s.links.a
         if self.sites:
             active = both(s.links.a != 0, both(s.nodes.a > 0.5, s.nodes.other.a > 0.5))
-        return [RateLaw(s.nodes.a, components(active, reduce=self.reduce))]
+        self.laws_ = [RateLaw(s.nodes.a, components(active, reduce=self.reduce))]
 
 
 def _random_network(seed, directed=False):
@@ -92,14 +79,15 @@ def _expected(graph, weights, occupied, reduce, sites):
 def _drift(graph, weights, occupied, backend, reduce, *, sites=False):
     """Return the drift of the nodes, the reduction over the components of the active links."""
     space = NetworkSpace(graph)
-    system = CompositeSystem(
+    system = System(
         elements=[
-            GroupElement('nodes', element=ValueElement, space=space, values={'a': occupied}, on='sites'),
-            GroupElement('links', element=ValueElement, space=space, on='edges', values={'a': weights}),
+            Element('nodes', values={'a': occupied}, space=space),
+            Element('links', values={'a': weights}, space=space, on='edges'),
         ],
         interactions=[ComponentsInteraction('components', nodes='nodes', links='links', reduce=reduce, sites=sites)],
+        backend=backend,
     )
-    problem = PassCompiler(backend=backend).prepare(system).run().problem_
+    problem = system.prepare()._problem
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.a')
 
 

@@ -5,18 +5,14 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.physics.soft_matter import AnisotropicBrownianParticlesSystem, RigidDimersSystem
 
 
 def _bodies(n_particles=400, **settings):
     """Return the times, positions, axes, and spins of a run of anisotropic particles to time 1."""
-    trajectory = simulate(
-        AnisotropicBrownianParticlesSystem(n_particles=n_particles, **settings),
-        until=1.0,
-        random_state=0,
-    )
+    system = AnisotropicBrownianParticlesSystem(n_particles=n_particles, **settings).prepare()
+    trajectory = system.simulate(until=1.0, random_state=0)
     positions = np.stack([np.asarray(trajectory.get_values(f'particles.{name}')) for name in 'xyz'], axis=-1)
     axes = np.stack([np.asarray(trajectory.get_values(f'particles.u{name}')) for name in 'xyz'], axis=-1)
     return np.asarray(trajectory.times), positions, axes, np.asarray(trajectory.get_values('particles.psi'))
@@ -54,7 +50,7 @@ def test_anisotropic_particles_refuse_a_coupling_beyond_the_positive_tensor():
 @pytest.mark.parametrize(('v0', 'expected'), [(0.0, 0.05), (2.0, 0.05 + 4.0 / 4)])
 def test_rigid_dimers_diffuse_as_their_free_draining_limit(v0, expected):
     """Test the rod's rotational diffusion `2 D_t / L²` and the long-time diffusion `D_t / 2 + v0² / (4 D_r)`."""
-    trajectory = simulate(RigidDimersSystem(n_dimers=400, v0=v0), until=20.0, random_state=0)
+    trajectory = RigidDimersSystem(n_dimers=400, v0=v0).prepare().simulate(until=20.0, random_state=0)
     times = np.asarray(trajectory.times)
     centres, angles = np.asarray(trajectory.get_values('dimers.c')), np.asarray(trajectory.get_values('dimers.phi'))
     diffusion = ((centres[-1] - centres[100]) ** 2).sum(axis=-1).mean() / (4 * (times[-1] - times[100]))

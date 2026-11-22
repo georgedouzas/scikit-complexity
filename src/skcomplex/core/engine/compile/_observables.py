@@ -1,4 +1,4 @@
-"""Compile the observables of a system tree into one evaluator."""
+"""Compile the observables of a system into one evaluator."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,32 +10,42 @@ from typing import Annotated, Self
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, I
+from sage.all__sagemath_symbolics import SR, Expression, I, function
+from sage.modules.free_module_element import FreeModuleElement
 
+from ...components import EntrySpec, Observable
+from ...components._state_spec import _StateSpec
 from ...components.elements import Element
+from ...components.interactions import BaseInteraction
 from ...components.laws.utils import local_operator
+from ...components.laws.utils._history import derivative
 from ...components.laws.utils._local_operators import has_operator
-from ...components.specs import NodeSpec
-from ...components.systems import CompositeSystem
+from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
-from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunStateSpec, StateSpec
-from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...types import Array, FormKind, Indices, VariableKind
-from .._utils import bound_labels, declarations_of, symbol, symbols_of
-from ..problems import BaseProblemSpec, ProblemSpec
+from ...types import Array, Indices
+from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of, vector
+from ..enums import ReadKind
+from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
+from ..problems._composite_system import _CompositeSystem
+from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
+from ..problems._layout_spec import LayoutSpec
+from ..problems._neighbor_read_spec import _NeighborReadSpec
+from ..problems._node_spec import _NodeSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
 from ..problems._operator_problem_spec import OperatorProblemSpec
+from ..problems._read_spec import _ReadSpec
 from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
+from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
 from ._flows import TransferLowering
+from ._held_reduction_spec import _HeldReductionSpec
 from ._member_reductions import _MemberReductions
 from ._members import MemberLowering
 from .passes._complex import LowerComplexPass
@@ -50,7 +60,7 @@ class _HeldElement(Element):
     def __init__(
         self,
         label: str,
-        value: Annotated[float, StateSpec()] = 0.0,
+        value: Annotated[float, _StateSpec()] = 0.0,
         *,
         reduction: '_HeldReductionSpec | None' = None,
     ) -> None:
@@ -60,38 +70,37 @@ class _HeldElement(Element):
 
 
 class ObservableEvaluator:
-    """An evaluator of every observable of a problem.
+    """An evaluator that computes every observable of a problem from its values.
 
-    It evaluates them from a state vector, a parameter vector, and the agents. Preparing compiles every observable into
-    a getter, in declaration order, the prepared `getters_`.
+    An observable is a quantity a run records beside the states, such as the total size of a herd. Preparing turns every
+    observable into a function, in the order they are declared, and `evaluate` computes them all from the time, the
+    states, and the parameters. It records the mean wealth of traders, the total of a herd, and the order of a flock.
+
+    Read more in the user guide, under Observe.
 
     Args:
         problem:
             The compiled problem.
 
+    See Also:
+        Observable: Names a quantity a run records.
+        Observer: Gives the values of observables that laws read.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.engine.compile._observables import ObservableEvaluator
-        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-        >>> from skcomplex.core.specs import ObservableSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = CompositeSystem(
-        ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'x': [2.0, 6.0]})]
-        ... )
-        >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='x')
-        >>> problem = PassCompiler(observables=[total]).prepare(system).run().problem_
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
-        {'total': 8.0}
+        {}
     """
 
     @staticmethod
-    def _get_role_paths(system: CompositeSystem, scope: str = '') -> set[str]:
+    def _get_role_paths(system: _CompositeSystem, scope: str = '') -> set[str]:
         """Return the paths from the root of everything roles of a system tree bind to."""
         paths = set()
         for interaction in system.interactions:
             for name in declarations_of(interaction, VariableKind.ROLE):
-                labels = bound_labels(getattr(interaction, name))
+                labels = bound_labels(binding_of(interaction, name))
                 paths |= {f'{scope}/{label}' if scope else label for label in labels}
         for child in system.systems:
             paths |= ObservableEvaluator._get_role_paths(child, f'{scope}/{child.label}' if scope else child.label)
@@ -126,10 +135,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _copy_with_held_reductions(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         reductions: Sequence['_HeldReductionSpec'],
         scope: str = '',
-    ) -> CompositeSystem:
+    ) -> _CompositeSystem:
         """Return a system tree that holds every reduction of agents in an element.
 
         The element is in the system of the group.
@@ -159,7 +168,11 @@ class ObservableEvaluator:
         ]
         if not own and all(new is old for new, old in zip(children, system.systems, strict=True)):
             return system
-        labels = {part.label for part in (*system.elements, *system.interactions, *system.systems)}
+        labels = (
+            {element.label for element in system.elements}
+            | {interaction.label for interaction in system.interactions}
+            | {child.label for child in system.systems}
+        )
         held = []
         for reduction in own:
             label = ObservableEvaluator._get_held_label(reduction, labels)
@@ -172,10 +185,10 @@ class ObservableEvaluator:
 
     @staticmethod
     def _copy_with_held_observables(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         read: set[str],
         scope: str = '',
-    ) -> tuple[CompositeSystem, list[str]]:
+    ) -> tuple[_CompositeSystem, list[str]]:
         """Return a system tree that also holds every observable in `read` in an element.
 
         It also returns their paths.
@@ -218,7 +231,7 @@ class ObservableEvaluator:
         return copied, held
 
     @staticmethod
-    def _get_held_observables(system: CompositeSystem, nodes: list[NodeSpec]) -> set[str]:
+    def _get_held_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> set[str]:
         """Return the paths of the observables read only at synchronisation points.
 
         They are the observables that roles bind to and laws read only at those points.
@@ -298,9 +311,7 @@ class ObservableEvaluator:
                 self.getters_[path] = self._get_function_getter(scope, path, observable.function)
                 continue
             if observable.group is None and observable.expression is None:
-                error_msg = (
-                    f'ObservableSpec {path} has neither an expression, a function, nor a group. Give one of them.'
-                )
+                error_msg = f'Observable {path} has neither an expression, a function, nor a group. Give one of them.'
                 raise ValidationError(error_msg)
             observed = self.problem.observed if isinstance(self.problem, ProblemSpec) else {}
             if observable.group is None:
@@ -332,8 +343,8 @@ class ObservableEvaluator:
         """Return the getter of the scores of the rows of a lattice state."""
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
-            del t, done
-            return drive.read_score(x, p)
+            del done
+            return drive.read_score(t, x, p)
 
         return get
 
@@ -345,12 +356,12 @@ class ObservableEvaluator:
     ) -> ObservableFunction:
         """Return a getter that calls a function of time and the system values.
 
-        The values are those of the states and parameters of its system.
+        The values are those of the states and parameters of its system, by the names users read, such as `x'`.
         """
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
-                f'ObservableSpec {path} is a function of the values of a system, which a system with agents or a '
+                f'Observable {path} is a function of the values of a system, which a system with agents or an '
                 'operator system does not hold as a vector. Give an expression, or an expression of each agent.'
             )
             raise ValidationError(error_msg)
@@ -360,7 +371,11 @@ class ObservableEvaluator:
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
             values = {**states.get_values(x), **parameters.get_values(p)}
-            local = {name.removeprefix(prefix): item for name, item in values.items() if name.startswith(prefix)}
+            local = {
+                LayoutSpec._get_display_name(name.removeprefix(prefix)): item
+                for name, item in values.items()
+                if name.startswith(prefix)
+            }
             value = np.asarray(function(t, local))
             return float(value) if value.ndim == 0 else value
 
@@ -401,8 +416,8 @@ class ObservableEvaluator:
                 readers.append(self._create_from_members(self._create_from_vector(vector == 'x', index)))
             else:
                 error_msg = (
-                    f'ObservableSpec {path} uses the symbol {item}, which is neither a variable of a single element or '
-                    'interaction nor an earlier observable. Use the namespace that the expression receives.'
+                    f'Observable {path} uses the symbol {item}, which is neither a variable of a single element or '
+                    'interaction nor an earlier observable. Use the values that the expression receives.'
                 )
                 raise ValidationError(error_msg)
         function = ExpressionPrinter(time=self.problem.time, compiled=True).prepare(arguments).run([expression]).code_
@@ -467,7 +482,7 @@ class ObservableEvaluator:
             expression = SR(expression).subs({call: item})
         return expression, members
 
-    def _get_expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
+    def _get_expression_getter(self, scope: str, path: str, observable: Observable) -> ObservableFunction:
         """Return the getter of an expression of the system's symbols."""
         prefix = f'{scope}/' if scope else ''
         earlier = {
@@ -478,9 +493,129 @@ class ObservableEvaluator:
         namespace = self._get_namespace_of(self.problem, scope)
         for other, item in earlier.items():
             setattr(namespace, other[len(prefix) :], item)
-        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
+        expression = self._read_derivatives(path, observable.expression, namespace)
         expression, stages = self._read_delays(path, expression)
         return self._compile(path, expression, {item: other for other, item in earlier.items()}, stages)
+
+    def _get_state_components(self) -> dict[str, tuple[str, int]]:
+        """Return the state name and column of every scalar state symbol, by its name.
+
+        A state `x` on a plane has two such symbols, at the columns 0 and 1.
+        """
+        problem = self.problem
+        components: dict[str, tuple[str, int]] = {}
+        for name, value in problem.symbols.items():
+            if not problem.states.has(name):
+                continue
+            for column, item in enumerate(list(value) if isinstance(value, FreeModuleElement) else [value]):
+                if isinstance(item, Expression) and item.is_symbol():
+                    components[str(item)] = (name, column)
+        return components
+
+    def _get_functional(
+        self,
+        value: object,
+        components: Mapping[str, tuple[str, int]],
+        functions: dict[str, Expression],
+    ) -> object:
+        """Return a value with every scalar symbol of a state as a function of the time.
+
+        A state `x` becomes `x(t)`, so `x.diff(t)` is its derivative.
+        """
+        if isinstance(value, SimpleNamespace):
+            return SimpleNamespace(
+                **{name: self._get_functional(item, components, functions) for name, item in vars(value).items()},
+            )
+        if isinstance(value, tuple):
+            return tuple(self._get_functional(item, components, functions) for item in value)
+        if isinstance(value, FreeModuleElement):
+            return vector(self._get_functional(item, components, functions) for item in value)
+        if isinstance(value, Expression) and value.is_symbol() and str(value) in components:
+            functions[str(value)] = value
+            return function(str(value))(self.problem.time)
+        return value
+
+    def _read_derivatives(self, path: str, expression: object, namespace: SimpleNamespace) -> object:
+        """Return the value of an expression of a namespace, reading derivatives as states.
+
+        The expression reads every state as a function of the time, so `s.ball.x.diff(s.t)` is the derivative
+        `ball.x'`, which the problem holds as a state when a law reads the second derivative of `x`. It is the same for
+        an expression of one member of a group, such as the mean of `x.diff(t)` over the agents.
+
+        Args:
+            path:
+                The path of the observable, which errors name.
+
+            expression:
+                The expression of the observable, a function of the namespace or a value.
+
+            namespace:
+                The namespace of the components the expression reads.
+
+        Returns:
+            value:
+                The value of the expression, with every derivative read from its own state.
+
+        Raises:
+            ValidationError:
+                The expression reads a derivative that the problem does not hold.
+        """
+        if not callable(expression):
+            return expression
+        if not isinstance(self.problem, ProblemSpec):
+            return expression(namespace)
+        components = self._get_state_components()
+        functions: dict[str, Expression] = {}
+        value = expression(self._get_functional(namespace, components, functions))
+        if not functions:
+            return value
+        value = BaseInteraction._get_translated(value, self.problem.time, functions, False)
+        if isinstance(value, FreeModuleElement):
+            return value.apply_map(lambda item: self._get_derivative_states(path, SR(item), components))
+        return self._get_derivative_states(path, value, components)
+
+    def _get_derivative_states(
+        self,
+        path: str,
+        value: object,
+        components: Mapping[str, tuple[str, int]],
+    ) -> object:
+        """Return an expression with every state derivative read from its own state.
+
+        Args:
+            path:
+                The path of the observable, which errors name.
+
+            value:
+                The expression to rewrite, or any other value, which is returned as it is.
+
+            components:
+                The state name and column of every scalar state symbol, by its name.
+
+        Returns:
+            expression:
+                The expression with every state derivative replaced by its state.
+
+        Raises:
+            ValidationError:
+                The expression reads a derivative that the problem does not hold.
+        """
+        if not isinstance(value, Expression):
+            return value
+        expression = value
+        for found in expression.find(derivative(SR.wild(0), SR.wild(1))):
+            state, order = found.operands()
+            name, column = components[str(state)]
+            held = self.problem.symbols.get(f'{name}_d{order}')
+            if held is None:
+                read = name + "'" * int(order)
+                error_msg = (
+                    f'Observable {path} reads {read}, a derivative that the system does not hold. Observe the '
+                    'derivatives of a state whose laws read a higher derivative.'
+                )
+                raise ValidationError(error_msg)
+            expression = expression.subs({found: list(held)[column] if isinstance(held, FreeModuleElement) else held})
+        return expression
 
     def _read_delays(
         self,
@@ -501,7 +636,7 @@ class ObservableEvaluator:
         delays = TransferLowering._get_delay_calls(expression)
         if delays:
             error_msg = (
-                f'ObservableSpec {path} reads {delays[0]}, a delay that no law of the '
+                f'Observable {path} reads {delays[0]}, a delay that no law of the '
                 'system uses. Observe a delay that a law of the same element reads.'
             )
             raise ValidationError(error_msg)
@@ -533,8 +668,23 @@ class ObservableEvaluator:
             raise ValidationError(error_msg)
         return entry
 
-    def _get_reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
-        """Return the getter of a reduction over a group of elements or agents."""
+    def _get_active(self, group: str, x: Array, p: Array, size: int) -> npt.NDArray[np.bool_]:
+        """Return which of the `size` rows of a group hold a member.
+
+        Every row of a group that does not grow holds one.
+        """
+        name = f'{group}.{ACTIVE}'
+        for layout, values in ((self.problem.states, x), (self.problem.parameters, p)):
+            active = np.asarray(layout.read(values, name)).reshape(-1) > 0 if layout.has(name) else None
+            if active is not None and active.size == size:
+                return active
+        return np.ones(size, dtype=bool)
+
+    def _get_reduction_getter(self, scope: str, path: str, observable: Observable) -> ObservableFunction:
+        """Return the getter of a reduction over a group of elements or agents.
+
+        A group that grows reduces only the rows that hold a member, so a count over it counts its members.
+        """
         group = self._join(scope, observable.group or '')
         element = next((item for item in self.problem.elements if item.path == group), None)
         if element is None:
@@ -542,7 +692,7 @@ class ObservableEvaluator:
         names = {**element.states, **element.parameters}
         if observable.variable is not None:
             if observable.variable not in names:
-                error_msg = f'ObservableSpec {path} reduces {observable.variable}, which {group} does not declare.'
+                error_msg = f'Observable {path} reduces {observable.variable}, which {group} does not declare.'
                 raise ValidationError(error_msg)
             name = names[observable.variable]
             is_state = self.problem.states.has(name)
@@ -551,31 +701,29 @@ class ObservableEvaluator:
             def read_variable(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
-                return ReductionKernel._reduce_values(
-                    values if element.members is not None else values[np.newaxis],
-                    observable.reduce,
-                )
+                rows = values if element.members is not None else values[np.newaxis]
+                return ReductionKernel._reduce_values(rows[self._get_active(group, x, p, len(rows))], observable.reduce)
 
             return read_variable
         size = element.members or 1
         if observable.expression is None:
             if observable.reduce != 'count':
-                error_msg = f'ObservableSpec {path} reduces {group} with {observable.reduce!r} but names no variable.'
+                error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
-            return lambda t, x, p, done: float(size)
-        members: dict[Expression, ReadSpec] = {}
+            return lambda t, x, p, done: float(self._get_active(group, x, p, size).sum())
+        members: dict[Expression, _ReadSpec] = {}
         for name in names.values():
             entry = self._get_entry(name)
             is_state = self.problem.states.has(name)
             for column, item in enumerate(ProblemSpec._get_real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
-                members[item] = ReadSpec(is_state, indices, entry, column, entry.columns)
+                members[item] = _ReadSpec(is_state, indices, entry, column, entry.columns)
         namespace = SimpleNamespace(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
-        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        scalars = {item: ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
+        expression = self._read_derivatives(path, observable.expression, namespace)
+        scalars = {item: _ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         parameters = len(self.problem.initial_parameters)
         lowering = _MemberReductions(
             path=path,
@@ -592,12 +740,12 @@ class ObservableEvaluator:
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             values = np.broadcast_to(np.asarray(evaluate(t, x, reductions.extend(t, x, p), done)), (size,))
-            return ReductionKernel._reduce_values(values, observable.reduce)
+            return ReductionKernel._reduce_values(values[self._get_active(group, x, p, size)], observable.reduce)
 
         return read_expression
 
     @staticmethod
-    def _get_observed_getter(kernel: LawKernel, observable: ObservableSpec) -> ObservableFunction:
+    def _get_observed_getter(kernel: LawKernel, observable: Observable) -> ObservableFunction:
         """Return the getter of a reduction of a field expression with field operators.
 
         The getter reads from its kernel.
@@ -610,13 +758,13 @@ class ObservableEvaluator:
 
         return read_field
 
-    def _get_agent_getter(self, group: str, path: str, observable: ObservableSpec) -> ObservableFunction:
+    def _get_agent_getter(self, group: str, path: str, observable: Observable) -> ObservableFunction:
         """Return the getter of a reduction over an agent group.
 
         The agents of the evaluation give the values.
         """
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partition_problems:
-            error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
+            error_msg = f'Observable {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
         objects = {name for spec in self.problem.agents if spec.path == group for name in spec.objects}
 
@@ -651,7 +799,7 @@ class ObservableEvaluator:
         The energy is included, and the purity when the problem is open. An observable gives an operator, a Sage
         expression of local operators, as a function of the namespace of its system, of its element, or of every member
         of its group, or names a local operator of its element or of every member of its group with `variable`, such as
-        `ObservableSpec('z', element='q', variable='z')`. Its value is the expectation of the operator, reduced over the
+        `Observable('z', element='q', variable='z')`. Its value is the expectation of the operator, reduced over the
         members of a group.
 
         Args:
@@ -726,7 +874,7 @@ class ObservableEvaluator:
                 The problem holds no lowering of its operators.
         """
         if problem.lowering is None:
-            error_msg = 'The operator problem holds no lowering of its operators. Compile it with OperatorCompiler.'
+            error_msg = 'The operator problem holds no compiled operators. Compile it with OperatorCompiler.'
             raise ValidationError(error_msg)
         return problem.lowering
 
@@ -754,7 +902,7 @@ class ObservableEvaluator:
     def _get_operator_member_getter(
         problem: OperatorProblemSpec,
         path: str,
-        observable: ObservableSpec,
+        observable: Observable,
         group: str,
     ) -> ObservableFunction:
         """Return the getter of an operator observable evaluated member by member.
@@ -778,7 +926,7 @@ class ObservableEvaluator:
                 for member in problem.members[group]
             ]
         else:
-            error_msg = f'Observable {path} of an operator group needs a function of a member namespace or a variable.'
+            error_msg = f'Observable {path} of an operator group needs a function of each member or a variable.'
             raise ValidationError(error_msg)
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
@@ -862,7 +1010,7 @@ class ObservableEvaluator:
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: ReadSpec) -> Callable[[Array, Array], Array]:
+    def _read_of(read: _ReadSpec) -> Callable[[Array, Array], Array]:
         """Return a reader of the values a reduction read stands for.
 
         It reads them from the state or the extended parameters.
@@ -872,7 +1020,7 @@ class ObservableEvaluator:
     @staticmethod
     def _create_from_offset(
         column: Callable[[Array, Array], Array],
-        read: NeighborReadSpec,
+        read: _NeighborReadSpec,
     ) -> Callable[[Array, Array], Array]:
         """Return a reader of a member column at an offset from every member."""
         return lambda x, p: read.read(column(x, p), p)
@@ -992,7 +1140,7 @@ class ObservableEvaluator:
         return f'{scope}/{path}' if scope else path
 
     @staticmethod
-    def _is_lowerable(scope: str, observable: ObservableSpec, nodes: dict[str, NodeSpec]) -> bool:
+    def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, _NodeSpec]) -> bool:
         """Check whether laws can read an observable at the current state.
 
         They read it as an expression or a symbolic reduction.
@@ -1003,7 +1151,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _get_lowerable_observables(system: CompositeSystem, nodes: list[NodeSpec]) -> Declared:
+    def _get_lowerable_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> Declared:
         """Return every observable of a system tree that laws can read, by path.
 
         Laws read them at the current state. An expression of a system's symbols is lowerable when every observable

@@ -8,30 +8,29 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...components.laws import BilinearLaw
-from ...components.spaces import ContinuousTime, LatticeSpace
+from ...components.spaces import LatticeSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, Indices, IntArray, OrderKind
+from ...types import Array, Indices, IntArray
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._kinetic_problem_spec import KineticProblemSpec
 from ._solver import Solver
 
 
 class KineticSolver(Solver):
-    """A solver that simulates encounter laws with finite particles by Monte Carlo.
+    """A solver that runs encounter laws with a finite number of particles.
 
-    The particles live on activity grids. Every density is held as counts of particles of one common mass, chosen so
-    that the largest initial density has `n` particles. Every step of length at most `dt` applies the encounter laws in
-    turn. A candidate particle at activity `h` encounters with probability `1 - exp(-lambda_h dt)`, where `lambda_h =
-    sum_k eta[h, k] g_k` over the field density `g`, and picks its field activity and outcome in proportion to `eta[h,
-    k] A[h, k, i] g_k`. A proliferation adds a Poisson number of particles and a destruction removes a binomial number.
-    The state holds the empirical densities, so the trajectories match those of the gain and loss equations, which the
-    particles approach as `n` grows.
+    Every density is held as counts of particles of one mass, chosen so that the largest starting density has `n`
+    particles. In each step a particle meets the field with a chance that grows with the density it meets, and picks an
+    outcome in proportion to its rate, so the run carries the noise of a finite population and approaches the gain and
+    loss equations as `n` grows, such as 1000 traders that swap money. It runs kinetic models of wealth, of opinions,
+    and of thin gases.
 
-    Choose it when a kinetic model needs the noise of a finite population. It appears in kinetic models of wealth
-    exchange, of opinion, and of rarefied gases.
+    Read more in the user guide, under Solvers.
 
     Args:
         n:
@@ -46,10 +45,14 @@ class KineticSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        GillespieSolver: Runs jumps of counted units exactly.
+
     Examples:
         >>> from skcomplex.core.engine.solvers import KineticSolver
-        >>> KineticSolver(n=1000).n
-        1000
+        >>> solver = KineticSolver(n=1000, dt=0.1)
+        >>> solver.n, solver.dt
+        (1000, 0.1)
     """
 
     draws = True
@@ -58,7 +61,7 @@ class KineticSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={LatticeSpace},
             laws={BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),

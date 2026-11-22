@@ -4,12 +4,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import reservoir
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.dynamical_systems import LorenzSystem
+
+from .conftest import _damped_rotation, _last_values
 
 LYAPUNOV_TIME = 1 / 0.906
 STEP = 0.025
@@ -20,7 +20,7 @@ def _lorenz_samples():
     """Return samples of the Lorenz attractor every 0.025 for 42 Lyapunov times after a transient."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
-    trajectory = simulate(LorenzSystem().prepare().system_, until=until, solver=solver, dt=STEP)
+    trajectory = LorenzSystem(solver=solver).prepare().simulate(until=until, dt=STEP)
     values = np.column_stack([trajectory.get_values(f'lorenz.{name}') for name in 'xyz'])
     first = round(TRANSIENT / STEP)
     return values[first:]
@@ -49,11 +49,11 @@ def test_reservoir_analysis_forecasts_lorenz_for_a_lyapunov_time():
 
 
 def test_reservoir_analysis_runs_under_discrete_time():
-    """Test that a reservoir surrogate declares discrete time and that each step applies the readout once."""
+    """Test that a reservoir surrogate prepares as a discrete map and that each step applies the readout once."""
     system = _fit(_sine_values(), horizon=20)
-    assert isinstance(system.system.time, DiscreteTime)
-    assert PassCompiler().prepare(system.system).report_.ok
-    run = simulate(system.system, until=20)
+    prepared = system.system.prepare()
+    assert prepared.form_ == FormKind.DISCRETE
+    run = prepared.simulate(until=20)
     assert np.allclose(
         np.column_stack([run.get_values('surrogate.x'), run.get_values('surrogate.y')])[1:],
         system.forecast,
@@ -94,3 +94,21 @@ def test_next_generation_reads_the_variables_as_they_are_without_standardizing()
     assert analysis.step.mean.tolist() == [0.0, 0.0]
     assert analysis.step.scale.tolist() == [1.0, 1.0]
     assert analysis.forecast[-1, 0] == pytest.approx(np.sin(0.1 * 609), abs=0.01)
+
+
+def test_reservoir_keeps_its_reference_values():
+    """Test the run of the reservoir surrogate against the values recorded before it moved to declared states."""
+    analysis = reservoir(
+        _damped_rotation(),
+        variables=['x', 'y'],
+        kind='next_generation',
+        delay=2,
+        order=2,
+        ridge=1e-6,
+        validation=0.0,
+        dt=0.05,
+    )
+    assert _last_values(analysis, ['x', 'y'], 10, 1) == pytest.approx(
+        [-0.0024828568048470227, 0.004773226924693426],
+        rel=1e-9,
+    )

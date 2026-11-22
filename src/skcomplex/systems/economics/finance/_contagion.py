@@ -5,26 +5,28 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 UNDISTRESSED = 0
 DISTRESSED = 1
 INACTIVE = 2
 
 
-class InterbankView(AgentView):
+class InterbankView(AgentViewProtocol, Protocol):
     """Bank as the cascade sees it.
 
     It holds its distress `h`, its `status`, and its economic `value`.
@@ -44,9 +46,6 @@ class InterbankElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         h:
             The level of distress, between 0 and 1, where 1 is default.
 
@@ -56,46 +55,28 @@ class InterbankElement(Element):
         value:
             The economic value, the bank's share of all interbank lending.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.finance import InterbankElement
-        >>> GroupElement('banks', element=InterbankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
+        >>> InterbankElement('banks', h=[1.0, 0.0, 0.0], size=3).size
         3
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        status: Annotated[float, StateSpec(domain=NN)] = UNDISTRESSED,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        h: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        status: Annotated[object, NN] = float(UNDISTRESSED),
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.h = h
         self.status = status
         self.value = value
-
-    @classmethod
-    def _get_view(cls) -> type[InterbankView]:
-        """Return the view of the agents of the element."""
-        return InterbankView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the cascade updates every bank at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class DebtRankCascadeInteraction(Interaction):
@@ -120,31 +101,28 @@ class DebtRankCascadeInteraction(Interaction):
         [[0.0, 0.5], [0.0, 0.0]]
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        banks: Annotated[str, RoleSpec()],
+        banks: Role,
         impact: Sequence[Sequence[float]] = (),
     ) -> None:
         super().__init__(label)
         self.banks = banks
         self.impact = impact
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cascade rule.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rules of the system as the laws.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.spread)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.spread)]
 
     def spread(self, system: SystemView) -> None:
         """Advance the distress and the states of every bank by one step.
@@ -153,7 +131,7 @@ class DebtRankCascadeInteraction(Interaction):
             system:
                 The system.
         """
-        banks = sorted(system.get_agents('banks', InterbankView), key=lambda bank: bank.id)
+        banks = sorted(cast(list[InterbankView], system.get_agents('banks')), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED
@@ -202,9 +180,15 @@ class DebtrankSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import DebtrankSystem
-        >>> DebtrankSystem([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).prepare().system_.elements[0].prepare().size_
+        >>> DebtrankSystem([[0.0, 5.0], [0.0, 0.0]], [10.0, 10.0]).prepare().system_.elements[0].size
         2
     """
 
@@ -212,7 +196,7 @@ class DebtrankSystem(BaseSystem):
     topics = ('systemic risk', 'network', 'contagion', 'agents')
     references = ('Thurner et al. 2018', 'Battiston et al. 2012')
     until = 10
-    observables = (ObservableSpec('value_at_risk', _get_value_at_risk, group='banks', reduce='sum'),)
+    observables = (Observable('value_at_risk', _get_value_at_risk, group='banks', reduce='sum'),)
 
     def __init__(
         self,
@@ -225,8 +209,10 @@ class DebtrankSystem(BaseSystem):
         density: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.liabilities = liabilities
         self.capital = capital
         self.distressed = distressed
@@ -255,8 +241,9 @@ class DebtrankSystem(BaseSystem):
         lent = np.asarray(liabilities, dtype=float).sum(axis=0)
         return lent / lent.sum()
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.liabilities is None or self.capital is None:
             matrix, capitals = self._get_random_exposures(
                 self.n_banks,
@@ -269,13 +256,8 @@ class DebtrankSystem(BaseSystem):
         h = np.zeros(size)
         h[list(self.distressed)] = self.psi
         status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
-        banks = GroupElement(
-            'banks',
-            element=InterbankElement,
-            size=size,
-            values={'h': h, 'status': status, 'value': self._get_economic_values(matrix)},
-        )
-        return CompositeSystem(
+        banks = InterbankElement('banks', h=h, status=status, value=self._get_economic_values(matrix), size=size)
+        self.system_ = System(
             self.label,
             elements=[banks],
             interactions=[

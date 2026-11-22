@@ -7,16 +7,16 @@ The cascades run through interbank exposures.
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import SystemView
-from ....core.specs import ParameterSpec, RoleSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ..common.banking import BalanceSheetElement
 from ..common.banking._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetView
 from ..common.policy import PolicyRuleInteraction
@@ -65,10 +65,10 @@ class DefaultCascadeInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        banks: Annotated[str, RoleSpec()],
+        banks: Role,
         liabilities: Sequence[Sequence[float]] = (),
-        threshold: Annotated[float, ParameterSpec()] = 0.0,
-        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        threshold: float = 0.0,
+        recovery: Annotated[float, RealSet.closed(0, 1)] = 0.0,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.banks = banks
@@ -85,7 +85,7 @@ class DefaultCascadeInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the cascade.
         """
-        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(cast(list[BalanceSheetView], system.get_agents('banks')), key=lambda bank: bank.id)
         status = np.array([bank.status for bank in banks])
         equity = np.array([bank.equity for bank in banks])
         defaulting = status == DEFAULTING
@@ -137,7 +137,7 @@ class PaymentClearingInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        banks: Annotated[str, RoleSpec()],
+        banks: Role,
         liabilities: Sequence[Sequence[float]] = (),
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
@@ -151,7 +151,7 @@ class PaymentClearingInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the clearing.
         """
-        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
+        banks = sorted(cast(list[BalanceSheetView], system.get_agents('banks')), key=lambda bank: bank.id)
         matrix = np.asarray(self.liabilities, dtype=float)
         owed = matrix.sum(axis=1)
         shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)
@@ -219,9 +219,15 @@ class DefaultCascadeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import DefaultCascadeSystem
-        >>> DefaultCascadeSystem([[0.0, 5.0], [0.0, 0.0]], [1.0, 2.0]).prepare().system_.elements[0].prepare().size_
+        >>> DefaultCascadeSystem([[0.0, 5.0], [0.0, 0.0]], [1.0, 2.0]).prepare().system_.elements[0].size
         2
     """
 
@@ -245,8 +251,10 @@ class DefaultCascadeSystem(BaseSystem):
         capital_ratio: float = 0.04,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.liabilities = liabilities
         self.equity = equity
         self.shocked = shocked
@@ -282,8 +290,9 @@ class DefaultCascadeSystem(BaseSystem):
         capital = np.full(n_banks, 100.0 * capital_ratio)
         return liabilities, external, capital
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.liabilities is None or self.equity is None:
             rng = np.random.default_rng(self.random_state)
             matrix, external, capital = self._get_gai_kapadia_network(
@@ -302,12 +311,7 @@ class DefaultCascadeSystem(BaseSystem):
         losses = np.where(hit, self.shock * external, 0.0)
         after = capital - losses
         status = np.where(after < self.threshold, DEFAULTING, SOLVENT).astype(float)
-        banks = GroupElement(
-            'banks',
-            element=BalanceSheetElement,
-            size=size,
-            values={'external': external - losses, 'equity': after, 'status': status},
-        )
+        banks = BalanceSheetElement('banks', external=external - losses, equity=after, status=status, size=size)
         cascade = DefaultCascadeInteraction(
             'cascade',
             banks='banks',
@@ -315,7 +319,7 @@ class DefaultCascadeSystem(BaseSystem):
             threshold=self.threshold,
             recovery=self.recovery,
         )
-        return CompositeSystem(self.label, elements=[banks], interactions=[cascade])
+        self.system_ = System(self.label, elements=[banks], interactions=[cascade])
 
 
 class EisenbergNoeClearingSystem(BaseSystem):
@@ -351,10 +355,16 @@ class EisenbergNoeClearingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import EisenbergNoeClearingSystem
         >>> system = EisenbergNoeClearingSystem([[0.0, 2.0], [1.0, 0.0]], [0.5, 1.0]).prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> system.elements[0].size
         2
     """
 
@@ -372,16 +382,19 @@ class EisenbergNoeClearingSystem(BaseSystem):
         density: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.liabilities = liabilities
         self.external = external
         self.n_banks = n_banks
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         if self.liabilities is None or self.external is None:
             rng = np.random.default_rng(self.random_state)
             links = rng.random((self.n_banks, self.n_banks)) < self.density
@@ -390,11 +403,6 @@ class EisenbergNoeClearingSystem(BaseSystem):
             assets = rng.exponential(5.0, self.n_banks)
         else:
             matrix, assets = np.asarray(self.liabilities, dtype=float), np.asarray(self.external, dtype=float)
-        banks = GroupElement(
-            'banks',
-            element=BalanceSheetElement,
-            size=len(matrix),
-            values={'external': assets, 'payment': matrix.sum(axis=1)},
-        )
+        banks = BalanceSheetElement('banks', external=assets, payment=matrix.sum(axis=1), size=len(matrix))
         clearing = PaymentClearingInteraction('clearing', banks='banks', liabilities=matrix.tolist())
-        return CompositeSystem(self.label, elements=[banks], interactions=[clearing])
+        self.system_ = System(self.label, elements=[banks], interactions=[clearing])

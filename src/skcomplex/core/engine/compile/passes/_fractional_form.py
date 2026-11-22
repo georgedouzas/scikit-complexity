@@ -1,27 +1,43 @@
-"""Pass that gives an ODE problem with a fractional state the fractional form."""
+"""Give a problem with a state of fractional order the fractional kind."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from __future__ import annotations
 
-from ....components.spaces import ContinuousTime
-from ....components.specs import CensusRecordSpec, NodeSpec
-from ....components.systems import CompositeSystem
+from ....components.spaces._continuous_time import _ContinuousTime
+from ....enums import FormKind, OrderKind, VariableKind
 from ....errors import BackendError, SolverError
-from ....specs import FractionalStateSpec, IssueSpec
-from ....types import FormKind, OrderKind, VariableKind
 from ..._utils import declarations_of
 from ...backends import BaseBackend
+from ...problems._composite_system import _CompositeSystem
+from ...problems._node_spec import _NodeSpec
 from .._base import BaseCompiler, BasePass
+from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation
 from .._forms import FORMS
+from .._fractional_state_spec import _FractionalStateSpec
+from .._issue_spec import IssueSpec
 
 
 class FractionalFormPass(BasePass):
-    """A pass that gives an ODE problem with a fractional state the fractional form.
+    """A pass that makes a problem with a state of fractional order fractional.
 
-    The fractional state is a state of a fractional order among its owners.
+    A state of order `alpha` in `(0, 1)` changes with a memory of its whole past, such as the relaxation of a
+    viscoelastic material. The pass checks the order, the time, and the solver and backend, and makes the problem
+    fractional.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FormPass: Finds the kind of other problems.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
+        >>> compilation = PassCompiler().prepare(FractionalRelaxationSystem()).run().compilation_
+        >>> compilation.form.value
+        'fractional differential equations'
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -40,7 +56,7 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _get_declared_times(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         scope: str = '',
         inherited: type | None = None,
     ) -> dict[str, type | None]:
@@ -60,7 +76,7 @@ class FractionalFormPass(BasePass):
 
         Returns:
             times:
-                The time class of every system by path, such as `ContinuousTime`, or `None` for a system without one.
+                The time class of every system by path, such as continuous time, or `None` for a system without one.
         """
         time = type(system.time) if system.time is not None else inherited
         times = {scope: time}
@@ -70,7 +86,7 @@ class FractionalFormPass(BasePass):
         return times
 
     @staticmethod
-    def _get_fractional_states(nodes: list[NodeSpec]) -> list[FractionalStateSpec]:
+    def _get_fractional_states(nodes: list[_NodeSpec]) -> list[_FractionalStateSpec]:
         """Return every state of a fractional order of the elements and groups of a system.
 
         Args:
@@ -87,11 +103,11 @@ class FractionalFormPass(BasePass):
                 continue
             for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items():
                 if declaration.is_fractional:
-                    found.append(FractionalStateSpec(node.path, f'{node.path}.{name}', declaration.order))
+                    found.append(_FractionalStateSpec(node.path, f'{node.path}.{name}', declaration.order))
         return found
 
     @staticmethod
-    def _get_owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
+    def _get_owned_fractional(compilation: Compilation) -> list[_FractionalStateSpec]:
         """Return the fractional states of the owners that the layout declares.
 
         Agents are left out.
@@ -106,7 +122,7 @@ class FractionalFormPass(BasePass):
 
     @staticmethod
     def _support_issues(
-        states: list[FractionalStateSpec],
+        states: list[_FractionalStateSpec],
         solver: object,
         backend: BaseBackend | None,
     ) -> list[IssueSpec]:
@@ -128,7 +144,7 @@ class FractionalFormPass(BasePass):
         return issues
 
     @staticmethod
-    def _get_law_issues(states: list[FractionalStateSpec], records: list[CensusRecordSpec]) -> list[IssueSpec]:
+    def _get_law_issues(states: list[_FractionalStateSpec], records: list[_CensusRecordSpec]) -> list[IssueSpec]:
         """Return the laws on fractional states that take the problem off its forms.
 
         The class of the law takes the problem off the ODE and fractional forms.
@@ -141,7 +157,7 @@ class FractionalFormPass(BasePass):
             targets = sorted({entry.name for entry in record.targets} & names)
             if not targets or not isinstance(record.law, others):
                 continue
-            name = type(record.law).__name__
+            name = record.law._get_name()
             message = (
                 f'The {name} of {record.path} targets {", ".join(targets)}, a state of a fractional order, but no '
                 f'fractional solver runs {name}.'
@@ -177,7 +193,7 @@ class FractionalFormPass(BasePass):
                 fix = 'Declare a fractional order in the interval (0, 1), or an integer order of at least 1.'
                 issues.append(IssueSpec('fractional-order', item.path, message, fix))
             time = times.get(item.path.rpartition('/')[0])
-            if time is not None and time is not ContinuousTime:
+            if time is not None and time is not _ContinuousTime:
                 message = (
                     f'The state {item.name} has the fractional order {item.order}, but the system declares {time} time.'
                 )

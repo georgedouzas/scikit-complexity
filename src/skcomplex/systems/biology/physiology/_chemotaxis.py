@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -10,33 +11,24 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import divergence, gradient
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class ChemotacticTissueElement(Element):
-    """Site of a tissue where cells and a chemical move with finite speeds.
-
-    It is the hyperbolic limit of velocity jumps.
-
-    The cell density `n` and its flux `q`, and the chemical density `c` and its flux `j`, follow Eq. (6.50) of Bellomo
-    et al. (2017) in two dimensions with the cells as the only source of the chemical, `dn/dt = -div q`, `dq/dt = -(s^2
-    / 2) grad n - mu1 q + mu2 alpha n grad c`, `tau dc/dt = -div j + n`, and `tau dj/dt = -(s^2 / 2) grad c - sigma
-    j`. Cells and chemical move at the speed `s` and turn at the rates `mu1` and `sigma`, and the cells turn towards
-    the gradient of the chemical with the sensitivity `alpha`. In the limit of fast turning it is the Keller-Segel model
-    with the diffusions `s^2 / (2 mu1)` and `s^2 / (2 sigma)`.
+    """Sites of a tissue, with the densities and fluxes of cells and a chemical that move with finite speeds.
 
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial cell density.
@@ -74,33 +66,34 @@ class ChemotacticTissueElement(Element):
         alpha:
             The chemotactic sensitivity of the cells.
 
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import ChemotacticTissueElement
         >>> ChemotacticTissueElement('tissue').alpha
         0.33
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        n: Annotated[float, StateSpec()] = 0.0,
-        qx: Annotated[float, StateSpec()] = 0.0,
-        qy: Annotated[float, StateSpec()] = 0.0,
-        c: Annotated[float, StateSpec()] = 0.0,
-        jx: Annotated[float, StateSpec()] = 0.0,
-        jy: Annotated[float, StateSpec()] = 0.0,
-        s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        mu1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5000.0,
-        mu2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5000.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0e6,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.33,
+        n: float | Array = 0.0,
+        qx: float | Array = 0.0,
+        qy: float | Array = 0.0,
+        c: float | Array = 0.0,
+        jx: float | Array = 0.0,
+        jy: float | Array = 0.0,
+        s: Annotated[float | Array, RealSet.open(0, oo)] = 100.0,
+        mu1: Annotated[float | Array, RealSet.closed_open(0, oo)] = 5000.0,
+        mu2: Annotated[float | Array, RealSet.closed_open(0, oo)] = 5000.0,
+        sigma: Annotated[float | Array, RealSet.closed_open(0, oo)] = 5.0e6,
+        tau: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        alpha: float | Array = 0.33,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.n = n
         self.qx = qx
         self.qy = qy
@@ -114,22 +107,51 @@ class ChemotacticTissueElement(Element):
         self.tau = tau
         self.alpha = alpha
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balance laws of the cells and the chemical.
 
-        They include their turning relaxations.
+class HyperbolicChemotaxisInteraction(Interaction):
+    """Balance laws of cells and a chemical that move with finite speeds and turn.
+
+    They are the hyperbolic limit of velocity jumps.
+
+    The cell density `n` and its flux `q`, and the chemical density `c` and its flux `j`, follow Eq. (6.50) of Bellomo
+    et al. (2017) in two dimensions with the cells as the only source of the chemical, `dn/dt = -div q`, `dq/dt = -(s^2
+    / 2) grad n - mu1 q + mu2 alpha n grad c`, `tau dc/dt = -div j + n`, and `tau dj/dt = -(s^2 / 2) grad c - sigma
+    j`. Cells and chemical move at the speed `s` and turn at the rates `mu1` and `sigma`, and the cells turn towards
+    the gradient of the chemical with the sensitivity `alpha`. In the limit of fast turning it is the Keller-Segel model
+    with the diffusions `s^2 / (2 mu1)` and `s^2 / (2 sigma)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the tissue, whose values are `n`, `qx`, `qy`, `c`, `jx`, `jy`, `s`, `mu1`, `mu2`, `sigma`,
+            `tau`, and `alpha`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import HyperbolicChemotaxisInteraction
+        >>> HyperbolicChemotaxisInteraction('balance', target='tissue').target
+        'tissue'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the balance laws of the cells and the chemical.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context.target
         pressure = s.s**2 / 2
         cells, chemical = gradient(s.n), gradient(s.c)
-        return [
+        self.laws_ = [
             RateLaw(s.n, -divergence([s.qx, s.qy])),
             RateLaw(s.qx, -pressure * cells[0] - s.mu1 * s.qx + s.mu2 * s.alpha * s.n * chemical[0]),
             RateLaw(s.qy, -pressure * cells[1] - s.mu1 * s.qy + s.mu2 * s.alpha * s.n * chemical[1]),
@@ -181,9 +203,15 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import HyperbolicChemotaxisSystem
-        >>> round(HyperbolicChemotaxisSystem(20).prepare().system_.elements[0].values['mu1'])
+        >>> round(HyperbolicChemotaxisSystem(20).prepare().system_.elements[0].mu1)
         5000
     """
 
@@ -192,7 +220,6 @@ class HyperbolicChemotaxisSystem(BaseSystem):
     references = ('Bellomo et al. 2017',)
     until = 0.015
     dt = 0.0005
-    solver = ScipyODESolver(method='BDF')
 
     def __init__(
         self,
@@ -206,8 +233,10 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         n0: float = 0.25,
         width: float = 0.03,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.sites = sites
         self.s = s
         self.D_n = D_n
@@ -217,8 +246,14 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         self.n0 = n0
         self.width = width
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of cells and a chemical moving with finite speed."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of cells and a chemical moving with finite speed.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         spacing = 0.8 / self.sites
         axis = -0.4 + spacing * (np.arange(self.sites) + 0.5)
         x, y = np.meshgrid(axis, axis, indexing='ij')
@@ -226,17 +261,22 @@ class HyperbolicChemotaxisSystem(BaseSystem):
         bumps = np.exp(-((x - offset) ** 2 + (y - offset) ** 2) / (2 * self.width**2))
         bumps += np.exp(-((x + offset) ** 2 + (y + offset) ** 2) / (2 * self.width**2))
         turning = self.s**2 / (2 * self.D_n)
-        values = {
-            'n': self.n0 / (2 * np.pi * self.width**2) * bumps,
-            's': self.s,
-            'mu1': turning,
-            'mu2': turning,
-            'sigma': self.s**2 / (2 * self.D_c),
-            'tau': self.tau,
-            'alpha': self.alpha,
-        }
         space = LatticeSpace((self.sites, self.sites), boundary='periodic', spacing=spacing)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[FieldElement('tissue', element=ChemotacticTissueElement, space=space, values=values)],
+            elements=[
+                ChemotacticTissueElement(
+                    'tissue',
+                    n=self.n0 / (2 * np.pi * self.width**2) * bumps,
+                    s=self.s,
+                    mu1=turning,
+                    mu2=turning,
+                    sigma=self.s**2 / (2 * self.D_c),
+                    tau=self.tau,
+                    alpha=self.alpha,
+                    space=space,
+                ),
+            ],
+            interactions=[HyperbolicChemotaxisInteraction('balance', target='tissue')],
+            solver=ScipyODESolver(method='BDF'),
         )

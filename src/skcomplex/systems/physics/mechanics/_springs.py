@@ -6,16 +6,88 @@ The module holds masses on springs and dampers between walls.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ..common.particles import (
-    DampingInteraction,
-    HarmonicForceInteraction,
-    HarmonicPotentialInteraction,
-    MassPointElement,
-    SpringInteraction,
-)
+from sage.all__sagemath_symbolics import oo, sqrt
+from sage.sets.real_set import RealSet
+
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.particles import LinearDragInteraction, PeriodicForceInteraction, RestoringForceInteraction
+
+
+class ElasticLinkInteraction(Interaction):
+    """Spring of stiffness `k` and rest length `length` between two masses on a line.
+
+    The energy is `k (|x1 - x2| - length)² / 2`, so the masses follow `m1 x1'' = f` and `m2 x2'' = -f`, with the force
+    `f = -k (|x1 - x2| - length) (x1 - x2) / |x1 - x2|`. It is the spring between two carts, the bond of a diatomic
+    molecule, or the coupling of two floors of a building.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first mass.
+
+        second:
+            The path of the second mass.
+
+        k:
+            The stiffness.
+
+        length:
+            The rest length.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.mechanics import ElasticLinkInteraction
+        >>> left, right = Element('left', values={'x': 0.0, 'm': 1.0}), Element('right', values={'x': 2.0, 'm': 1.0})
+        >>> link = ElasticLinkInteraction('bond', first='left', second='right', k=1.0, length=1.0)
+        >>> trajectory = System(elements=[left, right], interactions=[link]).prepare().simulate(until=1.0, dt=1.0)
+        >>> round(float(trajectory.get_values('left.x')[-1] + trajectory.get_values('right.x')[-1]), 6)
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Role,
+        second: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        length: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.k = k
+        self.length = length
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the accelerations of both masses.
+
+        Args:
+            context:
+                The namespace of the two masses, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        t, first, second = context.t, context.first, context.second
+        gap = first.x - second.x
+        distance = sqrt(gap**2)
+        force = -context.k * (distance - context.length) * gap / distance
+        self.laws_ = [RateLaw(first.x.diff(t, 2), force / first.m), RateLaw(second.x.diff(t, 2), -force / second.m)]
 
 
 class TwoMassSpringDamperSystem(BaseSystem):
@@ -76,6 +148,12 @@ class TwoMassSpringDamperSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import TwoMassSpringDamperSystem
         >>> TwoMassSpringDamperSystem(l1=2.0).prepare().system_.interactions[0].center
@@ -107,8 +185,10 @@ class TwoMassSpringDamperSystem(BaseSystem):
         omega1: float = 1.0,
         omega2: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x1 = x1
         self.x2 = x2
         self.m1 = m1
@@ -125,23 +205,28 @@ class TwoMassSpringDamperSystem(BaseSystem):
         self.omega1 = omega1
         self.omega2 = omega2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two masses between two walls, with springs, dampers, and forces.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rest1, rest2 = self.l1, self.l1 + self.l2
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                MassPointElement('first', x=self.x1, x_d1=0.0, m=self.m1),
-                MassPointElement('second', x=self.x2, x_d1=0.0, m=self.m2),
+                Element('first', values={'x': self.x1, 'm': self.m1}),
+                Element('second', values={'x': self.x2, 'm': self.m2}),
             ],
             interactions=[
-                HarmonicPotentialInteraction('left_spring', target='first', k=self.k1, center=rest1),
-                HarmonicPotentialInteraction('right_spring', target='second', k=self.k2, center=rest2),
-                SpringInteraction('middle_spring', first='first', second='second', k=self.k, length=self.l2),
-                DampingInteraction('first_damper', target='first', gamma=self.b1),
-                DampingInteraction('second_damper', target='second', gamma=self.b2),
-                HarmonicForceInteraction('first_force', target='first', F=self.F1, omega=self.omega1),
-                HarmonicForceInteraction('second_force', target='second', F=self.F2, omega=self.omega2),
+                RestoringForceInteraction('left_spring', target='first', k=self.k1, center=rest1),
+                RestoringForceInteraction('right_spring', target='second', k=self.k2, center=rest2),
+                ElasticLinkInteraction('middle_spring', first='first', second='second', k=self.k, length=self.l2),
+                LinearDragInteraction('first_damper', target='first', gamma=self.b1),
+                LinearDragInteraction('second_damper', target='second', gamma=self.b2),
+                PeriodicForceInteraction('first_force', target='first', F=self.F1, omega=self.omega1),
+                PeriodicForceInteraction('second_force', target='second', F=self.F2, omega=self.omega2),
             ],
-            space=ContinuousSpace(n_dim=1),
         )

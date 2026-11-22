@@ -1,6 +1,6 @@
 # Build a custom system
 
-This tutorial builds one model three ways: from the parts of the core, as a subclass of a shared recipe, and as a
+This tutorial builds one model three ways: from the components of the core, as a subclass of a shared recipe, and as a
 system class with model parameters. The model is the predator and prey cycle of the snowshoe hare and the Canada lynx,
 and every later tutorial of the guide starts from it.
 
@@ -45,33 +45,36 @@ Carpenter estimated `alpha = 0.55`, `beta = 0.028`, `gamma = 0.80`, and `delta =
 posterior of a Bayesian fit. The sections below use these rates and start from the records of 1900, 30.0 thousand
 hares and 4.0 thousand lynx.
 
-## From the parts of the core
+## From the components of the core
 
-Each population is a `DeclaredElement` with one state `x`, and each term of the equations is a `RateInteraction`. An
-interaction that reads the other population names it in `sources`, and its rate reads it as `s.sources[0]`.
-[How the parts fit](../core_components/index.md) explains each part in turn.
+Each population is an `Element` with one value `x`, such as `Element('hares', values={'x': 30.0})`. Each term of the
+equations is a one-off `Interaction` whose roles name the elements it reads and changes, and whose `laws` give the
+rate of change as a function of the namespace `s`. A value that a law changes is a state, so `x` is a state of both
+populations. [How the components fit](../core_components/index.md) explains each component in turn.
 
 ```python continuation
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import System
 
-hare_population = DeclaredElement('hares', variables={'x': DeclaredVariableSpec(30.0, StateSpec())})
-lynx_population = DeclaredElement('lynx', variables={'x': DeclaredVariableSpec(4.0, StateSpec())})
-births = RateInteraction('births', target='hares', state='x', rate=lambda s: 0.55 * s.target.x)
-hunting = RateInteraction(
-    'hunting', target='hares', state='x', sources=['lynx'], rate=lambda s: -0.028 * s.target.x * s.sources[0].x
-)
-feeding = RateInteraction(
-    'feeding', target='lynx', state='x', sources=['hares'], rate=lambda s: 0.024 * s.target.x * s.sources[0].x
-)
-deaths = RateInteraction('deaths', target='lynx', state='x', rate=lambda s: -0.80 * s.target.x)
-pelts = CompositeSystem(
-    elements=[hare_population, lynx_population], interactions=[births, hunting, feeding, deaths]
-)
-trajectory = simulate(pelts, until=20, dt=1.0)
+
+def hunt(s):
+    return [RateLaw(s.prey.x, -0.028 * s.prey.x * s.predator.x)]
+
+
+def feed(s):
+    return [RateLaw(s.predator.x, 0.024 * s.prey.x * s.predator.x)]
+
+
+hare_population = Element('hares', values={'x': 30.0})
+lynx_population = Element('lynx', values={'x': 4.0})
+births = Interaction('births', roles={'target': 'hares'}, laws=lambda s: [RateLaw(s.target.x, 0.55 * s.target.x)])
+hunting = Interaction('hunting', roles={'prey': 'hares', 'predator': 'lynx'}, laws=hunt)
+feeding = Interaction('feeding', roles={'prey': 'hares', 'predator': 'lynx'}, laws=feed)
+deaths = Interaction('deaths', roles={'target': 'lynx'}, laws=lambda s: [RateLaw(s.target.x, -0.80 * s.target.x)])
+pelts = System(elements=[hare_population, lynx_population], interactions=[births, hunting, feeding, deaths])
+trajectory = pelts.prepare().simulate(until=20, dt=1.0)
 trajectory.get_values('hares.x').round(1)[:6].tolist()
 ```
 
@@ -121,11 +124,11 @@ class HareLynxSystem(ReactionNetworkSystem):
         }
 
 
-simulate(HareLynxSystem()).get_values('hares.x').round(1)[:6].tolist()
+HareLynxSystem().prepare().simulate().get_values('hares.x').round(1)[:6].tolist()
 ```
 
-The values match the composite system above. The class variables `until` and `dt` are tuned run settings, which
-`simulate` reads when a call leaves them out. The recipe also runs the same reactions as random events, which suits a
+The values match the system above. The class variables `until` and `dt` are tuned run settings, which `simulate`
+reads when a call leaves them out. The recipe also runs the same reactions as random events, which suits a
 small population.
 
 ```python continuation
@@ -135,11 +138,11 @@ sorted(jumps.get_tags().laws), jumps.get_tags().randomness
 
 ## As a system class with model parameters
 
-A `BaseSystem` subclass writes its parts in `_build_system` from its model parameters, so `set_params`, `clone`, and
-the experiments of the library change them by name.
+A `BaseSystem` subclass builds its components in `_prepare` from its model parameters and keeps them as `system_`, so
+`set_params`, `clone`, and the experiments of the library change them by name.
 
 ```python continuation
-from skcomplex.core.components.systems import BaseSystem
+from skcomplex.core.systems import BaseSystem
 
 
 class PeltSystem(BaseSystem):
@@ -155,39 +158,31 @@ class PeltSystem(BaseSystem):
         self.gamma = gamma
         self.delta = delta
 
-    def _build_system(self):
-        prey = DeclaredElement('hares', variables={'x': DeclaredVariableSpec(self.hares, StateSpec())})
-        predators = DeclaredElement('lynx', variables={'x': DeclaredVariableSpec(self.lynx, StateSpec())})
+    def _prepare(self, context=None):
+        super()._prepare(context)
         alpha, beta, gamma, delta = self.alpha, self.beta, self.gamma, self.delta
+
+        def predation(s):
+            contacts = s.prey.x * s.predator.x
+            return [RateLaw(s.prey.x, -beta * contacts), RateLaw(s.predator.x, delta * contacts)]
+
         interactions = [
-            RateInteraction('births', target='hares', state='x', rate=lambda s: alpha * s.target.x),
-            RateInteraction(
-                'hunting',
-                target='hares',
-                state='x',
-                sources=['lynx'],
-                rate=lambda s: -beta * s.target.x * s.sources[0].x,
-            ),
-            RateInteraction(
-                'feeding',
-                target='lynx',
-                state='x',
-                sources=['hares'],
-                rate=lambda s: delta * s.target.x * s.sources[0].x,
-            ),
-            RateInteraction('deaths', target='lynx', state='x', rate=lambda s: -gamma * s.target.x),
+            Interaction('births', roles={'target': 'hares'}, laws=lambda s: [RateLaw(s.target.x, alpha * s.target.x)]),
+            Interaction('predation', roles={'prey': 'hares', 'predator': 'lynx'}, laws=predation),
+            Interaction('deaths', roles={'target': 'lynx'}, laws=lambda s: [RateLaw(s.target.x, -gamma * s.target.x)]),
         ]
-        return CompositeSystem(elements=[prey, predators], interactions=interactions)
+        elements = [Element('hares', values={'x': self.hares}), Element('lynx', values={'x': self.lynx})]
+        self.system_ = System(self.label, elements=elements, interactions=interactions)
 
 
 system = PeltSystem()
-simulate(system).get_values('lynx.x').round(1)[:6].tolist()
+system.prepare().simulate().get_values('lynx.x').round(1)[:6].tolist()
 ```
 
 A faster birth rate of the hares raises their highest count over the twenty years from 81.2 to 85.8 thousand.
 
 ```python continuation
-faster = simulate(system.set_params(alpha=0.65)).get_values('hares.x')
+faster = system.set_params(alpha=0.65).prepare().simulate().get_values('hares.x')
 round(float(faster.max()), 1)
 ```
 
@@ -200,17 +195,16 @@ round(float(faster.max()), 1)
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 catalog = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-simulate(catalog, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
+catalog.prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 ```
 
 ## Recipes by kind of system
 
-The pages below build other kinds of system from the same parts.
+The pages below build other kinds of system from the same components.
 
 - [Defining elements](defining_elements.md)
 - [Kinds of dynamics](kinds_of_dynamics.md)
 - [General interactions](general_interactions.md)
-- [Connected components](connected_components.md)
 - [Delays, events, drivers, and noise](delays_events_drivers_and_noise.md)
 - [Stochastic maps](stochastic_maps.md)
 - [Anomalous processes](anomalous_processes.md)

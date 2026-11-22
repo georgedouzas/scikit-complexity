@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.power_systems import PowerGridSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'power_grid'
 
 frequencies = rrb.TimeSeriesView(
     origin='/',
-    contents=[f'/node_{node}/phi_d1' for node in range(8)],
+    contents=[f"/node_{node}/phi\\'" for node in range(8)],
     name='frequency deviations',
     axis_x=rrb.TimeAxis(
         view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = PowerGridSystem(added_line=(0, 2))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Synchrony with and without the extra capacity
@@ -47,10 +46,10 @@ trajectory = simulate(system, observers=[observer])
 fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharey=True)
 grids = [('default ring', {}), ('added line (0, 2)', None), ('doubled line (0, 1)', {'doubled_line': (0, 1)})]
 for ax, (label, arguments) in zip(axes, grids, strict=True):
-    run = trajectory if arguments is None else simulate(PowerGridSystem(**arguments))
+    run = trajectory if arguments is None else PowerGridSystem(**arguments).prepare().simulate()
     for node in range(8):
-        ax.plot(run.times, run.get_values(f'node_{node}.phi_d1'), linewidth=0.8)
-    spread = np.abs([run.get_values(f'node_{node}.phi_d1')[-50:] for node in range(8)]).max()
+        ax.plot(run.times, run.get_values(f"node_{node}.phi'"), linewidth=0.8)
+    spread = np.abs([run.get_values(f"node_{node}.phi'")[-50:] for node in range(8)]).max()
     ax.set_title(f'{label}: max |phi\'| {spread:.2f}', fontsize=10)
     ax.set_xlabel('time')
 axes[0].set_ylabel("frequency deviation phi'")

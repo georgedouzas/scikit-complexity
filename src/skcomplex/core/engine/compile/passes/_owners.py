@@ -1,4 +1,4 @@
-"""Keep the laws of the owners a compilation compiles."""
+"""Keep the laws of the components that a compilation compiles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,8 +8,9 @@ from collections import defaultdict
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, JumpLaw, LinearProgramLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.spaces import DiscreteTime
+from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._linear_program import _LinearProgramLaw
+from ....components.spaces._discrete_time import _DiscreteTime
 from ..._utils import vector
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
@@ -22,9 +23,24 @@ from ._mask_requests import MaskRequestsPass
 
 
 class OwnersPass(BasePass):
-    """A pass that keeps the laws of the compiled owners.
+    """A pass that keeps the laws of the components that a compilation compiles.
 
-    It masks them to the rows present and finds their kinds.
+    A system split into partitions compiles each partition apart, and the pass keeps the laws of the elements and groups
+    of the partition. A group that grows and shrinks keeps free rows, and the pass makes its laws leave them unchanged.
+    It also notes the classes of the laws of every element, which choose the kind of problem.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        PlanPass: Splits the system into partitions.
+        FormPass: Reads the classes of the laws.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> {owner: [kind.__name__ for kind in kinds] for owner, kinds in compilation.kinds.items()}
+        {'prey': ['RateLaw'], 'predators': ['RateLaw']}
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -103,20 +119,40 @@ class OwnersPass(BasePass):
         ]
 
     @staticmethod
-    def _set_program_steps(kinds: dict[str, set[type]], times: dict[str, type | None]) -> None:
-        """Count a linear program under discrete time as an update.
+    def _set_program_steps(kinds: dict[str, set[type[BaseLaw]]], times: dict[str, type | None]) -> None:
+        """Count a linear program as an update where it is solved once per step.
 
-        Each step of a map solves it.
+        It is solved once per step under discrete time or in a nested system of programs.
+
+        Each step of a map solves it. A nested system with no time of its own whose laws are all linear programs, such
+        as the flux balance of a cell beside the culture it feeds, keeps the static time they imply, so it is solved
+        once per unit of time of its parent, as a nested system of updates steps.
         """
+        systems = {owner.rpartition('/')[0] for owner in kinds}
+        alone = {
+            path
+            for path in systems
+            if path
+            and times.get(path) is None
+            and all(
+                classes <= {_LinearProgramLaw} for owner, classes in kinds.items() if owner.rpartition('/')[0] == path
+            )
+        }
         for owner, classes in kinds.items():
-            time = times.get(owner.rpartition('/')[0])
-            if LinearProgramLaw in classes and time is not None and issubclass(time, DiscreteTime):
+            path = owner.rpartition('/')[0]
+            time = times.get(path)
+            if _LinearProgramLaw in classes and (
+                path in alone or (time is not None and issubclass(time, _DiscreteTime))
+            ):
                 classes.add(UpdateLaw)
 
     @staticmethod
-    def _get_law_kinds(specs: list[tuple[KernelSpec, list[BaseLaw]]], agents: set[str]) -> dict[str, set[type]]:
+    def _get_law_kinds(
+        specs: list[tuple[KernelSpec, list[BaseLaw]]],
+        agents: set[str],
+    ) -> dict[str, set[type[BaseLaw]]]:
         """Return the kinds of the laws of every component."""
-        kinds: dict[str, set[type]] = defaultdict(set)
+        kinds: dict[str, set[type[BaseLaw]]] = defaultdict(set)
         for spec, laws in specs:
             for law in laws:
                 kinds[CensusPass._get_law_owner(spec, law, agents)].add(KernelsPass._get_kind_of(law))

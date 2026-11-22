@@ -8,18 +8,17 @@ Every share of a group grows by its fitness above the mean fitness.
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.interactions import RateInteraction
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import total
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
+from .....core.types import Role
 
 
-class ReplicatorInteraction(RateInteraction):
+class ReplicatorInteraction(Interaction):
     """Replicator equation of the shares of a group, with a fitness `f`.
 
     The shares follow `dx_i/dt = x_i (f_i - sum_j x_j f_j)`.
@@ -46,31 +45,33 @@ class ReplicatorInteraction(RateInteraction):
             The fitness is not callable, raised by `prepare`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.laws.utils import total
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.evolution import ReplicatorInteraction, StrategyElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> population = GroupElement('population', element=StrategyElement, size=2, values={'x': [0.5, 0.5]})
+        >>> population = StrategyElement('population', x=[0.5, 0.5], size=2)
         >>> payoff = ((1.0, 1.0), (0.0, 0.0))
         >>> replication = ReplicatorInteraction(
         ...     'replication', target='population', fitness=lambda s: total(s.target.x, weights=payoff)
         ... )
-        >>> system = CompositeSystem(elements=[population], interactions=[replication])
-        >>> trajectory = simulate(system, until=20.0, dt=0.1)
+        >>> system = System(elements=[population], interactions=[replication])
+        >>> trajectory = system.prepare().simulate(until=20.0, dt=0.1)
         >>> [round(float(share), 3) for share in trajectory.get_values('population.x')[-1]]
         [1.0, 0.0]
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         fitness: Callable[[SimpleNamespace], object] | None = None,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.fitness = fitness
 
     def _check_fitness(self) -> None:
@@ -82,19 +83,25 @@ class ReplicatorInteraction(RateInteraction):
             error_msg = f'The fitness of {self.label!r} is {self.fitness!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a state, functions, or a fitness the interaction cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, or the fitness is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_fitness()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
         """Return the fitness of a member.

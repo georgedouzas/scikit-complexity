@@ -6,22 +6,23 @@ Its entities are produced and destroyed by pairs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from collections.abc import Sequence
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ..common.policy import PolicyRuleInteraction
 
 
-class CombinatorialEntityView(AgentView):
+class CombinatorialEntityView(AgentViewProtocol, Protocol):
     """Entity as the update sees it: whether it exists and its fitness."""
 
     exists: float
@@ -37,53 +38,34 @@ class CombinatorialEntityElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         exists:
             1 when the entity exists, 0 otherwise.
 
         fitness:
             The active productive minus the active destructive sets of the entity at its last update.
 
+        size:
+            The number of entities, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.innovation import CombinatorialEntityElement
-        >>> GroupElement('entities', element=CombinatorialEntityElement, size=3).size
+        >>> CombinatorialEntityElement('entities', size=3).size
         3
     """
 
-    law_classes = ()
+    visual = VisualSpec('agents', {'color_by': 'exists'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'exists'}),
         *,
-        exists: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        fitness: Annotated[float, StateSpec()] = 0.0,
+        exists: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        fitness: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.exists = exists
         self.fitness = fitness
-
-    @classmethod
-    def _get_view(cls) -> type[CombinatorialEntityView]:
-        """Return the view of the agents of the element."""
-        return CombinatorialEntityView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the update of the system moves every entity.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
@@ -132,10 +114,10 @@ class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        entities: Annotated[str, RoleSpec()],
+        entities: Role,
         production: tuple[tuple[int, int, int], ...] = (),
         destruction: tuple[tuple[int, int, int], ...] = (),
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0002,
+        p: Annotated[float, RealSet.closed(0, 1)] = 0.0002,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.entities = entities
@@ -156,7 +138,10 @@ class CombinatorialUpdateInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the update.
         """
-        entities = sorted(system.get_agents('entities', CombinatorialEntityView), key=lambda entity: entity.id)
+        entities = sorted(
+            cast(list[CombinatorialEntityView], system.get_agents('entities')),
+            key=lambda entity: entity.id,
+        )
         size, rng = len(entities), system.rng
         states = np.array([entity.exists for entity in entities])
         before = states.copy()
@@ -217,9 +202,15 @@ class CccModelSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import CccModelSystem
-        >>> CccModelSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> CccModelSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -238,8 +229,10 @@ class CccModelSystem(BaseSystem):
         initial: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_entities = n_entities
         self.r_plus = r_plus
         self.r_minus = r_minus
@@ -257,14 +250,14 @@ class CccModelSystem(BaseSystem):
         triples = rng.integers(size, size=(count, 3))
         return tuple((int(i), int(j), int(k)) for i, j, k in triples)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the entities, with random productive and destructive sets, and their update."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        entities = GroupElement(
+        entities = CombinatorialEntityElement(
             'entities',
-            element=CombinatorialEntityElement,
+            exists=(rng.random(self.n_entities) < self.initial).astype(float),
             size=self.n_entities,
-            values={'exists': (rng.random(self.n_entities) < self.initial).astype(float)},
         )
         update = CombinatorialUpdateInteraction(
             'update',
@@ -273,4 +266,4 @@ class CccModelSystem(BaseSystem):
             destruction=self._get_random_sets(self.n_entities, self.r_minus, rng),
             p=self.p,
         )
-        return CompositeSystem(self.label, elements=[entities], interactions=[update])
+        self.system_ = System(self.label, elements=[entities], interactions=[update])

@@ -13,7 +13,6 @@ restitution, so infinitely many bounces fit before a finite time, the Zeno time,
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import BouncingBallSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'bouncing_ball'
 
 system = BouncingBallSystem(h=1.0, v=0.0, e=0.8)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=3.8, observers=[observer])
+trajectory = system.prepare().simulate(until=3.8, observers=[observer])
 
 # %%
 # Impact times

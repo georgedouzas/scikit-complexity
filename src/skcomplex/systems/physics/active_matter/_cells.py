@@ -6,50 +6,86 @@ The cells are self-propelled discs whose headings turn towards the velocities th
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, I, arcsin, cos, exp, oo, pi, sin, sqrt, vector
+from sage.all__sagemath_symbolics import Expression, I, arcsin, cos, exp, oo, sin, sqrt, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, Period, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import clip, neighbors, where
-from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.backends import NumbaBackend
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 SOFTENING = 1e-12
 
 
 class MotileCellElement(Element):
-    """Motile cell of a tissue.
-
-    The cell has its position, the heading of its motility, and its force and motility parameters.
-
-    The position follows `x' = v0 n + mu F`, where `n` is the unit vector of the heading and `F` the sum of the pair
-    forces. A pair force is `F_rep (d - R_eq) / R_eq` towards the neighbour below the distance `R_eq`, and
-    `F_adh (d - R_eq) / (R_0 - R_eq)` towards it up to the distance `R_0`, the cell diameter.
+    """Motile cells of a tissue with the positions `x` and the headings `theta` of their motility.
 
     Args:
         label:
-            The label of the cell or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the cells.
 
         x:
-            The initial position.
+            The initial positions, one row per cell or shared.
 
         theta:
-            The initial heading.
+            The initial headings, one per cell or shared.
+
+        size:
+            The number of cells, or `None` for one.
+
+        space:
+            The continuous space of the cells, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import MotileCellElement
+        >>> MotileCellElement('cell', theta=1.0).theta
+        1.0
+    """
+
+    visual = VisualSpec('points', {'position': 'x', 'radius': 0.5, 'color_by': 'theta'})
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.theta = theta
+
+
+class CellMotilityInteraction(Interaction):
+    """Motility of cells that push and pull their neighbours and turn towards their velocity, as Szabó et al. (2006).
+
+    The position follows `x' = v0 n + mu F`, where `n` is the unit vector of the heading and `F` the sum of the pair
+    forces of the neighbours within `R_0`. A pair force is `F_rep (d - R_eq) / R_eq` towards the neighbour below the
+    distance `R_eq`, and `F_adh (d - R_eq) / (R_0 - R_eq)` towards it up to the distance `R_0`, the cell diameter. The
+    heading turns towards the velocity, `theta' = arcsin((n x v / |v|) . e_z) / tau + xi`, with angular noise of
+    variance `eta^2 / 12` per unit time. It is a keratocyte in a wound, or a cell of an epithelium that migrates.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells, with the positions `x` and the headings `theta`.
 
         v0:
             The speed of the motility.
@@ -61,7 +97,7 @@ class MotileCellElement(Element):
             The relaxation time of the heading.
 
         eta:
-            The strength of the angular noise, whose variance per unit time is `eta^2 / 12`.
+            The strength of the angular noise.
 
         R_eq:
             The equilibrium distance of a pair.
@@ -76,30 +112,29 @@ class MotileCellElement(Element):
             The largest adhesive force.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import MotileCellElement
-        >>> MotileCellElement('cell').F_rep
+        >>> from skcomplex.systems.physics.active_matter import CellMotilityInteraction
+        >>> CellMotilityInteraction('motility', target='cells').F_rep
         30.0
     """
+
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
-        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        R_eq: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0 / 6.0,
-        R_0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        F_rep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        F_adh: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        target: Role,
+        v0: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        mu: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 0.6,
+        R_eq: Annotated[float, RealSet.open(0, oo)] = 5.0 / 6.0,
+        R_0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        F_rep: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        F_adh: Annotated[float, RealSet.closed_open(0, oo)] = 0.75,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.theta = theta
+        super().__init__(label)
+        self.target = target
         self.v0 = v0
         self.mu = mu
         self.tau = tau
@@ -108,6 +143,38 @@ class MotileCellElement(Element):
         self.R_0 = R_0
         self.F_rep = F_rep
         self.F_adh = F_adh
+
+    def _get_velocity(self, s: SimpleNamespace) -> FreeModuleElement:
+        """Return the velocity `v0 n + mu F` of a cell, with the forces of the neighbours within `R_0`."""
+        cell = s.target
+        dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
+        distance = sqrt(dx**2 + dy**2)
+        stretch = distance - s.R_eq
+        strength = where(stretch < 0, s.F_rep * stretch / s.R_eq, s.F_adh * stretch / (s.R_0 - s.R_eq))
+        force = neighbors(
+            vector([strength * dx / distance, strength * dy / distance]),
+            over=RadiusNeighborhood(self.R_0),
+        )
+        return vector([cos(cell.theta), sin(cell.theta)]) * s.v0 + force * s.mu
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the motion of the cells of the target, and the turning and the noise of their headings.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        theta = s.target.theta
+        velocity = self._get_velocity(s)
+        speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
+        cross = (cos(theta) * velocity[1] - sin(theta) * velocity[0]) / speed
+        self.laws_ = [
+            RateLaw(s.target.x, velocity),
+            RateLaw(theta.diff(s.t), arcsin(clip(cross, -1, 1)) / s.tau),
+            NoiseLaw(theta, s.eta / sqrt(12)),
+        ]
 
 
 def _get_heading(member: SimpleNamespace) -> Expression:
@@ -171,9 +238,15 @@ class SzaboCellsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import SzaboCellsSystem
-        >>> SzaboCellsSystem(16, density=0.5).prepare().system_.space.extent
+        >>> SzaboCellsSystem(16, density=0.5).prepare().system_.elements[0].space.extent
         (5.656854249492381, 5.656854249492381)
     """
 
@@ -182,30 +255,10 @@ class SzaboCellsSystem(BaseSystem):
     references = ('Szabó et al. 2006', 'Vicsek and Zafeiris 2012')
     until = 60.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.01)
-    backend = NumbaBackend()
     observables = (
-        ObservableSpec('mean_heading', _get_heading, group='cells'),
-        ObservableSpec('polarization', _get_polarization),
+        Observable('mean_heading', _get_heading, group='cells'),
+        Observable('polarization', _get_polarization),
     )
-
-    @staticmethod
-    def _get_velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
-        """Return the velocity `v0 n + mu F` of a cell.
-
-        The force `F` is the sum of the forces of the neighbours within a reach.
-        """
-        cell = s.target
-        dx, dy = cell.other.x[0] - cell.x[0], cell.other.x[1] - cell.x[1]
-        distance = sqrt(dx**2 + dy**2)
-        stretch = distance - cell.R_eq
-        strength = where(
-            stretch < 0,
-            cell.F_rep * stretch / cell.R_eq,
-            cell.F_adh * stretch / (cell.R_0 - cell.R_eq),
-        )
-        force = neighbors(vector([strength * dx / distance, strength * dy / distance]), over=RadiusNeighborhood(reach))
-        return vector([cos(cell.theta), sin(cell.theta)]) * cell.v0 + force * cell.mu
 
     def __init__(
         self,
@@ -222,8 +275,10 @@ class SzaboCellsSystem(BaseSystem):
         F_adh: float = 0.75,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cells = n_cells
         self.density = density
         self.eta = eta
@@ -236,64 +291,39 @@ class SzaboCellsSystem(BaseSystem):
         self.F_adh = F_adh
         self.random_state = random_state
 
-    @staticmethod
-    def _get_turning(s: SimpleNamespace, *, reach: float) -> Expression:
-        """Return the rate that turns a heading towards the velocity.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cells of Szabó et al. (2006) in a periodic box.
 
-        The rate is `arcsin((n x v / |v|)_z) / tau`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        cell = s.target
-        velocity = SzaboCellsSystem._get_velocity(s, reach=reach)
-        speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
-        cross = (cos(cell.theta) * velocity[1] - sin(cell.theta) * velocity[0]) / speed
-        return arcsin(clip(cross, -1, 1)) / cell.tau
-
-    @staticmethod
-    def _get_angular_noise(s: SimpleNamespace) -> Expression:
-        """Return the amplitude `eta / sqrt(12)` of the angular noise."""
-        return s.target.eta / sqrt(12)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the cells of Szabó (2006) in a periodic box.
-
-        The cells move together above a critical density.
-        """
+        super()._prepare(context)
         size = math.sqrt(self.n_cells / self.density)
         rng = np.random.default_rng(self.random_state)
-        cells = GroupElement(
+        cells = MotileCellElement(
             'cells',
-            element=MotileCellElement,
+            x=rng.uniform(0.0, size, (self.n_cells, 2)),
+            theta=rng.uniform(0.0, 2 * math.pi, self.n_cells),
             size=self.n_cells,
-            values={
-                'x': rng.uniform(0.0, size, (self.n_cells, 2)),
-                'theta': rng.uniform(0.0, 2 * math.pi, self.n_cells),
-                'v0': self.v0,
-                'mu': self.mu,
-                'tau': self.tau,
-                'eta': self.eta,
-                'R_eq': self.R_eq,
-                'R_0': self.R_0,
-                'F_rep': self.F_rep,
-                'F_adh': self.F_adh,
-            },
-            visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
+            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
         )
-        motion = RateInteraction(
-            'motion',
+        motility = CellMotilityInteraction(
+            'motility',
             target='cells',
-            state='x',
-            rate=functools.partial(SzaboCellsSystem._get_velocity, reach=self.R_0),
+            v0=self.v0,
+            mu=self.mu,
+            tau=self.tau,
+            eta=self.eta,
+            R_eq=self.R_eq,
+            R_0=self.R_0,
+            F_rep=self.F_rep,
+            F_adh=self.F_adh,
         )
-        turning = RateInteraction(
-            'turning',
-            target='cells',
-            state='theta',
-            rate=functools.partial(self._get_turning, reach=self.R_0),
-            noise=self._get_angular_noise,
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[cells],
-            interactions=[motion, turning],
-            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+            interactions=[motility],
+            solver=EulerMaruyamaSolver(dt=0.01),
+            backend=NumbaBackend(),
         )

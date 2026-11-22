@@ -8,7 +8,6 @@ import pytest
 from rerun.chunk import RrdReader
 
 from skcomplex.core.analysis import chain_shape
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem
@@ -54,7 +53,7 @@ def _exit_code_of(code):
 
 def test_ensemble_of_the_trp_cage():
     """Test 38 frames, every `RD` in `[0, 1]`, equal within 1e-12 to the `RD` of the analysis of each system."""
-    trajectory = simulate(FuzzyOilDropSystem())
+    trajectory = FuzzyOilDropSystem().prepare().simulate()
     assert len(trajectory.times) == 38
     recorded = trajectory.get_values('RD')
     assert recorded.min() >= 0
@@ -66,21 +65,21 @@ def test_ensemble_of_the_trp_cage():
 def test_ensemble_records_the_environment_factor():
     """Test that the recorded `K` of each frame equals the one of the analysis."""
     structure = read_structure('1L2Y')
-    recorded = simulate(FuzzyOilDropSystem(), until=3).get_values('K')
+    recorded = FuzzyOilDropSystem().prepare().simulate(until=3).get_values('K')
     expected = fuzzy_oil_drop_measures(structure=structure, kind='environment-factor').values[:4]
     assert recorded == pytest.approx(expected, abs=1e-12)
 
 
 def test_ensemble_positions_replay_the_effective_atoms():
     """Test that the positions at frame 10 are the effective atoms of system 10."""
-    frames = simulate(FuzzyOilDropSystem(), until=12).get_lattice('chain.x')
+    frames = FuzzyOilDropSystem().prepare().simulate(until=12).get_lattice('chain.x')
     assert frames[10] == pytest.approx(read_structure('1L2Y').effective_atoms[10])
 
 
 def test_analysis_reads_the_replay_of_a_trajectory():
     """Test that the analysis reads a trajectory of the replay."""
     structure = read_structure('1L2Y')
-    trajectory = simulate(FuzzyOilDropSystem(), until=2)
+    trajectory = FuzzyOilDropSystem().prepare().simulate(until=2)
     values = fuzzy_oil_drop_measures(trajectory, structure=structure, state='chain.x').values
     assert values == pytest.approx(trajectory.get_values('RD'), abs=1e-12)
 
@@ -88,7 +87,7 @@ def test_analysis_reads_the_replay_of_a_trajectory():
 def test_folding_lowers_the_relative_distance_and_compacts_the_chain():
     """Test that `RD` never grows at temperature zero, and that the radius of gyration falls from an extended start."""
     system = FuzzyOilDropSystem(dynamics='folding').prepare().system_
-    trajectory = simulate(system, random_state=0, until=300)
+    trajectory = system.prepare().simulate(random_state=0, until=300)
     relative_distance = trajectory.get_values('folding.score')[:, 0]
     assert np.all(np.diff(relative_distance) <= 1e-12)
     assert relative_distance[-1] < relative_distance[0]
@@ -102,7 +101,9 @@ def test_folding_lowers_the_relative_distance_and_compacts_the_chain():
 
 def test_folding_at_a_positive_temperature_records_rd():
     """Test that the folding at a positive temperature records the `RD` of its angles."""
-    trajectory = simulate(FuzzyOilDropSystem(dynamics='folding', temperature=0.1, proposals=2), until=2, random_state=0)
+    trajectory = (
+        FuzzyOilDropSystem(dynamics='folding', temperature=0.1, proposals=2).prepare().simulate(until=2, random_state=0)
+    )
     assert trajectory.get_values('RD') == pytest.approx(trajectory.get_values('folding.score')[:, 0], abs=1e-9)
 
 
@@ -137,7 +138,7 @@ def test_protein_chain_streams_points_and_one_strip(tmp_path):
     path = tmp_path / 'run.rrd'
     system = FuzzyOilDropSystem().prepare().system_
     observer = RerunObserver('fuzzy_oil_drop', save_path=path)
-    simulate(system, until=4, observers=[observer], random_state=0)
+    system.prepare().simulate(until=4, observers=[observer], random_state=0)
     points = _column_of(path, '/chain', ':positions')
     strips = _column_of(path, '/chain/strip', ':strips')
     assert len(points) == 5
@@ -153,7 +154,7 @@ def test_folding_chain_streams_rebuilt_points(tmp_path):
     path = tmp_path / 'run.rrd'
     system = FuzzyOilDropSystem(dynamics='folding').prepare().system_
     observer = RerunObserver('fuzzy_oil_drop', save_path=path)
-    simulate(system, until=2, observers=[observer], random_state=0)
+    system.prepare().simulate(until=2, observers=[observer], random_state=0)
     points = _column_of(path, '/chain', ':positions')
     assert len(points) == 3
     assert np.shape(points[0]) == (20, 3)
@@ -164,7 +165,7 @@ def test_sequences_stream_as_an_image_of_four_colors(tmp_path):
     path = tmp_path / 'run.rrd'
     observer = RerunObserver('rna_neutral_networks', save_path=path)
     system = RNANeutralNetworksSystem(start='GGGGAAACCCCAUCGAUAGCGGGAAACCGC').prepare().system_
-    simulate(system, until=40, observers=[observer], random_state=0)
+    system.prepare().simulate(until=40, observers=[observer], random_state=0)
     frames = _column_of(path, '/walkers/base', ':buffer')
     assert len(frames) == 41
     colors = set()
@@ -234,7 +235,7 @@ def test_ellipse_rejects_bad_settings_and_pairs():
 
 def test_sampled_cells_follow_the_probabilities_of_the_sequence():
     """Test that each residue's frequency of each cell over the last 200 frames matches the probability within 0.15."""
-    trajectory = simulate(EarlyStageFoldingIntermediateSystem(), random_state=0, until=300)
+    trajectory = EarlyStageFoldingIntermediateSystem().prepare().simulate(random_state=0, until=300)
     cells = trajectory.get_lattice('residues.cell').astype(int)[-200:, 0]
     probabilities = read_cell_probabilities()
     names = [residue for _, _, residue in read_structure('5PTI').residues]

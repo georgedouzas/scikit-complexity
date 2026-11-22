@@ -12,14 +12,13 @@ falls. Off therapy the quotas refill and the tumour and the PSA regrow.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import ProstateCellQuotaSystem
 
 SYSTEM = 'prostate_cell_quota'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ProstateCellQuotaSystem(), observers=[observer])
+trajectory = ProstateCellQuotaSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Quotas set the growth

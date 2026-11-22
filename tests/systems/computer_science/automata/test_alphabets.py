@@ -4,9 +4,8 @@ from math import comb
 
 import numpy as np
 import pytest
-from sage.all__sagemath_gap import PermutationGroup
+from sage.all__sagemath_gap import PermutationGroup, SymmetricGroup
 
-from skcomplex.core.components.spaces import StateTranslationNeighborhood
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import (
     GroupDifferenceAutomatonSystem,
@@ -15,6 +14,7 @@ from skcomplex.systems.computer_science.automata import (
     SelfIndexedShiftSystem,
     SubtractionAutomatonSystem,
 )
+from skcomplex.systems.computer_science.common.automata import StateTranslationNeighborhood
 
 from ..conftest import _run
 
@@ -97,10 +97,9 @@ def test_group_difference_automaton_maps_constants_to_the_identity():
     for element in range(6):
         values = _run(GroupDifferenceAutomatonSystem(7, initial=np.full(7, element)), 1).get_values('cells.value')[-1]
         np.testing.assert_array_equal(values, 0)
-    system = GroupDifferenceAutomatonSystem(30, random_state=1).prepare().system_
-    values = _run(system, 1).get_values('cells.value').astype(int)
-    rule = system.interactions[0].rule
-    product, inverse = rule.keywords['product'], rule.keywords['inverse']
+    values = _run(GroupDifferenceAutomatonSystem(30, random_state=1), 1).get_values('cells.value').astype(int)
+    product = np.asarray(SymmetricGroup(3).cayley_table().table(), dtype=np.intp)
+    inverse = np.argmin(product, axis=1)
     np.testing.assert_array_equal(values[1], product[inverse[values[0]], np.roll(values[0], -1)])
     ordered = product[np.arange(6), inverse]
     np.testing.assert_array_equal(ordered, 0)

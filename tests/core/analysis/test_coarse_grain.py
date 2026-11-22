@@ -3,43 +3,37 @@
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.analysis import coarse_grain, spectrum
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import moment
-from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ObservableSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
 CLASSES = np.arange(9.0)
 
 
 class AmountElement(Element):
-    """Element that holds one nonnegative scalar `x`, an amount."""
+    """Element that holds one nonnegative scalar `x`, an amount, or one per site of a space."""
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[npt.ArrayLike, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.x = x
-
-
-class TraderElement(Element):
-    """Agent with a wealth."""
-
-    def __init__(self, label: str, visual: VisualSpec | None = None, *, wealth: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label, visual=visual)
-        self.wealth = wealth
 
 
 def density(s):
@@ -71,7 +65,7 @@ def test_coarse_grain_density():
 
 def test_coarse_grain_agents_of_a_trajectory():
     """Test that the walkers of a trajectory give one grid per frame in the box of their space."""
-    trajectory = simulate(RunAndTumbleSystem(n_agents=50), until=3, random_state=0)
+    trajectory = RunAndTumbleSystem(n_agents=50).prepare().simulate(until=3, random_state=0)
     field = _coarse_grain(trajectory, [5, 5])
     assert field.shape == (4, 5, 5)
     assert np.all(field.sum(axis=(1, 2)) == 50)
@@ -99,13 +93,13 @@ def test_density_over_a_state_starts_a_distribution():
     """Test that the densities of 1,000 traders start a distribution of density 1 whose mean is the traders' mean."""
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
     densities = coarse_grain(wealth, over=CLASSES).field
-    distribution = GroupElement('wealth', element=AmountElement, size=9, on='sites', values={'x': densities})
-    system = CompositeSystem(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
+    distribution = AmountElement('wealth', x=densities, space=LatticeSpace(9, boundary='fixed'))
+    system = System(elements=[distribution])
     observables = [
-        ObservableSpec('density', density, group='wealth'),
-        ObservableSpec('mean', mean_class, group='wealth'),
+        Observable('density', density, group='wealth'),
+        Observable('mean', mean_class, group='wealth'),
     ]
-    trajectory = simulate(system, until=0, observables=observables, dt=1.0)
+    trajectory = system.prepare(observables).simulate(until=0, observables=observables, dt=1.0)
     assert trajectory.get_values('density')[0] == pytest.approx(1.0)
     assert trajectory.get_values('mean')[0] == pytest.approx(wealth.mean())
 
@@ -113,8 +107,9 @@ def test_density_over_a_state_starts_a_distribution():
 def test_density_over_a_state_of_a_trajectory():
     """Test that the members of a group of a trajectory give one density per frame over the values of a state."""
     wealth = np.random.default_rng(1).integers(0, 9, size=50).astype(float)
-    traders = GroupElement('traders', element=TraderElement, size=50, values={'wealth': wealth})
-    trajectory = simulate(CompositeSystem(elements=[traders]), until=2, dt=1.0)
+    traders = Element('traders', values={'wealth': wealth}, size=50)
+    hold = Interaction('hold', roles={'target': 'traders'}, laws=lambda s: [RateLaw(s.target.wealth.diff(s.t), 0)])
+    trajectory = System(elements=[traders], interactions=[hold]).prepare().simulate(until=2, dt=1.0)
     analysis = coarse_grain(trajectory, over=CLASSES, state='traders.wealth')
     assert analysis.field.shape == (3, 9)
     np.testing.assert_allclose(analysis.field.sum(axis=1), 1.0)

@@ -14,7 +14,6 @@ dead ends. The view shows a 128 x 128 lattice at `p = 0.6` once the fire has gon
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import SitePercolationSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'site_percolation'
 
 system = SitePercolationSystem(shape=(128, 128), p=0.6, random_state=2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=299, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=299, observers=[observer], random_state=0)
 
 # %%
 # Spanning probability and finite-size scaling
@@ -35,7 +34,7 @@ trajectory = simulate(system, until=299, observers=[observer], random_state=0)
 
 def spans(side, p, seed):
     """Return whether the fire lit along the top row of a lattice reaches its bottom row."""
-    run = simulate(SitePercolationSystem(shape=(side, side), p=p, random_state=seed), until=4 * side)
+    run = SitePercolationSystem(shape=(side, side), p=p, random_state=seed).prepare().simulate(until=4 * side)
     return bool((run.get_values('lattice.cover')[-1].reshape(side, side)[-1] >= 2).any())
 
 

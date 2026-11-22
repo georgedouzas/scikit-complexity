@@ -12,14 +12,13 @@ carapace grows along von Bertalanffy's curve towards its asymptotic length.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import PenaeidShrimpSystem
 
 SYSTEM = 'penaeid_shrimp'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(PenaeidShrimpSystem(), dt=1.0, observers=[observer], until=240)
+trajectory = PenaeidShrimpSystem().prepare().simulate(dt=1.0, observers=[observer], until=240)
 
 # %%
 # Von Bertalanffy growth

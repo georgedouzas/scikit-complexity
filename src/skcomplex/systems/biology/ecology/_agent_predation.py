@@ -4,27 +4,32 @@
 # License: MIT
 
 
-from typing import Annotated
+from collections.abc import Mapping, Sequence
+from functools import partial
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TransferInteraction
-from ....core.components.laws import Source
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 
-class PredatorView(AgentView):
+@runtime_checkable
+class PredatorView(AgentViewProtocol, Protocol):
     """View of a predator, with its state and parameters as attributes.
 
-    `PredatorElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PredatorElement` read them with checked types.
     """
 
     meals: float
@@ -43,9 +48,6 @@ class PredatorElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         meals:
             The prey the predator ate in the current step.
 
@@ -55,37 +57,45 @@ class PredatorElement(Element):
         death:
             The probability of dying at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the predators, or `None`.
+
+        size:
+            The number of predators, or `None` for one.
+
+        space:
+            The grid the predators walk on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import PredatorElement
-        >>> GroupElement('foxes', element=PredatorElement, size=50).size
+        >>> PredatorElement('foxes', size=50).size
         50
     """
+
+    visual = VisualSpec('agents', {'radius': 0.4})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
         *,
-        meals: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        conversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        meals: Annotated[float | Array, NN] = 0.0,
+        conversion: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
+        death: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.meals = meals
         self.conversion = conversion
         self.death = death
 
-    @classmethod
-    def _get_view(cls) -> type[PredatorView]:
-        """Return the view of a predator, `PredatorView`."""
-        return PredatorView
 
-
-class PreyView(AgentView):
+@runtime_checkable
+class PreyView(AgentViewProtocol, Protocol):
     """View of a prey, with its parameters as attributes.
 
-    `PreyElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `PreyElement` read them with checked types.
     """
 
     birth: float
@@ -101,33 +111,37 @@ class PreyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         birth:
             The probability of giving birth at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the prey, or `None`.
+
+        size:
+            The number of prey, or `None` for one.
+
+        space:
+            The grid the prey walk on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import PreyElement
-        >>> GroupElement('rabbits', element=PreyElement, size=200).size
+        >>> PreyElement('rabbits', size=200).size
         200
     """
+
+    visual = VisualSpec('agents', {'radius': 0.3})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
         *,
-        birth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        birth: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.2,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.birth = birth
-
-    @classmethod
-    def _get_view(cls) -> type[PreyView]:
-        """Return the view of a prey, `PreyView`."""
-        return PreyView
 
 
 class AgentBasedLotkaVolterraSystem(BaseSystem):
@@ -167,6 +181,12 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import AgentBasedLotkaVolterraSystem
         >>> system = AgentBasedLotkaVolterraSystem(10, 10, prey=50, predators=5).prepare().system_
@@ -191,8 +211,10 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         death: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.prey = prey
@@ -229,10 +251,24 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         return float(predator.death) if isinstance(predator, PredatorView) else 0.0
 
     @staticmethod
-    def _get_digested(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return zero, the meals a predator starts its next step with."""
-        del predator, system
-        return 0.0
+    def _clear_meals(predator: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Clear the meals of a predator, which starts its next step hungry."""
+        del system
+        if isinstance(predator, PredatorView):
+            predator.meals = 0.0
+
+    @staticmethod
+    def _feed(predator: AgentViewProtocol, system: SystemViewProtocol, *, prey: str) -> None:
+        """Let a predator eat one prey of its cell, drawn at random among several, which dies."""
+        groups = set(system.get_groups(prey))
+        found = [other for other in predator.get_agents_here() if other.group in groups]
+        if len(found) > 1:
+            found = [found[int(index)] for index in system.rng.permutation(len(found))[:1]]
+        for item in found:
+            if predator.alive and item.alive:
+                if isinstance(predator, PredatorView):
+                    predator.meals += 1.0
+                item.remove()
 
     def _get_prey(self, group: str) -> list[MovementInteraction | BirthDeathInteraction]:
         """Return the member interactions of a prey.
@@ -248,64 +284,55 @@ class AgentBasedLotkaVolterraSystem(BaseSystem):
         self,
         group: str,
         prey: str,
-    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction | MapInteraction]:
+    ) -> list[MovementInteraction | Interaction | BirthDeathInteraction]:
         """Return the member interactions of a predator.
 
         A predator walks, eats a prey of its cell, breeds after it, dies, and digests.
         """
+        eat = partial(self._feed, prey=prey)
         return [
             MovementInteraction(f'{group}_walk', target=group, schedule='member'),
-            TransferInteraction(
-                f'{group}_eating',
-                source=prey,
-                target=group,
-                state=Source(),
-                into='meals',
-                amount=1.0,
-                pairing='cell',
-                form='agent',
-                schedule='member',
-                actor='target',
-                partners=1,
-                remove='source',
-            ),
+            Interaction(f'{group}_eating', roles={'target': group}, laws=lambda s: [UpdateLaw(s.target, eat)]),
             BirthDeathInteraction(f'{group}_breeding', target=group, birth=self._get_conversion, schedule='member'),
             BirthDeathInteraction(f'{group}_death', target=group, death=self._get_death, schedule='member'),
-            MapInteraction(
+            Interaction(
                 f'{group}_digestion',
-                target=group,
-                state='meals',
-                function=self._get_digested,
-                form='agent',
-                schedule='member',
+                roles={'target': group},
+                laws=lambda s: [UpdateLaw(s.target, self._clear_meals)],
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators that walk on a grid."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of prey and predators that walk on a grid.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.prey + self.predators, 2))
-        locations = [tuple(int(item) for item in cell) for cell in cells]
-        return CompositeSystem(
+        space = LatticeSpace((self.width, self.height), boundary='periodic')
+        prey, predators = cells[: self.prey], cells[self.prey :]
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                PreyElement(
                     'prey',
-                    element=PreyElement,
+                    birth=self.birth,
+                    values={'x': prey[:, 0], 'y': prey[:, 1]},
                     size=self.prey,
-                    values={'birth': self.birth},
-                    variable=True,
-                    location=locations[: self.prey],
+                    space=space,
                 ),
-                GroupElement(
+                PredatorElement(
                     'predators',
-                    element=PredatorElement,
+                    conversion=self.conversion,
+                    death=self.death,
+                    values={'x': predators[:, 0], 'y': predators[:, 1]},
                     size=self.predators,
-                    values={'conversion': self.conversion, 'death': self.death},
-                    variable=True,
-                    location=locations[self.prey :],
+                    space=space,
                 ),
             ],
             interactions=[*self._get_prey('prey'), *self._get_predators('predators', 'prey')],
-            space=LatticeSpace((self.width, self.height), boundary='periodic'),
+            space=space,
         )

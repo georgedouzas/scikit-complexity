@@ -6,7 +6,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ...components.laws import GradientStepLaw
+from ...components.interactions import TrainingInteraction
 from ..types import TracedFunction
 from ._base_problem_spec import BaseProblemSpec
 from ._problem_spec import ProblemSpec
@@ -14,12 +14,14 @@ from ._problem_spec import ProblemSpec
 
 @dataclass(frozen=True)
 class LearningProblemSpec(BaseProblemSpec):
-    """A spec of a problem that trains the adaptive parameters of a nested system.
+    """A spec of a problem that trains the parameters of a nested system on data.
 
-    It trains them by gradient steps, once per epoch. Its states are the trained parameters, named by their paths from
-    the root, and its parameters are the hyperparameters of the optimizer. The nested system is compiled to its own
-    problem, a discrete map or ordinary differential equations, which the solver unrolls over the sequences of the
-    dataset.
+    Its states are the trained parameters, named by their paths, and its parameters are the settings of the optimizer,
+    such as the learning rate. The nested system compiles to its own problem, which the solver runs over the sequences
+    of a dataset and differentiates, and one step of the problem is one epoch of gradient steps. It trains a recurrent
+    network on a time series, the readout of a reservoir, and the policy of a learning agent.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         inner:
@@ -29,10 +31,10 @@ class LearningProblemSpec(BaseProblemSpec):
             The path of the nested system that trains.
 
         training:
-            The path of the interaction that returns the law.
+            The path of the training interaction.
 
-        law:
-            The gradient-step law.
+        interaction:
+            The training interaction, whose optimizer, dataset, batches, truncation, and metrics the solver reads.
 
         trained:
             The names of the trained parameters in the states of the inner problem, in the order of the states.
@@ -46,22 +48,21 @@ class LearningProblemSpec(BaseProblemSpec):
         measures:
             A mapping from `'loss'` and the label of every metric to the pure JAX function `o(t, x, p)` of its value.
 
+    See Also:
+        TrainingInteraction: The interaction the problem comes from.
+        GradientDescentSolver: Runs the epochs.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.types import FormKind
-        >>> from skcomplex.core.engine._utils import symbol
-        >>> from skcomplex.core.specs import LayoutSpec
-        >>> from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
-        >>> layout = LayoutSpec(())
-        >>> problem = LearningProblemSpec(FormKind.LEARNING, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
-        >>> problem.form.value, problem.trained
-        ('learning by gradient steps', ())
+        >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
+        >>> problem = ElmanNetworkSystem().prepare().simulate(until=0).problem
+        >>> problem.form.value
+        'learning by gradient steps'
     """
 
     inner: ProblemSpec | None = field(default=None, repr=False)
     trained_system: str = ''
     training: str = ''
-    law: GradientStepLaw | None = field(default=None, repr=False)
+    interaction: TrainingInteraction | None = field(default=None, repr=False)
     trained: tuple[str, ...] = ()
     hyperparameters: Mapping[str, str] = field(default_factory=dict)
     step: TracedFunction | None = field(default=None, repr=False)

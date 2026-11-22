@@ -5,15 +5,15 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
+from ....core.components import Tags
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.types import Role
 
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
@@ -45,15 +45,15 @@ class BirthDeathInteraction(Interaction):
     arrivals without a parent, as their arguments describe. The process reports the `births`, `deaths`, and `arrivals`
     of every step.
 
-    Unlike `JumpInteraction`, which changes numeric states of a fixed set of members, it adds and removes agents, each
-    with states of its own. Choose it when a population of individuals grows, shrinks, and passes traits to offspring.
+    Unlike a `JumpLaw`, which changes numeric states of a fixed set of members, it adds and removes agents, each with
+    states of its own. Choose it when a population of individuals grows, shrinks, and passes traits to offspring.
 
     It appears in many fields. Rabbits breed and wolves starve in a predator and prey model, cells divide and die in a
     tumour, firms enter and exit a market, and households form and dissolve in a model of demography.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the variable group whose agents give birth and die.
@@ -128,35 +128,27 @@ class BirthDeathInteraction(Interaction):
             function is not callable, or the schedule `'member'` has arrivals, raised by `prepare`.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.systems.general.agents import BirthDeathInteraction
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
-        ...         self.size = size
-        >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
-        >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('size',))
-        >>> system = CompositeSystem(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-        >>> trajectory = simulate(system, until=2, random_state=0)
-        >>> trajectory.get_agents('cells', 2).values['size'].tolist()
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.general.agents import BirthDeathInteraction
+        >>> cells = Element('cells', values={'mass': 8.0}, size=1, space=LatticeSpace((3, 3)))
+        >>> division = BirthDeathInteraction('division', target='cells', birth=1.0, split=('mass',))
+        >>> trajectory = System(elements=[cells], interactions=[division]).prepare().simulate(until=2, random_state=0)
+        >>> trajectory.get_agents('cells', 2).values['mass'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'deaths', 'arrivals')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_tags(self) -> Tags:
         """Return the tags of the rules of births and deaths.
 
         These rules change the membership of groups.
         """
-        return self._get_variant_tags((RuleLaw,), structure=frozenset({'variable membership'}))
+        return self._get_variant_tags((UpdateLaw,), structure=frozenset({'variable membership'}))
 
     def _get_draws(self) -> bool:
         """Return whether the cycle draws.
@@ -176,10 +168,7 @@ class BirthDeathInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[
-            str,
-            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('inherit', 'split')),
-        ],
+        target: Role,
         birth: Chance | None = None,
         death: Chance | None = None,
         rate: Chance | None = None,
@@ -190,7 +179,7 @@ class BirthDeathInteraction(Interaction):
         mutate: Mutation | None = None,
         schedule: str = 'random-sequential',
         phase: str | None = None,
-        group: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,))] = None,
+        group: Role | None = None,
         values: Values | None = None,
         keep: Chance | None = None,
         reset: Mapping[str, object] | None = None,
@@ -244,19 +233,15 @@ class BirthDeathInteraction(Interaction):
         if self.placement == 'neighbor':
             self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown placement, a doubled birth, or a bad function.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given,
                 a value is neither a number nor a function, or the schedule `'member'` has arrivals.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variants()
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'
@@ -271,6 +256,16 @@ class BirthDeathInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_birth_death_laws(context)
 
     @staticmethod
     def _evaluate(value: Chance | Count, agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -469,7 +464,7 @@ class BirthDeathInteraction(Interaction):
         system.report('deaths', deaths)
         system.report('arrivals', self._arrive(system))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_birth_death_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the process.
 
         Args:
@@ -481,5 +476,5 @@ class BirthDeathInteraction(Interaction):
                 The rule that removes and creates agents every step.
         """
         if self.schedule == 'member':
-            return [RuleLaw(self._live_member, phase=self.phase, members=self._get_role('target'))]
-        return [RuleLaw(self._live, phase=self.phase)]
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._live_member, phase=self.phase)]
+        return [UpdateLaw(namespace, self._live, phase=self.phase)]

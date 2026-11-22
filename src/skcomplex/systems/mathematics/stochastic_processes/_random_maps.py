@@ -3,34 +3,63 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class RandomBranchMapElement(Element):
-    """Value of a random interval map.
-
-    The map applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise.
+    """Values `x` of a random interval map, one per orbit.
 
     Args:
         label:
-            The label of the element or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the orbits.
 
         x:
-            The initial value, between 0 and 1.
+            The initial value, between 0 and 1, one per orbit or shared.
+
+        size:
+            The number of orbits, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapElement
+        >>> RandomBranchMapElement('map', x=0.3).x
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: Annotated[object, RealSet.closed(0, 1)] = 0.5,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class RandomBranchMapInteraction(Interaction):
+    """The random map that applies `(1 + x) / 2` with probability `p1` and `mu x²` otherwise.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The orbits whose values the map moves.
 
         p1:
             The probability of the branch `(1 + x) / 2`.
@@ -39,42 +68,32 @@ class RandomBranchMapElement(Element):
             The coefficient of the branch `mu x²`, between 0 and 1.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapElement
-        >>> RandomBranchMapElement('map', p1=0.3).p1
+        >>> from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapInteraction
+        >>> RandomBranchMapInteraction('map', target='orbits', p1=0.3).p1
         0.3
     """
 
-    draws = True
-
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        p1: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'orbits', p1: float = 0.5, mu: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.p1 = p1
         self.mu = mu
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the value by the branch drawn in the step.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the value by the branch drawn in the step as the law.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        first = bernoulli('branch', s.p1)
-        return [UpdateLaw(s.x, first * (1 + s.x) / 2 + (1 - first) * s.mu * s.x**2)]
+        super()._prepare(context)
+        x = context.target.x
+        first = bernoulli('branch', context.p1)
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, first * (1 + x) / 2 + (1 - first) * context.mu * x**2)]
 
 
 class RandomBranchMapSystem(BaseSystem):
@@ -106,9 +125,15 @@ class RandomBranchMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import RandomBranchMapSystem
-        >>> RandomBranchMapSystem(10, p1=0.3).prepare().system_.elements[0].prepare().size_
+        >>> RandomBranchMapSystem(10, p1=0.3).prepare().system_.elements[0].size
         10
     """
 
@@ -126,27 +151,21 @@ class RandomBranchMapSystem(BaseSystem):
         mu: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_orbits = n_orbits
         self.p1 = p1
         self.mu = mu
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return orbits of a random map of `[0, 1]`.
-
-        The map has the two branches `(1 + x) / 2` and `mu x²`.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the orbits and their random map."""
+        super()._prepare(context)
         start = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.n_orbits)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'orbits',
-                    element=RandomBranchMapElement,
-                    size=self.n_orbits,
-                    values={'x': start, 'p1': self.p1, 'mu': self.mu},
-                ),
-            ],
+            elements=[RandomBranchMapElement('orbits', x=start, size=self.n_orbits)],
+            interactions=[RandomBranchMapInteraction('map', target='orbits', p1=self.p1, mu=self.mu)],
         )

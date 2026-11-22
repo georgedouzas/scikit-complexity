@@ -9,19 +9,20 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, tanh
+from sage.all__sagemath_symbolics import SR, Expression, oo, tanh
 from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import delayed, logistic
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws.utils import logistic, maximum
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ..common.excitable import SpikeResetInteraction
 from ._leaky_integration import LeakyIntegrationInteraction
 
@@ -34,16 +35,11 @@ TRACE_TIME = 2.0
 
 
 class InhibitorElement(Element):
-    """Global inhibitor of a LEGION network.
-
-    Its activity `z` decays at rate `phi` without drive.
+    """Global inhibitor of a LEGION network, with its activity `z` and its rate `phi`.
 
     Args:
         label:
             The label of the inhibitor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         z:
             The initial activity.
@@ -57,32 +53,49 @@ class InhibitorElement(Element):
         3.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        z: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        phi: Annotated[float, RealSet.open(0, oo)] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.phi = phi
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the decay of the inhibitor.
+
+class InhibitorDecayInteraction(Interaction):
+    """Decay of a global inhibitor without drive, `z' = -phi z`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the inhibitor, whose values are `z` and `phi`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import InhibitorDecayInteraction
+        >>> InhibitorDecayInteraction('decay', target='inhibitor').target
+        'inhibitor'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the decay of the inhibitor.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RateLaw(s.z, -s.phi * s.z)]
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.z, -context.target.phi * context.target.z)]
 
 
 class SpikingNeuronElement(Element):
@@ -98,9 +111,6 @@ class SpikingNeuronElement(Element):
     Args:
         label:
             The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         v:
             The initial potential.
@@ -126,15 +136,14 @@ class SpikingNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        v: Annotated[float, StateSpec()] = 0.0,
-        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        mu: Annotated[float, ParameterSpec()] = 25.0,
-        tau_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        v: float = 0.0,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        mu: float = 25.0,
+        tau_s: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.v = v
         self.s = s
         self.tau = tau
@@ -143,22 +152,15 @@ class SpikingNeuronElement(Element):
 
 
 class TermanWangElement(Element):
-    """Relaxation oscillator of Terman and Wang.
+    """Relaxation oscillators of Terman and Wang, one per site of a LEGION lattice.
 
-    It is the dynamics of one site of a LEGION lattice.
-
-    The fast variable follows `x' = 3x - x³ + 2 - y + I` and the slow one `y' = epsilon (gamma (1 + tanh(x / beta)) -
-    y)`. A positive input `I` makes the oscillator oscillate and a negative one makes it excitable. The parameters `m`,
-    `W`, `theta_x`, and `kappa` belong to the coupling of a lattice of oscillators, a `CouplingInteraction` that adds
-    `W m (sum_k m_k H(x_k - theta_x))` over the four nearest sites, where `H` is a smooth step of width `kappa` and `m`
-    marks the stimulated sites, so only stimulated neighbours excite each other.
+    The parameters `m`, `W`, `theta_x`, and `kappa` belong to the coupling of a lattice of oscillators, a
+    coupling along its bonds that adds `W m (sum_k m_k H(x_k - theta_x))` over the four nearest sites, where `H` is a
+    smooth step of width `kappa` and `m` marks the stimulated sites, so only stimulated neighbours excite each other.
 
     Args:
         label:
             The label of the oscillator or the lattice field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial fast variable.
@@ -190,31 +192,32 @@ class TermanWangElement(Element):
         kappa:
             The width of the smooth steps.
 
+        space:
+            The lattice whose sites hold one oscillator each, or `None` for one oscillator.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import TermanWangElement
         >>> TermanWangElement('oscillator').gamma
         6.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = SILENT,
-        y: Annotated[float, StateSpec()] = 0.0,
-        I: Annotated[float, ParameterSpec()] = 0.2,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        W: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        theta_x: Annotated[float, ParameterSpec()] = -0.5,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
+        x: float | Array = SILENT,
+        y: float | Array = 0.0,
+        I: float | Array = 0.2,
+        m: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        W: Annotated[float | Array, RealSet.closed_open(0, oo)] = 6.0,
+        epsilon: Annotated[float | Array, RealSet.open(0, oo)] = 0.02,
+        gamma: Annotated[float | Array, RealSet.open(0, oo)] = 6.0,
+        beta: Annotated[float | Array, RealSet.open(0, oo)] = 0.1,
+        theta_x: float = -0.5,
+        kappa: Annotated[float | Array, RealSet.open(0, oo)] = 0.02,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.x = x
         self.y = y
         self.I = I
@@ -226,24 +229,48 @@ class TermanWangElement(Element):
         self.theta_x = theta_x
         self.kappa = kappa
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fast variable and the slow recovery.
+
+class TermanWangInteraction(Interaction):
+    """Dynamics of relaxation oscillators of Terman and Wang.
+
+    The fast variable follows `x' = 3x - x³ + 2 - y + I` and the slow one `y' = epsilon (gamma (1 + tanh(x / beta)) -
+    y)`. A positive input `I` makes the oscillator oscillate and a negative one makes it excitable.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the oscillators, whose values are `x`, `y`, `I`, `epsilon`, `gamma`, and `beta`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import TermanWangInteraction
+        >>> TermanWangInteraction('oscillation', target='oscillators').target
+        'oscillators'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fast variable and the slow recovery of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
+        super()._prepare(context)
+        s = context.target
+        self.laws_ = [
             RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I),
             RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
         ]
 
 
-class DelayedSynapseInteraction(RateInteraction):
+class DelayedSynapseInteraction(Interaction):
     """Synapse that adds the delayed presynaptic trace to the postsynaptic potential.
 
     The trace is the one from a transmission delay ago.
@@ -273,35 +300,36 @@ class DelayedSynapseInteraction(RateInteraction):
         1.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        J: Annotated[float, ParameterSpec()] = 0.5,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        source: Role,
+        target: Role,
+        J: float = 0.5,
+        D: Annotated[float, RealSet.open(0, oo)] = 1.5,
     ) -> None:
-        super().__init__(label, target=target, state='v')
+        super().__init__(label)
         self.source = source
+        self.target = target
         self.J = J
         self.D = D
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the delayed synaptic input `J s_source(t - D)`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the delayed synaptic input `J s_source(t - D)` of the postsynaptic potential.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespaces of the source and the target.
-
-        Returns:
-            rate:
-                The rate of the postsynaptic potential.
+            context:
+                The namespace of the source and the target.
         """
-        return namespace.J * delayed(namespace.source.s, namespace.D)
+        super()._prepare(context)
+        delayed = context.source.s(t=context.t - context.D)
+        self.laws_: list[BaseLaw] = [RateLaw(context.target.v, context.J * delayed)]
 
 
-class GlobalInhibitionInteraction(CouplingInteraction):
+class GlobalInhibitionInteraction(Interaction):
     """Inhibition of every oscillator of a lattice by a global inhibitor.
 
     The inhibition acts once the inhibitor exceeds its threshold.
@@ -331,35 +359,37 @@ class GlobalInhibitionInteraction(CouplingInteraction):
         1.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        oscillators: Annotated[str, RoleSpec()],
-        inhibitor: Annotated[str, RoleSpec()],
-        W_z: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        theta_z: Annotated[float, ParameterSpec()] = 0.1,
+        oscillators: Role,
+        inhibitor: Role,
+        W_z: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        theta_z: float = 0.1,
     ) -> None:
-        super().__init__(
-            label,
-            target=oscillators,
-            source=inhibitor,
-            write='x',
-            function=self._get_inhibition,
-            mode='group',
-        )
+        super().__init__(label)
         self.oscillators = oscillators
         self.inhibitor = inhibitor
         self.W_z = W_z
         self.theta_z = theta_z
 
-    @staticmethod
-    def _get_inhibition(namespace: SimpleNamespace) -> Target:
-        """Return the inhibition `-W_z H(z - theta_z)` of an oscillator."""
-        return -namespace.W_z * logistic(namespace.other.z - namespace.theta_z, 0, namespace.member.kappa)
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the inhibition `-W_z H(z - theta_z)` of every oscillator.
+
+        Args:
+            context:
+                The namespace of the oscillators and the inhibitor.
+        """
+        super()._prepare(context)
+        member, hub = context.oscillators, context.inhibitor
+        inhibition = -context.W_z * logistic(hub.z - context.theta_z, 0, member.kappa)
+        self.laws_: list[BaseLaw] = [RateLaw(member.x, inhibition)]
 
 
-class InhibitorDriveInteraction(CouplingInteraction):
+class InhibitorDriveInteraction(Interaction):
     """Drive of a global inhibitor by the largest activity of the lattice oscillators.
 
     The activity is `m H(x - theta_x)`.
@@ -380,34 +410,34 @@ class InhibitorDriveInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import InhibitorDriveInteraction
-        >>> InhibitorDriveInteraction('drive', inhibitor='z', oscillators='grid').reduce
-        'max'
+        >>> InhibitorDriveInteraction('drive', inhibitor='z', oscillators='grid').oscillators
+        'grid'
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        inhibitor: Annotated[str, RoleSpec()],
-        oscillators: Annotated[str, RoleSpec()],
+        inhibitor: Role,
+        oscillators: Role,
     ) -> None:
-        super().__init__(
-            label,
-            target=inhibitor,
-            source=oscillators,
-            write='z',
-            function=self._get_drive,
-            reduce='max',
-            mode='group',
-        )
+        super().__init__(label)
         self.inhibitor = inhibitor
         self.oscillators = oscillators
 
-    @staticmethod
-    def _get_drive(namespace: SimpleNamespace) -> Target:
-        """Return the drive `phi m H(x - theta_x)` of the inhibitor by one oscillator."""
-        other = namespace.other
-        return namespace.member.phi * other.m * logistic(other.x - other.theta_x, 0, other.kappa)
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drive `phi max_j m_j H(x_j - theta_x)` of the inhibitor.
+
+        Args:
+            context:
+                The namespace of the inhibitor and the oscillators.
+        """
+        super()._prepare(context)
+        hub, other = context.inhibitor, context.oscillators
+        drive = hub.phi * other.m * logistic(other.x - other.theta_x, 0, other.kappa) * SR(1)
+        self.laws_: list[BaseLaw] = [RateLaw(hub.z, maximum(drive, over=other))]
 
 
 class DelayedLIFNetworkSystem(BaseSystem):
@@ -442,6 +472,12 @@ class DelayedLIFNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import DelayedLIFNetworkSystem
         >>> len(DelayedLIFNetworkSystem(5).prepare().system_.elements)
@@ -464,8 +500,10 @@ class DelayedLIFNetworkSystem(BaseSystem):
         mu: float = 25.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_neurons = n_neurons
         self.probability = probability
         self.J = J
@@ -478,8 +516,14 @@ class DelayedLIFNetworkSystem(BaseSystem):
         """Return the directed links of a random network without self-links."""
         return list(nx.gnp_random_graph(n_neurons, probability, seed=rng, directed=True).edges)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a random network of leaky integrate-and-fire neurons."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a random network of leaky integrate-and-fire neurons.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         potentials = rng.uniform(10.0, 20.0, self.n_neurons)
         neurons = [
@@ -497,11 +541,10 @@ class DelayedLIFNetworkSystem(BaseSystem):
             for index, neuron in enumerate(neurons)
         ]
         traces = [
-            RateInteraction(
+            Interaction(
                 f'trace_decay_{index}',
-                target=neuron.label,
-                state='s',
-                rate=lambda s: -s.target.s / s.target.tau_s,
+                roles={'target': neuron.label},
+                laws=lambda s: [RateLaw(s.target.s, -s.target.s / s.target.tau_s)],
             )
             for index, neuron in enumerate(neurons)
         ]
@@ -526,7 +569,7 @@ class DelayedLIFNetworkSystem(BaseSystem):
             )
             for source, target in self._get_random_connections(self.n_neurons, self.probability, rng)
         ]
-        return CompositeSystem(self.label, elements=neurons, interactions=[*leaks, *traces, *spikes, *synapses])
+        self.system_ = System(self.label, elements=neurons, interactions=[*leaks, *traces, *spikes, *synapses])
 
 
 class LegionSystem(BaseSystem):
@@ -563,6 +606,12 @@ class LegionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import LegionSystem
         >>> LegionSystem().prepare().system_.elements[0].space.shape
@@ -584,8 +633,10 @@ class LegionSystem(BaseSystem):
         W_z: float = 1.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.stimulus = stimulus
         self.epsilon = epsilon
         self.W = W
@@ -603,6 +654,15 @@ class LegionSystem(BaseSystem):
         return excitation
 
     @staticmethod
+    def _get_exchange(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the excitation of the two oscillators at the ends of a bond, each by the other."""
+        get_excitation = LegionSystem._get_excitation
+        return [
+            RateLaw(s.target.x, get_excitation(SimpleNamespace(member=s.target, other=s.source))),
+            RateLaw(s.source.x, get_excitation(SimpleNamespace(member=s.source, other=s.target))),
+        ]
+
+    @staticmethod
     def _link_weights(stimulus: Array, total: float) -> Array:
         """Return the weight of each link into every site.
 
@@ -611,32 +671,27 @@ class LegionSystem(BaseSystem):
         neighbours = convolve(stimulus, NEAREST, mode='constant')
         return total / np.maximum(neighbours, 1.0)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a LEGION network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a LEGION network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         marks = np.asarray(self.stimulus, dtype=float)
         rng = np.random.default_rng(self.random_state)
-        values = {
-            'x': rng.uniform(-2.0, 2.0, marks.shape),
-            'y': rng.uniform(0.0, 6.0, marks.shape),
-            'I': np.where(marks > 0, 0.2, -0.02),
-            'm': marks,
-            'W': self._link_weights(marks, self.W),
-            'epsilon': self.epsilon,
-        }
-        oscillators = FieldElement(
+        oscillators = TermanWangElement(
             'oscillators',
-            element=TermanWangElement,
-            space=LatticeSpace(marks.shape),
-            boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'},
-            values=values,
+            x=rng.uniform(-2.0, 2.0, marks.shape),
+            y=rng.uniform(0.0, 6.0, marks.shape),
+            I=np.where(marks > 0, 0.2, -0.02),
+            m=marks,
+            W=self._link_weights(marks, self.W),
+            epsilon=self.epsilon,
+            space=LatticeSpace(marks.shape, boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'}),
         )
-        excitation = CouplingInteraction(
-            'excitation',
-            target='oscillators',
-            read='x',
-            write='x',
-            function=self._get_excitation,
-        )
+        excitation = Interaction('excitation', roles={'nodes': 'oscillators'}, laws=self._get_exchange, along=True)
         drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
         inhibition = GlobalInhibitionInteraction(
             'inhibition',
@@ -644,8 +699,14 @@ class LegionSystem(BaseSystem):
             oscillators='oscillators',
             W_z=self.W_z,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[oscillators, InhibitorElement('inhibitor')],
-            interactions=[excitation, drive, inhibition],
+            interactions=[
+                TermanWangInteraction('oscillation', target='oscillators'),
+                InhibitorDecayInteraction('decay', target='inhibitor'),
+                excitation,
+                drive,
+                inhibition,
+            ],
         )

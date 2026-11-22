@@ -8,13 +8,10 @@ Their propensity saturates in the amount of their substrate.
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
 from ....general.reactions import ReactionInteraction
 from ....general.reactions.types import Stoichiometry
 
@@ -32,7 +29,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
 
     Args:
         label:
-            The label of the reaction, unique among the parts of its system.
+            The label of the reaction, unique among the components of its system.
 
         target:
             The path of the element, group, or field whose states the species named by a state alone are.
@@ -66,14 +63,13 @@ class MichaelisMentenInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.kinetics import MichaelisMentenInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> uptake = MichaelisMentenInteraction(
         ...     'uptake', target='cell', reactants={'x': 1}, substrate='x', vmax=1.0, km=100.0
         ... )
-        >>> system = CompositeSystem(elements=[CompartmentElement('cell', x=500.0)], interactions=[uptake])
-        >>> trajectory = simulate(system, until=10.0, dt=1.0)
+        >>> system = System(elements=[CompartmentElement('cell', x=500.0)], interactions=[uptake])
+        >>> trajectory = system.prepare().simulate(until=10.0, dt=1.0)
         >>> round(float(trajectory.get_values('cell.x')[-1]), 3)
         491.679
     """
@@ -82,13 +78,13 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str | None, RoleSpec()] = None,
-        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        target: str | None = None,
+        reactants: Stoichiometry | None = None,
+        products: Stoichiometry | None = None,
         substrate: str | Callable[[SimpleNamespace], object] = 'x',
         vmax: Callable[[SimpleNamespace], object] | float = 1.0,
         km: Callable[[SimpleNamespace], object] | float = 1.0,
-        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        modifiers: Stoichiometry | None = None,
         mode: str = 'rate',
     ) -> None:
         super().__init__(label, target=target, reactants=reactants, products=products, modifiers=modifiers, mode=mode)
@@ -96,19 +92,15 @@ class MichaelisMentenInteraction(ReactionInteraction):
         self.vmax = vmax
         self.km = km
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a substrate or rates the reaction cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The substrate is neither a name nor a function, a rate is neither a function nor a number, or the
                 reaction cannot take its species or mode.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not (callable(self.substrate) or (isinstance(self.substrate, str) and self.substrate.isidentifier())):
             error_msg = (
                 f'The substrate of {self.label!r} is {self.substrate!r}. Give the name of a state of the target or a '

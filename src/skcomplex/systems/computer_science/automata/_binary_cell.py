@@ -5,26 +5,25 @@
 
 from typing import Annotated
 
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-
 from ....core.components.elements import Element
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace
+from ....core.types import Array
 
 
 class BinaryCellElement(Element):
-    """Cell of an automaton whose state `alive` is 0 or 1.
+    """Cell of an automaton whose value `alive` is 0 or 1.
 
-    The local rule of an interaction changes the state.
+    The local rule of an interaction changes the value. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the cells.
 
         alive:
-            The initial value, 0 or 1.
+            The initial value, 0 or 1, or one value per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import BinaryCellElement
@@ -35,9 +34,9 @@ class BinaryCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        alive: Annotated[float | Array, {0, 1}] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.alive = alive

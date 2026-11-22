@@ -12,7 +12,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
+from .....core.types import Array
 
 
 class HostElement(Element):
@@ -20,20 +21,20 @@ class HostElement(Element):
 
     It is susceptible at `i = 0` and infected at `i = 1`.
 
-    A `SpreadingInteraction` infects and recovers it, and a `TopologyInteraction` rewires its edges at its rate `w`.
+    A `SpreadingInteraction` infects and recovers it, and a rewiring interaction rewires its edges at its rate `w`.
 
     Args:
         label:
             The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         i:
             Whether the node is infected.
 
         w:
             The rate at which the node, while susceptible, rewires an edge to an infected neighbour.
+
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import HostElement
@@ -44,11 +45,11 @@ class HostElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        i: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        w: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.i = i
         self.w = w

@@ -79,9 +79,14 @@ def _is_linear_call(expression: Expression) -> bool:
 
 
 def distribute_operators(expression: object) -> Expression:
-    """Return an expression with the linear field operators distributed.
+    """Return an expression with the linear operators of fields applied term by term.
 
-    They are distributed over sums and out of numeric factors.
+    Every linear operator, such as `laplacian` or `partial`, is split over the terms of a sum and has its number factors
+    moved outside, so `laplacian(-a) + laplacian(a)` becomes `-laplacian(a) + laplacian(a)`, which is 0. The compiler
+    reads it to find terms that cancel and to build one matrix per operator and symbol. It tidies the diffusion of heat,
+    the spread of a pollutant, and the waves of a membrane.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         expression:
@@ -92,10 +97,12 @@ def distribute_operators(expression: object) -> Expression:
             The same field, in which every operator reads a product of symbols, such as `laplacian(-a)` as
             `-laplacian(a)`.
 
+    See Also:
+        laplacian: One of the operators it splits.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws.utils import laplacian
-        >>> from skcomplex.core.components.laws.utils._tensors import distribute_operators
+        >>> from skcomplex.core.components.laws.utils import distribute_operators, laplacian
         >>> a = var('a')
         >>> distribute_operators(laplacian(-a) + laplacian(a))
         0
@@ -109,9 +116,13 @@ def distribute_operators(expression: object) -> Expression:
 
 
 def vector_gradient(velocity: Sequence[object] | FreeModuleElement) -> Matrix:
-    """Return the gradient of a vector.
+    """Return the matrix of the derivatives of every entry of a vector field.
 
-    It is the matrix of the derivatives `partial(v_i, j)`.
+    Entry `(i, j)` is `partial(v_i, j)`, the derivative of entry `i` of the vector along axis `j`, such as the four
+    derivatives of `[u, v]` in a plane. It gives the shear of a flowing fluid, the strain of a deformed solid, and the
+    rate at which a flock stretches.
+
+    Read more in the user guide, under Laws.
 
     Args:
         velocity:
@@ -119,11 +130,15 @@ def vector_gradient(velocity: Sequence[object] | FreeModuleElement) -> Matrix:
 
     Returns:
         gradient:
-            The matrix of the derivative of every component along every dimension.
+            The matrix of the derivative of every entry along every axis.
 
     Raises:
         TensorShapeError:
             The value is not a vector.
+
+    See Also:
+        tensor_divergence: Sums the derivatives of the rows of a matrix field.
+        symmetric_part: Keeps the symmetric part of a matrix.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -138,9 +153,13 @@ def vector_gradient(velocity: Sequence[object] | FreeModuleElement) -> Matrix:
 
 
 def tensor_divergence(tensor: Matrix) -> FreeModuleElement:
-    """Return the divergence of a rank-2 tensor.
+    """Return the divergence of a matrix field, one sum of derivatives per row.
 
-    It is the vector of the sums of `partial(T_ij, j)` over `j`.
+    Entry `i` is the sum of `partial(T_ij, j)` over `j`, the net outflow of row `i`, such as the gradient of the
+    pressure `p` for the matrix `p I`. It gives the force of the stress in a fluid or a solid, and the push that the
+    crowding of cells exerts on a tissue.
+
+    Read more in the user guide, under Laws.
 
     Args:
         tensor:
@@ -148,11 +167,15 @@ def tensor_divergence(tensor: Matrix) -> FreeModuleElement:
 
     Returns:
         divergence:
-            One expression per row of the tensor.
+            One expression per row of the matrix.
 
     Raises:
         TensorShapeError:
             The value is not a square matrix.
+
+    See Also:
+        vector_gradient: Gives the matrix of derivatives of a vector field.
+        divergence: Gives the divergence of a vector field.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, identity_matrix, var
@@ -167,17 +190,26 @@ def tensor_divergence(tensor: Matrix) -> FreeModuleElement:
 def symmetric_part(tensor: Matrix) -> Matrix:
     """Return the symmetric part of a square matrix, `(M + M^T) / 2`.
 
+    It averages every entry with its mirror across the diagonal, such as `[[0, a], [a, 0]]` for `[[0, 2a], [0, 0]]`. Of
+    the matrix of derivatives of a velocity it keeps the stretching and drops the spin. It gives the strain rate of a
+    fluid, the strain of a solid, and the symmetric couplings of a network.
+
+    Read more in the user guide, under Laws.
+
     Args:
         tensor:
             A square matrix of expressions.
 
     Returns:
-        part:
+        symmetric:
             The symmetric matrix.
 
     Raises:
         TensorShapeError:
             The value is not a square matrix.
+
+    See Also:
+        antisymmetric_part: Keeps the antisymmetric part instead.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, matrix, var
@@ -193,17 +225,26 @@ def symmetric_part(tensor: Matrix) -> Matrix:
 def antisymmetric_part(tensor: Matrix) -> Matrix:
     """Return the antisymmetric part of a square matrix, `(M - M^T) / 2`.
 
+    It gives every entry half its difference with its mirror across the diagonal, such as `[[0, a], [-a, 0]]` for
+    `[[0, 2a], [0, 0]]`. Of the matrix of derivatives of a velocity it keeps the spin and drops the stretching. It gives
+    the vorticity of a fluid, the rotation of a solid, and the one-way couplings of a network.
+
+    Read more in the user guide, under Laws.
+
     Args:
         tensor:
             A square matrix of expressions.
 
     Returns:
-        part:
+        antisymmetric:
             The antisymmetric matrix.
 
     Raises:
         TensorShapeError:
             The value is not a square matrix.
+
+    See Also:
+        symmetric_part: Keeps the symmetric part instead.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import SR, matrix, var
@@ -217,9 +258,14 @@ def antisymmetric_part(tensor: Matrix) -> Matrix:
 
 
 def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleElement:
-    """Return the divergence-free part of a vector of field expressions.
+    """Return the divergence-free part of a vector field, with no net outflow anywhere.
 
-    It is `v - grad(inverse_helmholtz(div(v)))`.
+    It is `v - grad(inverse_helmholtz(div(v)))`, the field minus the gradient that carries its outflow, so what is left
+    neither gathers nor spreads at any point, such as the three entries of a velocity `[u, v, w]` kept free of
+    compression. It keeps the flow of water incompressible, the magnetic field free of sources, and a crowd from piling
+    up in place.
+
+    Read more in the user guide, under Laws.
 
     Args:
         field:
@@ -232,6 +278,10 @@ def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleE
     Raises:
         TensorShapeError:
             The value is not a vector.
+
+    See Also:
+        inverse_helmholtz: Solves for the potential it removes.
+        divergence: Gives the outflow it removes.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

@@ -1,0 +1,40 @@
+"""Define the owners spec."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from dataclasses import dataclass
+
+from ...base import BaseSpec
+from ...components.laws import BaseLaw
+
+
+@dataclass(frozen=True)
+class _OwnersSpec(BaseSpec):
+    """Law kinds and classes of the owners of a system, with the solvers to run them.
+
+    The kinds are as declared and the classes as lowered.
+    """
+
+    declared: dict[str, set[type[BaseLaw]]]
+    lowered: dict[str, set[type[BaseLaw]]]
+    solvers: list[type]
+
+    def get_under(
+        self,
+        scope: str,
+        *,
+        nested: bool,
+    ) -> tuple[dict[str, set[type[BaseLaw]]], dict[str, set[type[BaseLaw]]]]:
+        """Return the declared kinds and lowered classes of the owners of a scope.
+
+        With its own components alone, it returns those of the scope's own components.
+        """
+
+        def holds(owner: str) -> bool:
+            return owner.startswith(scope) and (nested or '/' not in owner[len(scope) :])
+
+        return (
+            {owner: kinds for owner, kinds in self.declared.items() if holds(owner)},
+            {owner: kinds for owner, kinds in self.lowered.items() if holds(owner)},
+        )

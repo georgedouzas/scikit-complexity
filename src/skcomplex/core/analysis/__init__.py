@@ -1,9 +1,11 @@
-"""Analyse systems, trajectories, and measured data by kind of data.
+"""Analyse systems, trajectories, and measured data by the kind of data.
 
-The kinds of data are series, paths, fields, agents, and networks.
+The kinds of data are series, paths, fields, agents, and networks, such as the price of a stock over time, the grid of a
+forest fire, or the friendships of a school, and each analysis takes a system, a trajectory, or plain arrays.
 """
 
 from ._alignment import AlignmentResult, alignment
+from ._analysis_tags import AnalysisTags
 from ._autocatalytic import AutocatalyticSetsResult, autocatalytic_sets
 from ._automata import AutomatonResult, automaton
 from ._base import bind_analysis
@@ -40,7 +42,6 @@ from ._mode_decomposition import ModeDecompositionResult, mode_decomposition
 from ._motifs import MotifsResult, motifs
 from ._neighbors import NeighborsResult, neighbors
 from ._networks import NetworkMeasuresResult, network_measures
-from ._operator import OperatorMeasuresResult, operator_measures
 from ._partial_information import PartialInformationResult, partial_information
 from ._passage import PassageResult, passage
 from ._recurrence import RecurrenceResult, recurrence
@@ -50,6 +51,7 @@ from ._rolling import RollingResult, rolling
 from ._scaling import ScalingResult, scaling
 from ._sections import SectionResult, section
 from ._shape import ChainShapeResult, chain_shape
+from ._signature_spec import SignatureSpec
 from ._signatures import SignaturesResult, signatures
 from ._sparse_identification import SparseIdentificationResult, sparse_identification
 from ._spectrum import SpectrumResult, spectrum
@@ -59,6 +61,7 @@ from ._symbolic import SymbolicResult, symbolic
 
 __all__: list[str] = [
     'AlignmentResult',
+    'AnalysisTags',
     'ApplicableAnalysesResult',
     'AutocatalyticSetsResult',
     'AutomatonResult',
@@ -95,7 +98,6 @@ __all__: list[str] = [
     'MotifsResult',
     'NeighborsResult',
     'NetworkMeasuresResult',
-    'OperatorMeasuresResult',
     'PartialInformationResult',
     'PassageResult',
     'RecurrenceResult',
@@ -104,6 +106,7 @@ __all__: list[str] = [
     'RollingResult',
     'ScalingResult',
     'SectionResult',
+    'SignatureSpec',
     'SignaturesResult',
     'SparseIdentificationResult',
     'SpectrumResult',
@@ -148,7 +151,6 @@ __all__: list[str] = [
     'motifs',
     'neighbors',
     'network_measures',
-    'operator_measures',
     'partial_information',
     'passage',
     'recurrence',

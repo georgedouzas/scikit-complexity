@@ -13,7 +13,6 @@ termination: a relaxation oscillation with the sawtooth shape of the glacial cyc
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import VanDerPolIceAgesSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'van_der_pol_ice_ages'
 
 system = VanDerPolIceAgesSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Slow manifold and fast jumps

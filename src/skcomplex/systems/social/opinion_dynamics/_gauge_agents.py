@@ -14,63 +14,62 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 import scipy.sparse
-from sage.all__sagemath_symbolics import pi, sin
+from sage.all__sagemath_symbolics import sin
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import CellComplexSpace, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import BaseSpace, CellComplexSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
-class TransportedCouplingInteraction(CouplingInteraction):
+class TransportedCouplingInteraction(Interaction):
     """Relaxation of agent phases towards the phases of their neighbours.
 
     It adds `theta_i' += K sin(theta_j - theta_i - A_ij)`. The connection `A_ij` lives on the edge of the network from
-    `i` to `j`, and `A_ji = -A_ij`.
+    `i` to `j`, read as `A` of the element on the edges, and `A_ji = -A_ij`. The laws run once for every edge.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        target:
+        among:
             The path of the group of agents on the nodes.
-
-        links:
-            The path of the group on the edges, whose parameter `A` holds the connection.
 
         K:
             The coupling strength.
 
+        along:
+            The edges the laws run on, `True` for the edges of the network the agents live on.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import TransportedCouplingInteraction
-        >>> TransportedCouplingInteraction('coupling', target='agents', links='links', K=0.5).K
+        >>> TransportedCouplingInteraction('coupling', among='agents', K=0.5).K
         0.5
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, target=target, read='theta', write='theta')
-        self.links = links
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, among: Role, K: float = 1.0, along: bool | str = True) -> None:
+        super().__init__(label, among=among, along=along)
         self.K = K
 
-    def _get_edge_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of both ends of an edge.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of both ends of an edge, reading the connection along and against its direction.
 
-        The connection is read along and against its direction.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        source, target = namespace.source, namespace.target
-        flow = namespace.K * sin(target.theta - source.theta - namespace.edge.A)
-        return [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
+        super()._prepare(context)
+        source, target = context.source, context.target
+        flow = context.K * sin(target.theta - source.theta - context.edge.A)
+        self.laws_: list[BaseLaw] = [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
 
 
 class PhaseAgentElement(Element):
@@ -80,15 +79,15 @@ class PhaseAgentElement(Element):
         label:
             The label of the agent or the group on the nodes.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         theta:
             The initial phase.
 
+        space:
+            The network whose nodes hold one agent each, or `None` for one agent.
+
     Attributes:
         default_visual_:
-            The visual of the agent when it sets none.
+            How the agent is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import PhaseAgentElement
@@ -99,11 +98,11 @@ class PhaseAgentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        theta: Annotated[object, Period(2 * np.pi)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.theta = theta
 
 
@@ -114,15 +113,18 @@ class ConnectionElement(Element):
         label:
             The label of the edge or the group on the edges.
 
-        visual:
-            How the edge is drawn, or `None` for `default_visual_`.
-
         A:
             The connection along the direction of the edge.
 
+        space:
+            The network whose edges hold the connections, or `None` for one edge.
+
+        on:
+            `'edges'` for one connection per edge of a network space, or `None` for one per site.
+
     Attributes:
         default_visual_:
-            The visual of the edge when it sets none.
+            How the edge is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ConnectionElement
@@ -133,11 +135,12 @@ class ConnectionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, ParameterSpec()] = 0.0,
+        A: object = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.A = A
 
 
@@ -174,6 +177,12 @@ class GaugeNetworkAgentsSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ValidationError:
@@ -225,15 +234,15 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         return float(np.abs(faces @ GaugeNetworkAgentsSystem._get_differences(edges, values)).max(initial=0.0))
 
     @staticmethod
-    def _get_agent_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_agent_observables(system: System) -> list[Observable]:
         """Return the energy of the transported differences and their twist.
 
         The twist is around the faces.
         """
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('energy', function=partial(GaugeNetworkAgentsSystem._get_energy, space.incidences_[0])),
-            ObservableSpec('twist', function=partial(GaugeNetworkAgentsSystem._get_twist, *space.incidences_[:2])),
+            Observable('energy', function=partial(GaugeNetworkAgentsSystem._get_energy, space.incidences_[0])),
+            Observable('twist', function=partial(GaugeNetworkAgentsSystem._get_twist, *space.incidences_[:2])),
         ]
 
     def __init__(
@@ -247,8 +256,10 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         graph: nx.Graph | None = None,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.flux = flux
         self.K = K
@@ -257,8 +268,9 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         self.graph = graph
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         network = nx.cycle_graph(self.n_agents) if self.graph is None else self.graph
         space = CellComplexSpace(NetworkSpace(network)).prepare()
         faces = space.incidences_[1]
@@ -275,22 +287,9 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         else:
             connection = np.zeros(faces.shape[1])
         phases = np.random.default_rng(self.seed).uniform(-self.spread, self.spread, space.size_)
-        agents = GroupElement('agents', element=PhaseAgentElement, space=space, on='sites', values={'theta': phases})
-        links = GroupElement(
-            'links',
-            element=ConnectionElement,
-            space=space,
-            on='edges',
-            values={'A': connection},
-        )
-        coupling = TransportedCouplingInteraction('coupling', target='agents', links='links', K=self.K)
-        return CompositeSystem(self.label, elements=[agents, links], interactions=[coupling])
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = GaugeNetworkAgentsSystem._get_agent_observables(self._get_pass_parameters())
-        return settings
+        agents = PhaseAgentElement('agents', theta=phases, space=space)
+        links = ConnectionElement('links', A=connection, space=space, on='edges')
+        coupling = TransportedCouplingInteraction('coupling', among='agents', K=self.K)
+        self.system_ = System(self.label, elements=[agents, links], interactions=[coupling])
+        if not self.observables_:
+            self.observables_ = tuple(GaugeNetworkAgentsSystem._get_agent_observables(self.system_))

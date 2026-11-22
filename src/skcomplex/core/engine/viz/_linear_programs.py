@@ -11,9 +11,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, ProblemSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..problems._linear_program_kernel import LinearProgramKernel
 from ._base import GRID_RADIUS, NODE_SPACING, SERIES_COLORS, BaseVisual
 
@@ -25,13 +25,14 @@ MINIMUM_WIDTH = 0.005 * NODE_SPACING
 
 
 class LinearProgramVisual(BaseVisual):
-    """A visual that draws the linear program of an element.
+    """A visual that draws the solution of a linear program of an element.
 
-    It logs a bar chart of the variables under `<path>/variables`, the objective values as scalars under
-    `<path>/objective`, and with a graph one node per row of the matrix and per variable under `<path>/graph`, laid out
-    once with a seeded layout whose nodes lie about as far apart as the sites of a network, with the rows and the
-    variables in two colours. It also logs the edges under `<path>/flows` as lines whose widths are proportional to the
-    absolute values of their variables.
+    It draws the solved variables as bars and the value of the objective over time, such as
+    `LinearProgramVisual(graph=False)` for the bars alone. With a graph it also draws one node per constraint and per
+    variable, in two colours, joined by lines as wide as the size of each variable. It shows the fluxes of a metabolic
+    network, the shipments of a supply chain, and the flows of a power grid.
+
+    Read more in the user guide, under Observe.
 
     Args:
         variables:
@@ -59,11 +60,16 @@ class LinearProgramVisual(BaseVisual):
         positions_:
             The position of every node of the graph, by its name, or nothing without a graph.
 
+    See Also:
+        MatrixVisual: Draws a matrix value as an image.
+
     Examples:
         >>> from skcomplex.core.engine.viz import LinearProgramVisual
         >>> LinearProgramVisual(graph=False)
         LinearProgramVisual(graph=False)
     """
+
+    numeric_options = ('seed',)
 
     def __init__(
         self,
@@ -215,7 +221,11 @@ class LinearProgramVisual(BaseVisual):
         values = np.asarray([float(np.ravel(frame.get_value(name))[0]) for name in program.names], dtype=float)
         self._log_widths(recording, path, values)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the bar chart, the series of the objective values, and the graph views.
 
         There are two graph views when there is a graph.

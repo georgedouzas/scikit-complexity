@@ -16,7 +16,6 @@ report that nudges everyone towards passion sweeps almost the whole population.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import InfluentialsSystem
 
@@ -25,11 +24,10 @@ STEPS = 20
 LEVELS = ('not at all', 'less', 'a bit', 'passionately')
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    InfluentialsSystem(influence=3.0, random_state=0),
-    until=STEPS,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    InfluentialsSystem(influence=3.0, random_state=0)
+    .prepare()
+    .simulate(until=STEPS, observers=[observer], random_state=0)
 )
 
 # %%
@@ -52,7 +50,7 @@ def passionate(influence, news_report):
     finals = []
     for seed in range(3):
         system = InfluentialsSystem(influence=influence, news_report=news_report, random_state=seed)
-        run = simulate(system, until=STEPS, random_state=seed)
+        run = system.prepare().simulate(until=STEPS, random_state=seed)
         finals.append(shares(run, STEPS)[-1])
     return np.mean(finals)
 

@@ -11,14 +11,13 @@ Untreated, the glioma grows by more than an order of magnitude, crowds out the g
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import GliomaChemovirotherapySystem
 
 SYSTEM = 'glioma_chemovirotherapy'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(GliomaChemovirotherapySystem(V=0.0, u1=0.0), observers=[observer])
+trajectory = GliomaChemovirotherapySystem(V=0.0, u1=0.0).prepare().simulate(observers=[observer])
 
 # %%
 # Therapy spares the neurons
@@ -41,7 +40,7 @@ neurons.plot(
     color='black',
 )
 for name, arm in arms.items():
-    trajectory = simulate(arm, dt=1.0, until=300)
+    trajectory = arm.prepare().simulate(dt=1.0, until=300)
     glioma.semilogy(trajectory.times, trajectory.get_values('brain.AU').clip(1.0), label=name)
     neurons.plot(trajectory.times, trajectory.get_values('brain.N') / trajectory.get_values('brain.N')[0], label=name)
 glioma.set_xlabel('time (days)')

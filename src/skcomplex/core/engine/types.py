@@ -4,8 +4,8 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from enum import IntEnum, StrEnum
 from types import SimpleNamespace
+from typing import Protocol, runtime_checkable
 
 import jax
 import numpy.typing as npt
@@ -15,7 +15,7 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import RingElement
 
-from ..specs import ObservableSpec
+from ..components import Observable
 from ..types import AnyArray, Array, ComplexArray, Indices, IntArray, IntTuple
 
 type Sparse = scipy.sparse.csr_array
@@ -54,30 +54,53 @@ type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 type Generators = list[tuple[str, Expression]]
 type Dissipators = list[tuple[str, Expression, object]]
-type Declared = dict[str, tuple[str, ObservableSpec]]
+type Declared = dict[str, tuple[str, Observable]]
 type Number = RingElement | int | float | complex
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 
-class LinearProgramBound(IntEnum):
-    """A bound of a column or a row of a linear program that a compiled value gives."""
+@runtime_checkable
+class HilbertSpaceProtocol(Protocol):
+    """A protocol of the vector space of the states of a subsystem, such as a qubit.
 
-    COLUMN_LOWER = 0
-    COLUMN_UPPER = 1
-    ROW_LOWER = 2
-    ROW_UPPER = 3
+    A field package defines the space of a subsystem, such as the two states of a qubit with its Pauli operators, and
+    the operator compiler reads its dimension, its named local operators, its basis states, and the compiler of its
+    systems. An element that takes such a space and declares a complex value is a subsystem, and a group of them is the
+    tensor product of their spaces. It describes a qubit of a quantum computer, a spin of a magnet, and an atom in a
+    cavity.
 
+    Read more in the user guide, under Extend the library.
 
-class ReadKind(StrEnum):
-    """A kind of read of a symbol for each evaluation index of a kernel."""
+    See Also:
+        OperatorKernel: A matrix that the compiler builds from the operators of the space.
 
-    MEMBER = 'member'
-    SINGLE = 'single'
-    FIRST = 'first'
-    SECOND = 'second'
-    NEIGHBOR = 'neighbor'
-    DERIVED = 'derived'
-    REDUCED = 'reduced'
-    OTHER = 'other'
-    SOURCE = 'source'
+    Examples:
+        >>> from skcomplex.core.engine.types import HilbertSpaceProtocol
+        >>> from skcomplex.systems.physics.common.quantum import QubitElement
+        >>> space = QubitElement('a').hilbert
+        >>> isinstance(space, HilbertSpaceProtocol), space.dimension
+        (True, 2)
+    """
+
+    @property
+    def dimension(self) -> int:
+        """The dimension of the space."""
+
+    @property
+    def operators(self) -> Mapping[str, tuple[npt.ArrayLike, bool]]:
+        """The matrix of every local operator by name and whether it is Hermitian."""
+
+    @property
+    def basis(self) -> Mapping[str, int]:
+        """The index of every basis state by label."""
+
+    @property
+    def display(self) -> str | None:
+        """The operator whose expectation visuals show for a group, or `None`."""
+
+    def _check(self) -> None:
+        """Raise an error for a dimension, an operator, or a basis state that misfits."""
+
+    def _get_compiler(self) -> object:
+        """Return the compiler of the systems of the space."""

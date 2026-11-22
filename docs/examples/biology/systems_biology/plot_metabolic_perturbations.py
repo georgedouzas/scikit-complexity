@@ -13,16 +13,15 @@ and MoMA and ROOM predict the adjusted fluxes from the wild-type solution.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.common.metabolism import cobra_measures
 from skcomplex.systems.biology.systems_biology import MetabolicPerturbationsSystem
 
 SYSTEM = 'metabolic_perturbations'
-GROWTH = 'cell.objective_0'
+GROWTH = 'cell.v_Biomass_Ecoli_core'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-knocked_out = simulate(MetabolicPerturbationsSystem(genes=('b4025',)), observers=[observer])
+knocked_out = MetabolicPerturbationsSystem(genes=('b4025',)).prepare().simulate(observers=[observer])
 
 # %%
 # Single deletions

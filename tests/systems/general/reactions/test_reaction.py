@@ -8,14 +8,12 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, FieldElement, GroupElement
-from skcomplex.core.components.interactions import JumpInteraction
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.elements import NonnegativeElement
 from skcomplex.systems.general.reactions import ReactionInteraction
 
@@ -24,24 +22,25 @@ SEEDS = range(4)
 
 
 class ConcentrationElement(Element):
-    """Concentrations `x` and `y` of two species."""
+    """Concentrations `x` and `y` of two species, one per member or site."""
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        y: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
+        space: LatticeSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.y = y
 
 
 def _epidemic(mode):
     """Return the reactions `S + I -> 2 I` and `I -> R` of 100,000 units in a mode."""
-    return CompositeSystem(
+    return System(
         elements=[
             NonnegativeElement('S', x=UNITS - 2_000),
             NonnegativeElement('I', x=2_000),
@@ -62,13 +61,8 @@ def _epidemic(mode):
 
 def _states(mode, random_state=None):
     """Return the amounts of `S`, `I`, and `R` over 40 time units, one row per time."""
-    trajectory = simulate(_epidemic(mode), until=40, dt=1.0, random_state=random_state)
+    trajectory = _epidemic(mode).prepare().simulate(until=40, dt=1.0, random_state=random_state)
     return np.column_stack([trajectory.get_values(f'{name}.x') for name in ('S', 'I', 'R')])
-
-
-def test_reaction_is_a_jump():
-    """Test that a reaction is a jump whose clock is its propensity."""
-    assert issubclass(ReactionInteraction, JumpInteraction)
 
 
 def test_reaction_jump_means_agree_with_the_rate_solution():
@@ -103,7 +97,7 @@ def test_reaction_runs_into_the_laws_of_its_mode(mode, kinds):
         k=k,
     )
     reaction = ReactionInteraction('conversion', reactants={('A', 'x'): 1}, products={('B', 'x'): 1}, mode=mode)
-    assert [type(law) for law in reaction.prepare().run(namespace).laws_] == kinds
+    assert [type(law) for law in reaction.prepare(namespace).laws_] == kinds
 
 
 def test_reaction_default_propensity_is_the_product_of_the_reactants():
@@ -111,13 +105,13 @@ def test_reaction_default_propensity_is_the_product_of_the_reactants():
     a, b, k = var('a b k')
     namespace = SimpleNamespace(reactants=(SimpleNamespace(x=a),), products=(SimpleNamespace(x=b),), modifiers=(), k=k)
     reaction = ReactionInteraction('dimerization', reactants={('A', 'x'): 2}, products={('B', 'x'): 1})
-    laws = reaction.prepare().run(namespace).laws_
+    laws = reaction.prepare(namespace).laws_
     assert [(law.target, law.value) for law in laws] == [(a, -2 * k * a**2), (b, k * a**2)]
 
 
 def test_reaction_reads_modifiers_without_changing_them():
     """Test that a modifier enters the product propensity, and the reaction does not change it."""
-    system = CompositeSystem(
+    system = System(
         elements=[NonnegativeElement('E', x=1.0), NonnegativeElement('S', x=1.0), NonnegativeElement('P')],
         interactions=[
             ReactionInteraction(
@@ -129,20 +123,20 @@ def test_reaction_reads_modifiers_without_changing_them():
             ),
         ],
     )
-    trajectory = simulate(system, until=2, dt=0.5)
+    trajectory = system.prepare().simulate(until=2, dt=0.5)
     assert trajectory.get_values('E.x').tolist() == [1.0] * 5
     np.testing.assert_allclose(trajectory.get_values('S.x'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
 
 
 def test_reaction_moves_states_of_one_element_with_real_coefficients():
     """Test that `2 x -> 1.5 y` on two states of one element moves the units by its real stoichiometry."""
-    system = CompositeSystem(
+    system = System(
         elements=[ConcentrationElement('cell', x=1.0)],
         interactions=[
             ReactionInteraction('dimerization', reactants={('cell', 'x'): 2}, products={('cell', 'y'): 1.5}, k=0.5),
         ],
     )
-    trajectory = simulate(system, until=4, dt=0.5)
+    trajectory = system.prepare().simulate(until=4, dt=0.5)
     x, y = trajectory.get_values('cell.x'), trajectory.get_values('cell.y')
     times = np.asarray(trajectory.times)
     np.testing.assert_allclose(x, 1 / (1 + times), rtol=1e-4)
@@ -151,20 +145,20 @@ def test_reaction_moves_states_of_one_element_with_real_coefficients():
 
 def test_reaction_sources_and_sinks_reach_their_balance():
     """Test that a source without reactants and a sink without products balance at `k_source / k_sink`."""
-    system = CompositeSystem(
+    system = System(
         elements=[ConcentrationElement('X')],
         interactions=[
             ReactionInteraction('synthesis', products={('X', 'x'): 1}, k=2.0),
             ReactionInteraction('degradation', reactants={('X', 'x'): 1}, k=0.5),
         ],
     )
-    trajectory = simulate(system, until=40, dt=1.0)
+    trajectory = system.prepare().simulate(until=40, dt=1.0)
     assert trajectory.get_values('X.x')[-1] == pytest.approx(4.0, rel=1e-4)
 
 
 def test_reaction_takes_a_propensity_function():
     """Test that a reaction takes its propensity from a function of its namespace instead of the product propensity."""
-    system = CompositeSystem(
+    system = System(
         elements=[NonnegativeElement('A', x=8.0), NonnegativeElement('B')],
         interactions=[
             ReactionInteraction(
@@ -176,7 +170,7 @@ def test_reaction_takes_a_propensity_function():
             ),
         ],
     )
-    trajectory = simulate(system, until=0.001, dt=0.001)
+    trajectory = system.prepare().simulate(until=0.001, dt=0.001)
     rate = (trajectory.get_values('B.x')[-1] - trajectory.get_values('B.x')[0]) / 0.001
     assert rate == pytest.approx(8 / 9, rel=1e-3)
 
@@ -189,10 +183,10 @@ def test_reaction_takes_a_propensity_function():
         ({'reactants': ['A']}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'not a name'): 1}}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'x'): -1}}, 'positive numbers or functions'),
-        ({'reactants': {('A', 'x'): 1}, 'form': 'mesa'}, 'has the form'),
-        ({'reactants': {('A', 'x'): 1}, 'form': 'agent'}, 'agent form but no target'),
-        ({'target': 'cells', 'reactants': {'x': 1}, 'form': 'agent', 'mode': 'langevin'}, 'Use rate or jump'),
-        ({'target': 'cells', 'reactants': {('A', 'x'): 1}, 'form': 'agent'}, 'state names alone'),
+        ({'reactants': {('A', 'x'): 1}, 'schedule': 'parallel'}, 'Unknown schedule'),
+        ({'reactants': {('A', 'x'): 1}, 'schedule': 'synchronous'}, 'but no target'),
+        ({'target': 'cells', 'reactants': {'x': 1}, 'schedule': 'synchronous', 'mode': 'langevin'}, 'Use rate or jump'),
+        ({'target': 'cells', 'reactants': {('A', 'x'): 1}, 'schedule': 'synchronous'}, 'state names alone'),
         ({'reactants': {'x': 1}}, 'state names of the target'),
     ],
 )
@@ -209,9 +203,9 @@ class ConversionInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        sink: Annotated[str, RoleSpec()],
-        c: Annotated[float, ParameterSpec()] = 1.0,
+        source: Role,
+        sink: Role,
+        c: float = 1.0,
     ) -> None:
         super().__init__(label)
         self.source = source
@@ -232,10 +226,19 @@ class ConversionInteraction(ReactionInteraction):
 
 
 class SiteReactionInteraction(ReactionInteraction):
-    """Reaction that binds its field as `sites` and declares no parameter."""
+    """Reaction that binds its field as `sites`."""
 
-    def __init__(self, label: str, *, sites: Annotated[str, RoleSpec()], **arguments: object) -> None:
-        super().__init__(label, target=sites, **arguments)
+    def __init__(
+        self,
+        label: str,
+        *,
+        sites: Role,
+        reactants: dict | None = None,
+        products: dict | None = None,
+        k: float = 1.0,
+        mode: str = 'rate',
+    ) -> None:
+        super().__init__(label, target=sites, reactants=reactants, products=products, k=k, mode=mode)
         self.sites = sites
 
     def _get_role(self, role: str) -> str:
@@ -246,9 +249,10 @@ class SiteReactionInteraction(ReactionInteraction):
 def test_reaction_runs_at_every_site_of_a_field():
     """Test that a reaction on state names of a field target reacts at every site with the states of the site."""
     values = {'x': np.array([1.0, 2.0, 4.0])}
-    cells = FieldElement('cells', element=ConcentrationElement, space=LatticeSpace((3,)), values=values)
+    cells = ConcentrationElement('cells', x=values['x'], space=LatticeSpace((3,)))
     dimerization = ReactionInteraction('dimerization', target='cells', reactants={'x': 2}, products={'y': 1.5}, k=0.5)
-    trajectory = simulate(CompositeSystem(elements=[cells], interactions=[dimerization]), until=4, dt=0.5)
+    system = System(elements=[cells], interactions=[dimerization])
+    trajectory = system.prepare().simulate(until=4, dt=0.5)
     x, y = trajectory.get_lattice('cells.x')[-1], trajectory.get_lattice('cells.y')[-1]
     np.testing.assert_allclose(x, values['x'] / (1 + values['x'] * 4), rtol=1e-4)
     np.testing.assert_allclose(y, 0.75 * (values['x'] - x), rtol=1e-4)
@@ -257,14 +261,10 @@ def test_reaction_runs_at_every_site_of_a_field():
 def test_reaction_jumps_in_every_member_of_a_group():
     """Test that jumps on a group target move whole units in every member on its own and keep each member's total."""
     values = {'x': np.array([50.0, 100.0])}
-    group = GroupElement('cells', element=ConcentrationElement, size=2, values=values)
+    group = ConcentrationElement('cells', x=values['x'], size=2)
     conversion = ReactionInteraction('conversion', target='cells', reactants={'x': 1}, products={'y': 1}, mode='jump')
-    states = simulate(
-        CompositeSystem(elements=[group], interactions=[conversion]),
-        until=1,
-        dt=0.5,
-        random_state=0,
-    ).states
+    system = System(elements=[group], interactions=[conversion])
+    states = system.prepare().simulate(until=1, dt=0.5, random_state=0).states
     totals = states[:, :2] + states[:, 2:]
     assert np.all(totals == values['x'])
     assert np.all(states == np.round(states))
@@ -273,11 +273,11 @@ def test_reaction_jumps_in_every_member_of_a_group():
 
 def test_reaction_subclass_reads_species_under_its_own_roles():
     """Test that a subclass binding its species under roles of its own names follows its product propensity."""
-    system = CompositeSystem(
+    system = System(
         elements=[NonnegativeElement('A', x=8.0), NonnegativeElement('B')],
         interactions=[ConversionInteraction('conversion', source='A', sink='B', c=0.5)],
     )
-    trajectory = simulate(system, until=2, dt=0.5)
+    trajectory = system.prepare().simulate(until=2, dt=0.5)
     times = np.asarray(trajectory.times)
     np.testing.assert_allclose(trajectory.get_values('A.x'), 8 * np.exp(-0.5 * times), rtol=1e-4)
     np.testing.assert_allclose(trajectory.get_values('A.x') + trajectory.get_values('B.x'), 8.0)
@@ -289,14 +289,13 @@ class ScaledElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+        x: float = 1.0,
+        y: float = 0.0,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        delta: Annotated[float, RealSet.open(0, oo)] = 0.25,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.epsilon = epsilon
@@ -313,29 +312,29 @@ def test_reaction_scales_changes_by_parametric_coefficients(epsilon, delta):
         products={'y': lambda s: 1 / s.target.delta},
         propensity=lambda s: s.target.x,
     )
-    system = CompositeSystem(elements=[ScaledElement('box', epsilon=epsilon, delta=delta)], interactions=[conversion])
-    trajectory = simulate(system, until=1, dt=0.01)
+    system = System(elements=[ScaledElement('box', epsilon=epsilon, delta=delta)], interactions=[conversion])
+    trajectory = system.prepare().simulate(until=1, dt=0.01)
     x = np.exp(-np.asarray(trajectory.times) / epsilon)
     np.testing.assert_allclose(trajectory.get_values('box.x'), x, rtol=1e-4)
     np.testing.assert_allclose(trajectory.get_values('box.y'), epsilon / delta * (1 - x), rtol=1e-4, atol=1e-8)
 
 
 def _agent_decay(mode, size=2000):
-    """Return cells of three units each that decay on their own in the agent form."""
-    cells = GroupElement('cells', element=NonnegativeElement, size=size, values={'x': np.full(size, 3.0)})
-    decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=0.1, form='agent', mode=mode)
-    return CompositeSystem(elements=[cells], interactions=[decay], time=DiscreteTime())
+    """Return cells of three units each that decay on their own by a rule of a schedule."""
+    cells = NonnegativeElement('cells', x=np.full(size, 3.0), size=size)
+    decay = ReactionInteraction('decay', target='cells', reactants={'x': 1}, k=0.1, schedule='synchronous', mode=mode)
+    return System(elements=[cells], interactions=[decay])
 
 
-def test_reaction_agent_form_steps_every_member_by_its_rate():
-    """Test that the agent form in the mode `rate` adds the changes times the propensity of every member per step."""
-    trajectory = simulate(_agent_decay('rate', size=3), until=3)
+def test_reaction_schedule_steps_every_member_by_its_rate():
+    """Test that a rule of a schedule in the mode `rate` adds the changes times the propensity of every member."""
+    trajectory = _agent_decay('rate', size=3).prepare().simulate(until=3)
     np.testing.assert_allclose(trajectory.get_agents('cells', 3).values['x'], 3 * 0.9**3)
 
 
-def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
-    """Test that the agent form in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
-    trajectory = simulate(_agent_decay('jump'), until=1, random_state=0)
+def test_reaction_schedule_jumps_whole_units_at_the_step_probability():
+    """Test that a rule of a schedule in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
+    trajectory = _agent_decay('jump').prepare().simulate(until=1, random_state=0)
     counts = trajectory.get_agents('cells', 1).values['x']
     assert set(counts.tolist()) <= {2.0, 3.0}
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
@@ -346,38 +345,26 @@ def test_reaction_agent_schedules_react_in_every_member_once(schedule):
     """Test that every agent schedule reacts once in every member per step, by its rate or at the step probability."""
     rate = _agent_decay('rate', size=3)
     rate.interactions[0].set_params(schedule=schedule)
-    trajectory = simulate(rate, until=3)
+    trajectory = rate.prepare().simulate(until=3)
     np.testing.assert_allclose(trajectory.get_agents('cells', 3).values['x'], 3 * 0.9**3)
     jump = _agent_decay('jump')
     jump.interactions[0].set_params(schedule=schedule)
-    counts = simulate(jump, until=1, random_state=0).get_agents('cells', 1).values['x']
+    counts = jump.prepare().simulate(until=1, random_state=0).get_agents('cells', 1).values['x']
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
-
-
-def test_reaction_symbolic_form_refuses_an_agent_schedule():
-    """Test that a symbolic reaction with a schedule other than synchronous raises an error."""
-    with pytest.raises(ValidationError, match='runs agent rules'):
-        ReactionInteraction('decay', target='cells', reactants={'x': 1}, schedule='member').prepare()
 
 
 @pytest.mark.parametrize('mode', ['rate', 'jump'])
 def test_get_laws_reads_a_renamed_target(mode):
     """Test that a reaction that binds its field as `sites` gives the trajectory of the plain reaction."""
     values = {'x': np.array([10.0, 20.0, 40.0])}
-    cells = FieldElement('cells', element=ConcentrationElement, space=LatticeSpace((3,)), values=values)
+    cells = ConcentrationElement('cells', x=values['x'], space=LatticeSpace((3,)))
     arguments = {'reactants': {'x': 2}, 'products': {'y': 1}, 'k': 0.05, 'mode': mode}
     states = []
     for dimerization in (
         ReactionInteraction('dimerization', target='cells', **arguments),
         SiteReactionInteraction('dimerization', sites='cells', **arguments),
     ):
-        states.append(
-            simulate(
-                CompositeSystem(elements=[cells], interactions=[dimerization]),
-                until=2,
-                dt=0.5,
-                random_state=0,
-            ).states,
-        )
+        system = System(elements=[cells], interactions=[dimerization])
+        states.append(system.prepare().simulate(until=2, dt=0.5, random_state=0).states)
     np.testing.assert_allclose(states[1], states[0])
     assert not np.allclose(states[0][-1], states[0][0])

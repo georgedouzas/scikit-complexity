@@ -6,48 +6,89 @@ The shape and velocity of self-propelled particles drive each other.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, identity_matrix, oo, sqrt
+from sage.all__sagemath_symbolics import SR, identity_matrix, matrix, oo, sqrt, vector
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.particles import POINTS
 
 
 class DeformableParticleElement(Element):
-    """Deformable self-propelled particle.
+    """Particles with the positions `x`, the velocities `v`, and the deformations `S`.
 
-    Its velocity and traceless deformation tensor drive each other.
-
-    The particle moves with its velocity `v`, which follows `v' = gamma v - |v|² v - a S v`, and its deformation, the
-    traceless symmetric tensor `S`, follows `S' = -kappa S + b (v v - |v|² I / 2)`, the model of Ohta and Ohkuma. The
-    motion stretches the particle along the velocity for `b > 0`, and the deformation turns the velocity back. Noise of
-    amplitude `noise` may kick the velocity.
+    The deformation is a traceless symmetric tensor `[[S_xx, S_xy], [S_xy, -S_xx]]`, given by its two independent
+    components `(S_xx, S_xy)`.
 
     Args:
         label:
-            The label of the particle or the group.
-
-        visual:
-            How the particle is drawn.
+            The label of the particles.
 
         x:
-            The initial position.
+            The initial positions, one row per particle or shared.
 
         v:
-            The initial velocity.
+            The initial velocities, one row per particle or shared.
 
         S:
-            The initial deformation, given by its two independent components.
+            The initial deformations, given by their two independent components, one row per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+        space:
+            The continuous space of the particles, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import DeformableParticleElement
+        >>> DeformableParticleElement('cell', v=(1.0, 0.0)).v
+        (1.0, 0.0)
+    """
+
+    visual = POINTS
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        v: object = (0.0, 0.0),
+        S: object = (0.0, 0.0),
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.v = v
+        self.S = S
+
+
+class ShapeVelocityCouplingInteraction(Interaction):
+    """Coupling of the velocity and the deformation of self-propelled particles, the model of Ohta and Ohkuma.
+
+    The particle moves with its velocity `v`, which follows `v' = gamma v - |v|² v - a S v`, and its deformation, the
+    traceless symmetric tensor `S`, follows `S' = -kappa S + b (v v - |v|² I / 2)`. The motion stretches the particle
+    along the velocity for `b > 0`, and the deformation turns the velocity back. Noise of amplitude `noise` may kick
+    the velocity. It is a crawling cell, a droplet, or a camphor boat that changes shape as it moves.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particles, with the positions `x`, the velocities `v`, and the deformations `S`.
 
         gamma:
             The distance from the onset of self-propulsion.
@@ -65,58 +106,51 @@ class DeformableParticleElement(Element):
             The amplitude of the noise of the velocity.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import DeformableParticleElement
-        >>> DeformableParticleElement('cell').kappa
+        >>> from skcomplex.systems.physics.active_matter import ShapeVelocityCouplingInteraction
+        >>> ShapeVelocityCouplingInteraction('coupling', target='cells').kappa
         0.5
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
-        S: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
-        gamma: Annotated[float, ParameterSpec()] = 1.0,
-        a: Annotated[float, ParameterSpec()] = 1.0,
-        b: Annotated[float, ParameterSpec()] = 1.0,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        gamma: float = 1.0,
+        a: float = 1.0,
+        b: float = 1.0,
+        kappa: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        noise: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.v = v
-        self.S = S
+        super().__init__(label)
+        self.target = target
         self.gamma = gamma
         self.a = a
         self.b = b
         self.kappa = kappa
         self.noise = noise
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion, the velocity and its noise, and the deformation.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the motion, the velocity and its noise, and the deformation of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        speed = s.v.dot_product(s.v)
-        stretch = s.v.outer_product(s.v) - speed / 2 * identity_matrix(SR, 2)
-        return [
-            RateLaw(s.x, s.v),
-            RateLaw(s.v, s.gamma * s.v - speed * s.v - s.a * (s.S * s.v)),
-            NoiseLaw(s.v, sqrt(2) * s.noise),
-            RateLaw(s.S, -s.kappa * s.S + s.b * stretch),
+        super()._prepare(context)
+        s = context
+        x, v, S = s.target.x, s.target.v, s.target.S
+        tensor = matrix(SR, [[S[0], S[1]], [S[1], -S[0]]])
+        speed = v.dot_product(v)
+        stretch = v.outer_product(v) - speed / 2 * identity_matrix(SR, 2)
+        deformation = -s.kappa * tensor + s.b * stretch
+        self.laws_ = [
+            RateLaw(x, v),
+            RateLaw(v, s.gamma * v - speed * v - s.a * (tensor * v)),
+            NoiseLaw(v, sqrt(2) * s.noise),
+            RateLaw(S, vector(SR, [deformation[0, 0], deformation[0, 1]])),
         ]
 
 
@@ -159,9 +193,15 @@ class DeformableActiveParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import DeformableActiveParticlesSystem
-        >>> DeformableActiveParticlesSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> DeformableActiveParticlesSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -170,7 +210,6 @@ class DeformableActiveParticlesSystem(BaseSystem):
     references = ('Ohta and Ohkuma 2009', 'Ohta 2017', 'Tarama 2017')
     until = 100.0
     dt = 0.25
-    solver = EulerMaruyamaSolver(dt=0.01)
 
     def __init__(
         self,
@@ -183,8 +222,10 @@ class DeformableActiveParticlesSystem(BaseSystem):
         noise: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.gamma = gamma
         self.a = a
@@ -193,21 +234,35 @@ class DeformableActiveParticlesSystem(BaseSystem):
         self.noise = noise
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return deformable self-propelled particles of Ohta and Ohkuma.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of deformable self-propelled particles of Ohta and Ohkuma.
 
-        The particles move straight or along circles.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        values = {
-            'x': rng.uniform(0.0, 20.0, (self.n_particles, 2)),
-            'v': rng.normal(0.0, 0.1, (self.n_particles, 2)),
-            'S': np.zeros((self.n_particles, 2)),
-            'gamma': self.gamma,
-            'a': self.a,
-            'b': self.b,
-            'kappa': self.kappa,
-            'noise': self.noise,
-        }
-        cells = GroupElement('cells', element=DeformableParticleElement, size=self.n_particles, values=values)
-        return CompositeSystem(self.label, elements=[cells], space=ContinuousSpace(n_dim=2))
+        cells = DeformableParticleElement(
+            'cells',
+            x=rng.uniform(0.0, 20.0, (self.n_particles, 2)),
+            v=rng.normal(0.0, 0.1, (self.n_particles, 2)),
+            S=np.zeros((self.n_particles, 2)),
+            size=self.n_particles,
+            space=ContinuousSpace(n_dim=2),
+        )
+        coupling = ShapeVelocityCouplingInteraction(
+            'coupling',
+            target='cells',
+            gamma=self.gamma,
+            a=self.a,
+            b=self.b,
+            kappa=self.kappa,
+            noise=self.noise,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[cells],
+            interactions=[coupling],
+            solver=EulerMaruyamaSolver(dt=0.01),
+        )

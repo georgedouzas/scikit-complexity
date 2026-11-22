@@ -11,50 +11,69 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import delayed, hill
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import hill
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import ReactionDiffusionSystem
 from ..common.excitable import FitzHughNagumoInteraction
 
 
 class MackeyGlassElement(Element):
-    """Concentration `x` of circulating blood cells.
-
-    The cells are made at a delayed Hill rate and lost at a constant rate.
-
-    The concentration follows `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x`.
+    """Blood cells of Mackey and Glass, with the number `x` of cells.
 
     Args:
         label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the cells.
 
         x:
-            The initial concentration, also its history.
+            The initial number of cells.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassElement
+        >>> MackeyGlassElement('cells').x
+        0.5
+    """
+
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.closed_open(0, oo)] = 0.5) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class MackeyGlassInteraction(Interaction):
+    """Delayed production and loss of blood cells, `x' = beta x_tau / (1 + x_tau^n) - gamma x`.
+
+    The production reads the number of cells `x_tau` a delay `tau` earlier.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells.
 
         beta:
-            The production rate.
+            The rate of production.
 
         gamma:
-            The loss rate.
+            The rate of loss.
 
         n:
-            The Hill coefficient of the production.
+            The exponent of the feedback.
 
         tau:
             The delay of the production.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import MackeyGlassElement
-        >>> MackeyGlassElement('blood', tau=6.0).tau
-        6.0
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassInteraction
+        >>> MackeyGlassInteraction('production', target='cells').tau
+        17.0
     """
 
     law_classes = (RateLaw,)
@@ -62,34 +81,32 @@ class MackeyGlassElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        beta: Annotated[float, ParameterSpec()] = 0.2,
-        gamma: Annotated[float, ParameterSpec()] = 0.1,
-        n: Annotated[float, ParameterSpec()] = 10.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 17.0,
+        target: Role,
+        beta: float = 0.2,
+        gamma: float = 0.1,
+        n: float = 10.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 17.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label)
+        self.target = target
         self.beta = beta
         self.gamma = gamma
         self.n = n
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed production and the loss of the cells.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the delayed production and the loss of the cells.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the cells, the time `t`, and the parameters.
         """
-        history = delayed(s.x, s.tau)
-        return [RateLaw(s.x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * s.x)]
+        super()._prepare(context)
+        s = context
+        x = s.target.x
+        history = x(t=s.t - s.tau)
+        self.laws_ = [RateLaw(x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * x)]
 
 
 class FitzhughNagumoSystem(ReactionDiffusionSystem):
@@ -119,6 +136,12 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import FitzhughNagumoSystem
         >>> FitzhughNagumoSystem((20, 20)).prepare().system_.interactions[0].epsilon
@@ -130,7 +153,6 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
     references = ('FitzHugh 1961', 'Nagumo, Arimoto, and Yoshizawa 1962', 'Gros 2015')
     until = 200.0
     dt = 2.0
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -141,13 +163,19 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
         b: float = 0.8,
         epsilon: float = 0.02,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.shape: Sequence[int] = shape
         self.D = D
         self.a = a
         self.b = b
         self.epsilon = epsilon
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return RK4Solver(dt=0.05)
 
     def _get_element_label(self) -> str:
         """Return the label of the field of the sites."""
@@ -158,13 +186,13 @@ class FitzhughNagumoSystem(ReactionDiffusionSystem):
         rows, columns = self.shape
         return LatticeSpace((rows, columns), boundary='reflecting')
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
+    def _get_states(self) -> dict[str, object]:
         """Return the potential excited on the upper half and the recovery refractory on the left half."""
         rows, columns = self.shape
         u, v = np.full(self.shape, -1.2), np.full(self.shape, -0.62)
         u[: rows // 2, :] = 1.5
         v[:, : columns // 2] = 1.0
-        return {'u': DeclaredVariableSpec(u, StateSpec()), 'v': DeclaredVariableSpec(v, StateSpec())}
+        return {'u': u, 'v': v}
 
     def _get_equation_interactions(self) -> list[FitzHughNagumoInteraction]:
         """Return the FitzHugh-Nagumo kinetics of the potential and the recovery."""
@@ -212,9 +240,15 @@ class MackeyGlassSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import MackeyGlassSystem
-        >>> MackeyGlassSystem(tau=6.0).prepare().system_.elements[0].tau
+        >>> MackeyGlassSystem(tau=6.0).prepare().system_.interactions[0].tau
         6.0
     """
 
@@ -233,17 +267,35 @@ class MackeyGlassSystem(BaseSystem):
         n: float = 10.0,
         tau: float = 17.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.beta = beta
         self.gamma = gamma
         self.n = n
         self.tau = tau
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Mackey-Glass equation of blood cell production.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],
+            elements=[MackeyGlassElement('cells', x=self.x)],
+            interactions=[
+                MackeyGlassInteraction(
+                    'production',
+                    target='cells',
+                    beta=self.beta,
+                    gamma=self.gamma,
+                    n=self.n,
+                    tau=self.tau,
+                ),
+            ],
         )

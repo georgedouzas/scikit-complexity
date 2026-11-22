@@ -7,26 +7,28 @@ Its species arise by speciation and vanish by drift.
 # License: MIT
 
 
-from types import SimpleNamespace
-from typing import Annotated
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import AnyArray
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import AnyArray, Role
 from ...general.agents import EvolutionInteraction
 
 
-class OrganismView(AgentView):
+class OrganismView(AgentViewProtocol, Protocol):
     """View of an organism, with its states as attributes.
 
-    `OrganismElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `OrganismElement` read them with checked types.
     """
 
     species: float
@@ -39,48 +41,37 @@ class OrganismElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         species:
             The label of the species.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of individuals, or `None` for one.
+
+        space:
+            The space of the individuals, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import OrganismElement
-        >>> GroupElement('community', element=OrganismElement, size=10, values={'species': 0.0}).size
+        >>> OrganismElement('community', species=0.0, size=10).size
         10
     """
 
-    law_classes = ()
+    visual = VisualSpec('agents', {'color_by': 'species'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'species'}),
         *,
-        species: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        species: Annotated[object, NN] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.species = species
-
-    @classmethod
-    def _get_view(cls) -> type[OrganismView]:
-        """Return the view of an organism, `OrganismView`."""
-        return OrganismView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the replacement moves every individual.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class NeutralReplacementInteraction(EvolutionInteraction):
@@ -112,8 +103,8 @@ class NeutralReplacementInteraction(EvolutionInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
+        target: Role,
+        mutation: Annotated[float, RealSet.closed(0, 1)] = 0.01,
     ) -> None:
         super().__init__(
             label,
@@ -159,9 +150,15 @@ class NeutralBiodiversitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import NeutralBiodiversitySystem
-        >>> NeutralBiodiversitySystem(20).prepare().system_.elements[0].prepare().size_
+        >>> NeutralBiodiversitySystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -169,7 +166,7 @@ class NeutralBiodiversitySystem(BaseSystem):
     topics = ('neutral theory', 'biodiversity', 'speciation', 'agents', 'species abundance')
     references = ('Bertin 2021', 'Hubbell 2001', 'Vallade and Houchmandzadeh 2003')
     until = 500
-    observables = (ObservableSpec('richness', group='community', variable='species', reduce=_get_richness),)
+    observables = (Observable('richness', group='community', variable='species', reduce=_get_richness),)
 
     def __init__(
         self,
@@ -179,20 +176,28 @@ class NeutralBiodiversitySystem(BaseSystem):
         species: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.individuals = individuals
         self.nu = nu
         self.species = species
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a neutral community of constant size."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a neutral community of constant size.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         labels = np.random.default_rng(self.random_state).integers(self.species, size=self.individuals).astype(float)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement('community', element=OrganismElement, size=self.individuals, values={'species': labels}),
+                OrganismElement('community', species=labels, size=self.individuals),
             ],
             interactions=[NeutralReplacementInteraction('replacement', target='community', mutation=self.nu)],
         )

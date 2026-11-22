@@ -6,21 +6,24 @@ The dosing balances tumour burden against drug cost.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import ObjectiveLaw, RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, PontryaginSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
-from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement, TumourImmuneChemotherapyInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 MAX_DOSE = 1.0
@@ -39,9 +42,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial immune cells.
@@ -118,7 +118,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
         E: float = 0.15,
         A: float = 0.25,
@@ -140,12 +139,11 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
         a2: float = 0.3,
         a3: float = 0.1,
         k: float = 1.0,
-        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        u: Annotated[float, RealSet.closed(0.0, MAX_DOSE)] = 0.0,
+        w: Annotated[float, RealSet.open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(
             label,
-            visual=visual,
             E=E,
             A=A,
             N=N,
@@ -188,9 +186,6 @@ class OptimalImmunotherapyElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial effector cells.
@@ -255,28 +250,27 @@ class OptimalImmunotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u1: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
-        u2: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
-        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        alpha3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
-        w1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        w2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        y: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        z: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u1: Annotated[float, RealSet.closed(0.0, MAX_DOSE)] = 0.0,
+        u2: Annotated[float, RealSet.closed(0.0, MAX_DOSE)] = 0.0,
+        alpha_a: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1245,
+        r1: Annotated[float, RealSet.open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        alpha3: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        du: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 3.5,
+        w1: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        w2: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -295,22 +289,6 @@ class OptimalImmunotherapyElement(Element):
         self.a2 = a2
         self.w1 = w1
         self.w2 = w2
-
-
-def _get_chemotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
-
-    It sums the tumour and the squared dose.
-    """
-    patient = s.patient
-    cost: Expression = patient.A + patient.w * patient.u**2 / 2
-    return cost
-
-
-def _get_tumour(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
-    tumour: Expression = s.patient.A
-    return tumour
 
 
 def _get_tumour_share(s: SimpleNamespace) -> Expression:
@@ -349,6 +327,12 @@ class OptimalChemotherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OptimalChemotherapySystem
         >>> OptimalChemotherapySystem(w=1.0).prepare().system_.elements[0].w
@@ -360,8 +344,7 @@ class OptimalChemotherapySystem(BaseSystem):
     references = (BOOK, 'de Pillis and Radunskaya 2001')
     until = 30.0
     dt = 0.25
-    solver = PontryaginSolver(objective=_get_chemotherapy_cost, terminal=_get_tumour)
-    observables = (ObservableSpec('tumour_share', _get_tumour_share),)
+    observables = (Observable('tumour_share', _get_tumour_share),)
 
     def __init__(
         self,
@@ -371,35 +354,52 @@ class OptimalChemotherapySystem(BaseSystem):
         *,
         w: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.N = N
         self.w = w
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a patient under the chemotherapy."""
-        return CompositeSystem(
+    @staticmethod
+    def _get_chemotherapy_cost(s: SimpleNamespace) -> Expression:
+        """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
+
+        It sums the tumour and the squared dose.
+        """
+        patient = s.patient
+        cost: Expression = patient.A + patient.w * patient.u**2 / 2
+        return cost
+
+    @staticmethod
+    def _get_tumour(s: SimpleNamespace) -> Expression:
+        """Return the tumour cells left at the end of the chemotherapy, `A(T)`."""
+        tumour: Expression = s.patient.A
+        return tumour
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a patient under the chemotherapy.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        cost = Interaction(
+            'cost',
+            roles={'patient': 'patient'},
+            laws=lambda s: [
+                ObjectiveLaw(self._get_chemotherapy_cost(s), controls=[s.patient.u], terminal=self._get_tumour(s)),
+            ],
+        )
+        self.system_ = System(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
+            interactions=[TumourImmuneChemotherapyInteraction('dynamics', target='patient'), cost],
+            solver=PontryaginSolver(),
         )
-
-
-def _get_immunotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the immunotherapy.
-
-    It sums the tumour and the squared doses of both therapies.
-    """
-    site = s.site
-    cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
-    return cost
-
-
-def _get_tumour_site(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
-    tumour: Expression = s.site.y
-    return tumour
 
 
 def _get_immune_ratio(s: SimpleNamespace) -> Expression:
@@ -437,6 +437,12 @@ class OptimalImmunotherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OptimalImmunotherapySystem
         >>> OptimalImmunotherapySystem(w1=0.5).prepare().system_.elements[0].w1
@@ -448,12 +454,7 @@ class OptimalImmunotherapySystem(BaseSystem):
     references = (BOOK, 'Kirschner and Panetta 1998')
     until = 50.0
     dt = 0.5
-    solver = PontryaginSolver(
-        objective=_get_immunotherapy_cost,
-        terminal=_get_tumour_site,
-        nodes=1001,
-    )
-    observables = (ObservableSpec('immune_ratio', _get_immune_ratio),)
+    observables = (Observable('immune_ratio', _get_immune_ratio),)
 
     def __init__(
         self,
@@ -464,19 +465,47 @@ class OptimalImmunotherapySystem(BaseSystem):
         w1: float = 1.0,
         w2: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.alpha_a = alpha_a
         self.w1 = w1
         self.w2 = w2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour under the adoptive therapy and IL-2 injection."""
+    @staticmethod
+    def _get_immunotherapy_cost(s: SimpleNamespace) -> Expression:
+        """Return the running cost of the immunotherapy.
+
+        It sums the tumour and the squared doses of both therapies.
+        """
+        site = s.site
+        cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
+        return cost
+
+    @staticmethod
+    def _get_tumour_site(s: SimpleNamespace) -> Expression:
+        """Return the tumour cells left at the end of the immunotherapy, `y(T)`."""
+        tumour: Expression = s.site.y
+        return tumour
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour under the adoptive therapy and IL-2 injection.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
         interactions = [
-            RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),
+            Interaction(
+                'stimulation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.x, s.target.alpha_a * s.target.y)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
@@ -493,11 +522,10 @@ class OptimalImmunotherapySystem(BaseSystem):
                 km=1.0,
                 modifiers={'x': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='y',
-                rate=lambda s: s.target.r1 * s.target.y * (1 - s.target.b * s.target.y),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.y, s.target.r1 * s.target.y * (1 - s.target.b * s.target.y))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -525,4 +553,20 @@ class OptimalImmunotherapySystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.z,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        cost = Interaction(
+            'cost',
+            roles={'site': 'site'},
+            laws=lambda s: [
+                ObjectiveLaw(
+                    self._get_immunotherapy_cost(s),
+                    controls=[s.site.u1, s.site.u2],
+                    terminal=self._get_tumour_site(s),
+                ),
+            ],
+        )
+        self.system_ = System(
+            self.label,
+            elements=[site],
+            interactions=[*interactions, cost],
+            solver=PontryaginSolver(nodes=1001),
+        )

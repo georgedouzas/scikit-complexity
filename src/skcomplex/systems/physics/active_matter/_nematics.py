@@ -11,18 +11,19 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, identity_matrix, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 from sage.structure.element import Matrix
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction, GradientInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, Tensor
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import (
     advection,
     antisymmetric_part,
+    divergence,
     gradient,
     inverse_helmholtz,
     laplacian,
@@ -31,12 +32,13 @@ from ....core.components.laws.utils import (
     tensor_divergence,
     vector_gradient,
 )
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.backends import NumbaBackend
-from ....core.engine.solvers import RK4Solver
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ...general.gradients import GradientInteraction
 
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0
@@ -44,94 +46,148 @@ NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
 NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
 NEMATIC_ACTIVITY = 3.0
 NEMATIC_XI = 0.1
+NEMATIC_STEP = 5e-4
+POLAR_STEP = 0.05
 
 
 class NematicDensitySiteElement(Element):
-    """Site of a dry active nematic.
-
-    Its alignment tensor grows with the traceless curvature of the density.
-
-    The rate of the tensor from the density is `beta (partial_i partial_j rho - delta_ij laplacian(rho) / 2)`. The
-    Landau-de Gennes energy and the current of the density are interactions of the system.
+    """Sites of a dry active nematic, with a density and a symmetric traceless alignment tensor.
 
     Args:
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         rho:
-            The initial density.
+            The initial density, or one density per site.
 
         Q:
-            The initial alignment tensor, its independent components `Q_xx` and `Q_xy`.
+            The initial alignment tensor, its independent components `Q_xx` and `Q_xy`, or one tensor per site.
 
-        beta:
-            The coupling of the tensor to the curvature of the density.
-
-    Attributes:
-        default_visual_:
-            The visual of the element when it sets none.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicDensitySiteElement
-        >>> NematicDensitySiteElement('site').beta
-        0.5
+        >>> NematicDensitySiteElement('site', rho=2.0).rho
+        2.0
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[npt.ArrayLike, StateSpec()] = 1.0,
-        Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
-        beta: Annotated[float, ParameterSpec()] = 0.5,
+        rho: object = 1.0,
+        Q: Annotated[object, Tensor('traceless')] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rho = rho
         self.Q = Q
+
+
+class CurvatureAlignmentInteraction(Interaction):
+    """Growth of an alignment tensor with the traceless curvature of a density.
+
+    The rate of the tensor is `beta (partial_i partial_j rho - delta_ij laplacian(rho) / 2)`, so rods align along the
+    ridges of the density. It is the coupling of the order of a dry active nematic, of a bacterial colony, or of a
+    layer of cells to the variations of their density.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the field, whose values are the density `rho` and the tensor `Q`.
+
+        beta:
+            The coupling of the tensor to the curvature of the density.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import CurvatureAlignmentInteraction
+        >>> CurvatureAlignmentInteraction('alignment', target='nematic', beta=0.25).beta
+        0.25
+    """
+
+    def __init__(self, label: str, *, target: Role, beta: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.beta = beta
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the tensor from the curvature of the density.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the tensor from the curvature of the density.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of `Q`.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        curvature = symmetric_part(vector_gradient(gradient(s.rho)))
+        super()._prepare(context)
+        field = context.target
+        curvature = symmetric_part(vector_gradient(gradient(field.rho)))
         traceless = curvature - curvature.trace() / 2 * identity_matrix(SR, 2)
-        return [RateLaw(s.Q, s.beta * traceless)]
+        self.laws_ = [RateLaw(field.Q, context.beta * traceless)]
+
+
+class ActiveCurrentInteraction(Interaction):
+    """Conserved current of a density, by diffusion and along the divergence of an alignment tensor.
+
+    The density follows `rho_t = -div(J)` with `J = -D grad(rho) - current div(Q)`. The current along `div(Q)` is the
+    active current of a nematic, which no free energy gives, as bacteria or cells move along the bend of their order.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the field, whose values are the density `rho` and the tensor `Q`.
+
+        D:
+            The diffusion coefficient of the density.
+
+        current:
+            The coefficient of the active current along `div(Q)`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import ActiveCurrentInteraction
+        >>> ActiveCurrentInteraction('transport', target='nematic', D=0.1).D
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        current: float = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.D = D
+        self.current = current
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the density, the divergence of its current.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        field = context.target
+        active = tensor_divergence(field.Q)
+        flux = [-self.D * item - self.current * other for item, other in zip(gradient(field.rho), active, strict=True)]
+        self.laws_ = [RateLaw(field.rho, -divergence(flux))]
 
 
 class PolarGelSiteElement(Element):
-    """Site of an active polar gel.
-
-    A polarisation `p` is carried by an overdamped Stokes flow.
-
-    The polarisation follows `p_t = -C(p, u, xi) + h / gamma`, with the corotational transport `C` of Beris and
-    Edwards and the molecular field `h = -a p - c |p|^2 p + K laplacian(p)`. The velocity solves
-    `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress
-    `sigma = -xi (p h + h p) / 2 + (p h - h p) / 2 - zeta p p`, as in Kruse et al.
+    """Sites of an active polar gel, with a polarisation and the constants of the gel.
 
     Args:
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         p:
-            The initial polarisation.
+            The initial polarisation, or one polarisation per site.
 
         a:
             The coefficient of `|p|^2 / 2` of the energy, negative in the polar phase.
@@ -154,9 +210,8 @@ class PolarGelSiteElement(Element):
         zeta:
             The activity.
 
-    Attributes:
-        default_visual_:
-            The visual of the element when it sets none.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import PolarGelSiteElement
@@ -167,18 +222,18 @@ class PolarGelSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        a: Annotated[float, ParameterSpec()] = -1.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        xi: Annotated[float, ParameterSpec()] = 0.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        zeta: Annotated[float, ParameterSpec()] = -0.5,
+        p: object = 0.0,
+        a: float = -1.0,
+        c: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        xi: float = 0.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        eta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        zeta: float = -0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.p = p
         self.a = a
         self.c = c
@@ -188,6 +243,33 @@ class PolarGelSiteElement(Element):
         self.eta = eta
         self.zeta = zeta
 
+
+class PolarGelFlowInteraction(Interaction):
+    """Transport and relaxation of the polarisation of an active polar gel in the Stokes flow of its stresses.
+
+    The polarisation follows `p_t = -C(p, u, xi) + h / gamma`, with the corotational transport `C` of Beris and
+    Edwards and the molecular field `h = -a p - c |p|^2 p + K laplacian(p)`. The velocity solves
+    `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress
+    `sigma = -xi (p h + h p) / 2 + (p h - h p) / 2 - zeta p p`, as in Kruse et al. It is the flow of the actin cortex
+    of a cell, of a layer of motile bacteria, or of a film of microtubules and motors.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the gel, whose values are the polarisation `p` and the constants of the gel.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import PolarGelFlowInteraction
+        >>> PolarGelFlowInteraction('flow', target='gel').target
+        'gel'
+    """
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
     @staticmethod
     def _get_molecular_field(s: SimpleNamespace) -> FreeModuleElement:
         """Return the molecular field of the polarisation at a site."""
@@ -195,11 +277,8 @@ class PolarGelSiteElement(Element):
 
     @staticmethod
     def _get_velocity(s: SimpleNamespace) -> FreeModuleElement:
-        """Return the velocity of the Stokes flow of the stresses at a site.
-
-        The stresses are the elastic and active ones.
-        """
-        field = PolarGelSiteElement._get_molecular_field(s)
+        """Return the velocity of the Stokes flow of the elastic and active stresses at a site."""
+        field = PolarGelFlowInteraction._get_molecular_field(s)
         outer = s.p.outer_product(field)
         stress = -s.xi * (outer + outer.transpose()) / 2 + (outer - outer.transpose()) / 2
         stress -= s.zeta * s.p.outer_product(s.p)
@@ -250,62 +329,42 @@ class PolarGelSiteElement(Element):
         the velocity holds one component per dimension, and `xi` is the flow-alignment parameter. The result is the
         matrix or the vector to subtract from the rate of the value. Any other value raises a `TensorShapeError`.
         """
-        flow = PolarGelSiteElement._check_vector('the corotational transport', velocity)
+        flow = PolarGelFlowInteraction._check_vector('the corotational transport', velocity)
         size = len(flow)
         gradients = vector_gradient(flow)
         strain, vorticity = symmetric_part(gradients), antisymmetric_part(gradients)
         if isinstance(value, FreeModuleElement):
-            advected = vector(SR, [PolarGelSiteElement._get_advection(item, flow) for item in value])
+            advected = vector(SR, [PolarGelFlowInteraction._get_advection(item, flow) for item in value])
             return advected - vorticity * value - SR(xi) * (strain * value)
-        tensor = PolarGelSiteElement._check_matrix('the corotational transport', value)
-        advected_tensor = tensor.apply_map(lambda item: PolarGelSiteElement._get_advection(item, flow))
+        tensor = PolarGelFlowInteraction._check_matrix('the corotational transport', value)
+        advected_tensor = tensor.apply_map(lambda item: PolarGelFlowInteraction._get_advection(item, flow))
         shifted_tensor = tensor + identity_matrix(SR, size) / size
         aligned = (SR(xi) * strain + vorticity) * shifted_tensor + shifted_tensor * (SR(xi) * strain - vorticity)
         stretching = 2 * SR(xi) * (tensor * gradients).trace() * shifted_tensor
         return advected_tensor - aligned + stretching
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the polarisation.
-
-        The rate is its transport in the flow and its relaxation.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the polarisation, its transport in the flow and its relaxation.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of `p`.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        return [
-            RateLaw(
-                s.p,
-                -self._get_corotational_transport(s.p, self._get_velocity(s), s.xi)
-                + self._get_molecular_field(s) / s.gamma,
-            ),
-        ]
+        super()._prepare(context)
+        s = context.target
+        transport = self._get_corotational_transport(s.p, self._get_velocity(s), s.xi)
+        self.laws_ = [RateLaw(s.p, -transport + self._get_molecular_field(s) / s.gamma)]
 
 
 class NematicGelSiteElement(Element):
-    """Site of an active nematic gel.
-
-    A symmetric traceless tensor `Q` is carried by an overdamped Stokes flow.
-
-    The tensor follows `Q_t = -C(Q, u, xi) + H / gamma`, with the corotational transport `C` of Beris and Edwards
-    and the molecular field `H` of the Landau-de Gennes energy. The velocity solves
-    `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress `sigma = -xi H + Q H - H Q - zeta Q`.
-    An activity `zeta > 0` is extensile and an activity `zeta < 0` contractile.
+    """Sites of an active nematic gel, with a symmetric traceless tensor and the constants of the gel.
 
     Args:
         label:
             The label of the site or the field.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         Q:
-            The initial tensor, its independent components `Q_xx` and `Q_xy`.
+            The initial tensor, its independent components `Q_xx` and `Q_xy`, or one tensor per site.
 
         a:
             The coefficient of `tr(Q^2) / 2` of the energy, negative in the ordered phase.
@@ -328,9 +387,8 @@ class NematicGelSiteElement(Element):
         zeta:
             The activity.
 
-    Attributes:
-        default_visual_:
-            The visual of the element when it sets none.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NematicGelSiteElement
@@ -338,23 +396,21 @@ class NematicGelSiteElement(Element):
         0.5
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
-        a: Annotated[float, ParameterSpec()] = -1.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        xi: Annotated[float, ParameterSpec()] = 0.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        zeta: Annotated[float, ParameterSpec()] = 0.5,
+        Q: Annotated[object, Tensor('traceless')] = 0.0,
+        a: float = -1.0,
+        c: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        xi: float = 0.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        eta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        zeta: float = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.Q = Q
         self.a = a
         self.c = c
@@ -364,36 +420,53 @@ class NematicGelSiteElement(Element):
         self.eta = eta
         self.zeta = zeta
 
+
+class NematicGelFlowInteraction(Interaction):
+    """Transport and relaxation of the tensor of an active nematic gel in the Stokes flow of its stresses.
+
+    The tensor follows `Q_t = -C(Q, u, xi) + H / gamma`, with the corotational transport `C` of Beris and Edwards
+    and the molecular field `H` of the Landau-de Gennes energy. The velocity solves
+    `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress `sigma = -xi H + Q H - H Q - zeta Q`.
+    An activity `zeta > 0` is extensile and an activity `zeta < 0` contractile. It is the active turbulence of
+    microtubule bundles, of dense bacteria, or of a monolayer of cells.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the gel, whose values are the tensor `Q` and the constants of the gel.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import NematicGelFlowInteraction
+        >>> NematicGelFlowInteraction('flow', target='gel').target
+        'gel'
+    """
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
     @staticmethod
     def _get_velocity(s: SimpleNamespace) -> FreeModuleElement:
-        """Return the velocity of the Stokes flow of the stresses at a site.
-
-        The stresses are the elastic and active ones.
-        """
+        """Return the velocity of the Stokes flow of the elastic and active stresses at a site."""
         field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
         stress = -s.xi * field + s.Q * field - field * s.Q - s.zeta * s.Q
         force = tensor_divergence(stress)
         return leray_projection(force.apply_map(lambda item: inverse_helmholtz(-item / s.eta)))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the tensor, its transport in the flow and its relaxation.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the tensor, its transport in the flow and its relaxation.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of `Q`.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
+        super()._prepare(context)
+        s = context.target
         field = LandauDeGennesEnergyInteraction._get_molecular_field(s.Q, s.a, s.c, s.K)
-        return [
-            RateLaw(
-                s.Q,
-                -PolarGelSiteElement._get_corotational_transport(s.Q, self._get_velocity(s), s.xi) + field / s.gamma,
-            ),
-        ]
+        transport = PolarGelFlowInteraction._get_corotational_transport(s.Q, self._get_velocity(s), s.xi)
+        self.laws_ = [RateLaw(s.Q, -transport + field / s.gamma)]
 
 
 class LandauDeGennesEnergyInteraction(GradientInteraction):
@@ -406,13 +479,13 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
 
         state:
-            The name of the state of the field that holds the tensor.
+            The name of the value of the field that holds the tensor.
 
         a:
             The coefficient of `tr(Q^2) / 2`, negative in the ordered phase.
@@ -440,12 +513,12 @@ class LandauDeGennesEnergyInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'Q',
-        a: Annotated[float, ParameterSpec()] = -1.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        a: float = -1.0,
+        c: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
         quadratic: Callable[[SimpleNamespace], object] | None = None,
     ) -> None:
         super().__init__(label, target=target, states=state, variational=True)
@@ -543,9 +616,15 @@ class DryActiveNematicsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for RK4 with the step 0.02.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for Numba.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import DryActiveNematicsSystem
-        >>> DryActiveNematicsSystem((8, 8)).prepare().system_.elements[0].values['beta']
+        >>> DryActiveNematicsSystem((8, 8)).prepare().system_.interactions[0].beta
         0.5
     """
 
@@ -554,8 +633,6 @@ class DryActiveNematicsSystem(BaseSystem):
     references = ('Marchetti et al. 2013', 'arXiv:1207.2929')
     until = 100.0
     dt = 5.0
-    solver = RK4Solver(dt=0.02)
-    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -573,8 +650,10 @@ class DryActiveNematicsSystem(BaseSystem):
         perturbation: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.density = density
         self.critical_density = critical_density
@@ -588,47 +667,41 @@ class DryActiveNematicsSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a dry active nematic.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the noisy density and tensor with their alignment, energy, and current.
 
-        A conserved density is coupled to a symmetric traceless alignment tensor.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
         sites = int(np.prod(shape))
-        values = {
-            'rho': self.density + self.perturbation * rng.standard_normal(sites),
-            'Q': self.perturbation * rng.standard_normal((sites, 2)),
-            'beta': self.beta,
-        }
-        nematic = FieldElement('nematic', element=NematicDensitySiteElement, space=LatticeSpace(shape), values=values)
-        energy = LandauDeGennesEnergyInteraction(
-            'energy',
-            target='nematic',
-            a=self.a,
-            c=self.c,
-            K=self.K,
-            gamma=self.gamma,
-            quadratic=lambda s: s.a * (1 - s.target.rho / self.critical_density),
+        rho = self.density + self.perturbation * rng.standard_normal(sites)
+        Q = self.perturbation * rng.standard_normal((sites, 2))
+        nematic = NematicDensitySiteElement('nematic', rho=rho, Q=Q, space=LatticeSpace(shape))
+        critical = self.critical_density
+        interactions = [
+            CurvatureAlignmentInteraction('alignment', target='nematic', beta=self.beta),
+            LandauDeGennesEnergyInteraction(
+                'energy',
+                target='nematic',
+                a=self.a,
+                c=self.c,
+                K=self.K,
+                gamma=self.gamma,
+                quadratic=lambda s: s.a * (1 - s.target.rho / critical),
+            ),
+            ActiveCurrentInteraction('transport', target='nematic', D=self.D, current=self.current),
+        ]
+        self.system_ = System(
+            self.label,
+            elements=[nematic],
+            interactions=interactions,
+            solver=RK4Solver(dt=0.02),
+            backend=NumbaBackend(),
         )
-
-        def flux(s: SimpleNamespace) -> list[Expression]:
-            """Return the current of the density, its diffusion and its active current."""
-            active = tensor_divergence(s.target.Q)
-            return [
-                -self.D * item - self.current * other
-                for item, other in zip(gradient(s.target.rho), active, strict=True)
-            ]
-
-        transport = ConservationInteraction(
-            'transport',
-            target='nematic',
-            state='rho',
-            flux=flux,
-            limiter=None,
-            riemann=None,
-        )
-        return CompositeSystem(self.label, elements=[nematic], interactions=[energy, transport])
 
 
 def _get_velocity_x(s: SimpleNamespace) -> Expression:
@@ -647,11 +720,8 @@ def _get_sites(values: np.ndarray) -> np.ndarray:
 
 
 def _get_gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
-    """Return the velocity of the flow of a gel at a site.
-
-    The velocity depends on the order the namespace holds.
-    """
-    return PolarGelSiteElement._get_velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._get_velocity(s)
+    """Return the velocity of the flow of a gel at a site, by the order the namespace holds."""
+    return PolarGelFlowInteraction._get_velocity(s) if hasattr(s, 'p') else NematicGelFlowInteraction._get_velocity(s)
 
 
 class ActiveGelsSystem(BaseSystem):
@@ -675,7 +745,8 @@ class ActiveGelsSystem(BaseSystem):
     polarisation along the first axis at the length `sqrt(-a / c)`, both with noise. With `film=True` the polarisation
     along the second axis is odd about the sites 0 and `shape[1] / 2` of the second axis, and the other one even, which
     holds the polarisation along the first axis at these two walls, with stress-free flow there. The system has the
-    field `gel.Q` or `gel.p`.
+    field `gel.Q` or `gel.p`. The tuned run is that of the nematic, and the polar gel, whose flow is slow, runs with
+    RK4 at the step 0.05 and is best simulated for 200 time units with frames every time unit.
 
     Args:
         shape:
@@ -724,13 +795,20 @@ class ActiveGelsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for RK4 with the step 5e-4 for the nematic and 0.05 for the polar
+            gel.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The order is unknown, or a nematic is asked to lie in a film.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ActiveGelsSystem
-        >>> ActiveGelsSystem((8, 8), order='polar').prepare().system_.elements[0].values['zeta']
+        >>> ActiveGelsSystem((8, 8), order='polar').prepare().system_.elements[0].zeta
         -0.5
         >>> ActiveGelsSystem(order='polar').prepare().system_.elements[0].space.shape
         (32, 32)
@@ -748,10 +826,9 @@ class ActiveGelsSystem(BaseSystem):
     )
     until = 0.5
     dt = 0.025
-    solver = RK4Solver(dt=5e-4)
     observables = (
-        ObservableSpec('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
-        ObservableSpec('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
+        Observable('u_x', _get_velocity_x, group='gel', reduce=_get_sites),
+        Observable('u_y', _get_velocity_y, group='gel', reduce=_get_sites),
     )
 
     def __init__(
@@ -771,8 +848,10 @@ class ActiveGelsSystem(BaseSystem):
         perturbation: float | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.order = order
         self.spacing = spacing
@@ -787,26 +866,8 @@ class ActiveGelsSystem(BaseSystem):
         self.perturbation = perturbation
         self.random_state = random_state
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        They are longer and coarser for the polar gel, whose flow is slow.
-        """
-        settings = super().get_run_settings()
-        if self.order == 'polar':
-            settings['until'] = 200.0
-            settings['dt'] = 1.0
-            settings['solver'] = RK4Solver(dt=0.05)
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        if self.order not in GEL_ORDERS:
-            error_msg = f'The order of the gel is {self.order!r}. Use one of {", ".join(GEL_ORDERS)}.'
-            raise ValidationError(error_msg)
-        if self.film and self.order != 'polar':
-            error_msg = 'A film of the gel holds a polarisation at its walls. Use order=polar.'
-            raise ValidationError(error_msg)
+    def _get_gel(self) -> Element:
+        """Return the gel on its spectral lattice, from the tensor or the polarisation along the first axis."""
         polar = self.order == 'polar'
         shape = ((32, 32) if polar else (128, 128)) if self.shape is None else tuple(self.shape)
         sites = int(np.prod(shape))
@@ -820,8 +881,9 @@ class ActiveGelsSystem(BaseSystem):
         noise = amplitude * rng.standard_normal((sites, 2))
         size = np.sqrt(-quadratic / cubic) if polar else np.sqrt(-2 * quadratic / cubic) / 2
         start = np.column_stack([np.full(sites, size), np.zeros(sites)]) + noise if quadratic < 0 else noise
-        values = {
-            'p' if polar else 'Q': start,
+        symmetry = {'p': ((None, 'even'), (None, 'odd'))} if self.film else None
+        space = LatticeSpace(shape, spacing=distance, discretization='spectral', symmetry=symmetry)
+        constants = {
             'a': quadratic,
             'c': cubic,
             'K': self.K,
@@ -830,13 +892,35 @@ class ActiveGelsSystem(BaseSystem):
             'eta': self.eta,
             'zeta': activity,
         }
-        symmetry = {'p': ((None, 'even'), (None, 'odd'))} if self.film else None
-        gel = FieldElement(
-            'gel',
-            element=PolarGelSiteElement if polar else NematicGelSiteElement,
-            space=LatticeSpace(shape, spacing=distance),
-            values=values,
-            discretization='spectral',
-            symmetry=symmetry,
+        if polar:
+            return PolarGelSiteElement('gel', p=start, space=space, **constants)
+        return NematicGelSiteElement('gel', Q=start, space=space, **constants)
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the gel and the flow of its order.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for the tuned ones.
+
+        Raises:
+            ValidationError:
+                The order is unknown, or a nematic is asked to lie in a film.
+        """
+        super()._prepare(context)
+        if self.order not in GEL_ORDERS:
+            error_msg = f'The order of the gel is {self.order!r}. Use one of {", ".join(GEL_ORDERS)}.'
+            raise ValidationError(error_msg)
+        if self.film and self.order != 'polar':
+            error_msg = 'A film of the gel holds a polarisation at its walls. Use order=polar.'
+            raise ValidationError(error_msg)
+        polar = self.order == 'polar'
+        flow = (
+            PolarGelFlowInteraction('flow', target='gel') if polar else NematicGelFlowInteraction('flow', target='gel')
         )
-        return CompositeSystem(self.label, elements=[gel])
+        self.system_ = System(
+            self.label,
+            elements=[self._get_gel()],
+            interactions=[flow],
+            solver=RK4Solver(dt=POLAR_STEP if polar else NEMATIC_STEP),
+        )

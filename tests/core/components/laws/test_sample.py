@@ -3,19 +3,19 @@
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.laws import SampleLaw
-from skcomplex.core.components.spaces import BallNeighborhood
+from skcomplex.core.components.laws import MoveSpec, ObjectiveSpec, SamplerSpec
+from skcomplex.core.components.laws._sample import _SampleLaw
+from skcomplex.core.components.spaces import RadiusNeighborhood
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import MoveSpec, ObjectiveSpec, SamplerSpec
 
 SPIN = var('spin')
-ENERGY = ObjectiveSpec(-SPIN, BallNeighborhood(metric='manhattan'))
+ENERGY = ObjectiveSpec(-SPIN, RadiusNeighborhood(1, metric='manhattan'))
 
 
 def test_sample_targets_the_state_of_its_move():
     """Test that a Monte Carlo sample targets the moved state, with or without a sampler."""
-    assert SampleLaw(ENERGY, MoveSpec(SPIN), SamplerSpec('glauber', 2.0)).prepare().targets_ == (SPIN,)
-    assert SampleLaw(ENERGY, MoveSpec(SPIN, 'random-value', values=(0.0, 1.0))).prepare().targets_ == (SPIN,)
+    assert _SampleLaw(ENERGY, MoveSpec(SPIN), SamplerSpec('glauber', 2.0))._get_targets() == (SPIN,)
+    assert _SampleLaw(ENERGY, MoveSpec(SPIN, 'random-value', values=(0.0, 1.0)))._get_targets() == (SPIN,)
 
 
 @pytest.mark.parametrize(
@@ -25,4 +25,4 @@ def test_sample_targets_the_state_of_its_move():
 def test_sample_checks_its_move_and_sampler(move, sampler, message):
     """Test that a Monte Carlo sample checks its move and its sampler."""
     with pytest.raises(ValidationError, match=message):
-        SampleLaw(ENERGY, move, sampler).prepare()
+        _SampleLaw(ENERGY, move, sampler)._check()

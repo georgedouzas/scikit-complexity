@@ -12,11 +12,12 @@ from ._convolution import MODE_SPACING, ConvolutionSolver
 class GrunwaldLetnikovSolver(ConvolutionSolver):
     """A solver of Caputo fractional equations by the Grünwald-Letnikov scheme.
 
-    It is of order 1. A step sets `dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k w_j (x_(k-j) - x_0)` with the weights `w_j
-    = (-1)^j binomial(alpha, j)`. States of order 1 take explicit Euler steps.
+    A step sets `dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k w_j (x_(k-j) - x_0)` with the weights
+    `w_j = (-1)^j binomial(alpha, j)`, so it is of order 1. States of order 1 take explicit Euler steps. Choose it for a
+    simple explicit fractional scheme with a small step, such as the relaxation of a polymer, anomalous diffusion, and
+    fractional chaotic flows.
 
-    Choose it for a simple explicit fractional scheme with a small step. It appears in models of anomalous diffusion and
-    of fractional chaotic flows.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -31,28 +32,16 @@ class GrunwaldLetnikovSolver(ConvolutionSolver):
         orders_:
             The order of every state component.
 
+    See Also:
+        L1Solver: Another explicit scheme of order 1.
+        FractionalABMSolver: A predictor and corrector of order `1 + alpha`.
+
     Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> class RelaxingElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [RateLaw(s.x, -s.x)]
-        >>> problem = simulate(CompositeSystem(elements=[RelaxingElement('a')]), until=0).problem
-        >>> stepper = GrunwaldLetnikovSolver(dt=0.001, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> round(float(stepper.run(step).state_[0]), 2)
-        0.43
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
+        >>> system = FractionalRelaxationSystem(order=0.5, solver=GrunwaldLetnikovSolver(dt=0.001)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('relaxation.x').round(2).tolist()
+        [1.0, 0.43]
     """
 
     def _get_weights(self, alpha: Array, count: int) -> Array:

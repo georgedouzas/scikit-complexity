@@ -1,4 +1,4 @@
-"""Pass that compiles and takes out the encounter laws."""
+"""Compile the encounter laws of densities of classes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,28 +9,42 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.elements import FieldElement
-from ....components.laws import BaseLaw, BilinearLaw
+from ....components.laws import BaseLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.spaces import PhaseSpace
 from ....errors import ValidationError
-from ....specs import TableValuesSpec
 from ....types import Indices
 from ..._utils import symbols_of
 from ...backends import BaseBackend
+from ...enums import ReadKind
+from ...problems._bilinear_law import BilinearLaw
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
+from ...problems._field_element import _FieldElement
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
+from ...problems._table_values_spec import _TableValuesSpec
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 
 
 class CompileEncountersPass(BasePass):
-    """A pass that compiles and takes out the encounter laws.
+    """A pass that compiles the encounter laws and sets them apart.
 
-    It runs before reductions prune the groups the laws read.
+    An encounter law says how members of two classes that meet change class, such as two people whose opinions move
+    towards each other. The pass turns every encounter law into sums over the densities of the classes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        EncounterFunctionsPass: Adds the encounters to the rates.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> compilation = PassCompiler().prepare(KineticOpinionSystem()).run().compilation_
+        >>> [encounter.kind for encounter in compilation.encounters]
+        ['transition']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -64,7 +78,7 @@ class CompileEncountersPass(BasePass):
         phases = {
             entry.name: block.node.component.space
             for block in declarations.blocks.values()
-            if isinstance(block.node.component, FieldElement) and isinstance(block.node.component.space, PhaseSpace)
+            if isinstance(block.node.component, _FieldElement) and isinstance(block.node.component.space, PhaseSpace)
             for entry in block.entries.values()
         }
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused, phases=phases)
@@ -240,7 +254,7 @@ class CompileEncountersPass(BasePass):
         rates = CompileEncountersPass._get_checked_rate(law, sizes, owner, space)
         table = CompileEncountersPass._get_outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
-        rate = TableValuesSpec(
+        rate = _TableValuesSpec(
             rates,
             grid,
             CompileEncountersPass._get_parameter_indices(rates, references, owner),
@@ -248,7 +262,7 @@ class CompileEncountersPass(BasePass):
         )
         nonzero = CompileEncountersPass._get_nonzero(table)
         entries = (nonzero[0], nonzero[1], nonzero[2])
-        probabilities = TableValuesSpec(
+        probabilities = _TableValuesSpec(
             table,
             nonzero,
             CompileEncountersPass._get_parameter_indices(table, references, owner),

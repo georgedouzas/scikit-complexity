@@ -4,10 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import automaton
-from skcomplex.core.components.spaces import MemoryNeighborhood
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.viz import CayleyVisual
 from skcomplex.systems.computer_science.automata import (
     BaumslagSolitarAutomatonSystem,
     FreeGroupAutomatonSystem,
@@ -18,14 +15,15 @@ from skcomplex.systems.computer_science.automata import (
     LinearRingAutomatonSystem,
     SubshiftsSystem,
 )
+from skcomplex.systems.computer_science.common.automata import CayleyVisual, MemoryNeighborhood
 
 from .conftest import GRIGORCHUK_BALLS
 
 
 def _run(system, until):
-    """Return the composite of a system and its trajectory."""
-    composite = system.prepare().system_
-    return composite, simulate(composite, until=until, dt=1, random_state=0)
+    """Return the prepared system of the components and its trajectory."""
+    prepared = system.prepare()
+    return prepared.system_, prepared.simulate(until=until, dt=1, random_state=0)
 
 
 def _majority_holds(space, memory, before, after):
@@ -95,8 +93,8 @@ def test_majority_automata_on_balls(factory, size):
 
 def test_lamplighter_automaton_is_linear():
     """Test that the parity automaton on the lamplighter ball maps a sum of configurations to the sum of images."""
-    system = LamplighterAutomatonSystem(radius=5).prepare().system_
-    space = system.elements[0].space
+    system = LamplighterAutomatonSystem(radius=5)
+    space = system.prepare().system_.elements[0].space
     table = space._get_index_table(MemoryNeighborhood(('1', 'a', 'b')))
     interior = (table < space.size_).all(axis=1)
     rng = np.random.default_rng(0)

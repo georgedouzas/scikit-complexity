@@ -8,19 +8,20 @@ Boolean rules alternate with the program.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
+from ....core.components import Observable
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import CoSimulationSolver, RK4Solver
-from ....core.specs import RoleSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, CoSimulationSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
     GrowthInteraction,
+    MetabolicCellElement,
     SubstrateElement,
     SwitchInteraction,
     load_network,
@@ -59,14 +60,12 @@ class GlucoseSensorInteraction(Interaction):
         0.1
     """
 
-    law_classes = (UpdateLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        node: Annotated[str, RoleSpec()] = 'node',
-        source: Annotated[str, RoleSpec()] = 'source',
+        node: Role = 'node',
+        source: Role = 'source',
         threshold: float | None = None,
     ) -> None:
         super().__init__(label)
@@ -74,20 +73,18 @@ class GlucoseSensorInteraction(Interaction):
         self.source = source
         self.threshold = threshold
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the update of the node.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the node.
 
         Args:
-            namespace:
-                The namespace of the roles.
-
-        Returns:
-            laws:
-                The update law of the node.
+            context:
+                The namespace of the node and its source.
         """
+        super()._prepare(context)
         if self.threshold is None:
-            return [UpdateLaw(namespace.node.x, namespace.source.x)]
-        return [UpdateLaw(namespace.node.x, where(namespace.source.c > float(self.threshold), 1, 0))]
+            self.laws_: list[BaseLaw] = [UpdateLaw(context.node.x, context.source.x)]
+        else:
+            self.laws_ = [UpdateLaw(context.node.x, where(context.source.c > float(self.threshold), 1, 0))]
 
 
 class RegulatoryFBASystem(BaseSystem):
@@ -129,6 +126,12 @@ class RegulatoryFBASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra is not installed.
@@ -144,7 +147,6 @@ class RegulatoryFBASystem(BaseSystem):
     references = ('Raman 2021', 'Covert et al. 2001')
     until = 8.0
     dt = SYNCHRONISATION
-    solver = CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)})
 
     def __init__(
         self,
@@ -157,8 +159,10 @@ class RegulatoryFBASystem(BaseSystem):
         acetate_vmax: float = 10.0,
         km: float = 0.015,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.biomass = biomass
         self.glucose = glucose
         self.acetate = acetate
@@ -167,18 +171,24 @@ class RegulatoryFBASystem(BaseSystem):
         self.acetate_vmax = acetate_vmax
         self.km = km
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a batch culture with Boolean catabolite repression.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a batch culture with Boolean catabolite repression.
 
-        The culture grows on glucose and acetate.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
-        cell.parsimonious, cell.infeasible = True, 'zero'
-        identifier = cell._get_identifier(ACETATE_EXCHANGE)
-        cell.set_params(
-            **{f'lower_{identifier}': -float(self.acetate_vmax)},
-            **{cell.get_gene_name(gene): 0.0 for gene in ACETATE_GENES},
+        super()._prepare(context)
+        network = load_network('textbook', 'cell', needed_by='regulatory_fba').set_params(
+            parsimonious=True,
+            infeasible='zero',
         )
+        identifier = network._get_identifier(ACETATE_EXCHANGE)
+        values = network.get_values() | {
+            f'lower_{identifier}': -float(self.acetate_vmax),
+            **{network.get_gene_name(gene): 0.0 for gene in ACETATE_GENES},
+        }
+        cell = MetabolicCellElement('cell', values=values)
         nodes = [BooleanNodeElement(f'node_{position}', x=1) for position in range(self.lag + 1)]
         chain = [
             GlucoseSensorInteraction(
@@ -188,18 +198,17 @@ class RegulatoryFBASystem(BaseSystem):
             )
             for position in range(1, self.lag + 1)
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             systems=[
-                CompositeSystem('control', elements=[cell, *nodes], time=DiscreteTime()),
-                CompositeSystem(
+                System('control', elements=[cell, *nodes], interactions=[network]),
+                System(
                     'culture',
                     elements=[
                         BiomassElement('biomass', x=self.biomass),
                         SubstrateElement('glucose', c=self.glucose),
                         SubstrateElement('acetate', c=self.acetate),
                     ],
-                    time=ContinuousTime(),
                 ),
             ],
             interactions=[
@@ -237,4 +246,5 @@ class RegulatoryFBASystem(BaseSystem):
                 ),
                 GrowthInteraction('growth', cell='control/cell', biomass='culture/biomass', reaction=GROWTH),
             ],
+            solver=CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)}),
         )

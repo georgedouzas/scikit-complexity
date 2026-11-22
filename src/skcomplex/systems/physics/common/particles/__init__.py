@@ -3,44 +3,41 @@
 The package holds point masses, active and Brownian particles, forces, relaxation, and the Stokesian mobility.
 """
 
+from ._active_diffusion import ActiveDiffusionInteraction
 from ._active_particle import POINTS, ActiveParticleElement
-from ._brownian_particle import BrownianParticleElement
 from ._constant_force import ConstantForceInteraction
 from ._damping import DampingInteraction
-from ._double_well import DoubleWellElement
-from ._harmonic_force import HarmonicForceInteraction
-from ._harmonic_potential import HarmonicPotentialInteraction
+from ._double_well import DoubleWellElement, DoubleWellInteraction
+from ._friction_noise import FrictionNoiseInteraction
 from ._lammps import LAMMPS_FIXES, LAMMPS_PAIRS
 from ._langevin_thermostat import LangevinThermostatInteraction
 from ._lennard_jones import LennardJonesInteraction
+from ._linear_drag import LinearDragInteraction
 from ._mass_point import MassPointElement
-from ._potential_energy import PotentialEnergyInteraction
+from ._periodic_force import PeriodicForceInteraction
 from ._propulsion_step import PropulsionStepInteraction
-from ._relaxation_time import RelaxationTimeInteraction
+from ._restoring_force import RestoringForceInteraction
 from ._self_propulsion import SelfPropulsionInteraction
-from ._spring import SpringInteraction
 from ._stokesian_mobility import StokesianMobilityInteraction
-from ._thermal_noise import ThermalNoiseInteraction
 
 __all__: list[str] = [
     'LAMMPS_FIXES',
     'LAMMPS_PAIRS',
     'POINTS',
+    'ActiveDiffusionInteraction',
     'ActiveParticleElement',
-    'BrownianParticleElement',
     'ConstantForceInteraction',
     'DampingInteraction',
     'DoubleWellElement',
-    'HarmonicForceInteraction',
-    'HarmonicPotentialInteraction',
+    'DoubleWellInteraction',
+    'FrictionNoiseInteraction',
     'LangevinThermostatInteraction',
     'LennardJonesInteraction',
+    'LinearDragInteraction',
     'MassPointElement',
-    'PotentialEnergyInteraction',
+    'PeriodicForceInteraction',
     'PropulsionStepInteraction',
-    'RelaxationTimeInteraction',
+    'RestoringForceInteraction',
     'SelfPropulsionInteraction',
-    'SpringInteraction',
     'StokesianMobilityInteraction',
-    'ThermalNoiseInteraction',
 ]

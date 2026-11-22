@@ -9,16 +9,18 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..engine.problems import ProblemSpec
+from ..engine.problems import LayoutSpec, ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime._simulations import Simulation
 from ..engine.solvers import Solver
+from ..engine.solvers._event_record_spec import _EventRecordSpec
+from ..enums import DataKind, FormKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, EventRecordSpec
-from ..types import Array, DataKind, FormKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_system
 from ._utils import compile_problem
-from .types import Source
+from .types import DataSource
 
 KINDS = ('poincare', 'stroboscopic')
 SETTINGS = {
@@ -32,9 +34,13 @@ TAGS = AnalysisTags(DataKind.SYSTEM, time=frozenset({'continuous'}))
 
 @dataclass(frozen=True)
 class SectionResult:
-    """A result of `section`, a section of a system.
+    """A result of `section`, the states of a flow at a crossing or at each period.
 
-    It holds the states where a flow crosses a value, or at multiples of a period.
+    It holds the time and the state of every point of the section and the values of the read states there, such as a
+    unit spring that crosses `x = 0` upward every `2 pi` with the speed 1. It reports the crossings of the orbit of a
+    planet, a forced pendulum, and a heart rhythm.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         problem:
@@ -48,7 +54,16 @@ class SectionResult:
 
         values:
             A mapping from the name of every read state to its values at the points of a section, one row per point
-            for a vector state.
+            for a vector state. A derivative is named with a prime, such as `mass.x'`, as in trajectories.
+
+    See Also:
+        section: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import section
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> section(HarmonicOscillatorSystem(), state='mass.x', until=20.0).values["mass.x'"].round(3).tolist()
+        [1.0, 1.0, 1.0]
     """
 
     problem: ProblemSpec
@@ -58,7 +73,7 @@ class SectionResult:
 
 
 def section(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'poincare',
     variables: Sequence[str] | None = None,
@@ -72,24 +87,23 @@ def section(
     solver: Solver | None = None,
     random_state: int | None = None,
 ) -> SectionResult:
-    """Return the section of a system.
+    """Return the states of a flow where it crosses a value or at each period.
 
-    It holds the states where a flow crosses a value, or at multiples of a period.
+    A section turns a flow into a map, by keeping only the states where one state crosses a value in one direction, or
+    the states at every period of a forcing, such as a unit spring that crosses `x = 0` upward every `2 pi`. It runs
+    the system. It turns a flow into a map of its crossings, as for the orbit of a planet, a forced pendulum, and a
+    heart rhythm.
 
-    The kinds run the system:
-
-    - `'poincare'`: the states where the scalar state `state` crosses `value` in a direction, located like an event.
-    - `'stroboscopic'`: the states of a periodically forced flow at multiples of the forcing period.
-
-    It appears in many fields. It turns a flow into a map of its crossings, as for the orbit of a planet, a forced
-    pendulum, and a heart rhythm.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The system, its compiled problem, or a trajectory of it.
 
         kind:
-            The section to take, one of the kinds above.
+            What to return. `'poincare'` gives the states where the scalar state `state` crosses `value` in a
+            direction, located like an event. `'stroboscopic'` gives the states of a periodically forced flow at
+            multiples of the forcing period.
 
         variables:
             The dotted names of the states whose values to read at the points of a section, or `None` for every state.
@@ -133,6 +147,10 @@ def section(
 
         TagError:
             The system does not run in continuous time.
+
+    See Also:
+        lyapunov: Gives the rates at which nearby runs of a system separate.
+        recurrence: Finds which states of a run come close to each other.
 
     Examples:
         >>> from skcomplex.core.analysis import section
@@ -200,7 +218,7 @@ def section(
     for name in names:
         read = np.asarray([problem.states.read(row, name) for row in states], dtype=float)
         size = problem.states.get_entry(name).size
-        values[name] = read.reshape(len(times), -1) if size > 1 else read.reshape(-1)
+        values[LayoutSpec._get_display_name(name)] = read.reshape(len(times), -1) if size > 1 else read.reshape(-1)
     return SectionResult(problem, times, states, values)
 
 
@@ -235,7 +253,7 @@ def _crossings(
     crossings = [
         record
         for record in trajectory.events
-        if isinstance(record, EventRecordSpec) and record.label == SECTION and record.time >= start
+        if isinstance(record, _EventRecordSpec) and record.label == SECTION and record.time >= start
     ]
     states = np.zeros((len(crossings), problem.states.size))
     for row, record in enumerate(crossings):

@@ -17,7 +17,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import KoopmanSlowManifoldSystem
 
@@ -44,9 +43,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(KoopmanSlowManifoldSystem(), observers=[observer])
+trajectory = KoopmanSlowManifoldSystem().prepare().simulate(observers=[observer])
 starts = [(-1.0, -1.0), (1.5, 0.0), (-1.5, 0.0), (0.5, 1.5), (-0.5, 1.5), (1.2, 1.5)]
-orbits = [trajectory] + [simulate(KoopmanSlowManifoldSystem(x1=x1, x2=x2)) for x1, x2 in starts]
+orbits = [trajectory] + [KoopmanSlowManifoldSystem(x1=x1, x2=x2).prepare().simulate() for x1, x2 in starts]
 b = LAM / (LAM - 2 * MU)
 parabola = np.linspace(-1.6, 1.6, 101)
 strips = [

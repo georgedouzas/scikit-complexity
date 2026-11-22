@@ -6,19 +6,19 @@ from typing import Annotated
 import numpy as np
 import pytest
 import scipy.linalg
+from sage.all__sagemath_symbolics import RealSet
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.analysis import bind_analysis, mode_decomposition
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import ContinuousTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
-from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.enums import FormKind
+from skcomplex.core.errors import AnalysisError, ValidationError
+from skcomplex.core.systems import System
+
+from .conftest import _damped_rotation, _last_values
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
 DRIVEN = np.asarray([[-0.1, 1.0], [-1.0, -0.2]])
@@ -27,55 +27,33 @@ STEP = 0.1
 NAMES = ['linear.x', 'linear.y', 'linear.z']
 
 
-class LinearElement(Element):
-    """Linear element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.5,
-        z: Annotated[object, StateSpec()] = -1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def _get_laws(self, s):
-        """Return the laws of the linear element."""
-        return [
-            RateLaw(s.x, float(MATRIX[0, 0]) * s.x + float(MATRIX[0, 1]) * s.y),
-            RateLaw(s.y, float(MATRIX[1, 0]) * s.x + float(MATRIX[1, 1]) * s.y + float(MATRIX[1, 2]) * s.z),
-            RateLaw(s.z, float(MATRIX[2, 2]) * s.z),
-        ]
-
-
 class DrivenElement(Element):
-    """Linear element driven by a bounded input."""
+    """Linear element driven by an input between -1 and 1."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        u: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, x=1.0, y=0.0, u: Annotated[float, RealSet.closed(-1, 1)] = 0.0) -> None:
+        super().__init__(label)
         self.x = x
         self.y = y
         self.u = u
 
-    def _get_laws(self, s):
-        """Return the laws of the driven element."""
-        return [
-            RateLaw(s.x, float(DRIVEN[0, 0]) * s.x + float(DRIVEN[0, 1]) * s.y + float(DRIVE[0]) * s.u),
-            RateLaw(s.y, float(DRIVEN[1, 0]) * s.x + float(DRIVEN[1, 1]) * s.y + float(DRIVE[1]) * s.u),
-        ]
+
+def _linear_laws(s):
+    """Return the rate laws `dx/dt = A x` of the linear element."""
+    x, y, z = s.target.x, s.target.y, s.target.z
+    return [
+        RateLaw(x, float(MATRIX[0, 0]) * x + float(MATRIX[0, 1]) * y),
+        RateLaw(y, float(MATRIX[1, 0]) * x + float(MATRIX[1, 1]) * y + float(MATRIX[1, 2]) * z),
+        RateLaw(z, float(MATRIX[2, 2]) * z),
+    ]
+
+
+def _driven_laws(s):
+    """Return the rate laws of the driven element."""
+    x, y, u = s.target.x, s.target.y, s.target.u
+    return [
+        RateLaw(x, float(DRIVEN[0, 0]) * x + float(DRIVEN[0, 1]) * y + float(DRIVE[0]) * u),
+        RateLaw(y, float(DRIVEN[1, 0]) * x + float(DRIVEN[1, 1]) * y + float(DRIVE[1]) * u),
+    ]
 
 
 def _held_input(seed):
@@ -88,13 +66,13 @@ def _driven_runs():
     """Return runs of the driven element under different random inputs, from different states."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return [
-        simulate(
-            CompositeSystem(elements=[DrivenElement('driven', x=start)]),
-            until=20.0,
+        System(
+            elements=[DrivenElement('driven', x=start)],
+            interactions=[Interaction('drive', roles={'target': 'driven'}, laws=_driven_laws)],
             solver=solver,
-            dt=STEP,
-            schedule={'driven.u': _held_input(seed)},
         )
+        .prepare()
+        .simulate(until=20.0, dt=STEP, schedule={'driven.u': _held_input(seed)})
         for seed, start in enumerate((1.0, -2.0, 0.5))
     ]
 
@@ -111,7 +89,12 @@ def _one_sample_map():
 def _linear_trajectory():
     """Return a trajectory of the linear system `dx/dt = A x`, sampled every 0.05 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
-    return simulate(CompositeSystem(elements=[LinearElement('linear')]), until=10.0, solver=solver, dt=0.05)
+    system = System(
+        elements=[Element('linear', values={'x': 1.0, 'y': 0.5, 'z': -1.0})],
+        interactions=[Interaction('flow', roles={'target': 'linear'}, laws=_linear_laws)],
+        solver=solver,
+    )
+    return system.prepare().simulate(until=10.0, dt=0.05)
 
 
 def _fit(source, **settings):
@@ -124,6 +107,13 @@ def _linear_values(trajectory, samples):
     return np.column_stack([trajectory.get_values(name)[:samples] for name in NAMES])
 
 
+def _fit_labels(labels, dt=0.1):
+    """Return the mode decomposition of decaying series of the given variables, sampled every `dt`."""
+    times = np.arange(30) * dt
+    values = np.exp(-np.outer(times, np.arange(1, len(labels) + 1)))
+    return mode_decomposition(values, variables=labels, dt=dt)
+
+
 def test_mode_decomposition_recovers_linear_eigenvalues():
     """Test that the continuous eigenvalues of DMD equal those of the system matrix within 1e-6."""
     decomposition = _fit(_linear_trajectory())
@@ -132,15 +122,15 @@ def test_mode_decomposition_recovers_linear_eigenvalues():
     assert np.allclose(decomposition.generator, MATRIX, atol=1e-6)
 
 
-def test_mode_decomposition_system_validates_under_continuous_time():
-    """Test that the surrogate passes validation, declares continuous time, and runs with an ODE solver."""
+def test_mode_decomposition_system_prepares_as_differential_equations():
+    """Test that the surrogate prepares as differential equations with an ODE solver and runs as the series."""
     trajectory = _linear_trajectory()
     decomposition = _fit(trajectory)
-    assert PassCompiler().prepare(decomposition.system).report_.ok
-    assert isinstance(decomposition.system.time, ContinuousTime)
-    assert DEFAULT_SOLVERS[PassCompiler().prepare(decomposition.system).run().problem_.form] is ScipyODESolver
+    prepared = decomposition.system.prepare()
+    assert prepared.form_ == FormKind.ODE
+    assert isinstance(prepared.solver_, ScipyODESolver)
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    run = simulate(decomposition.system, until=10.0, solver=solver, dt=0.05)
+    run = decomposition.system.set_params(solver=solver).prepare().simulate(until=10.0, dt=0.05)
     assert np.allclose(run.get_values('surrogate.y'), trajectory.get_values('linear.y'), atol=1e-6)
 
 
@@ -159,7 +149,7 @@ def test_mode_decomposition_run_matches_simulated_system():
     decomposition = _fit(_linear_values(_linear_trajectory(), 101), variables=NAMES, horizon=20, dt=0.05)
     names = [f'surrogate.{name}' for name in decomposition.states]
     initial_state = dict(zip(names, decomposition.last_state, strict=True))
-    run = simulate(decomposition.system, until=1.0, dt=0.05, initial_state=initial_state)
+    run = decomposition.system.prepare().simulate(until=1.0, dt=0.05, initial_state=initial_state)
     simulated = np.column_stack([run.get_values(name) for name in names])[1:21]
     assert np.allclose(decomposition.forecast, simulated, atol=1e-4)
 
@@ -201,7 +191,7 @@ def test_mode_decomposition_dictionary_lifts_observables():
     )
     assert decomposition.labels == ['linear.x', 'linear.y', 'linear.x^2', 'linear.x linear.y', 'linear.y^2']
     assert decomposition.states == ['x', 'y', 'x_2', 'x_y', 'y_2']
-    assert PassCompiler().prepare(decomposition.system).report_.ok
+    assert decomposition.system.prepare().states_ == tuple(f'surrogate.{name}' for name in decomposition.states)
 
 
 def test_mode_decomposition_fits_several_series():
@@ -211,7 +201,7 @@ def test_mode_decomposition_fits_several_series():
     decomposition = _fit(runs, variables=['x'], dt=0.1)
     assert _fit(np.stack(runs), variables=['x'], dt=0.1).eigenvalues.tolist() == decomposition.eigenvalues.tolist()
     assert decomposition.eigenvalues.real.round(8).tolist() == [-0.5]
-    assert decomposition.system.elements[0].get_value('x') == 1.0
+    assert decomposition.system.elements[0].values['x'] == 1.0
 
 
 def test_mode_decomposition_rejects_series_of_other_variables():
@@ -248,7 +238,8 @@ def test_mode_decomposition_system_with_input_follows_schedule():
     decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'], validation=0.0)
     schedule = _held_input(7)
     solver = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
-    run = simulate(decomposition.system, until=5.0, solver=solver, dt=STEP, schedule={'surrogate.u': schedule})
+    prepared = decomposition.system.set_params(solver=solver).prepare()
+    run = prepared.simulate(until=5.0, dt=STEP, schedule={'surrogate.u': schedule})
     recorded = run.get_values('surrogate.u')
     assert np.allclose(recorded, [schedule(time) for time in run.times])
     states = np.column_stack([run.get_values('surrogate.x'), run.get_values('surrogate.y')])
@@ -257,12 +248,14 @@ def test_mode_decomposition_system_with_input_follows_schedule():
 
 
 def test_mode_decomposition_bounds_inputs_by_samples():
-    """Test that the input of the fitted system is an adaptive parameter bounded by its range in the samples."""
+    """Test that the input of the fitted system is a parameter whose allowed values are its range in the samples."""
     decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'])
-    specification = PassCompiler().prepare(decomposition.system).run().problem_.adaptive_parameters['surrogate.u']
     joined = np.concatenate([run.get_values('driven.u') for run in _driven_runs()])
-    assert specification.adaptive
-    assert specification.bounds == (joined.min(), joined.max())
+    lower, upper = joined.min(), joined.max()
+    assert decomposition.system.prepare().parameters_ == ('surrogate.u',)
+    outside = decomposition.system.set_params(surrogate__values={'x': 0.0, 'y': 0.0, 'u': 2 * upper - lower})
+    with pytest.raises(ValidationError, match=r'surrogate\.u .* is not in its domain'):
+        outside.prepare()
 
 
 def test_mode_decomposition_forecast_holds_last_input():
@@ -290,7 +283,7 @@ def test_mode_decomposition_input_with_dictionary_excludes_input():
     )
     assert decomposition.states == ['x', 'y', 'x_2', 'x_y', 'y_2']
     assert decomposition.input_matrix.shape == (5, 1)
-    assert PassCompiler().prepare(decomposition.system).report_.ok
+    assert decomposition.system.prepare().parameters_ == ('surrogate.u',)
 
 
 def test_mode_decomposition_input_rank_truncates_modes():
@@ -311,3 +304,33 @@ def test_mode_decomposition_input_name_differs_from_states():
     values = np.random.default_rng(0).normal(size=(50, 2))
     decomposition = _fit(values, variables=['a.x', 'b.x'], inputs=['b.x'])
     assert decomposition.inputs == ['x_input']
+
+
+@pytest.mark.parametrize(
+    ('labels', 'states'),
+    [
+        (['a.x', 'b.y'], ['x', 'y']),
+        (['a.x', 'b.x'], ['a_x', 'b_x']),
+        (['cells.n[0]', 'cells.n[1]'], ['n_0', 'n_1']),
+        (['lambda', 'label'], ['lambda_', 'label_']),
+        (['values'], ['values_']),
+        (['0', '1'], ['v_0', 'v_1']),
+    ],
+)
+def test_surrogate_names_states_after_variables(labels, states):
+    """Test that the states take the last part of every label, or the whole label where those clash."""
+    assert _fit_labels(labels).states == states
+
+
+def test_surrogate_accepts_steps_with_rounding_noise():
+    """Test that steps equal up to rounding count as uniform."""
+    assert _fit_labels(['x']).dt == pytest.approx(0.1)
+
+
+def test_mode_decomposition_keeps_its_reference_values():
+    """Test the run of the linear surrogate against the values recorded before it moved to declared states."""
+    analysis = mode_decomposition(_damped_rotation(), variables=['x', 'y'], dt=0.05)
+    assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
+        [-0.25240559441454513, 0.5515162392689774],
+        rel=1e-9,
+    )

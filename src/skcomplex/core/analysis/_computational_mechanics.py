@@ -10,18 +10,26 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind, IntArray, IntTuple
+from ..types import Array, IntArray, IntTuple
+from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)
 class EpsilonMachineResult:
-    """A result of `epsilon_machine`, the causal states of a discrete series.
+    """A result of `epsilon_machine`, the hidden states that predict a series.
+
+    It holds the alphabet, the pasts that lead to each hidden state, the moves between states with their chances, how
+    often each state is visited, how much memory the states hold, the statistical complexity, and how much new
+    randomness each symbol brings, the entropy rate. A series `0, 0, 1` repeated has three states, a memory of `log2 3`
+    bits, and no randomness. It reports the hidden states of an automaton, of the spikes of a neuron, and of a text.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -50,6 +58,15 @@ class EpsilonMachineResult:
 
         entropy_rate:
             The mean entropy of the next symbol given the causal state in bits.
+
+    See Also:
+        epsilon_machine: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import epsilon_machine
+        >>> machine = epsilon_machine([0, 0, 1] * 300, max_length=3)
+        >>> len(machine.histories), round(machine.statistical_complexity, 3), round(machine.entropy_rate, 3)
+        (3, 1.585, 0.0)
     """
 
     values: Array
@@ -64,20 +81,20 @@ class EpsilonMachineResult:
 
 
 def epsilon_machine(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     max_length: int = 3,
     significance: float = 0.001,
 ) -> EpsilonMachineResult:
-    """Return the epsilon-machine of a discrete series.
+    """Return the smallest machine of hidden states that predicts a series of symbols.
 
-    It is reconstructed by causal-state splitting (CSSR). Histories up to `max_length` symbols join the state whose law
-    of the next symbol they share by a chi-square test, and states are then split until their transitions are
-    deterministic.
+    It groups the pasts of up to `max_length` symbols into hidden states, two pasts sharing a state when a chi-square
+    test finds the same chances of the next symbol after both, and splits states until every symbol leads to one next
+    state, the method CSSR. The machine shows how much a series remembers and how random it is. It finds the hidden
+    states of a cellular automaton, of the spikes of a neuron, and of a written text.
 
-    It appears in many fields. It finds the hidden states of a cellular automaton, of the spikes of a neuron, and of a
-    written text.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -100,6 +117,10 @@ def epsilon_machine(
         AnalysisError:
             A setting is out of range, the source does not hold one series, or the longest history is not shorter than
             the series.
+
+    See Also:
+        symbolic: Turns a series into symbols and measures their patterns.
+        markov: Fits a chain of moves between observed states.
 
     Examples:
         >>> from skcomplex.core.analysis import epsilon_machine

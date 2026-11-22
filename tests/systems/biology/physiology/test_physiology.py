@@ -2,14 +2,13 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.biology.physiology import FitzhughNagumoSystem
 
 
 def test_spiral_keeps_medium_active():
     """Test that the broken wave of the FitzHugh-Nagumo medium becomes a spiral that keeps exciting a probe."""
-    trajectory = simulate(FitzhughNagumoSystem((100, 100)), dt=5, solver=RK4Solver(dt=0.05), until=400)
+    trajectory = FitzhughNagumoSystem((100, 100), solver=RK4Solver(dt=0.05)).prepare().simulate(dt=5, until=400)
     potential = trajectory.get_lattice('medium.u')
     probe = potential[:, 25, 75]
     excitations = np.sum((probe[1:] > 0) & (probe[:-1] <= 0))

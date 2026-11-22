@@ -5,16 +5,19 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR
 
-from ....core.components.interactions import MapInteraction
+from ....core.components import Observable
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
@@ -35,7 +38,7 @@ YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
 
 
-class ThresholdFunctionInteraction(MapInteraction):
+class ThresholdFunctionInteraction(Interaction):
     """Synchronous update of a node by the sign of the weighted sum of its active inputs.
 
     The update follows Li et al.
@@ -65,28 +68,39 @@ class ThresholdFunctionInteraction(MapInteraction):
         [1.0, -1.0]
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
-        weights: Annotated[Sequence[float], ParameterSpec(per='inputs')] = (),
+        target: Role,
+        inputs: tuple[Role, ...],
+        weights: Sequence[float] = (),
         decays: bool = False,
     ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_next)
+        super().__init__(label)
+        self.target = target
         self.inputs = inputs
         self.weights = weights
         self.decays = decays
 
-    def _get_next(self, s: SimpleNamespace) -> Expression:
-        """Return the next value of a node from its weighted input.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of a node from its weighted input.
 
         The value is 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none.
+
+        Args:
+            context:
+                The namespace of the node and its inputs.
         """
-        total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
-        unchanged = 0 if self.decays else s.target.x
-        return where(total > 0, 1, where(total < 0, 0, unchanged))
+        super()._prepare(context)
+        weights = context.weights if self.inputs else ()
+        total = sum((weight * item.x for weight, item in zip(weights, context.inputs, strict=True)), start=SR(0))
+        unchanged = 0 if self.decays else context.target.x
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(context.target.x, where(total > 0, 1, where(total < 0, 0, unchanged))),
+        ]
 
 
 class RandomBooleanNetworkSystem(BaseSystem):
@@ -114,6 +128,12 @@ class RandomBooleanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             `k` is not between 1 and the number of nodes.
@@ -138,15 +158,23 @@ class RandomBooleanNetworkSystem(BaseSystem):
         bias: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.k = k
         self.bias = bias
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a Kauffman random Boolean network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a Kauffman random Boolean network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if not 1 <= self.k <= self.n_nodes:
             error_msg = (
                 f'k = {self.k} inputs per node must be between 1 and the number of nodes, n_nodes = {self.n_nodes}.'
@@ -158,12 +186,12 @@ class RandomBooleanNetworkSystem(BaseSystem):
             BooleanFunctionInteraction(
                 f'function_{index}',
                 target=f'node_{index}',
-                inputs=[f'node_{source}' for source in rng.choice(self.n_nodes, size=self.k, replace=False)],
+                inputs=tuple(f'node_{source}' for source in rng.choice(self.n_nodes, size=self.k, replace=False)),
                 table=tuple(int(entry) for entry in rng.random(2**self.k) < self.bias),
             )
             for index in range(self.n_nodes)
         ]
-        return CompositeSystem(self.label, elements=nodes, interactions=functions)
+        self.system_ = System(self.label, elements=nodes, interactions=functions)
 
 
 class YeastCellCycleSystem(BaseSystem):
@@ -184,6 +212,12 @@ class YeastCellCycleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import YeastCellCycleSystem
         >>> [node.label for node in YeastCellCycleSystem().prepare().system_.elements if node.x]
@@ -201,24 +235,29 @@ class YeastCellCycleSystem(BaseSystem):
         active: Sequence[str] = YEAST_START,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.active = active
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Boolean network of the yeast cell cycle of Li et al.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Boolean network of the yeast cell cycle of Li et al.
 
-        The yeast is the budding yeast.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         nodes = [BooleanNodeElement(name, x=int(name in self.active)) for name in YEAST_NODES]
         functions = [
             ThresholdFunctionInteraction(
                 f'regulation_{name}',
                 target=name,
-                inputs=[source for source, _ in YEAST_INPUTS[name]],
+                inputs=tuple(source for source, _ in YEAST_INPUTS[name]),
                 weights=[float(weight) for _, weight in YEAST_INPUTS[name]],
                 decays=name in YEAST_DECAYING,
             )
             for name in YEAST_NODES
         ]
-        return CompositeSystem(self.label, elements=nodes, interactions=functions)
+        self.system_ = System(self.label, elements=nodes, interactions=functions)

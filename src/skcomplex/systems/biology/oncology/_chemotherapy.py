@@ -6,23 +6,27 @@ The systems cover resistance, delays, and metastasis.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, RateInteraction
-from ....core.components.laws.utils import clip, delayed
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import clip
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
-from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement, TumourImmuneChemotherapyInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 DRUGS = (1, 2, 3)
@@ -55,9 +59,6 @@ class MetastasisChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Np:
             The initial normal cells at the primary site.
@@ -167,43 +168,42 @@ class MetastasisChemotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        Np: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1460.0,
-        Ap: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 165.0,
-        Up: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Ns: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1750.0,
-        As: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Us: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.0,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00068,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00047,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00057,
-        b4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00043,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0075,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0008,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0006,
-        a4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0024,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.24,
-        g3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0018,
-        g4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        bc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        us: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Np: Annotated[float, RealSet.closed_open(0, oo)] = 1460.0,
+        Ap: Annotated[float, RealSet.closed_open(0, oo)] = 165.0,
+        Up: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        Ns: Annotated[float, RealSet.closed_open(0, oo)] = 1750.0,
+        As: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        Us: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 12.0,
+        b1: Annotated[float, RealSet.closed_open(0, oo)] = 0.00068,
+        b2: Annotated[float, RealSet.closed_open(0, oo)] = 0.00047,
+        b3: Annotated[float, RealSet.closed_open(0, oo)] = 0.00057,
+        b4: Annotated[float, RealSet.closed_open(0, oo)] = 0.00043,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0075,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 0.002,
+        c4: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0008,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0006,
+        a4: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        g1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0024,
+        g2: Annotated[float, RealSet.closed_open(0, oo)] = 0.24,
+        g3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0018,
+        g4: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        bc: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        delta: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        up: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        us: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Np = Np
         self.Ap = Ap
         self.Up = Up
@@ -256,9 +256,6 @@ class MultidrugResistanceElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         S:
             The initial sensitive cells.
@@ -362,41 +359,40 @@ class MultidrugResistanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 460500000000.0,
-        R1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R12: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R13: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R23: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        R123: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        U3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        TX1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        TX2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        TX3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0099,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.014,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0084,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0074,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0092,
-        Uth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        k1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.32,
-        k2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.27,
-        k3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        eta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        eta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        eta3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.45,
-        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        S: Annotated[float, RealSet.closed_open(0, oo)] = 460500000000.0,
+        R1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        R2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        R3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        R12: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        R13: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        R23: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        R123: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        U1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        U2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        U3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        TX1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        TX2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        TX3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 0.0099,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.008,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        m3: Annotated[float, RealSet.closed_open(0, oo)] = 0.014,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0084,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0074,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0092,
+        Uth: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        k1: Annotated[float, RealSet.closed_open(0, oo)] = 0.32,
+        k2: Annotated[float, RealSet.closed_open(0, oo)] = 0.27,
+        k3: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
+        eta1: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        eta2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        eta3: Annotated[float, RealSet.closed_open(0, oo)] = 0.45,
+        u1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.S = S
         self.R1 = R1
         self.R2 = R2
@@ -447,9 +443,6 @@ class RestingHuntingChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial hunting cells.
@@ -514,28 +507,27 @@ class RestingHuntingChemotherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.093,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0412,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005133,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.6515,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0245,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        bd: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0001,
-        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 45.6,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        Q: Annotated[float, RealSet.closed_open(0, oo)] = 0.48,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.18,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.093,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0412,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.005133,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 1.6515,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0245,
+        b1: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.18,
+        b2: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        bd: Annotated[float, RealSet.open(0, oo)] = 0.0001,
+        g: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        tau: Annotated[float, RealSet.open(0, oo)] = 45.6,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.Q = Q
         self.A = A
@@ -595,6 +587,12 @@ class DePillisRadunskayaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DePillisRadunskayaSystem
         >>> DePillisRadunskayaSystem(u=1.0).prepare().system_.elements[0].u
@@ -618,8 +616,10 @@ class DePillisRadunskayaSystem(BaseSystem):
         r1: float = 1.5,
         a2: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.N = N
@@ -628,9 +628,15 @@ class DePillisRadunskayaSystem(BaseSystem):
         self.r1 = r1
         self.a2 = a2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the de Pillis-Radunskaya system of immune."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the de Pillis-Radunskaya system of immune.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 TumourImmuneChemotherapyElement(
@@ -644,6 +650,7 @@ class DePillisRadunskayaSystem(BaseSystem):
                     a2=self.a2,
                 ),
             ],
+            interactions=[TumourImmuneChemotherapyInteraction('dynamics', target='patient')],
         )
 
 
@@ -680,6 +687,12 @@ class MultidrugResistanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import MultidrugResistanceSystem
         >>> MultidrugResistanceSystem(u2=0.0).prepare().system_.elements[0].u2
@@ -701,28 +714,34 @@ class MultidrugResistanceSystem(BaseSystem):
         u2: float = 10.0,
         u3: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.S = S
         self.r = r
         self.u1 = u1
         self.u2 = u2
         self.u3 = u3
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour of eight populations resistant to three drugs.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour of eight populations resistant to three drugs.
 
         The populations are resistant to subsets of the drugs.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         tumour = MultidrugResistanceElement('tumour', S=self.S, r=self.r, u1=self.u1, u2=self.u2, u3=self.u3)
 
-        def growth(name: str) -> RateInteraction:
+        def growth(name: str) -> Interaction:
             """Return the division of the cells of a resistance class."""
-            return RateInteraction(
+            return Interaction(
                 f'growth_{name}',
-                target='tumour',
-                state=name,
-                rate=lambda s: s.target.r * getattr(s.target, name),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(getattr(s.target, name), s.target.r * getattr(s.target, name))],
             )
 
         def mutation(name: str, drug: int, mutant: str) -> ReactionInteraction:
@@ -773,11 +792,10 @@ class MultidrugResistanceSystem(BaseSystem):
                     reactants={f'U{drug}': 1},
                     propensity=lambda s: getattr(s.target, f'k{drug}') * getattr(s.target, f'U{drug}'),
                 ),
-                RateInteraction(
+                Interaction(
                     f'toxicity_{drug}',
-                    target='tumour',
-                    state=f'TX{drug}',
-                    rate=lambda s: getattr(s.target, f'U{drug}'),
+                    roles={'target': 'tumour'},
+                    laws=lambda s: [RateLaw(getattr(s.target, f'TX{drug}'), getattr(s.target, f'U{drug}'))],
                 ),
                 ReactionInteraction(
                     f'recovery_{drug}',
@@ -800,7 +818,7 @@ class MultidrugResistanceSystem(BaseSystem):
         ]
         kills = [kill(name, drug) for _, name, drug in sensitivities]
         drugs = [interaction for drug in DRUGS for interaction in pharmacokinetics(drug)]
-        return CompositeSystem(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
+        self.system_ = System(self.label, elements=[tumour], interactions=[*growths, *mutations, *kills, *drugs])
 
 
 class DrugResistanceSwitchingSystem(DynamicalSystem):
@@ -847,9 +865,15 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DrugResistanceSwitchingSystem
-        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].get_value('alpha_m')
+        >>> DrugResistanceSwitchingSystem(alpha_m=0.0).prepare().system_.elements[0].values['alpha_m']
         0.0
     """
 
@@ -872,8 +896,10 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         r2: float = 0.2,
         r3: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.S = S
         self.u = u
         self.m1 = m1
@@ -888,26 +914,30 @@ class DrugResistanceSwitchingSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'tumour'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'S': DeclaredVariableSpec(self.S, StateSpec(domain=nonnegative)),
-            'Rm': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'Rp': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'r1': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'r2': DeclaredVariableSpec(self.r2, ParameterSpec(domain=nonnegative)),
-            'r3': DeclaredVariableSpec(self.r3, ParameterSpec(domain=nonnegative)),
-            'b': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'm1': DeclaredVariableSpec(self.m1, ParameterSpec(domain=nonnegative)),
-            'm2': DeclaredVariableSpec(self.m2, ParameterSpec(domain=nonnegative)),
-            'alpha_m': DeclaredVariableSpec(self.alpha_m, ParameterSpec(domain=nonnegative)),
-            'alpha_p': DeclaredVariableSpec(self.alpha_p, ParameterSpec(domain=nonnegative)),
-            'm5': DeclaredVariableSpec(self.m5, ParameterSpec(domain=nonnegative)),
-            'a': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'am': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
-            'ap': DeclaredVariableSpec(0.0, ParameterSpec(domain=nonnegative)),
-            'u': DeclaredVariableSpec(self.u, ParameterSpec(domain=nonnegative)),
+            'S': self.S,
+            'Rm': 0.0,
+            'Rp': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'r1': 1.0,
+            'r2': self.r2,
+            'r3': self.r3,
+            'b': 1.0,
+            'm1': self.m1,
+            'm2': self.m2,
+            'alpha_m': self.alpha_m,
+            'alpha_p': self.alpha_p,
+            'm5': self.m5,
+            'a': 1.0,
+            'am': 0.0,
+            'ap': 0.0,
+            'u': self.u,
         }
 
     def _get_equations(self) -> Equations:
@@ -990,6 +1020,12 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DelayedRestingHuntingChemotherapySystem
         >>> DelayedRestingHuntingChemotherapySystem(tau=10.0).prepare().system_.elements[0].tau
@@ -1012,8 +1048,10 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         tau: float = 45.6,
         a: float = 0.001,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.Q = Q
         self.A = A
@@ -1021,11 +1059,16 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.tau = tau
         self.a = a
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the tumour-immune system of resting and hunting cells.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the tumour-immune system of resting and hunting cells.
 
         The conversion of the cells is delayed.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         patient = RestingHuntingChemotherapyElement(
             'patient',
             E=self.E,
@@ -1066,7 +1109,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
                 reactants={'Q': 1},
                 products={'E': 1},
                 modifiers={'E': 1},
-                propensity=lambda s: s.target.m1 * s.target.E * delayed(s.target.Q, s.target.tau),
+                propensity=lambda s: s.target.m1 * s.target.E * s.target.Q(t=s.t - s.target.tau),
             ),
             ReactionInteraction(
                 'effector_death',
@@ -1081,17 +1124,15 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
                 modifiers={'A': 1},
                 propensity=lambda s: s.target.c1 * s.target.A * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'resting_growth',
-                target='patient',
-                state='Q',
-                rate=lambda s: s.target.r1 * s.target.Q * (1 - s.target.b1 * s.target.Q),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.Q, s.target.r1 * s.target.Q * (1 - s.target.b1 * s.target.Q))],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='patient',
-                state='A',
-                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A))],
             ),
             ReactionInteraction(
                 'tumour_kill',
@@ -1109,7 +1150,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
             ),
             *drug_effects,
         ]
-        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
+        self.system_ = System(self.label, elements=[patient], interactions=interactions)
 
 
 class DelayedMetastasisSystem(BaseSystem):
@@ -1150,6 +1191,12 @@ class DelayedMetastasisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DelayedMetastasisSystem
         >>> DelayedMetastasisSystem(up=650.0).prepare().system_.elements[0].up
@@ -1173,8 +1220,10 @@ class DelayedMetastasisSystem(BaseSystem):
         us: float = 0.0,
         tau: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.Np = Np
         self.Ap = Ap
         self.Ns = Ns
@@ -1183,8 +1232,14 @@ class DelayedMetastasisSystem(BaseSystem):
         self.us = us
         self.tau = tau
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of normal and tumour cells at a primary and a secondary site."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of normal and tumour cells at a primary and a secondary site.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         patient = MetastasisChemotherapyElement(
             'patient',
             Np=self.Np,
@@ -1199,15 +1254,17 @@ class DelayedMetastasisSystem(BaseSystem):
         def population(cells: str, other: str, drug: str, index: int, uptake: str) -> list[BaseInteraction]:
             """Return the growth, competition, and drug kill and uptake of the cells of a site."""
             return [
-                RateInteraction(
+                Interaction(
                     f'growth_{cells}',
-                    target='patient',
-                    state=cells,
-                    rate=lambda s: (
-                        getattr(s.target, f'r{index}')
-                        * getattr(s.target, cells)
-                        * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells))
-                    ),
+                    roles={'target': 'patient'},
+                    laws=lambda s: [
+                        RateLaw(
+                            getattr(s.target, cells),
+                            getattr(s.target, f'r{index}')
+                            * getattr(s.target, cells)
+                            * (1 - getattr(s.target, f'b{index}') * getattr(s.target, cells)),
+                        ),
+                    ],
                 ),
                 ReactionInteraction(
                     f'competition_{cells}',
@@ -1270,11 +1327,12 @@ class DelayedMetastasisSystem(BaseSystem):
                 reactants={'Ap': 1},
                 propensity=lambda s: s.target.delta * s.target.Ap,
             ),
-            RateInteraction(
+            Interaction(
                 'arrival',
-                target='patient',
-                state='As',
-                rate=lambda s: s.target.epsilon * s.target.delta * delayed(s.target.Ap, s.target.tau),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(s.target.As, s.target.epsilon * s.target.delta * s.target.Ap(t=s.t - s.target.tau)),
+                ],
             ),
         ]
-        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
+        self.system_ = System(self.label, elements=[patient], interactions=interactions)

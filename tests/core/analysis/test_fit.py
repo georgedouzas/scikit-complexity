@@ -9,7 +9,6 @@ import pytest
 from scipy import stats
 
 from skcomplex.core.analysis import FitLawResult, fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
@@ -133,7 +132,7 @@ def test_stable_law_of_cauchy_sums():
 
 def test_named_law_boltzmann_law_on_two_domains():
     """Test that gas energies and exchanged money are exponential at the energy per molecule and money per agent."""
-    velocities = np.asarray(simulate(IdealGasSystem(), random_state=0).get_values('gas.x_d1'), dtype=float)
+    velocities = np.asarray(IdealGasSystem().prepare().simulate(random_state=0).get_values("gas.x'"), dtype=float)
     energies = 0.5 * np.sum(velocities**2, axis=-1)
     gas = _fit('exponential', energies[-1], fixed={'loc': 0})
     assert gas.p_value > 0.05
@@ -146,8 +145,8 @@ def test_named_law_boltzmann_law_on_two_domains():
 
 def test_maxwell_law_of_the_speeds_of_an_ideal_gas():
     """Test that the speeds of a three-dimensional ideal gas follow the Maxwell law of its kinetic temperature."""
-    trajectory = simulate(IdealGasSystem(n_dim=3, random_state=0), until=1.0, random_state=0)
-    velocities = np.asarray(trajectory.get_values('gas.x_d1'), dtype=float)
+    trajectory = IdealGasSystem(n_dim=3, random_state=0).prepare().simulate(until=1.0, random_state=0)
+    velocities = np.asarray(trajectory.get_values("gas.x'"), dtype=float)
     pooled = fit_law(trajectory, law='maxwell', group='gas').values
     np.testing.assert_allclose(np.sort(pooled), np.sort(np.linalg.norm(velocities, axis=-1).ravel()))
     fit = _fit('maxwell', np.linalg.norm(velocities[-1], axis=-1), fixed={'loc': 0})

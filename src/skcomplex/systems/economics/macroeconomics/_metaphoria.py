@@ -10,31 +10,26 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, Interaction, TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.laws.utils import transfer
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import (
-    BaseSpec,
-    ObservableSpec,
-    ParameterSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RoleSpec,
-    StateSpec,
-    VisualSpec,
-)
-from ....core.types import Array
+from ....core.base import BaseSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, Member, Quantity
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs, transfer
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec
 from ..common.resources import RegrowthInteraction
 
@@ -46,7 +41,8 @@ PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
 SIGHT = 5.0
 
 
-class BusinessView(AgentView):
+@runtime_checkable
+class BusinessView(AgentViewProtocol, Protocol):
     """Firm as the rules see it.
 
     It holds its holdings, stock, wage, price, owner, workforce, sales, and policy parameters.
@@ -67,7 +63,7 @@ class BusinessView(AgentView):
     stock_limit: float
 
 
-class CentralBankView(AgentView):
+class CentralBankView(AgentViewProtocol, Protocol):
     """Bank as its rule sees it: its `money` and its `loans`."""
 
     money: float
@@ -86,63 +82,47 @@ class CentralBankElement(Element):
         label:
             The label of the bank or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         money:
             The money of the bank, the negative of the money it issued plus its income of the step.
 
         loans:
             The loans the bank holds.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the land.
+
+        size:
+            The number of banks, or `None` for one.
+
+        space:
+            The land the banks live on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import CentralBankElement
-        >>> GroupElement('bank', element=CentralBankElement, size=1).size
+        >>> CentralBankElement('bank', size=1).size
         1
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
-        loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
+        money: Annotated[object, Quantity('money')] = 0.0,
+        loans: Annotated[object, Quantity('credit')] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.money = money
         self.loans = loans
 
-    @classmethod
-    def _get_view(cls) -> type[CentralBankView]:
-        """Return the view of the bank, with its money and loans."""
-        return CentralBankView
 
-    @staticmethod
-    def get_income(agent: CentralBankView, holder: AgentView, system: SystemView) -> float:
-        """Return the income of the step that the bank pays as a dividend.
-
-        It is its money plus its loans.
-
-        Args:
-            agent:
-                The bank.
-
-            holder:
-                The person, or the firm when nobody lives, that receives the dividend.
-
-            system:
-                The system view of the dividends.
-
-        Returns:
-            income:
-                The income.
-        """
-        return agent.money + agent.loans
+type Dividends = list[tuple[CentralBankView, SettlerView | BusinessView]]
 
 
-class PlotView(AgentView):
+@runtime_checkable
+class PlotView(AgentViewProtocol, Protocol):
     """Patch as the rules see it: its `food`, `capacity`, `resistance`, and `regrowth`."""
 
     food: float
@@ -161,9 +141,6 @@ class PlotElement(Element):
         label:
             The label of the patch or the site group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         food:
             The food on the patch.
 
@@ -176,6 +153,15 @@ class PlotElement(Element):
         regrowth:
             The share of the capacity that grows back in a step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the land.
+
+        size:
+            The number of patches, or `None` for one.
+
+        space:
+            The land the patches live on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import PlotElement
         >>> PlotElement('patch').regrowth
@@ -185,32 +171,27 @@ class PlotElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        food: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        resistance: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        regrowth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        food: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        capacity: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        resistance: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        regrowth: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.food = food
         self.capacity = capacity
         self.resistance = resistance
         self.regrowth = regrowth
 
-    @classmethod
-    def _get_view(cls) -> type[PlotView]:
-        """Return the view of a patch, with its food, capacity, resistance, and regrowth."""
-        return PlotView
 
-
-class SettlerView(AgentView):
+@runtime_checkable
+class SettlerView(AgentViewProtocol, Protocol):
     """Person as the rules see it.
 
-    It holds its holdings, age, family, job, fate, propensities, and needs. Besides its states and parameters it reads
-    two quantities of the markets: `hireable`, the highest wage limit of a job it accepts, which admits every job for an
-    unemployed adult and none otherwise, and `shortfall`, the food it lacks for `reserve` steps, whose decrease by a
-    purchase is the food the person receives.
+    It holds its holdings, age, family, job, fate, propensities, and needs.
     """
 
     food: float
@@ -236,24 +217,6 @@ class SettlerView(AgentView):
     sight: float
     reserve: float
     monetary: float
-
-    @property
-    def hireable(self) -> float:
-        """Return the limit of the jobs the person accepts.
-
-        It is unlimited for an unemployed adult and none otherwise.
-        """
-        return math.inf if self.employer < 0 and self.age >= self.maturity else -math.inf
-
-    @property
-    def shortfall(self) -> float:
-        """Return the food the person lacks for `reserve` steps."""
-        return self.reserve * self.need - self.food
-
-    @shortfall.setter
-    def shortfall(self, value: float) -> None:
-        """Set the food so that the person lacks `value` for `reserve` steps."""
-        self.food = self.reserve * self.need - value
 
 
 @dataclass(frozen=True)
@@ -289,9 +252,6 @@ class SettlerElement(Element):
         label:
             The label of the person or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         food:
             The food the person holds.
 
@@ -305,10 +265,10 @@ class SettlerElement(Element):
             The age in steps.
 
         parent:
-            The id of the parent, or -1.
+            The parent among the people, or -1.
 
         employer:
-            The id of the firm that employs the person, or -1.
+            The firm that employs the person among the firms, or -1.
 
         harvested:
             The food the person harvested or earned in the step.
@@ -361,47 +321,53 @@ class SettlerElement(Element):
         monetary:
             One in the monetary economy, zero among hunter-gatherers.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the land.
+
+        size:
+            The number of people, or `None` for one.
+
+        space:
+            The land the people live on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import SettlerElement
-        >>> GroupElement('people', element=SettlerElement, size=3, variable=True).size
+        >>> SettlerElement('people', size=3).size
         3
     """
-
-    draws = True
-
-    law_classes = (RuleLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        food: Annotated[float, StateSpec()] = 10.0,
-        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
-        loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
-        age: Annotated[float, StateSpec(domain=NN)] = 20.0,
-        parent: Annotated[float, StateSpec(reference='people')] = -1.0,
-        employer: Annotated[float, StateSpec(reference='businesses')] = -1.0,
-        harvested: Annotated[float, StateSpec()] = 0.0,
-        born: Annotated[float, StateSpec()] = -100.0,
-        fate: Annotated[float, StateSpec()] = ALIVE,
-        fertility: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        exploration: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        enterprise: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        restlessness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        labour: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        need: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        maturity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
-        lifespan: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 85.0,
-        spacing: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        endowment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        sight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        reserve: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        monetary: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        food: object = 10.0,
+        money: Annotated[object, Quantity('money')] = 0.0,
+        loans: Annotated[object, Quantity('credit')] = 0.0,
+        age: Annotated[object, NN] = 20.0,
+        parent: Annotated[object, Member('people')] = -1.0,
+        employer: Annotated[object, Member('businesses')] = -1.0,
+        harvested: object = 0.0,
+        born: object = -100.0,
+        fate: object = ALIVE,
+        fertility: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        exploration: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        enterprise: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        restlessness: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        labour: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        need: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        maturity: Annotated[object, RealSet.closed_open(0, oo)] = 15.0,
+        lifespan: Annotated[object, RealSet.closed_open(0, oo)] = 85.0,
+        spacing: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        endowment: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        mutation: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        sight: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        reserve: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        monetary: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.food = food
         self.money = money
         self.loans = loans
@@ -426,23 +392,76 @@ class SettlerElement(Element):
         self.reserve = reserve
         self.monetary = monetary
 
-    @classmethod
-    def _get_view(cls) -> type[SettlerView]:
-        """Return the view of a person, with its states and parameters."""
-        return SettlerView
+    @staticmethod
+    def _get_patch_here(agent: AgentViewProtocol) -> PlotView:
+        """Return the patch of the cell of an agent."""
+        return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of living in the phase of living.
+    @staticmethod
+    def _get_cell(agent: AgentViewProtocol) -> tuple[int, ...]:
+        """Return the cell of an agent of the lattice."""
+        location = agent.location
+        if not isinstance(location, tuple):
+            error_msg = f'The agent {agent.id} is not on a lattice cell.'
+            raise TypeError(error_msg)
+        return tuple(int(item) for item in location)
+
+    @staticmethod
+    def _wander(agent: SettlerView, system: SystemView, sight: float) -> None:
+        """Move to a random cell within sight with the propensity to explore.
+
+        Otherwise move to a neighbouring cell.
+        """
+        if system.rng.random() < agent.exploration:
+            width, height = system.dimensions or (1, 1)
+            reach = int(sight)
+            dx, dy = system.rng.integers(-reach, reach + 1, size=2)
+            x, y = SettlerElement._get_cell(agent)
+            agent.move_to(((x + int(dx)) % int(width), (y + int(dy)) % int(height)))
+            return
+        cells = agent.get_neighbor_cells()
+        agent.move_to(cells[int(system.rng.integers(len(cells)))])
+
+
+class LivingInteraction(Interaction):
+    """Life of every person: ageing, eating, dying, having children, and moving or working.
+
+    It is the rule of `SettlerElement` in the phase of living, run by each person in turn.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The people who live.
+
+        phase:
+            The phase the people live in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.economics.macroeconomics import LivingInteraction
+        >>> LivingInteraction('living', phase='living').phase
+        'living'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'people', phase: str | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of living of every person.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.live, phase='living')]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.live, phase=self.phase)]
 
     def _feed_child(self, agent: SettlerView, system: SystemView) -> None:
         """Take food from the living parent and follow it."""
@@ -514,36 +533,6 @@ class SettlerElement(Element):
             SettlerElement._wander(agent, system, agent.sight)
         agent.harvested = 0.0
 
-    @staticmethod
-    def _get_patch_here(agent: AgentView) -> PlotView:
-        """Return the patch of the cell of an agent."""
-        return next(patch for patch in agent.get_agents_here('patches') if isinstance(patch, PlotView))
-
-    @staticmethod
-    def _get_cell(agent: AgentView) -> tuple[int, ...]:
-        """Return the cell of an agent of the lattice."""
-        location = agent.location
-        if not isinstance(location, tuple):
-            error_msg = f'The agent {agent.id} is not on a lattice cell.'
-            raise TypeError(error_msg)
-        return tuple(int(item) for item in location)
-
-    @staticmethod
-    def _wander(agent: SettlerView, system: SystemView, sight: float) -> None:
-        """Move to a random cell within sight with the propensity to explore.
-
-        Otherwise move to a neighbouring cell.
-        """
-        if system.rng.random() < agent.exploration:
-            width, height = system.dimensions or (1, 1)
-            reach = int(sight)
-            dx, dy = system.rng.integers(-reach, reach + 1, size=2)
-            x, y = SettlerElement._get_cell(agent)
-            agent.move_to(((x + int(dx)) % int(width), (y + int(dy)) % int(height)))
-            return
-        cells = agent.get_neighbor_cells()
-        agent.move_to(cells[int(system.rng.integers(len(cells)))])
-
 
 class BusinessElement(Element):
     """Firm on a patch that harvests with its workers and sells food in its shop.
@@ -558,9 +547,6 @@ class BusinessElement(Element):
     Args:
         label:
             The label of the firm or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         money:
             The money the firm holds.
@@ -578,7 +564,7 @@ class BusinessElement(Element):
             The price of a unit of food.
 
         owner:
-            The id of the owner.
+            The owner among the people, or -1.
 
         workers:
             The number of workers in the step.
@@ -601,33 +587,43 @@ class BusinessElement(Element):
         stock_limit:
             The stock above which the firm lowers its price and lays off.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the land.
+
+        size:
+            The number of firms, or `None` for one.
+
+        space:
+            The land the firms live on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.macroeconomics import BusinessElement
-        >>> GroupElement('businesses', element=BusinessElement, size=2, variable=True).size
+        >>> BusinessElement('businesses', size=2).size
         2
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        money: Annotated[float, StateSpec(quantity='money')] = 0.0,
-        loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
-        stock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        owner: Annotated[float, StateSpec(reference='people')] = -1.0,
-        workers: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        vacancies: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        revenue: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.003,
-        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
-        adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        stock_limit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
+        money: Annotated[object, Quantity('money')] = 0.0,
+        loans: Annotated[object, Quantity('credit')] = 0.0,
+        stock: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        wage: Annotated[object, RealSet.closed_open(0, oo)] = 4.0,
+        price: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        owner: Annotated[object, Member('people')] = -1.0,
+        workers: Annotated[object, NN] = 1.0,
+        vacancies: Annotated[object, NN] = 1.0,
+        revenue: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        interest: Annotated[object, RealSet.closed_open(0, oo)] = 0.003,
+        repayment: Annotated[object, RealSet.closed_open(0, oo)] = 0.004,
+        adjustment: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        stock_limit: Annotated[object, RealSet.closed_open(0, oo)] = 30.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.money = money
         self.loans = loans
         self.stock = stock
@@ -642,23 +638,59 @@ class BusinessElement(Element):
         self.adjustment = adjustment
         self.stock_limit = stock_limit
 
-    @classmethod
-    def _get_view(cls) -> type[BusinessView]:
-        """Return the view of a firm, with its states and parameters."""
-        return BusinessView
+    @staticmethod
+    def _get_people_by_id(system: SystemView) -> dict[int, SettlerView]:
+        """Return the living people by id.
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of production in the phase of work.
+        They are built once per step in the storage of the caller.
+        """
+        cached = system.storage.get('people')
+        if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
+            people = {
+                person.id: person for person in cast(list[SettlerView], system.get_agents('people')) if person.alive
+            }
+            cached = _PeopleSpec(system.time, people)
+            system.storage['people'] = cached
+        return dict(cached.people)
+
+
+class ProductionInteraction(Interaction):
+    """Production of every firm: harvest with its workers, pay wages and the bank, and adjust.
+
+    It is the rule of `BusinessElement` in the phase of work, run by each firm in turn.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The firms that produce.
+
+        phase:
+            The phase the firms produce in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.economics.macroeconomics import ProductionInteraction
+        >>> ProductionInteraction('production', phase='work').phase
+        'work'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role = 'businesses', phase: str | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of production of every firm.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.produce, phase='work')]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.produce, phase=self.phase)]
 
     def _borrow(self, agent: BusinessView, bank: CentralBankView, amount: float) -> None:
         """Borrow an amount the bank creates as money and records as a loan."""
@@ -712,7 +744,7 @@ class BusinessElement(Element):
         """
         people = BusinessElement._get_people_by_id(system)
         workers = [person for person in people.values() if person.employer == agent.id]
-        bank = system.get_agents('bank', CentralBankView)[0]
+        bank = cast(list[CentralBankView], system.get_agents('bank'))[0]
         patch = SettlerElement._get_patch_here(agent)
         sold_out = agent.stock <= 0
         for worker in workers:
@@ -736,19 +768,6 @@ class BusinessElement(Element):
         if isinstance(owner, SettlerView) and agent.money > 2 * bill:
             transfer(agent, owner, agent.money - 2 * bill, 'money')
 
-    @staticmethod
-    def _get_people_by_id(system: SystemView) -> dict[int, SettlerView]:
-        """Return the living people by id.
-
-        They are built once per step in the storage of the caller.
-        """
-        cached = system.storage.get('people')
-        if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
-            people = {person.id: person for person in system.get_agents('people', SettlerView) if person.alive}
-            cached = _PeopleSpec(system.time, people)
-            system.storage['people'] = cached
-        return dict(cached.people)
-
 
 class CommonsInteraction(Interaction):
     """Harvest of the hunter-gatherers.
@@ -769,29 +788,26 @@ class CommonsInteraction(Interaction):
         'people'
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        people: Annotated[str, RoleSpec()],
+        people: Role,
     ) -> None:
         super().__init__(label)
         self.people = people
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the harvest rule in the phase of work.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system in the phase `work`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.harvest, phase='work')]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.harvest, phase='work')]
 
     def harvest(self, system: SystemView) -> None:
         """Harvest every occupied patch and share the food among the people on it.
@@ -801,7 +817,7 @@ class CommonsInteraction(Interaction):
                 The system view of the interaction.
         """
         cells: dict[tuple[int, ...], list[SettlerView]] = {}
-        for person in system.get_agents('people', SettlerView):
+        for person in cast(list[SettlerView], system.get_agents('people')):
             cells.setdefault(SettlerElement._get_cell(person), []).append(person)
         for group in cells.values():
             patch = SettlerElement._get_patch_here(group[0])
@@ -835,7 +851,7 @@ class EstateInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'starvations', 'old_age')
 
@@ -843,7 +859,7 @@ class EstateInteraction(Interaction):
         self,
         label: str,
         *,
-        people: Annotated[str, RoleSpec()],
+        people: Role,
     ) -> None:
         super().__init__(label)
         self.people = people
@@ -868,7 +884,7 @@ class EstateInteraction(Interaction):
             system:
                 The system view of the interaction.
         """
-        people = system.get_agents('people', SettlerView)
+        people = cast(list[SettlerView], system.get_agents('people'))
         living = [person for person in people if person.fate == ALIVE]
         dead = [person for person in people if person.fate != ALIVE]
         system.report('births', float(sum(person.age == 0 for person in living)))
@@ -877,31 +893,29 @@ class EstateInteraction(Interaction):
         for person in dead:
             self._settle(person, living, system)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the counting rule in the phase of the census.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system in the phase `census`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.count, phase='census')]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.count, phase='census')]
 
 
 class FoodMarketInteraction(MatchingInteraction[SystemView]):
     """Food market in which people short of food buy from the cheapest shop in sight.
 
     They buy in random order, from stocked shops. A matching of the people, who request their `shortfall` of food for
-    `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. Every
-    purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
+    `reserve` steps within the budget of their money, with the firms, which provide their stock at their price. The
+    market reads the `shortfall` of a person as `reserve * need - food`, and a purchase lowers it by raising the food.
+    Every purchase moves the money to the firm, which books it as revenue, and the food to the buyer. Build it with
     `PartnerMatchingSpec(sight, 'score', score=FoodMarketInteraction.score, value='provider')`, whose score prefers the
     lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of the sales of a step.
 
     Examples:
-        >>> from skcomplex.core.specs import PartnerSpec
+        >>> from skcomplex.core.components.laws import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import FoodMarketInteraction
         >>> rule = PartnerMatchingSpec(5.0, 'score', score=FoodMarketInteraction.score, value='provider')
         >>> FoodMarketInteraction('shops', requesters='people', providers='businesses', rule=rule).reports[-1]
@@ -961,17 +975,37 @@ class FoodMarketInteraction(MatchingInteraction[SystemView]):
         super()._report_matches(matches, unmatched, system)
         system.report('gdp', sum(match.quantity * match.value for match in matches))
 
+    @staticmethod
+    def _get_shortfall(person: SettlerView) -> float:
+        """Return the food a person lacks for `reserve` steps."""
+        return person.reserve * person.need - person.food
+
+    def _read(self, agent: AgentViewProtocol, name: str, default: float) -> float:
+        """Return a state of an agent, or the `shortfall` of a person."""
+        if name == 'shortfall':
+            return self._get_shortfall(cast(SettlerView, agent))
+        return super()._read(agent, name, default)
+
+    def _settle(self, match: MatchSpec, system: SystemView) -> None:
+        """Settle a sale and give the buyer the food it bought."""
+        super()._settle(match, system)
+        if self._get_sides(self.quantity)[0] == 'shortfall':
+            person = cast(SettlerView, match.requester)
+            shortfall = self._get_shortfall(person) - match.quantity
+            person.food = person.reserve * person.need - shortfall
+
 
 class LabourMarketInteraction(MatchingInteraction[SystemView]):
     """Labour market in which unemployed adults take the best-paying vacancy in sight.
 
     They take it in random order. A matching of the people, who request a job, with the firms, which provide their
     vacancies: a person whose `hireable` limit admits a job takes the firm of the highest wage within its sight that
-    still has a vacancy, and moves to it. Build it with
+    still has a vacancy, and moves to it. The market reads the `hireable` limit of a person as unlimited for an
+    unemployed adult and as none otherwise. Build it with
     `PartnerMatchingSpec(sight, 'score', score=LabourMarketInteraction.score, value='provider')`.
 
     Examples:
-        >>> from skcomplex.core.specs import PartnerSpec
+        >>> from skcomplex.core.components.laws import PartnerSpec
         >>> from skcomplex.systems.economics.macroeconomics import LabourMarketInteraction
         >>> LabourMarketInteraction(
         ...     'jobs',
@@ -1019,6 +1053,13 @@ class LabourMarketInteraction(MatchingInteraction[SystemView]):
         if isinstance(person, SettlerView) and isinstance(firm, BusinessView):
             person.employer = float(firm.id)
             person.move_to(firm.location)
+
+    def _read(self, agent: AgentViewProtocol, name: str, default: float) -> float:
+        """Return a state of an agent, or the `hireable` limit of the jobs a person accepts."""
+        if name == 'hireable':
+            person = cast(SettlerView, agent)
+            return math.inf if person.employer < 0 and person.age >= person.maturity else -math.inf
+        return super()._read(agent, name, default)
 
 
 class MetaphoriaSystem(BaseSystem):
@@ -1078,6 +1119,12 @@ class MetaphoriaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The mode is unknown.
@@ -1113,18 +1160,18 @@ class MetaphoriaSystem(BaseSystem):
         return 0.0 if gini is None else gini
 
     @staticmethod
-    def _get_metaphoria_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_metaphoria_observables(system: System) -> list[Observable]:
         """Return the population, the Gini coefficient of money, and the bank balance.
 
         The population is the living one, of a monetary economy.
         """
         observables = [
-            ObservableSpec('population', group='people', variable='fate', reduce=MetaphoriaSystem._get_living),
-            ObservableSpec('money_gini', group='people', variable='money', reduce=MetaphoriaSystem._get_money_gini),
+            Observable('population', group='people', variable='fate', reduce=MetaphoriaSystem._get_living),
+            Observable('money_gini', group='people', variable='money', reduce=MetaphoriaSystem._get_money_gini),
         ]
         if any(element.label == 'bank' for element in system.elements):
             observables.append(
-                ObservableSpec('bank_balance', MetaphoriaSystem._get_bank_balance, group='bank', reduce='sum'),
+                Observable('bank_balance', MetaphoriaSystem._get_bank_balance, group='bank', reduce='sum'),
             )
         return observables
 
@@ -1144,8 +1191,10 @@ class MetaphoriaSystem(BaseSystem):
         n_firms: int = 5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_people = n_people
         self.mode = mode
         self.shape = shape
@@ -1159,8 +1208,24 @@ class MetaphoriaSystem(BaseSystem):
         self.n_firms = n_firms
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _pay_dividends(system: SystemView) -> None:
+        """Pay the income of the bank, its money plus its loans, to a random person, or firm when nobody lives."""
+        banks = cast(list[CentralBankView], system.get_agents('bank'))
+        holders: list[SettlerView] | list[BusinessView] = cast(list[SettlerView], system.get_agents('people'))
+        if not any(holder.alive for holder in holders):
+            holders = cast(list[BusinessView], system.get_agents('businesses'))
+        found = cast(Dividends, list(pairs(banks, holders, system.rng, PartnerSpec('all', 'uniform'))))
+        for index in system.rng.permutation(len(found)):
+            bank, holder = found[int(index)]
+            income = bank.money + bank.loans
+            if bank.alive and holder.alive and income > 0:
+                bank.money -= income
+                holder.money += income
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         shape = self.shape
         if self.mode not in MODES:
             error_msg = f'Unknown mode {self.mode!r}. Use one of {MODES}.'
@@ -1170,47 +1235,43 @@ class MetaphoriaSystem(BaseSystem):
         space = LatticeSpace(shape)
         sites = list(np.ndindex(*shape))
         capacity = rng.uniform(0.0, self.max_food, len(sites))
-        patches = GroupElement(
+        axes = space.prepare().axes_
+        patches = PlotElement(
             'patches',
-            element=PlotElement,
+            food=capacity,
+            capacity=capacity,
+            resistance=rng.uniform(0.0, self.max_resistance, len(sites)),
+            regrowth=self.regrowth,
+            values=dict(zip(axes, np.array(sites).T, strict=True)),
             size=len(sites),
-            values={
-                'food': capacity,
-                'capacity': capacity,
-                'resistance': rng.uniform(0.0, self.max_resistance, len(sites)),
-                'regrowth': self.regrowth,
-            },
-            location=sites,
+            space=space,
         )
         cells = rng.integers(0, shape, size=(self.n_people, len(shape)))
         traits: dict[str, Array] = {
             name: rng.uniform(0.0, bound, self.n_people) for name, bound in PROPENSITIES.items()
         }
-        people = GroupElement(
+        people = SettlerElement(
             'people',
-            element=SettlerElement,
+            age=rng.integers(15, 40, self.n_people).astype(float),
+            need=self.need,
+            labour=self.labour,
+            monetary=float(self.mode == 'monetary'),
+            sight=SIGHT,
+            **traits,
+            values=dict(zip(axes, cells.T, strict=True)),
             size=self.n_people,
-            values={
-                'age': rng.integers(15, 40, self.n_people).astype(float),
-                'need': self.need,
-                'labour': self.labour,
-                'monetary': float(self.mode == 'monetary'),
-                'sight': SIGHT,
-                **traits,
-            },
-            variable=True,
-            location=[tuple(int(item) for item in cell) for cell in cells],
+            space=space,
         )
         firms = rng.integers(0, shape, size=(self.n_firms, len(shape)))
-        businesses = GroupElement(
+        businesses = BusinessElement(
             'businesses',
-            element=BusinessElement,
+            interest=self.interest,
+            repayment=self.repayment,
+            values=dict(zip(axes, firms.T, strict=True)),
             size=self.n_firms,
-            values={'interest': self.interest, 'repayment': self.repayment},
-            variable=True,
-            location=[tuple(int(item) for item in cell) for cell in firms],
+            space=space,
         )
-        bank = GroupElement('bank', element=CentralBankElement, size=1, location=(0,) * len(shape))
+        bank = CentralBankElement('bank', values=dict.fromkeys(axes, 0), size=1, space=space)
         economy = [businesses, bank] if self.mode == 'monetary' else []
         jobs = LabourMarketInteraction(
             'jobs',
@@ -1234,24 +1295,17 @@ class MetaphoriaSystem(BaseSystem):
             phase='market',
             on_match=FoodMarketInteraction.sell,
         )
-        dividends = TransferInteraction(
+        dividends = Interaction(
             'dividends',
-            source='bank',
-            target='people',
-            state='money',
-            amount=CentralBankElement.get_income,
-            pairing='random',
-            fallback='businesses',
-            guard=lambda agent, holder, system: CentralBankElement.get_income(agent, holder, system) > 0,
-            form='agent',
-            phase='banking',
+            roles={'bank': 'bank', 'people': 'people', 'businesses': 'businesses'},
+            laws=lambda s: [UpdateLaw(s, MetaphoriaSystem._pay_dividends, phase='banking')],
         )
         exchange: list[BaseInteraction] = (
             [CommonsInteraction('commons', people='people')]
             if self.mode == 'hunter_gatherer'
             else [jobs, dividends, shops]
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[patches, people, *economy],
             interactions=[
@@ -1263,18 +1317,12 @@ class MetaphoriaSystem(BaseSystem):
                     relative=True,
                     phase='growth',
                 ),
+                LivingInteraction('living', phase='living'),
+                *([ProductionInteraction('production', phase='work')] if self.mode == 'monetary' else []),
                 *exchange,
                 EstateInteraction('census', people='people'),
             ],
             space=space,
-            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
+            solver=MesaSolver(phases=[PhaseSpec(name) for name in PHASES]),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = MetaphoriaSystem._get_metaphoria_observables(self._get_pass_parameters())
-        return settings
+        self.observables_ = tuple(MetaphoriaSystem._get_metaphoria_observables(self.system_))

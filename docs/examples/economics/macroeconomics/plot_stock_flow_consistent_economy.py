@@ -16,7 +16,7 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import ConservationObserver, simulate
+from skcomplex.core.engine.runtime import ConservationObserver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
 
@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(StockFlowConsistentEconomySystem(), observers=[observer, ConservationObserver()])
+trajectory = StockFlowConsistentEconomySystem().prepare().simulate(observers=[observer, ConservationObserver()])
 
 # %%
 # Money changes only at the boundary
@@ -50,7 +50,7 @@ money = (
     + trajectory.get_values('firms.deposits')
     + trajectory.get_values('bank.deposits')
 )
-created = trajectory.get_values('circuit.lending') - trajectory.get_values('circuit.repayments')
+created = trajectory.get_values('firms.lending') - trajectory.get_values('firms.repayments')
 matrix = loops(trajectory, kind='flow-matrix', frame=10)
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')

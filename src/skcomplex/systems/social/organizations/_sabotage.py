@@ -3,20 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 DAYS_PER_YEAR = 365
@@ -26,7 +29,7 @@ AFFECT_SHARES = (0.1, 0.8, 0.1)
 HIRE_RESETS = ('disgruntlement', 'stress', 'skill', 'days', 'mean_feeling', 'first', 'expectation')
 
 
-class EmployeeView(AgentView):
+class EmployeeView(AgentViewProtocol, Protocol):
     """View of an employee of the insider sabotage system.
 
     Its states and parameters are attributes.
@@ -71,9 +74,6 @@ class EmployeeElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         predisposed:
             Whether the employee is predisposed to sabotage, 1, or not, 0.
@@ -147,45 +147,49 @@ class EmployeeElement(Element):
         skill_variance:
             The variance of the daily growth of skill.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import EmployeeElement
-        >>> group = GroupElement('employees', element=EmployeeElement, size=10, values={'affect': 0.5})
-        >>> group.label, group.element.__name__, group.size
-        ('employees', 'EmployeeElement', 10)
+        >>> group = EmployeeElement('employees', affect=0.5, size=10)
+        >>> group.label, group.size
+        ('employees', 10)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'risk', 'color_range': (0.0, 5.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'risk', 'color_range': (0.0, 5.0)}),
         *,
-        predisposed: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        disgruntlement: Annotated[float, StateSpec()] = 0.0,
-        stress: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        skill: Annotated[float, StateSpec()] = 0.0,
-        affect: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        risk: Annotated[float, StateSpec()] = 0.5,
-        days: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        first: Annotated[float, StateSpec()] = 0.0,
-        mean_feeling: Annotated[float, StateSpec()] = 0.0,
-        expectation: Annotated[float, StateSpec()] = 0.0,
-        feeling: Annotated[float, StateSpec()] = 0.0,
-        turnover: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        culture: Annotated[float, ParameterSpec()] = 0.8,
-        change: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        primacy: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        consistency: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        recency: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        affect_weight: Annotated[float, ParameterSpec()] = 1.0,
-        alpha_seen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        lambda_seen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha_unseen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        lambda_unseen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        skill_growth: Annotated[float, ParameterSpec()] = 0.001,
-        skill_variance: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0005,
+        predisposed: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        disgruntlement: object = 0.0,
+        stress: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        skill: object = 0.0,
+        affect: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        risk: object = 0.5,
+        days: Annotated[object, NN] = 0.0,
+        first: object = 0.0,
+        mean_feeling: object = 0.0,
+        expectation: object = 0.0,
+        feeling: object = 0.0,
+        turnover: Annotated[object, RealSet.closed_open(0, oo)] = 0.15,
+        culture: object = 0.8,
+        change: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        primacy: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        consistency: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        recency: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        affect_weight: object = 1.0,
+        alpha_seen: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        lambda_seen: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        alpha_unseen: Annotated[object, RealSet.closed_open(0, oo)] = 0.25,
+        lambda_unseen: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        skill_growth: object = 0.001,
+        skill_variance: Annotated[object, RealSet.closed_open(0, oo)] = 0.0005,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.predisposed = predisposed
         self.disgruntlement = disgruntlement
         self.stress = stress
@@ -210,14 +214,6 @@ class EmployeeElement(Element):
         self.lambda_unseen = lambda_unseen
         self.skill_growth = skill_growth
         self.skill_variance = skill_variance
-
-    @classmethod
-    def _get_view(cls) -> type[EmployeeView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return EmployeeView
 
 
 class InsiderSabotageSystem(BaseSystem):
@@ -244,6 +240,12 @@ class InsiderSabotageSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import InsiderSabotageSystem
         >>> [group.size for group in InsiderSabotageSystem(n_employees=20, n_supervisors=2).prepare().system_.elements]
@@ -264,8 +266,10 @@ class InsiderSabotageSystem(BaseSystem):
         turnover: float = 0.15,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.n_employees = n_employees
         self.n_supervisors = n_supervisors
@@ -362,48 +366,44 @@ class InsiderSabotageSystem(BaseSystem):
         """
         return float(agent.predisposed + agent.disgruntlement + agent.stress + agent.skill + agent.affect)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _work(self, agent: EmployeeView, system: SystemViewProtocol) -> None:
+        """Run the day of an employee.
+
+        It sets, in order, its feeling, its first feeling, its disgruntlement, its days, its mean feeling, its
+        expectation, its stress, and its skill.
+        """
+        agent.feeling = float(self._feel(agent, system))
+        agent.first = float(self._remember_first(agent, system))
+        agent.disgruntlement = float(self._get_disgruntlement(agent, system))
+        agent.days = agent.days + float(self._count_day(agent, system))
+        agent.mean_feeling = agent.mean_feeling + float(self._average(agent, system))
+        agent.expectation = float(self._expect(agent, system))
+        agent.stress = agent.stress + float(self._get_stress(agent, system))
+        agent.skill = agent.skill + float(self._learn(agent, system))
+
+    def _set_risk(self, agent: EmployeeView, system: SystemViewProtocol) -> None:
+        """Set the risk of an employee to the sum of its factors."""
+        agent.risk = float(self._sum_risk(agent, system))
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         predisposed = (rng.random(self.n_employees) < PREDISPOSED).astype(float)
         affect = rng.choice(AFFECTS, self.n_employees, p=AFFECT_SHARES)
-        employees = GroupElement(
+        employees = EmployeeElement(
             'employees',
-            element=EmployeeElement,
+            predisposed=predisposed,
+            affect=affect,
+            risk=predisposed + affect,
+            turnover=self.turnover,
             size=self.n_employees,
-            values={
-                'predisposed': predisposed,
-                'affect': affect,
-                'risk': predisposed + affect,
-                'turnover': self.turnover,
-            },
         )
-        supervisors = GroupElement('supervisors', element=Element, size=self.n_supervisors)
+        supervisors = Element('supervisors', size=self.n_supervisors)
         wandering = MovementInteraction('wandering', target='supervisors', schedule='member')
-        maps = [
-            ('feeling', self._feel, 'replace'),
-            ('first', self._remember_first, 'replace'),
-            ('disgruntlement', self._get_disgruntlement, 'replace'),
-            ('days', self._count_day, 'increment'),
-            ('mean_feeling', self._average, 'increment'),
-            ('expectation', self._expect, 'replace'),
-            ('stress', self._get_stress, 'increment'),
-            ('skill', self._learn, 'increment'),
-        ]
         work = [
             MovementInteraction('working', target='employees', schedule='member'),
-            *(
-                MapInteraction(
-                    state,
-                    target='employees',
-                    state=state,
-                    function=function,
-                    mode=mode,
-                    schedule='member',
-                    form='agent',
-                )
-                for state, function, mode in maps
-            ),
+            Interaction('workday', roles={'target': 'employees'}, laws=lambda s: [UpdateLaw(s.target, self._work)]),
             BirthDeathInteraction(
                 'turnover',
                 target='employees',
@@ -412,16 +412,9 @@ class InsiderSabotageSystem(BaseSystem):
                 values=self._hire,
                 schedule='member',
             ),
-            MapInteraction(
-                'risk',
-                target='employees',
-                state='risk',
-                function=self._sum_risk,
-                schedule='member',
-                form='agent',
-            ),
+            Interaction('risk', roles={'target': 'employees'}, laws=lambda s: [UpdateLaw(s.target, self._set_risk)]),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[employees, supervisors],
             interactions=[wandering, *work],

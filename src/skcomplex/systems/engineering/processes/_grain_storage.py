@@ -6,11 +6,12 @@ Its orders through a supply line make the stock oscillate.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.laws import Sink, Source
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -52,9 +53,15 @@ class GrainStorageSystem(StockFlowSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import GrainStorageSystem
-        >>> GrainStorageSystem(receiving_delay=5.0).prepare().system_.elements[0].get_value('receiving_delay')
+        >>> GrainStorageSystem(receiving_delay=5.0).prepare().system_.elements[0].values['receiving_delay']
         5.0
     """
 
@@ -74,8 +81,10 @@ class GrainStorageSystem(StockFlowSystem):
         receiving_delay: float = 10.0,
         adjustment_delay: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.stock = stock
         self.on_order = on_order
         self.desired_stock = desired_stock
@@ -87,26 +96,46 @@ class GrainStorageSystem(StockFlowSystem):
         """Return the label of the element that holds the stocks."""
         return 'store'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the stocks and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock by name."""
         return {
-            'stock': DeclaredVariableSpec(self.stock, StateSpec(quantity='grain')),
-            'on_order': DeclaredVariableSpec(self.on_order, StateSpec(quantity='grain')),
-            'desired_stock': DeclaredVariableSpec(self.desired_stock, ParameterSpec(domain=nonnegative)),
-            'release_fraction': DeclaredVariableSpec(self.release_fraction, ParameterSpec(domain=nonnegative)),
-            'receiving_delay': DeclaredVariableSpec(self.receiving_delay, ParameterSpec(domain=RealSet.open(0, oo))),
-            'adjustment_delay': DeclaredVariableSpec(self.adjustment_delay, ParameterSpec(domain=RealSet.open(0, oo))),
+            'stock': self.stock,
+            'on_order': self.on_order,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the stocks and parameters that have them, by name."""
+        return {
+            'desired_stock': RealSet.closed_open(0, oo),
+            'release_fraction': RealSet.closed_open(0, oo),
+            'receiving_delay': RealSet.open(0, oo),
+            'adjustment_delay': RealSet.open(0, oo),
+        }
+
+    def _get_quantities(self) -> dict[str, str]:
+        """Return the quantity every stock holds, by name."""
+        return {
+            'stock': 'grain',
+            'on_order': 'grain',
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'desired_stock': self.desired_stock,
+            'release_fraction': self.release_fraction,
+            'receiving_delay': self.receiving_delay,
+            'adjustment_delay': self.adjustment_delay,
         }
 
     def _get_flows(self) -> FlowTable:
         """Return the procurement, receiving, and release flows of grain."""
         return {
             'procurement': (
-                Source('suppliers'),
+                None,
                 'on_order',
-                lambda s: (s.source.desired_stock - s.source.stock) / s.source.adjustment_delay,
+                lambda s: (s.target.desired_stock - s.target.stock) / s.target.adjustment_delay,
             ),
-            'receiving': ('on_order', 'stock', lambda s: s.source.on_order / s.source.receiving_delay),
-            'release': ('stock', Sink('consumers'), lambda s: s.source.stock * s.source.release_fraction),
+            'receiving': ('on_order', 'stock', lambda s: s.target.on_order / s.target.receiving_delay),
+            'release': ('stock', None, lambda s: s.target.stock * s.target.release_fraction),
         }

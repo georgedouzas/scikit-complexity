@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import DelayedSIRSSystem
 
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(DelayedSIRSSystem(first=0.01, second=0.0, recovery=6, e=0.005), observers=[observer])
+trajectory = DelayedSIRSSystem(first=0.01, second=0.0, recovery=6, e=0.005).prepare().simulate(observers=[observer])
 
 # %%
 # Recurrent and locked outbreaks

@@ -7,21 +7,25 @@ The networks are complete, isolated, linked, and small-world groups of traders.
 # License: MIT
 
 import math
-from collections.abc import Callable, Sequence
-from typing import Annotated, ClassVar
+from collections.abc import Callable, Mapping, Sequence
+from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import transfer
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.matching import MatchingInteraction, MatchSpec, PartnerMatchingSpec, RandomSearchSpec
 from ...general.matching.types import MatchingRule
 
@@ -29,7 +33,8 @@ TOPOLOGIES = ('complete', 'isolated', 'linked', 'small_world')
 GOODS = ('good1', 'good2')
 
 
-class BarterTraderView(AgentView):
+@runtime_checkable
+class BarterTraderView(AgentViewProtocol, Protocol):
     """Barter trader as the rules see it.
 
     It holds its holdings `good1` and `good2`, its rate `mrs`, `links`, and `partners`.
@@ -52,9 +57,6 @@ class BarterTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         good1:
             The holding of the first good.
 
@@ -70,35 +72,40 @@ class BarterTraderElement(Element):
         partners:
             The number of partners that can match with the trader in a step, without limit.
 
+        values:
+            Further values by name, such as the `node` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The network whose nodes hold the members, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import BarterTraderElement
-        >>> GroupElement('traders', element=BarterTraderElement, size=4).size
+        >>> BarterTraderElement('traders', size=4).size
         4
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        good1: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        good2: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
-        mrs: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        links: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        partners: Annotated[float, StateSpec()] = math.inf,
+        good1: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        good2: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        mrs: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        links: Annotated[object, NN] = 0.0,
+        partners: object = math.inf,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.good1 = good1
         self.good2 = good2
         self.mrs = mrs
         self.links = links
         self.partners = partners
-
-    @classmethod
-    def _get_view(cls) -> type[BarterTraderView]:
-        """Return the view of a trader, with its holdings, rate, and links."""
-        return BarterTraderView
 
     @staticmethod
     def is_partner(trader: object, other: object) -> bool:
@@ -144,23 +151,6 @@ class BarterTraderElement(Element):
         if not isinstance(trader, BarterTraderView) or not isinstance(other, BarterTraderView):
             return -math.inf
         return abs(math.log(other.good2 / other.good1) - math.log(trader.good2 / trader.good1))
-
-    @staticmethod
-    def get_rate(agent: BarterTraderView, system: SystemView) -> float:
-        """Return the marginal rate of substitution of the bundle, `good2 / good1`.
-
-        Args:
-            agent:
-                The trader.
-
-            system:
-                The system view of the appraisal.
-
-        Returns:
-            mrs:
-                The marginal rate of substitution.
-        """
-        return agent.good2 / agent.good1
 
 
 class BilateralBarterInteraction(MatchingInteraction[SystemView]):
@@ -219,8 +209,8 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         self,
         label: str,
         *,
-        requesters: Annotated[str, RoleSpec()],
-        providers: Annotated[str, RoleSpec()],
+        requesters: Role,
+        providers: Role,
         rule: MatchingRule = RandomSearchSpec(),
         reserve: str | tuple[str, str] = 'reserve',
         quantity: str | tuple[str, str] = 'quantity',
@@ -228,7 +218,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         transfers: Sequence[tuple[str, int]] = (),
         phase: str | None = None,
         on_match: Callable[[MatchSpec, SystemView], None] | None = None,
-        units: Annotated[int, ParameterSpec(domain=NN)] = 100,
+        units: Annotated[int, NN] = 100,
     ) -> None:
         super().__init__(
             label,
@@ -292,7 +282,7 @@ class BilateralBarterInteraction(MatchingInteraction[SystemView]):
         system.storage['trades'] = 0.0
         super().match(system)
         system.report('trades', self._get_trades(system))
-        traders = system.get_agents('requesters', BarterTraderView)
+        traders = cast(list[BarterTraderView], system.get_agents('requesters'))
         system.report('searches', float(sum(trader.links for trader in traders)))
 
 
@@ -346,6 +336,12 @@ class WilhiteTradeNetworksSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValueError:
             The topology is unknown.
@@ -353,7 +349,7 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.economics.markets import WilhiteTradeNetworksSystem
         >>> system = WilhiteTradeNetworksSystem(40, topology='isolated', n_groups=4).prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> system.elements[0].size
         40
     """
 
@@ -362,8 +358,8 @@ class WilhiteTradeNetworksSystem(BaseSystem):
     references = ('Wilhite 2001', 'Gooding 2019')
     until = 60
     observables = (
-        ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        ObservableSpec('utility', _get_utility, group='traders'),
+        Observable('dispersion', group='traders', variable='mrs', reduce=_log_spread),
+        Observable('utility', _get_utility, group='traders'),
     )
 
     def __init__(
@@ -377,8 +373,10 @@ class WilhiteTradeNetworksSystem(BaseSystem):
         units: int = 100,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.topology = topology
         self.n_groups = n_groups
@@ -421,33 +419,37 @@ class WilhiteTradeNetworksSystem(BaseSystem):
             graph.add_edge(int(rng.choice(groups[first])), int(rng.choice(groups[second])))
         return graph
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _appraise(system: SystemView) -> None:
+        """Set the marginal rate of substitution `good2 / good1` of the bundle of every trader."""
+        for trader in cast(list[BarterTraderView], system.get_agents('target')):
+            trader.mrs = trader.good2 / trader.good1
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = self._trade_network(self.topology, self.n_agents, self.n_groups, self.shortcuts, rng)
         goods = rng.integers(1, int(self.endowment) + 1, size=(2, self.n_agents)).astype(float)
-        traders = GroupElement(
+        space = NetworkSpace(graph)
+        traders = BarterTraderElement(
             'traders',
-            element=BarterTraderElement,
+            good1=goods[0],
+            good2=goods[1],
+            mrs=goods[1] / goods[0],
+            links=np.array([graph.degree(node) for node in range(self.n_agents)], dtype=float),
+            values={'node': np.arange(self.n_agents)},
             size=self.n_agents,
-            values={
-                'good1': goods[0],
-                'good2': goods[1],
-                'mrs': goods[1] / goods[0],
-                'links': np.array([graph.degree(node) for node in range(self.n_agents)], dtype=float),
-            },
-            location=list(range(self.n_agents)),
+            space=space,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[traders],
             interactions=[
-                MapInteraction(
+                Interaction(
                     'appraisal',
-                    target='traders',
-                    state='mrs',
-                    function=BarterTraderElement.get_rate,
-                    form='agent',
+                    roles={'target': 'traders'},
+                    laws=lambda s: [UpdateLaw(s, WilhiteTradeNetworksSystem._appraise)],
                 ),
                 BilateralBarterInteraction(
                     'barter',
@@ -458,6 +460,5 @@ class WilhiteTradeNetworksSystem(BaseSystem):
                     units=self.units,
                 ),
             ],
-            space=NetworkSpace(graph),
-            time=DiscreteTime(),
+            space=space,
         )

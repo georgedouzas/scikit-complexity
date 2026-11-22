@@ -6,17 +6,16 @@
 from collections.abc import Sequence
 from math import prod
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from .....core.components.interactions import MapInteraction
-from .....core.components.spaces import BaseSpace
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
+from .....core.types import Role
 
 
-class BooleanFunctionInteraction(MapInteraction):
+class BooleanFunctionInteraction(Interaction):
     """Synchronous update of a node by a truth table of any number of input nodes.
 
     A table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and gives
@@ -46,15 +45,18 @@ class BooleanFunctionInteraction(MapInteraction):
         (0, 0, 0, 1)
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
+        target: Role,
+        inputs: tuple[Role, ...],
         table: tuple[int, ...] = (0,),
     ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_next)
+        super().__init__(label)
+        self.target = target
         self.inputs = inputs
         self.table = table
 
@@ -66,27 +68,29 @@ class BooleanFunctionInteraction(MapInteraction):
         bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
         return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
-    def _get_next(self, s: SimpleNamespace) -> Expression:
-        """Return the next value of the target by the truth table."""
-        inputs = [item.x for item in s.inputs]
-        terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
-        return sum(terms, start=SR(0))
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a table without one entry per pattern of the inputs.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The table does not have one entry per pattern of the inputs.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if len(self.table) != 2 ** len(self.inputs):
             error_msg = (
                 f'BooleanFunction {self.label} reads {len(self.inputs)} inputs, which take {2 ** len(self.inputs)} '
                 f'patterns, but its table has {len(self.table)} entries.'
             )
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of the target by the truth table.
+
+        Args:
+            context:
+                The namespace of the target and the inputs.
+        """
+        super()._prepare(context)
+        inputs = [item.x for item in context.inputs]
+        terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.x, sum(terms, start=SR(0)))]

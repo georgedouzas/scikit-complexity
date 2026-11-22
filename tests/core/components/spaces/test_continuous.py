@@ -1,40 +1,22 @@
 """Test the `_continuous` module of `skcomplex.core.components.spaces`."""
 
-from typing import Annotated
-
 import numpy as np
-import numpy.typing as npt
 import pytest
 from shapely import Point, Polygon, box
 from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.core.errors import SpaceError, ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 
 
-class BallElement(Element):
-    """Point of a continuous space, with a vector state `x` of order 2."""
-
-    def __init__(
-        self,
-        label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
-        visual: VisualSpec | None = None,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Set `default_visual_`, points at the values of `x`."""
-        super()._prepare(context)
-        self.default_visual_ = VisualSpec('points', {'position': 'x'})
+def _ball(x: float, velocity: float, boundary: str, solver: object = 'auto') -> System:
+    """Return one point `p` of a box of side 1 at a position, which moves at a starting velocity with no law."""
+    box = ContinuousSpace(extent=(1.0,), boundary=boundary)
+    ball = Element('p', values={'x': [[x]], "x'": [[velocity]]}, size=1, space=box)
+    return System(elements=[ball], solver=solver)
 
 
 @pytest.mark.parametrize(
@@ -91,6 +73,15 @@ def test_continuous_space_indexes_its_regions():
     assert ContinuousSpace(extent=(4.0, 4.0)).prepare().regions_ == {}
 
 
+def test_continuous_space_indexes_a_named_region_as_a_layer_of_one_polygon():
+    """Test that a region named by itself, beside a layer, is indexed as a layer that holds its one polygon."""
+    tract = box(0.0, 0.0, 1.0, 1.0)
+    space = ContinuousSpace(extent=(4.0, 4.0), regions={'tract_1': tract, 'parks': [box(2.0, 2.0, 3.0, 3.0)]})
+    index = space.prepare().regions_['tract_1']
+    assert index.query(Point(0.5, 0.5), predicate='intersects').tolist() == [0]
+    assert index.geometries.tolist() == [tract]
+
+
 def test_continuous_space_clones_with_its_regions():
     """Test that a clone of a space keeps its layers and indexes them."""
     space = clone(ContinuousSpace(extent=(4.0, 4.0), regions={'parks': [box(0.0, 0.0, 1.0, 1.0)]}))
@@ -122,33 +113,21 @@ def test_continuous_space_keeps_regions_in_two_dimensions():
 
 def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
-    system = CompositeSystem(
-        elements=[BallElement('p', x=[0.9], x_d1=[1.0])],
-        space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
-    )
-    trajectory = simulate(system, until=0.2, dt=0.2)
-    assert trajectory.get_values('p.x')[-1, 0] == pytest.approx(0.9)
-    assert trajectory.get_values('p.x_d1')[-1, 0] == pytest.approx(-1.0)
+    trajectory = _ball(0.9, 1.0, 'reflecting').prepare().simulate(until=0.2, dt=0.2)
+    assert trajectory.get_values('p.x')[-1, 0, 0] == pytest.approx(0.9)
+    assert trajectory.get_values("p.x'")[-1, 0, 0] == pytest.approx(-1.0)
 
 
 def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
-    system = CompositeSystem(
-        elements=[BallElement('p', x=[0.9], x_d1=[1.0])],
-        space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
-    )
-    trajectory = simulate(system, until=0.2, dt=0.2)
-    assert trajectory.get_values('p.x')[-1, 0] == pytest.approx(0.1)
-    assert trajectory.get_values('p.x_d1')[-1, 0] == pytest.approx(1.0)
+    trajectory = _ball(0.9, 1.0, 'periodic').prepare().simulate(until=0.2, dt=0.2)
+    assert trajectory.get_values('p.x')[-1, 0, 0] == pytest.approx(0.1)
+    assert trajectory.get_values("p.x'")[-1, 0, 0] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('solver', [RK4Solver(), ScipyODESolver()], ids=['rk4', 'scipy'])
 def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
-    system = CompositeSystem(
-        elements=[BallElement('p', x=[0.5], x_d1=[1.0])],
-        space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
-    )
-    trajectory = simulate(system, until=5, solver=solver, dt=5.0)
-    assert trajectory.get_values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
-    assert trajectory.get_values('p.x_d1')[-1, 0] == pytest.approx(-1.0, abs=1e-6)
+    trajectory = _ball(0.5, 1.0, 'reflecting', solver).prepare().simulate(until=5, dt=5.0)
+    assert trajectory.get_values('p.x')[-1, 0, 0] == pytest.approx(0.5, abs=1e-6)
+    assert trajectory.get_values("p.x'")[-1, 0, 0] == pytest.approx(-1.0, abs=1e-6)

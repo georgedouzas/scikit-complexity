@@ -16,13 +16,13 @@ from ._rows import INITIAL_ROWS, _Rows
 class FractionalABMSolver(CaputoSolver):
     """A solver of fractional equations by the Adams-Bashforth-Moulton method.
 
-    It is the scheme of Diethelm, Ford, and Freed. It is of order `1 + alpha`. The scheme solves the equivalent Volterra
-    equation `x(t) = x_0 + (1 / Gamma(alpha)) int_0^t (t - s)^(alpha - 1) f(s, x(s)) ds`. A rectangle rule over the
-    drifts of the whole run predicts the next state, and a trapezoidal rule with the drift at the prediction corrects
-    it. States of order 1 take Heun steps.
+    It solves `x(t) = x_0 + (1 / Gamma(alpha)) int_0^t (t - s)^(alpha - 1) f(s, x(s)) ds`, the same equation written as
+    an integral over the past, as Diethelm, Ford, and Freed propose: a rectangle rule over the whole run predicts the
+    next state, and a trapezoidal rule corrects it, so it is of order `1 + alpha`. States of order 1 take Heun steps.
+    Choose it for fractional equations of moderate size, such as the relaxation of a polymer from 1 to 0.43 in one time
+    unit, the spread of a drug in tissue, and epidemics with memory.
 
-    Choose it for Caputo fractional equations of moderate size, which remember their whole past. It appears in models of
-    viscoelastic materials, anomalous diffusion, and epidemics with memory.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -38,28 +38,16 @@ class FractionalABMSolver(CaputoSolver):
         orders_:
             The order of every state component.
 
+    See Also:
+        L1Solver: An explicit scheme of order 1.
+        GrunwaldLetnikovSolver: An explicit scheme of order 1.
+
     Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import FractionalABMSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> class RelaxingElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec(order=0.5)] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [RateLaw(s.x, -s.x)]
-        >>> problem = simulate(CompositeSystem(elements=[RelaxingElement('a')]), until=0).problem
-        >>> stepper = FractionalABMSolver(dt=0.001, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> round(float(stepper.run(step).state_[0]), 2)
-        0.43
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
+        >>> system = FractionalRelaxationSystem(order=0.5, solver=FractionalABMSolver(dt=0.001)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('relaxation.x').round(2).tolist()
+        [1.0, 0.43]
     """
 
     def __init__(

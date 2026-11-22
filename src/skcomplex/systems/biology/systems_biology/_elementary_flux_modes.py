@@ -8,9 +8,11 @@ The network is Raman's toy network by default.
 
 from collections.abc import Sequence
 
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ..common.metabolism import ToyNetworkElement
+from ....core.components import Observable
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ..common.metabolism import MetabolicCellElement, ToyFluxBalanceInteraction
 
 
 class ElementaryFluxModesSystem(BaseSystem):
@@ -26,6 +28,12 @@ class ElementaryFluxModesSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.core.analysis import elementary_modes
@@ -45,14 +53,21 @@ class ElementaryFluxModesSystem(BaseSystem):
         knockouts: Sequence[str] = (),
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.knockouts = knockouts
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the toy network of Raman.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the toy network of Raman.
 
-        Its steady-state cone is what `elementary_modes` enumerates.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         closed = {f'{bound}_{name}': 0.0 for name in self.knockouts for bound in ('lower', 'upper')}
-        return CompositeSystem(self.label, elements=[ToyNetworkElement('cell').set_params(**closed)], time=StaticTime())
+        network = ToyFluxBalanceInteraction('fba')
+        cell = MetabolicCellElement('cell', values=network.get_values() | closed)
+        self.system_ = System(self.label, elements=[cell], interactions=[network])

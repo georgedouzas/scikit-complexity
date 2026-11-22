@@ -6,42 +6,47 @@ import numpy as np
 import pytest
 import rerun as rr
 
-from skcomplex.core.components.elements import Element, FieldElement
+from skcomplex.core.components.elements import Element, Tensor, VisualSpec
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.engine.viz import AxisVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 
 
 class _NematicElement(Element):
-    """Element with a density and a symmetric traceless tensor that decays."""
+    """Element with a density, a vector, and a symmetric traceless tensor."""
 
     def __init__(
         self,
         label,
-        Q: Annotated[object, StateSpec(tensor='traceless')] = 0.0,
-        rho: Annotated[float, StateSpec()] = 1.0,
-        p: Annotated[object, StateSpec(vector=True)] = 0.0,
+        Q: Annotated[object, Tensor('traceless')] = 0.0,
+        rho: float = 1.0,
+        p: object = 0.0,
+        *,
+        space: BaseSpace | None = None,
     ):
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.Q = Q
         self.rho = rho
         self.p = p
 
-    def _get_laws(self, namespace):
-        """Return the decay of the tensor."""
-        return [RateLaw(namespace.Q, -namespace.Q), RateLaw(namespace.rho, 0.0 * namespace.rho)]
 
-
-def _film(visual):
-    """Return a field on a lattice of 8 by 8 sites with a uniform tensor."""
-    values = {'Q': np.tile([0.5, 0.0], (64, 1)), 'p': np.tile([1.0, 0.0], (64, 1)), 'rho': np.arange(64.0)}
-    field = FieldElement('film', element=_NematicElement, space=LatticeSpace((8, 8)), values=values, visual=visual)
-    return CompositeSystem(elements=[field])
+def _film():
+    """Return a field on a lattice of 8 by 8 sites with a uniform tensor that decays and a constant density."""
+    Q, p, rho = np.tile([0.5, 0.0], (64, 1)), np.tile([1.0, 0.0], (64, 1)), np.arange(64.0)
+    field = _NematicElement('film', Q=Q, rho=rho, p=p, space=LatticeSpace((8, 8)))
+    decay = Interaction(
+        'decay',
+        roles={'target': 'film'},
+        laws=lambda s: [
+            RateLaw(s.target.Q, -s.target.Q),
+            RateLaw(s.target.rho, 0.0 * s.target.rho),
+            RateLaw(s.target.p, 0.0 * s.target.p),
+        ],
+    )
+    return System(elements=[field], interactions=[decay])
 
 
 class _Recording:
@@ -58,8 +63,8 @@ class _Recording:
 def _logged(state, scalar, every):
     """Return what the axes visual of a state logs at the first and second frames of a short run."""
     recording = _Recording()
-    system = _film(None)
-    problem = PassCompiler().prepare(system).run().problem_
+    system = _film().prepare()
+    problem = system._problem
     visual = AxisVisual(state, scalar=scalar, every=every, path='film', recording=recording).prepare(problem)
     frames = []
 
@@ -68,7 +73,7 @@ def _logged(state, scalar, every):
             if inputs is not None:
                 frames.append(inputs)
 
-    simulate(system, until=0.2, dt=0.1, observers=[FrameObserver()])
+    system.simulate(until=0.2, dt=0.1, observers=[FrameObserver()])
     for frame in frames:
         visual.run(frame)
     return recording.logged, len(frames), visual
@@ -87,9 +92,9 @@ def test_run_logs_one_segment_per_sampled_site_over_the_image_at_every_frame():
 
 def test_run_writes_a_recording_in_the_viewer_stream(tmp_path):
     """The nematic with a visual of axes writes a recording of its frames."""
-    system = _film(VisualSpec('axes', {'state': 'Q', 'scalar': 'rho', 'every': 2}))
-    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    simulate(system, until=0.2, dt=0.1, observers=[observer])
+    visuals = {'film': VisualSpec('axes', {'state': 'Q', 'scalar': 'rho', 'every': 2})}
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', visuals=visuals)
+    _film().prepare().simulate(until=0.2, dt=0.1, observers=[observer])
     assert isinstance(observer.visuals_[0], AxisVisual)
     assert observer.logged_frames_ >= 2
     assert (tmp_path / 'run.rrd').stat().st_size > 0
@@ -107,7 +112,7 @@ def test_prepare_rejects_a_scalar_state():
     """A scalar state has no axes."""
     with pytest.raises(ValidationError, match='no tensor or vector'):
         AxisVisual('rho', path='film', recording=_Recording()).prepare(
-            PassCompiler().prepare(_film(None)).run().problem_,
+            _film().prepare()._problem,
         )
 
 

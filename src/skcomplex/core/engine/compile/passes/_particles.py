@@ -1,4 +1,4 @@
-"""Compile particles."""
+"""Add the laws by which the boundary of a continuous space acts on positions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,10 +6,11 @@
 
 from sage.all__sagemath_symbolics import SR
 
-from ....components.laws import BaseLaw, BoundaryLaw
+from ....components.laws import BaseLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws.utils import either, mod, where
 from ....components.spaces import ContinuousSpace
-from ....types import VariableKind
+from ....enums import VariableKind
 from ..._utils import components_of, declarations_of
 from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
@@ -18,9 +19,22 @@ from .._compilation import Compilation
 
 
 class BoundaryLawsPass(BasePass):
-    """A pass that adds the laws of the boundary of a continuous space.
+    """A pass that adds the laws by which the edge of a space acts on positions.
 
-    By these laws the boundary acts on the positions of components.
+    A periodic box wraps a particle that leaves it back in at the other side, and a wall reflects it. The pass adds
+    these laws to every element or group with positions in a continuous space.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        ContinuousSpace: A space of real positions with its boundary.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
+        >>> compilation = PassCompiler().prepare(LennardJonesFluidSystem()).compilation_
+        >>> [str(law.value) for _, laws, _ in compilation.collected for law in laws][0]
+        'mod(x_fluid_0, 28.284271247461902)'
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -43,17 +57,29 @@ class BoundaryLawsPass(BasePass):
     def _get_space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
         """Return the laws by which a continuous space boundary acts on a component.
 
-        It acts on the position states of the component. A periodic boundary wraps every position component into the
-        box. A reflecting boundary mirrors a position that crossed a wall back into the box and reverses the velocity
-        component across the wall, where the velocity is the first derivative of a position of order 2.
+        It acts on the position states of the component: a vector position, or a scalar value named after an axis of
+        the space, such as `x` and `y` of `Element('walkers', values={'x': [1.0, 9.0], 'y': [5.0, 5.0]}, size=2)`. A
+        periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
+        crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is
+        the first derivative of a position of order 2. Agents keep their own positions in the space, which wraps or
+        bounds them, so they take no law.
         """
         space = block.node.space
-        if block.node.interaction or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
+        if (
+            block.node.interaction
+            or block.node.is_agent
+            or not isinstance(space, ContinuousSpace)
+            or space.boundary == 'open'
+        ):
             return []
         declarations = declarations_of(block.node.component_type, VariableKind.STATE)
         laws: list[BaseLaw] = []
         for name, declaration in declarations.items():
-            if not declaration.is_place:
+            if declaration.is_place:
+                sides = space.extent_
+            elif declaration.role == 'position' and name in space.axes_:
+                sides = (space.extent_[space.axes_.index(name)],)
+            else:
                 continue
             velocity_name = f'{name}_d1' if declaration.order > 1 else None
             positions = [SR(item) for item in components_of(getattr(spec.namespace, name))]
@@ -62,12 +88,14 @@ class BoundaryLawsPass(BasePass):
                 if velocity_name
                 else [None] * len(positions)
             )
-            for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
+            for position, velocity, side in zip(positions, velocities, sides, strict=True):
                 if space.boundary == 'periodic':
-                    laws.append(BoundaryLaw(position, mod(position, side)))
+                    laws.append(_BoundaryLaw(position, mod(position, side)))
                     continue
                 below, above = position < 0, position > side
-                laws.append(BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))))
+                laws.append(
+                    _BoundaryLaw(position, where(below, -position, where(above, 2 * side - position, position))),
+                )
                 if velocity is not None:
-                    laws.append(BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
+                    laws.append(_BoundaryLaw(velocity, where(either(below, above), -velocity, velocity)))
         return laws

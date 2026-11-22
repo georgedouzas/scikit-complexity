@@ -1,4 +1,4 @@
-"""Draw the states of a finite element field as colored meshes."""
+"""Draw the values of a field on a mesh as coloured triangles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,20 +10,24 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.spaces import MeshSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...components.spaces import CellComplexSpace
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec
-from ._base import MODULUS, PHASE, BaseVisual
+from ..enums import ComplexComponentKind
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ._base import BaseVisual
 
 SURFACE_DIMENSION = 2
 
 
 class MeshVisual(BaseVisual):
-    """A visual that logs every state of a finite element field as a triangle mesh.
+    """A visual that draws every value of a field on a mesh as coloured triangles.
 
-    The mesh is colored by value. Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes
-    as points.
+    It colours the triangles of a mesh by value and raises each node to its value, so the field reads as a surface,
+    such as `MeshVisual(low=0.0)` for a value that never falls below zero. A mesh of tetrahedra is drawn as coloured
+    points. It shows the heat in a machine part, the stress in a beam, and the pressure of air around a wing.
+
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -41,11 +45,16 @@ class MeshVisual(BaseVisual):
         recording:
             The Rerun recording to log to, or `None` for the active recording of the thread.
 
+    See Also:
+        ImageVisual: Draws the values of a regular grid as images.
+
     Examples:
         >>> from skcomplex.core.engine.viz import MeshVisual
         >>> MeshVisual(low=0.0)
         MeshVisual(low=0.0)
     """
+
+    numeric_options = ('low', 'high')
 
     def __init__(
         self,
@@ -66,7 +75,7 @@ class MeshVisual(BaseVisual):
     def _log_mesh(
         recording: rr.RecordingStream,
         path: str,
-        mesh: MeshSpace,
+        mesh: CellComplexSpace,
         values: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8],
     ) -> None:
@@ -74,7 +83,7 @@ class MeshVisual(BaseVisual):
 
         The triangle mesh has the values as its height.
         """
-        nodes, cells = mesh.positions_, np.asarray(mesh.cells)
+        nodes, cells = mesh.positions_, mesh.cells_
         if mesh.n_dim_ != SURFACE_DIMENSION:
             recording.log(path, rr.Points3D(nodes, colors=colors))
             return
@@ -98,31 +107,41 @@ class MeshVisual(BaseVisual):
 
         Raises:
             ValidationError:
-                The element does not lie on a mesh space.
+                The element does not lie on a mesh.
         """
         mesh = getattr(element.element, 'space', None)
-        if not isinstance(mesh, MeshSpace):
-            error_msg = f'The element {element.path} does not lie on a mesh space. Draw it with another visual.'
+        if not isinstance(mesh, CellComplexSpace) or not mesh._is_mesh():
+            error_msg = f'The element {element.path} does not lie on a mesh. Draw it with another visual.'
             raise ValidationError(error_msg)
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
             values = np.ravel(frame.get_value(name))
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             if not np.iscomplexobj(values):
                 self._log_mesh(recording, path, mesh, values, self._get_colors(values, self.low, self.high))
                 continue
             modulus, phase = np.abs(values), np.angle(values)
             self._log_mesh(
                 recording,
-                f'{path}/{MODULUS}',
+                f'{path}/{ComplexComponentKind.MODULUS}',
                 mesh,
                 modulus,
                 self._get_colors(modulus, self.low, self.high),
             )
-            self._log_mesh(recording, f'{path}/{PHASE}', mesh, phase, BaseVisual._get_phase_colors(phase))
+            self._log_mesh(
+                recording,
+                f'{path}/{ComplexComponentKind.PHASE}',
+                mesh,
+                phase,
+                BaseVisual._get_phase_colors(phase),
+            )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 3D spatial view per chosen state.
 
         Meshes are drawn with the value as their height.
@@ -139,10 +158,9 @@ class MeshVisual(BaseVisual):
                 One 3D spatial view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import MeshVisual
             >>> from skcomplex.systems.physics.heat import HeatLShapeSystem
-            >>> problem = simulate(HeatLShapeSystem(refine=1), until=0).problem
+            >>> problem = HeatLShapeSystem(refine=1).prepare().simulate(until=0).problem
             >>> views = MeshVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
@@ -153,10 +171,11 @@ class MeshVisual(BaseVisual):
         for state, name in element.states.items():
             if self.states is not None and state not in self.states:
                 continue
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             if problem.states.get_entry(name).is_complex:
                 views += [
-                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}')
+                    for part in (ComplexComponentKind.MODULUS, ComplexComponentKind.PHASE)
                 ]
             else:
                 views.append(rrb.Spatial3DView(origin=path, name=state))

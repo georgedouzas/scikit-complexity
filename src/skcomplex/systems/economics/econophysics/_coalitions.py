@@ -6,23 +6,24 @@ The coalitions share their best predictor of the attendance.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from collections.abc import Sequence
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ..common.policy import PolicyRuleInteraction
 
 
-class CoalitionPatronView(AgentView):
+class CoalitionPatronView(AgentViewProtocol, Protocol):
     """Patron as the bar sees it: its coalition, its attendance, and its return."""
 
     coalition: float
@@ -39,9 +40,6 @@ class CoalitionPatronElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         coalition:
             The label of the coalition of the patron.
 
@@ -52,46 +50,30 @@ class CoalitionPatronElement(Element):
             The exponentially smoothed share of good nights, a night at the bar that was not overcrowded or a night
             away from an overcrowded bar.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.econophysics import CoalitionPatronElement
-        >>> GroupElement('patrons', element=CoalitionPatronElement, size=3).size
+        >>> CoalitionPatronElement('patrons', size=3).size
         3
     """
 
-    law_classes = ()
+    visual = VisualSpec('agents', {'color_by': 'coalition'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'coalition'}),
         *,
-        coalition: Annotated[float, StateSpec(domain=NN)] = 0,
-        attends: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        score: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        coalition: Annotated[object, NN] = 0.0,
+        attends: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        score: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.coalition = coalition
         self.attends = attends
         self.score = score
-
-    @classmethod
-    def _get_view(cls) -> type[CoalitionPatronView]:
-        """Return the view of the agents of the element."""
-        return CoalitionPatronView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the bar decides for every patron.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
@@ -149,10 +131,10 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        patrons: Annotated[str, RoleSpec()],
+        patrons: Role,
         strategies: tuple[tuple[tuple[float, ...], ...], ...] = (),
-        capacity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
-        smoothing: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        capacity: Annotated[float, RealSet.open(0, oo)] = 60.0,
+        smoothing: Annotated[float, RealSet.closed(0, 1)] = 0.1,
         coalitions: bool = True,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
@@ -239,7 +221,7 @@ class CoalitionBarInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the bar.
         """
-        patrons = sorted(system.get_agents('patrons', CoalitionPatronView), key=lambda patron: patron.id)
+        patrons = sorted(cast(list[CoalitionPatronView], system.get_agents('patrons')), key=lambda patron: patron.id)
         strategies = np.asarray(self.strategies, dtype=float)
         memory, size, capacity = strategies.shape[-1] - 1, len(patrons), system.get_parameter('capacity')
         stored = system.storage.get('history')
@@ -322,9 +304,15 @@ class ElFarolCoalitionsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.econophysics import ElFarolCoalitionsSystem
-        >>> ElFarolCoalitionsSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> ElFarolCoalitionsSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -344,8 +332,10 @@ class ElFarolCoalitionsSystem(BaseSystem):
         coalitions: bool = True,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.capacity = capacity
         self.memory = memory
@@ -354,16 +344,12 @@ class ElFarolCoalitionsSystem(BaseSystem):
         self.coalitions = coalitions
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         strategies = rng.uniform(-1.0, 1.0, (self.n_agents, self.n_strategies, self.memory + 1))
-        patrons = GroupElement(
-            'patrons',
-            element=CoalitionPatronElement,
-            size=self.n_agents,
-            values={'coalition': np.arange(self.n_agents, dtype=float)},
-        )
+        patrons = CoalitionPatronElement('patrons', coalition=np.arange(self.n_agents, dtype=float), size=self.n_agents)
         bar = CoalitionBarInteraction(
             'bar',
             patrons='patrons',
@@ -372,4 +358,4 @@ class ElFarolCoalitionsSystem(BaseSystem):
             smoothing=self.smoothing,
             coalitions=self.coalitions,
         )
-        return CompositeSystem(self.label, elements=[patrons], interactions=[bar])
+        self.system_ = System(self.label, elements=[patrons], interactions=[bar])

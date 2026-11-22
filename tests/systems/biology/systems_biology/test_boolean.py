@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem, YeastCellCycleSystem
 
@@ -74,7 +73,7 @@ def _damage_share(factory, connectivity, seed):
 
 def test_random_boolean_network_reaches_a_cycle():
     """Test that a random Boolean network returns to a state it visited, so it settles on an attractor."""
-    states = simulate(RandomBooleanNetworkSystem(), dt=1, until=60).states
+    states = RandomBooleanNetworkSystem().prepare().simulate(dt=1, until=60).states
     seen = {tuple(row) for row in states[:30]}
     assert tuple(states[-1]) in seen or len({tuple(row) for row in states}) < len(states)
 
@@ -83,7 +82,7 @@ def test_random_boolean_network_takes_eight_inputs():
     """Test that every node reads eight distinct nodes through a table of 256 entries, and the network runs."""
     system = RandomBooleanNetworkSystem(n_nodes=12, k=8).prepare().system_
     assert all(len(set(function.inputs)) == 8 and len(function.table) == 256 for function in system.interactions)
-    assert len(simulate(system, dt=1, until=50).times) == 51
+    assert len(system.prepare().simulate(dt=1, until=50).times) == 51
 
 
 def test_random_boolean_network_rejects_more_inputs_than_nodes():
@@ -94,13 +93,13 @@ def test_random_boolean_network_rejects_more_inputs_than_nodes():
 
 def test_yeast_cell_cycle_matches_recorded_trajectory():
     """Test that the yeast network on one variadic role per node runs as the five-role version recorded before."""
-    states = simulate(YeastCellCycleSystem(), dt=1, until=15).states
+    states = YeastCellCycleSystem().prepare().simulate(dt=1, until=15).states
     assert [''.join(str(int(value)) for value in row) for row in states] == list(YEAST_RECORDED)
 
 
 def test_yeast_cell_cycle_returns_to_g1():
     """Test that the yeast network passes through the M phase and ends in the stationary G1 state."""
-    trajectory = simulate(YeastCellCycleSystem().prepare().system_, until=15, dt=1)
+    trajectory = YeastCellCycleSystem().prepare().system_.simulate(until=15, dt=1)
     names = trajectory.problem.states.names
     active = [[name for name, value in zip(names, row, strict=True) if value] for row in trajectory.states]
     assert any('Clb1_2.x' in names for names in active)

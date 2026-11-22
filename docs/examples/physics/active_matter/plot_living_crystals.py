@@ -18,7 +18,6 @@ import numpy as np
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import LivingCrystalsSystem
@@ -28,7 +27,7 @@ SYSTEM = 'living_crystals'
 system = LivingCrystalsSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.002)
-trajectory = simulate(system, until=40, solver=solver, dt=0.2, observers=[observer], random_state=0)
+trajectory = system.set_params(solver=solver).prepare().simulate(until=40, dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Clustering by phoretic attraction
@@ -53,7 +52,8 @@ def clustered_share(positions, side=50.0):
 fig, ax = plt.subplots(figsize=(7, 4))
 times = trajectory.times
 ax.plot(times, clustered_share(trajectory.get_values('swimmers.x')), label='with attraction, v0 = 20')
-passive = simulate(LivingCrystalsSystem(v0=0.0, random_state=0), until=40, solver=solver, dt=0.2, random_state=0)
+passive_system = LivingCrystalsSystem(v0=0.0, random_state=0, solver=solver)
+passive = passive_system.prepare().simulate(until=40, dt=0.2, random_state=0)
 ax.plot(times, clustered_share(passive.get_values('swimmers.x')), label='without attraction, v0 = 0')
 ax.set_xlabel('time t')
 ax.set_ylabel('share of colloids in clusters of 3 or more')

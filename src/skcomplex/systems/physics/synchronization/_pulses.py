@@ -6,39 +6,63 @@ The module covers Winfree oscillators and Mirollo-Strogatz integrate-and-fire os
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.all__sagemath_symbolics import cos, oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, CrossingInteraction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import maximum, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.oscillators import PhaseOscillatorElement, order_parameter
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import EventLaw, RateLaw
+from ....core.components.laws.utils import count, maximum, total, where
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.oscillators import order_parameter
 
 
 class IntegrateAndFireOscillatorElement(Element):
-    """Integrate-and-fire oscillator.
+    """Integrate-and-fire oscillator with the charge `x`, alone or in a group of `size` members.
 
-    The oscillator charges as `x' = S - gamma x`, and sends pulses of strength `epsilon`.
-
-    The oscillator charges towards `S / gamma`. Its firing at 1 is a crossing of the group it belongs to, which resets
-    the most charged oscillators to 0 and lifts every other one by `epsilon`.
+    `ChargingInteraction` charges the oscillator and `PulseFiringInteraction` fires it at 1.
 
     Args:
         label:
             The label of the oscillator or the group.
 
-        visual:
-            How the oscillator is drawn, or `None` for `default_visual_`.
-
         x:
-            The initial charge.
+            The initial charge, or one charge per member.
+
+        size:
+            The number of members of the group, or `None` for one oscillator.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import IntegrateAndFireOscillatorElement
+        >>> IntegrateAndFireOscillatorElement('oscillators', x=[0.1, 0.5], size=2).size
+        2
+    """
+
+    def __init__(self, label: str, *, x: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class ChargingInteraction(Interaction):
+    """Leaky charging `x' = S - gamma x` towards the level `S / gamma`.
+
+    It charges a capacitor through a resistor, the membrane of a neuron, or the clock of a firefly.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the oscillator or the group whose charge `x` rises.
 
         S:
             The charging input.
@@ -46,17 +70,10 @@ class IntegrateAndFireOscillatorElement(Element):
         gamma:
             The leak rate.
 
-        epsilon:
-            The strength of a pulse.
-
-    Attributes:
-        default_visual_:
-            The visual of the oscillator when it sets none.
-
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import IntegrateAndFireOscillatorElement
-        >>> IntegrateAndFireOscillatorElement('oscillator').epsilon
-        0.1
+        >>> from skcomplex.systems.physics.synchronization import ChargingInteraction
+        >>> ChargingInteraction('charging', target='oscillators', S=3.0).S
+        3.0
     """
 
     law_classes = (RateLaw,)
@@ -64,84 +81,121 @@ class IntegrateAndFireOscillatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        S: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        S: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label)
+        self.target = target
         self.S = S
         self.gamma = gamma
-        self.epsilon = epsilon
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the charging of the oscillator.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the charge of the target.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of the charge.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        s = namespace
-        return [RateLaw(s.x, s.S - s.gamma * s.x)]
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_ = [RateLaw(x.diff(context.t), context.S - context.gamma * x)]
 
 
-class WinfreeMeanFieldInteraction(CouplingInteraction):
-    """Winfree coupling `theta_i' += K mean_j P(theta_j) R(theta_i)`.
+class PulseFiringInteraction(Interaction):
+    """Firing of a group of integrate-and-fire oscillators when the most charged one reaches 1.
 
-    The mean runs over every member `j` of the group.
-
-    The influence `P(theta) = 1 + cos(theta)` that an oscillator sends and the sensitivity `R(theta) = -sin(theta)` with
-    which it responds make every oscillator respond to the mean influence of the group.
+    The firing resets the most charged oscillators to 0 and lifts every other one by the pulse `epsilon`. An oscillator
+    lifted to 1 fires at the same instant and resets to 0 with the others, as fireflies that flash together or
+    pacemaker cells of a heart.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, which also names the firings in the trajectory.
 
         target:
             The path of the group of oscillators.
 
-        K:
-            The coupling strength.
+        epsilon:
+            The strength of a pulse.
 
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.systems.physics.synchronization import WinfreeMeanFieldInteraction
-        >>> coupling = WinfreeMeanFieldInteraction('coupling', target='oscillators')
-        >>> member, other = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
-        >>> coupling.function(SimpleNamespace(K=var('K'), member=member, other=other))
-        -K*(cos(b) + 1)*sin(a)
+        >>> from skcomplex.systems.physics.synchronization import PulseFiringInteraction
+        >>> PulseFiringInteraction('fire', target='oscillators', epsilon=0.2).epsilon
+        0.2
     """
+
+    law_classes = (EventLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            read='theta',
-            write='theta',
-            function=self._get_response,
-            reduce='mean',
-            mode='group',
-            include_self=True,
-        )
+        super().__init__(label)
+        self.target = target
+        self.epsilon = epsilon
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the firing of the group as an event at the crossing of 1 by its largest charge.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        x, epsilon = context.target.x, context.epsilon
+        reset = where(x >= maximum(x), 0, where(x + epsilon >= 1, 0, x + epsilon))
+        self.laws_ = [EventLaw(maximum(x) - 1, {x: reset}, direction=1, label=self.label)]
+
+
+class WinfreeMeanFieldInteraction(Interaction):
+    """Winfree dynamics `theta_i' = omega_i + K mean_j P(theta_j) R(theta_i)`.
+
+    The mean runs over every member `j` of the group.
+
+    The phases turn at the natural frequencies `omega` of the target, and the influence `P(theta) = 1 + cos(theta)` that
+    an oscillator sends and the sensitivity `R(theta) = -sin(theta)` with which it responds make every oscillator
+    respond to the mean influence of the group, as crickets that chirp or cells of a heart that beat.
+
+    Args:
+        label:
+            The label of the interaction, unique among the components of its system.
+
+        target:
+            The path of the group of oscillators, with the phases `theta` and the natural frequencies `omega`.
+
+        K:
+            The coupling strength.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import WinfreeMeanFieldInteraction
+        >>> WinfreeMeanFieldInteraction('coupling', target='oscillators', K=2.0).K
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, K: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.K = K
 
-    def _get_response(self, namespace: SimpleNamespace) -> Expression:
-        """Return the response `K P(theta_j) R(theta_i)` of a member to one other member."""
-        return namespace.K * (1 + cos(namespace.other.theta)) * -sin(namespace.member.theta)
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the phases of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        oscillator = context.target
+        theta = oscillator.theta
+        response = total(context.K * (1 + cos(oscillator.other.theta)) * -sin(theta)) / count()
+        self.laws_ = [RateLaw(theta.diff(context.t), oscillator.omega + response)]
 
 
 class WinfreeSystem(BaseSystem):
@@ -171,6 +225,12 @@ class WinfreeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import WinfreeSystem
         >>> len(WinfreeSystem(5).prepare().system_.interactions)
@@ -192,27 +252,30 @@ class WinfreeSystem(BaseSystem):
         spread: float = 0.1,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.K = K
         self.spread = spread
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        oscillators = GroupElement(
-            'oscillators',
-            element=PhaseOscillatorElement,
-            size=self.n_oscillators,
-            values={
-                'theta': np.random.default_rng(self.seed).uniform(0, 2 * np.pi, self.n_oscillators),
-                'omega': np.linspace(1 - self.spread, 1 + self.spread, self.n_oscillators),
-            },
-        )
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Winfree oscillators.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        values = {
+            'theta': np.random.default_rng(self.seed).uniform(0, 2 * np.pi, self.n_oscillators),
+            'omega': np.linspace(1 - self.spread, 1 + self.spread, self.n_oscillators),
+        }
+        self.system_ = System(
             self.label,
-            elements=[oscillators],
+            elements=[Element('oscillators', values=values, size=self.n_oscillators)],
             interactions=[WinfreeMeanFieldInteraction('coupling', target='oscillators', K=self.K)],
         )
 
@@ -247,9 +310,15 @@ class MirolloStrogatzSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import MirolloStrogatzSystem
-        >>> MirolloStrogatzSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> MirolloStrogatzSystem(3).prepare().system_.elements[0].size
         3
     """
 
@@ -268,37 +337,30 @@ class MirolloStrogatzSystem(BaseSystem):
         epsilon: float = 0.1,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.S = S
         self.gamma = gamma
         self.epsilon = epsilon
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return integrate-and-fire oscillators coupled by pulses.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of integrate-and-fire oscillators coupled by pulses.
 
-        The oscillators end up firing in unison.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         charges = np.random.default_rng(self.seed).uniform(0.0, 1.0, self.n_oscillators)
-        oscillators = GroupElement(
-            'oscillators',
-            element=IntegrateAndFireOscillatorElement,
-            size=self.n_oscillators,
-            values={'x': charges, 'S': self.S, 'gamma': self.gamma, 'epsilon': self.epsilon},
+        self.system_ = System(
+            self.label,
+            elements=[IntegrateAndFireOscillatorElement('oscillators', x=charges, size=self.n_oscillators)],
+            interactions=[
+                ChargingInteraction('charging', target='oscillators', S=self.S, gamma=self.gamma),
+                PulseFiringInteraction('fire', target='oscillators', epsilon=self.epsilon),
+            ],
         )
-        fire = CrossingInteraction(
-            'fire',
-            target='oscillators',
-            guard=lambda s: maximum(s.target.x) - 1,
-            reset={
-                'x': lambda s: where(
-                    s.target.x >= maximum(s.target.x),
-                    0,
-                    where(s.target.x + s.target.epsilon >= 1, 0, s.target.x + s.target.epsilon),
-                ),
-            },
-            direction=1,
-        )
-        return CompositeSystem(self.label, elements=[oscillators], interactions=[fire])

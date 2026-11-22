@@ -22,14 +22,14 @@ def test_uniform_keeps_different_names_apart():
 
 
 def test_normal_rejects_names_that_are_not_identifiers():
-    """Test that a draw name must be a Python identifier."""
-    with pytest.raises(ValidationError, match='identifier'):
+    """Test that a draw name must be a valid Python name."""
+    with pytest.raises(ValidationError, match='valid Python name'):
         normal('two words')
 
 
 def test_categorical_rejects_empty_weights():
     """Test that a categorical draw needs at least one weight."""
-    with pytest.raises(ValidationError, match='nonempty'):
+    with pytest.raises(ValidationError, match='at least one weight'):
         categorical('k', [])
 
 
@@ -65,6 +65,7 @@ def test_relaxed_draws_keep_their_relaxation():
     """Test that a relaxed draw keeps its temperature and hard flag, and differs from the exact draw."""
     (found,) = draws_in(bernoulli('flip', 0.5, temperature=0.2, hard=True))
     assert (found.temperature, found.hard) == (0.2, True)
+    assert str(found.call) == 'bernoulli_flip_relaxed0_2_hard(0.5)'
     assert str(bernoulli('flip', 0.5) - bernoulli('flip', 0.5, temperature=0.2)) != '0'
 
 
@@ -81,6 +82,12 @@ def test_relaxed_draws_reject_invalid_relaxations(arguments, match):
 def test_draw_functions_have_one_import_path():
     """Test that the law namespace defines the draw functions and no other public core package exports them."""
     law_utils = importlib.import_module('skcomplex.core.components.laws.utils')
-    specs = importlib.import_module('skcomplex.core.specs')
+    components = importlib.import_module('skcomplex.core.components')
     assert law_utils.uniform.__module__ == 'skcomplex.core.components.laws.utils._draws'
-    assert not any(hasattr(specs, name) for name in ('uniform', 'normal', 'bernoulli', 'categorical', 'draw'))
+    assert not any(hasattr(components, name) for name in ('uniform', 'normal', 'bernoulli', 'categorical', 'draw'))
+
+
+def test_draw_rejects_a_distribution_that_is_not_a_name():
+    """Test that a distribution given as an object, not by its name in `scipy.stats`, raises an error."""
+    with pytest.raises(ValidationError, match="such as 'pareto'"):
+        draw('wait', object())

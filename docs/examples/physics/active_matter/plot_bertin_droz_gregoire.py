@@ -17,10 +17,9 @@ density, which grows exponentially and saturates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.physics.active_matter import BertinDrozGregoireSystem
 
 SYSTEM = 'bertin_droz_gregoire'
@@ -37,11 +36,13 @@ def polar_order(_, values):
     return np.abs(density @ np.exp(1j * THETA)) / density.sum()
 
 
-observables = [ObservableSpec('polar_order', function=polar_order)]
+observables = [Observable('polar_order', function=polar_order)]
 system = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=2 * TRANSITION)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = RK4Solver(dt=0.2)
-trajectory = simulate(system, until=60, solver=solver, dt=1.0, observers=[observer], observables=observables)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=60, dt=1.0, observers=[observer], observables=observables)
+)
 
 # %%
 # The transition to polar order
@@ -57,14 +58,14 @@ ratios = np.array([0.5, 0.8, 1.2, 1.5, 2.0, 3.0, 4.0])
 rates = []
 for ratio in ratios:
     gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION)
-    run = simulate(gas, until=10, solver=solver, dt=10.0, observables=observables)
+    run = gas.set_params(solver=solver).prepare().simulate(until=10, dt=10.0, observables=observables)
     order = run.get_values('polar_order')
     rates.append(np.log(order[-1] / order[0]) / 10)
 above = ratios[ratios > 1]
 orders = []
 for ratio in above:
     gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
-    run = simulate(gas, until=150, solver=solver, dt=150.0, observables=observables)
+    run = gas.set_params(solver=solver).prepare().simulate(until=150, dt=150.0, observables=observables)
     orders.append(run.get_values('polar_order')[-1])
 grid = np.linspace(ratios[0], ratios[-1], 100)
 theory = 8 * 0.5 * (SURVIVAL - 2 / 3) * (grid - 1) * TRANSITION / np.pi

@@ -3,101 +3,88 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
-from ..spaces import ContinuousTime
+from ..spaces._continuous_time import _ContinuousTime
 from ..types import Process, Target
 from ._base import BaseLaw
+from ._requirement_spec import RequirementSpec
 
 NOISE_CONVENTIONS = {'ito': 0.0, 'stratonovich': 0.5, 'anti-ito': 1.0}
 
 
+@dataclass(frozen=True)
 class NoiseLaw(BaseLaw):
-    """A law that gives the amplitude of a noise that drives a derivative of a state.
+    """A law that adds a random change to a time derivative of a value.
 
-    The noise adds `value dW` to the highest time derivative of the target, where `dW` is the increment of a Wiener
-    process, the random walk of continuous time. Without a process, every component and every member gets its own
-    independent process. Laws that name the same process share its increment, so noise can be correlated across states.
+    It shakes a value at random in continuous time, adding `value dW` to the derivative it targets, where `dW` is the
+    random step of a Wiener process over a time step, such as `NoiseLaw(s.stock.p, s.stock.sigma * s.stock.p)` for the
+    random moves of a stock price. A `RateLaw` on the same value gives the mean change, and together they form a
+    stochastic differential equation. Every member and every entry of a vector draws its own random steps, unless laws
+    name the same process and share them. A conserved noise on a lattice moves amounts between neighbouring sites, so
+    the total stays the same, and a Hurst index makes the steps remember the past, as in a fractional Brownian motion.
+    A stock price moves at random, a particle diffuses in a fluid, molecules shake the expression of a gene, and
+    turbulence stirs the temperature of a fluid.
 
-    A conserved noise on a field on a lattice adds the divergence of a random flux, with one process per link between
-    neighbouring sites, so the total of the field changes only by its rate laws. A Hurst index makes the process a
-    fractional Brownian motion, whose increments correlate over the whole run: positively above 1/2 and negatively
-    below. An index of 1/2 gives the Wiener process.
-
-    Unlike `RateLaw`, which adds a deterministic part, it adds a random part, and together they form a stochastic
-    differential equation. Choose it when fluctuations drive the state, not only its mean.
-
-    It appears in many fields. A stock price follows a geometric Brownian motion, a particle diffuses in a fluid,
-    molecular noise shakes gene expression, and turbulence stirs a temperature field.
+    Read more in the user guide, under Laws.
 
     Args:
         target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+            The symbol of a scalar value, a derivative of it such as `x.diff(t)`, or the column of symbols of a vector
+            value.
 
         value:
-            A symbolic expression, a `Call`, or a callable `f(t, values)`. A vector target gets one Wiener process per
-            component.
-
-        order:
-            The order of the derivative the noise drives, checked against the state's order, or `None` to use it.
+            The size of the random change, a symbolic expression, a `CallSpec`, or a function `f(t, values)`. A vector
+            target draws one process per entry.
 
         convention:
-            The stochastic calculus of the law, `'ito'`, `'stratonovich'`, or `'anti-ito'`. The compiler adds the
-            drift correction of the convention, so every solver integrates the Itô form.
+            How the random change reads the value it changes, `'ito'` at the start of the step, `'stratonovich'` at
+            its middle, or `'anti-ito'` at its end. The compiler rewrites the law in the form of `'ito'`, which every
+            solver runs.
 
         process:
-            `None` for independent processes, a label local to the element, a tuple of labels with one per component
-            of a vector target, or the handle `namespace.<role>.dW` or `namespace.<role>.dW[k]` of the processes of a
-            `WienerProcessSpec`.
+            `None` for random steps of its own, a label that laws of the element share, a tuple of labels with one per
+            entry of a vector target, or the random steps `s.process.dW` or `s.process.dW[k]` of a
+            `WienerProcessSpec` that interactions share.
 
         conserved:
-            Whether the noise is the divergence of a random flux on the links of the lattice of a field.
+            Whether the noise moves amounts between neighbouring sites of a lattice, with random steps of its own on
+            every link, so the total of the field changes only by its rate laws.
 
         hurst:
-            The Hurst index `0 < H < 1` of a fractional Brownian motion, a number or a parameter, or `None` for a
-            Wiener process.
+            The Hurst index `0 < H < 1`, a number or a parameter, whose steps go on in the same direction above 1/2
+            and turn back below it, or `None` for independent steps.
 
         label:
             The name of the law, or the empty string for a law without one.
 
+    See Also:
+        RateLaw: Adds the mean change to a derivative of a value.
+        WienerProcessSpec: Random steps that several interactions share.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws import NoiseLaw
-        >>> x = var('x')
-        >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().run({'x': 10.0}).value_
-        2.0
-        >>> D = var('D')
-        >>> NoiseLaw(x, 2 * D, hurst=0.7).hurst
-        0.7
+        >>> p, sigma = var('p sigma')
+        >>> NoiseLaw(p, sigma * p, process='market').value
+        p*sigma
     """
 
     law_tag: ClassVar[str] = 'noise'
 
-    def __init__(
-        self,
-        target: Target,
-        value: object,
-        order: int | None = None,
-        *,
-        convention: str = 'ito',
-        process: Process = None,
-        conserved: bool = False,
-        hurst: object = None,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.value = value
-        self.order = order
-        self.convention = convention
-        self.process = process
-        self.conserved = conserved
-        self.hurst = hurst
+    target: Target
+    value: object
+    _: KW_ONLY
+    convention: str = 'ito'
+    process: Process = None
+    conserved: bool = False
+    hurst: object = None
+    label: str = ''
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the noise drives."""
@@ -106,12 +93,16 @@ class NoiseLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
-        return RequirementSpec(time=(ContinuousTime,))
+        return RequirementSpec(time=(_ContinuousTime,))
+
+    def _get_order(self) -> float | None:
+        """Return the order of the derivative the noise drives, `None` for its state."""
+        return None
 
     def _check_process(self) -> None:
-        """Raise an error for a process that is not a label, labels, or a handle.
+        """Raise an error for a process that is not a label, labels, or shared steps.
 
-        It also raises it for a conserved process, and the labels are a tuple of labels.
+        It also raises it for a conserved noise that names a process.
         """
         process = self.process
         valid = process is None or isinstance(process, str | Expression | FreeModuleElement)
@@ -120,13 +111,13 @@ class NoiseLaw(BaseLaw):
         if not valid:
             error_msg = (
                 f'The process of the noise law of {self.target} is {process!r}. Give a label, a tuple of labels, or '
-                'the handle `namespace.<role>.dW` of a `WienerProcessSpec`.'
+                'the random steps `s.process.dW` of a `WienerProcessSpec`.'
             )
             raise ValidationError(error_msg)
         if self.conserved and process is not None:
             error_msg = (
-                f'The conserved noise law of {self.target} names the process {process!r}, but it draws one process '
-                'per link of the lattice. Remove the process.'
+                f'The conserved noise law of {self.target} names the process {process!r}, but it draws its own '
+                'random steps on every link of the lattice. Remove the process.'
             )
             raise ValidationError(error_msg)
 
@@ -143,28 +134,22 @@ class NoiseLaw(BaseLaw):
         if self.process is not None:
             error_msg = (
                 f'The noise law of {self.target} has a Hurst index and names the process {self.process!r}, but a '
-                'fractional Brownian motion is drawn for the law alone. Remove the process.'
+                'noise with a Hurst index draws its own random steps. Remove the process.'
             )
             raise ValidationError(error_msg)
         if self.conserved:
             error_msg = (
-                f'The conserved noise law of {self.target} has a Hurst index, but a conserved noise is Brownian. '
-                'Remove the Hurst index.'
+                f'The conserved noise law of {self.target} has a Hurst index, but a conserved noise draws '
+                'independent steps. Remove the Hurst index.'
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an array value, an unknown convention, or an invalid process.
+    def _check(self) -> None:
+        """Raise an error for a NumPy array, an unknown convention, or an invalid process.
 
         It also raises it for an invalid Hurst index.
-
-        The array is a NumPy array.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
         """
-        super()._prepare(context)
+        super()._check()
         self._check_array('value')
         if self.convention not in NOISE_CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(NOISE_CONVENTIONS)}.'
@@ -172,11 +157,15 @@ class NoiseLaw(BaseLaw):
         self._check_process()
         self._check_hurst()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the amplitude at given values of the symbols it reads.
+    def _get_value(self, inputs: object) -> object:
+        """Return the amplitude at given values of the symbols it reads.
 
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
+
+        Returns:
+            amplitude:
+                The amplitude of the noise.
         """
-        self.value_ = self._evaluate(self.value, inputs)
+        return self._evaluate(self.value, inputs)

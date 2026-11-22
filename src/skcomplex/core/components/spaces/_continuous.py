@@ -1,4 +1,4 @@
-"""Define the space of real positions, a box with a boundary or the whole of `R^d`."""
+"""Define the space of real positions, a box with walls or with no edges."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,27 +15,21 @@ from ...errors import SpaceError, ValidationError
 from ._base import BaseNeighborhood, BaseSpace
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')
+AXES = ('x', 'y', 'z')
 REGION_DIMENSIONS = 2
 
 
 class ContinuousSpace(BaseSpace):
     """A space of real positions, a box with a boundary or the whole of `R^d`.
 
-    A box runs from 0 to `extent` along every dimension. Its `boundary` acts on every position state of the members:
+    Members move to any real position, and a value named after an axis is the position along it, such as `x` in
+    `Element('walker', values={'x': 0.0}, space=ContinuousSpace(n_dim=1))`. The axes are `x`, `y`, and `z`, or `x0`,
+    `x1`, and so on beyond three dimensions. A box runs from 0 to `extent` along every dimension, and without an extent
+    the space has no edges. The space has no sites, since the positions are values of the members. A plane can hold
+    named regions of a map, which agents start in, move to, and ask about. Atoms move in the box of a gas, birds fly in
+    a flock, pedestrians walk through a station, and households live in the districts of a city.
 
-    - `'open'`: positions stay as they are.
-    - `'periodic'`: opposite sides join, and pair distances use the nearest periodic image.
-    - `'reflecting'`: positions mirror back into the box and the velocity across the wall reverses.
-
-    Without an extent the space is unbounded and has `n_dim` dimensions. The positions are states of the members, so the
-    space has no sites. A space of two dimensions can hold layers of `regions`, the polygons of a map, which agents are
-    placed in, moved to, and ask about.
-
-    Unlike `LatticeSpace`, whose sites are fixed, it lets members move to any real position. Choose it when members move
-    freely, such as particles or animals.
-
-    It appears in many fields. Atoms move in a box of a gas, birds fly in a flock, pedestrians walk through a station,
-    and households live in the districts of a map.
+    Read more in the user guide, under Spaces.
 
     Args:
         extent:
@@ -45,10 +39,14 @@ class ContinuousSpace(BaseSpace):
             The number of dimensions of an unbounded space, or `None` for the number of sides of the box.
 
         boundary:
-            `'open'`, `'periodic'`, or `'reflecting'`.
+            What happens at the walls of the box. Positions stay as they are with `'open'`. Opposite sides join with
+            `'periodic'`, and distances use the nearest copy across a wall. Positions mirror back into the box with
+            `'reflecting'`, and the velocity across the wall reverses.
 
         regions:
-            The polygons of every layer of regions by the name of the layer, or `None` for no layers.
+            The polygon of every region, or the polygons of every layer of regions, by name, or `None` for no regions.
+            A region is one polygon, such as `{'tract_1': polygon}`, and a layer is a list, such as
+            `{'parks': [first, second]}`. Agents whose value `region` names a region start at a random point inside it.
 
         label:
             The name of the space in its system, such as `'grid'`.
@@ -57,25 +55,27 @@ class ContinuousSpace(BaseSpace):
         extent_:
             The side of the box along every dimension, or `()` for an unbounded space.
 
+        axes_:
+            The names of the axes, such as `('x', 'y')` in two dimensions.
+
         regions_:
-            The Shapely `STRtree` of the polygons of every layer of regions by the name of the layer.
+            The Shapely `STRtree` of the polygons of every region or layer of regions by name, one polygon for a region.
 
     Raises:
         SpaceError:
             A region is not a valid polygon in two dimensions, or the space has regions and other than two dimensions,
             raised by `prepare`.
 
+    See Also:
+        LatticeSpace: Places members on fixed sites of a grid.
+        RadiusNeighborhood: Picks the members within a distance in the box.
+        NearestNeighborhood: Picks the closest members in the box.
+
     Examples:
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> ContinuousSpace(extent=(10.0, 5.0), boundary='periodic').prepare().extent_
-        (10.0, 5.0)
-        >>> ContinuousSpace(n_dim=3).prepare().n_dim_
-        3
-        >>> from shapely import Point, box
-        >>> layers = {'parks': [box(0.0, 0.0, 1.0, 1.0), box(2.0, 2.0, 3.0, 3.0)]}
-        >>> space = ContinuousSpace(extent=(5.0, 5.0), regions=layers).prepare()
-        >>> space.regions_['parks'].query(Point(2.5, 2.5), predicate='intersects').tolist()
-        [1]
+        >>> space = ContinuousSpace(extent=(10.0, 5.0), boundary='periodic').prepare()
+        >>> space.extent_, space.axes_
+        ((10.0, 5.0), ('x', 'y'))
     """
 
     space_tags: ClassVar[tuple[str, ...]] = ('continuous',)
@@ -86,7 +86,7 @@ class ContinuousSpace(BaseSpace):
         *,
         n_dim: int | None = None,
         boundary: str = 'open',
-        regions: Mapping[str, Sequence[Polygon]] | None = None,
+        regions: Mapping[str, Polygon | Sequence[Polygon]] | None = None,
         label: str = 'space',
     ) -> None:
         super().__init__(label)
@@ -106,9 +106,9 @@ class ContinuousSpace(BaseSpace):
             raise SpaceError(error_msg)
 
     def _get_regions(self) -> dict[str, STRtree]:
-        """Return the index of every layer of regions.
+        """Return the index of every region or layer of regions.
 
-        It checks the regions and the dimension of the space first.
+        It checks the regions and the dimension of the space first. A named region is a layer of one polygon.
         """
         layers = self.regions or {}
         if layers and self.n_dim_ != REGION_DIMENSIONS:
@@ -117,10 +117,11 @@ class ContinuousSpace(BaseSpace):
                 f'Give the space {REGION_DIMENSIONS} dimensions.'
             )
             raise SpaceError(error_msg)
-        for layer, regions in layers.items():
+        polygons = {name: [region] if isinstance(region, Polygon) else list(region) for name, region in layers.items()}
+        for layer, regions in polygons.items():
             for index, region in enumerate(regions):
                 self._check_region(layer, index, region)
-        return {layer: STRtree(list(regions)) for layer, regions in layers.items()}
+        return {layer: STRtree(regions) for layer, regions in polygons.items()}
 
     def _prepare(self, context: None = None) -> None:
         """Set the extent, the dimension, the boundary, and the region index of the box.
@@ -147,6 +148,8 @@ class ContinuousSpace(BaseSpace):
             raise ValidationError(error_msg)
         self.extent_ = tuple(float(side) for side in self.extent)
         self.n_dim_ = int(self.n_dim) if self.n_dim is not None else len(self.extent_)
+        many = self.n_dim_ > len(AXES)
+        self.axes_ = tuple(f'x{axis}' for axis in range(self.n_dim_)) if many else AXES[: self.n_dim_]
         self.size_ = None
         self.shape_ = ()
         self.positions_ = np.zeros((0, self.n_dim_))

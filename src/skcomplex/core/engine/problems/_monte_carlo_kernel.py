@@ -8,18 +8,25 @@ from collections.abc import Callable, Mapping
 import numpy as np
 import scipy.sparse
 
-from ...components.specs import LatticeStateSpec
+from ...components.laws import MoveSpec, SamplerSpec
 from ...errors import SolverError
-from ...specs import ArgumentsSpec, MoveSpec, RunStateSpec, SamplerSpec
 from ...types import Array, Indices
+from ._arguments_spec import _ArgumentsSpec
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
+from ._lattice_state_spec import _LatticeStateSpec
+from ._run_state_spec import RunStateSpec
 
 
 class MonteCarloKernel(BaseKernel):
-    """A kernel of the Monte Carlo sampling of a lattice state.
+    """A kernel of Monte Carlo moves on a lattice, accepted by the change they cause.
 
-    It is compiled from its local objective, move, and sampler.
+    At every step it proposes moves of the sites, such as flipping a spin, computes the change of the local objective
+    each move would cause, and accepts it with a probability that falls with that change, by the Metropolis, heat bath,
+    or cluster rules, on all sites at once in a checkerboard pattern or one by one. It samples the spins of a magnet,
+    the opinions of a society, and the alleles of a population.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         owner:
@@ -61,6 +68,15 @@ class MonteCarloKernel(BaseKernel):
 
         signs:
             For a local objective over cofaces, the sign of every coface of every cell, which `table` then lists.
+
+    See Also:
+        RuleKernel: Runs a local rule of a lattice.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+        >>> kernel = IsingSystem().prepare().simulate(until=0).problem.lattice[0]
+        >>> kernel.sampler.kind, kernel.move.kind
+        ('metropolis', 'flip')
     """
 
     values_: None
@@ -68,10 +84,10 @@ class MonteCarloKernel(BaseKernel):
     def __init__(
         self,
         owner: str,
-        target: LatticeStateSpec,
+        target: _LatticeStateSpec,
         table: Indices,
         delta: Callable[..., object],
-        arguments: ArgumentsSpec,
+        arguments: _ArgumentsSpec,
         *,
         intensity: Callable[..., object],
         move: MoveSpec,
@@ -115,7 +131,7 @@ class MonteCarloKernel(BaseKernel):
             neighbours = np.hstack([around, signs])
             masks = (rows != self.boundary.shape[0]).astype(float).T
         change = ExpressionPrinter._get_values_of(
-            self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values()),
+            self.delta(self.time_, values, *neighbours.T, proposal, *masks, *keywords.values()),
         )[0]
         return np.broadcast_to(np.asarray(change, dtype=float), values.shape)
 
@@ -165,9 +181,9 @@ class MonteCarloKernel(BaseKernel):
         if self.bond is None:
             error_msg = f'The Monte Carlo laws of {self.owner} make cluster moves without the objective of a bond.'
             raise SolverError(error_msg)
-        bond = ExpressionPrinter._get_values_of(self.bond(0.0, values[sites][:, None], neighbours, *keywords.values()))[
-            0
-        ]
+        bond = ExpressionPrinter._get_values_of(
+            self.bond(self.time_, values[sites][:, None], neighbours, *keywords.values()),
+        )[0]
         bonds = np.broadcast_to(np.asarray(bond, dtype=float), rows.shape)
         with np.errstate(over='ignore'):
             probability = 1.0 - np.exp(np.minimum(self._get_scaled(bonds, intensity), 0.0))
@@ -224,7 +240,7 @@ class MonteCarloKernel(BaseKernel):
         x[self.target.start + sites[accepted]] = proposal[accepted]
 
     @property
-    def targets(self) -> tuple[LatticeStateSpec, ...]:
+    def targets(self) -> tuple[_LatticeStateSpec, ...]:
         """Lattice state the move changes, as the one target of the step."""
         return (self.target,)
 

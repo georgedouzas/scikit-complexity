@@ -3,25 +3,30 @@
 The package covers pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps.
 """
 
-from ..common.mechanics import PendulumElement, PendulumInteraction
-from ..common.particles import HarmonicForceInteraction
-from ._accelerators import BeamBeamMapSystem, FrictionOscillatorSystem
+from ._accelerators import BeamBeamInteraction, BeamBeamMapSystem, FrictionOscillatorSystem, StickSlipInteraction
 from ._mechanics import (
     BouncingBallElement,
     BouncingBallSystem,
     CircularBilliardSystem,
     DiscBilliardElement,
+    DiscWallInteraction,
     DrivenDampedOscillatorSystem,
     ElasticCollisionInteraction,
+    FloorImpactInteraction,
+    FreeFlightInteraction,
     HangingBallElement,
+    HangingSwingInteraction,
     HarmonicOscillatorSystem,
     NewtonsCradleSystem,
     PendulumSystem,
     ProjectileSystem,
+    UniformGravityInteraction,
 )
 from ._pendulums import (
     BallisticPendulumElement,
     BallisticPendulumSystem,
+    BlockSwingInteraction,
+    BulletImpactInteraction,
     CartPendulumElement,
     CartPendulumInteraction,
     CartPendulumSystem,
@@ -49,16 +54,20 @@ from ._rotations import (
     RotatingSwingElement,
     RotatingSwingInteraction,
     RotatingSwingSystem,
+    RotationInteraction,
 )
-from ._springs import TwoMassSpringDamperSystem
+from ._springs import ElasticLinkInteraction, TwoMassSpringDamperSystem
 from ._wells import ExponentialWellInteraction, ParticleInAWellSystem
 
 __all__: list[str] = [
     'BallisticPendulumElement',
     'BallisticPendulumSystem',
+    'BeamBeamInteraction',
     'BeamBeamMapSystem',
+    'BlockSwingInteraction',
     'BouncingBallElement',
     'BouncingBallSystem',
+    'BulletImpactInteraction',
     'CartPendulumElement',
     'CartPendulumInteraction',
     'CartPendulumSystem',
@@ -67,18 +76,22 @@ __all__: list[str] = [
     'ClockPendulumInteraction',
     'CoupledPendulumsSystem',
     'DiscBilliardElement',
+    'DiscWallInteraction',
     'DoublePendulumElement',
     'DoublePendulumInteraction',
     'DoublePendulumSystem',
     'DrivenDampedOscillatorSystem',
     'ElasticCollisionInteraction',
+    'ElasticLinkInteraction',
     'ExponentialWellInteraction',
+    'FloorImpactInteraction',
+    'FreeFlightInteraction',
     'FrictionOscillatorSystem',
     'GimballedGyroscopeSystem',
     'GyroscopeElement',
     'GyroscopeInteraction',
     'HangingBallElement',
-    'HarmonicForceInteraction',
+    'HangingSwingInteraction',
     'HarmonicOscillatorSystem',
     'HuygensClocksSystem',
     'MagnetInteraction',
@@ -88,8 +101,6 @@ __all__: list[str] = [
     'ParametricPendulumInteraction',
     'ParametricPendulumSystem',
     'ParticleInAWellSystem',
-    'PendulumElement',
-    'PendulumInteraction',
     'PendulumSpringInteraction',
     'PendulumSystem',
     'ProjectileSystem',
@@ -98,6 +109,9 @@ __all__: list[str] = [
     'RotatingSwingElement',
     'RotatingSwingInteraction',
     'RotatingSwingSystem',
+    'RotationInteraction',
+    'StickSlipInteraction',
     'SupportSpringInteraction',
     'TwoMassSpringDamperSystem',
+    'UniformGravityInteraction',
 ]

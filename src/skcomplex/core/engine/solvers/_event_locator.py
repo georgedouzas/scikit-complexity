@@ -9,21 +9,37 @@ import numpy as np
 from scipy.optimize import brentq
 
 from ...errors import SolverError
-from ...specs import BaseRecordSpec, EventRecordSpec, RunStateSpec
 from ...types import Array
-from ..problems import ProblemSpec
+from ..problems import BaseRecordSpec, ProblemSpec, RunStateSpec
 from ..problems._event_kernel import EventKernel
 from ..types import Interpolant
+from ._event_record_spec import _EventRecordSpec
 
 SEPARATION = 1e-10
 
 
 class EventLocator:
-    """A locator of events between two times of a step, which applies their resets.
+    """A locator of the events within a step, which applies their resets.
+
+    It finds where the guard of an event crosses zero between two times of a step, such as a ball whose height reaches
+    0, applies the reset of the event, such as reversing the velocity, and keeps a record of each event that fired. It
+    finds the bounces of a ball, the spikes of a neuron, and the defaults of a bank.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         problem:
             The compiled problem.
+
+    See Also:
+        Solver: Runs the events of its problems with it.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers._event_locator import EventLocator
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> EventLocator(problem).records
+        []
     """
 
     def __init__(self, problem: ProblemSpec) -> None:
@@ -174,7 +190,7 @@ class EventLocator:
         self._last[(event.label, member)] = time
         single = event if member is None else self._get_member_event(event, member)
         after = single.run(RunStateSpec(time, state, p)).values_
-        self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
+        self.records.append(_EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
         if event.terminal:
             self.stopped_at = time
         return after

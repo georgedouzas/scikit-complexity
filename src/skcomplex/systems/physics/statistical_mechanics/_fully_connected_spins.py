@@ -7,43 +7,67 @@ The module covers the Curie-Weiss magnet and the Sherrington-Kirkpatrick glass.
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import ZZ, Expression, exp, oo
+from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, JumpLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import count, mean, total, where
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ....core.types import Array
-
-SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class FullyConnectedSpinElement(Element):
-    """Ising spin coupled to every other spin.
-
-    The spin flips at the Glauber rate `1 / (1 + exp(2 s h / T))`.
-
-    The local field is `h = J (sum_{j != i} s_j) / N + h_ext` of the Curie-Weiss energy `-(J / N) sum_{i<j} s_i s_j`,
-    or `h = J sum_j C_ij s_j + h_ext` with a symmetric coupling matrix `C` of zero diagonal. The rate satisfies
-    detailed balance with the Boltzmann distribution at the temperature `T`.
+    """Ising spins of 1 or -1, each coupled to every other spin.
 
     Args:
         label:
             The label of the spin or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         spin:
-            The initial spin, 1 or -1.
+            The initial spin, 1 or -1, or one spin per site.
+
+        space:
+            The row of sites of the spins, or `None` for one spin.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import FullyConnectedSpinElement
+        >>> FullyConnectedSpinElement('spin').spin
+        1.0
+    """
+
+    visual = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
+
+    def __init__(self, label: str, *, spin: object = 1.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
+        self.spin = spin
+
+
+class GlauberFlipInteraction(Interaction):
+    """Glauber flips of fully connected Ising spins.
+
+    A spin flips at the rate `1 / (1 + exp(2 s h / T))`. The local field is `h = J (sum_{j != i} s_j) / N + h_ext` of
+    the Curie-Weiss energy `-(J / N) sum_{i<j} s_i s_j`, or `h = J sum_j C_ij s_j + h_ext` with a symmetric coupling
+    matrix `C` of zero diagonal. The rate satisfies detailed balance with the Boltzmann distribution at the temperature
+    `T`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spins.
 
         J:
             The scale of the couplings.
@@ -58,8 +82,8 @@ class FullyConnectedSpinElement(Element):
             The coupling matrix `C`, one row and one column per spin, or `None` for the uniform couplings `1 / N`.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import FullyConnectedSpinElement
-        >>> FullyConnectedSpinElement('spin').temperature
+        >>> from skcomplex.systems.physics.statistical_mechanics import GlauberFlipInteraction
+        >>> GlauberFlipInteraction('flips', target='spins').temperature
         0.5
     """
 
@@ -68,16 +92,15 @@ class FullyConnectedSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        target: Role,
+        J: float = 1.0,
+        h: float = 0.0,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 0.5,
         couplings: npt.ArrayLike | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.spin = spin
+        super().__init__(label)
+        self.target = target
         self.J = J
         self.h = h
         self.temperature = temperature
@@ -85,28 +108,27 @@ class FullyConnectedSpinElement(Element):
 
     def _get_field(self, s: SimpleNamespace) -> Expression:
         """Return the local field of a spin, without its own contribution."""
+        spin = s.target.spin
         if self.couplings is None:
-            return s.J * (mean(s.spin) - s.spin / count()) + s.h
-        return s.J * total(s.spin, weights=np.asarray(self.couplings, dtype=float)) + s.h
+            return s.J * (mean(spin) - spin / count()) + s.h
+        return s.J * total(spin, weights=np.asarray(self.couplings, dtype=float)) + s.h
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flips of up spins and of down spins at the Glauber rate.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flips of up spins and of down spins at the Glauber rate.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        rate = 1 / (1 + exp(2 * s.spin * self._get_field(s) / s.temperature))
-        return [JumpLaw(where(s.spin > 0, rate, 0), {s.spin: -2}), JumpLaw(where(s.spin < 0, rate, 0), {s.spin: 2})]
+        super()._prepare(context)
+        spin = context.target.spin
+        rate = 1 / (1 + exp(2 * spin * self._get_field(context) / context.temperature))
+        self.laws_ = [JumpLaw(where(spin > 0, rate, 0), {spin: -2}), JumpLaw(where(spin < 0, rate, 0), {spin: 2})]
 
 
-def _get_magnetization() -> ObservableSpec:
+def _get_magnetization() -> Observable:
     """Return the observable of the mean spin of the group `spins`."""
-    return ObservableSpec('magnetization', group='spins', variable='spin')
+    return Observable('magnetization', group='spins', variable='spin')
 
 
 class CurieWeissSystem(BaseSystem):
@@ -141,10 +163,17 @@ class CurieWeissSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem
-        >>> CurieWeissSystem(10).prepare().system_.elements[0].prepare().size_
-        10
+        >>> trajectory = CurieWeissSystem(10).prepare().simulate(until=0.2, random_state=0)
+        >>> trajectory.get_values('spins.spin').shape
+        (3, 10)
     """
 
     field = 'physics/statistical_mechanics'
@@ -171,8 +200,10 @@ class CurieWeissSystem(BaseSystem):
         initial: str = 'random',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_spins = n_spins
         self.temperature = temperature
         self.J = J
@@ -180,18 +211,22 @@ class CurieWeissSystem(BaseSystem):
         self.initial = initial
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the spins and their Glauber flips.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         spins = CurieWeissSystem._get_initial_spins(self.n_spins, self.initial, self.random_state)
-        group = GroupElement(
-            'spins',
-            element=FullyConnectedSpinElement,
-            space=LatticeSpace(self.n_spins),
-            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
-            visual=SPIN_IMAGE,
-            on='sites',
+        self.system_ = System(
+            self.label,
+            elements=[FullyConnectedSpinElement('spins', spin=spins, space=LatticeSpace(self.n_spins))],
+            interactions=[
+                GlauberFlipInteraction('flips', target='spins', J=self.J, h=self.h, temperature=self.temperature),
+            ],
         )
-        return CompositeSystem(self.label, elements=[group])
 
 
 class SherringtonKirkpatrickSystem(BaseSystem):
@@ -202,7 +237,7 @@ class SherringtonKirkpatrickSystem(BaseSystem):
     The energy is `-sum_{i<j} J_ij s_i s_j - h sum_i s_i` with quenched Gaussian couplings `J_ij` of mean 0 and variance
     `J^2 / N`, drawn once. Above `T_c` the energy per spin is `-J^2 / (2 T)`, and below it the spins freeze in random
     directions, with no magnetization. The spins are drawn in a row, which orders the drawing only. The system has the
-    spins `spins.spin`, the coupling matrix of unit scale in the values of the group, and the observable
+    spins `spins.spin`, the coupling matrix of unit scale in the interaction `flips`, and the observable
     `magnetization`.
 
     Args:
@@ -224,9 +259,15 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import SherringtonKirkpatrickSystem
-        >>> couplings = SherringtonKirkpatrickSystem(10).prepare().system_.elements[0].values['couplings']
+        >>> couplings = SherringtonKirkpatrickSystem(10).prepare().system_.interactions[0].couplings
         >>> bool((couplings == couplings.T).all()), float(couplings.trace())
         (True, 0.0)
     """
@@ -247,31 +288,37 @@ class SherringtonKirkpatrickSystem(BaseSystem):
         h: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_spins = n_spins
         self.temperature = temperature
         self.J = J
         self.h = h
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the spins and their Glauber flips on quenched Gaussian couplings.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
         spins = CurieWeissSystem._get_initial_spins(self.n_spins, 'random', rng)
-        group = GroupElement(
-            'spins',
-            element=FullyConnectedSpinElement,
-            space=LatticeSpace(self.n_spins),
-            values={
-                'spin': spins,
-                'J': self.J,
-                'h': self.h,
-                'temperature': self.temperature,
-                'couplings': upper + upper.T,
-            },
-            visual=SPIN_IMAGE,
-            on='sites',
+        flips = GlauberFlipInteraction(
+            'flips',
+            target='spins',
+            J=self.J,
+            h=self.h,
+            temperature=self.temperature,
+            couplings=upper + upper.T,
         )
-        return CompositeSystem(self.label, elements=[group])
+        self.system_ = System(
+            self.label,
+            elements=[FullyConnectedSpinElement('spins', spin=spins, space=LatticeSpace(self.n_spins))],
+            interactions=[flips],
+        )

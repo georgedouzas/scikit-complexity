@@ -17,7 +17,6 @@ import functools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import calibrate_individuals, identifiability, virtual_population
 from skcomplex.systems.biology.oncology import ImmunoOncologyQspSystem
@@ -33,8 +32,8 @@ BOUNDS = {
 FITTED = {'growth': (0.005, 0.1), 'kill': (1e-11, 5e-10)}
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ImmunoOncologyQspSystem(), observers=[observer])
-untreated = simulate(ImmunoOncologyQspSystem(dose=0.0))
+trajectory = ImmunoOncologyQspSystem().prepare().simulate(observers=[observer])
+untreated = ImmunoOncologyQspSystem(dose=0.0).prepare().simulate()
 
 # %%
 # Treatment and the antibody
@@ -110,7 +109,7 @@ truth = {name: float(chosen[name]) for name in BOUNDS}
 known = {name: value for name, value in truth.items() if name not in FITTED}
 days = np.arange(0.0, 181.0, 7.0)
 rng = np.random.default_rng(2)
-diameters = simulate(patient(**truth), until=180.0, dt=1.0).get_values('diameter')
+diameters = patient(**truth).prepare().simulate(until=180.0, dt=1.0).get_values('diameter')
 noisy = diameters[days.astype(int)] * (1 + 0.02 * rng.standard_normal(days.size))
 data = {'diameter': (days, noisy)}
 profile = identifiability(
@@ -146,7 +145,7 @@ twins = calibrate_individuals(
     known={'patient': known},
     random_state=0,
 )
-fitted = simulate(twins.calibrations['patient'].system, until=180.0, dt=1.0)
+fitted = twins.calibrations['patient'].system.prepare().simulate(until=180.0, dt=1.0)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(days, noisy, 'o', color='black', label='measured')
 ax.plot(fitted.times, fitted.get_values('diameter'), color='tab:green', label='digital twin')

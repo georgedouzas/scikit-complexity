@@ -7,292 +7,199 @@ The module covers sample-space-reducing processes, their cascades, and fragmenta
 # License: MIT
 
 import math
-from typing import Annotated
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated, Protocol
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ...general.agents import BirthDeathInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class CascadingBallView(AgentView):
-    """View of a ball of a cascading sample-space-reducing process.
-
-    The view has the states and parameters of the ball as attributes.
-    """
+class BallView(AgentViewProtocol, Protocol):
+    """View of a ball of a sample-space-reducing process, with its values as attributes."""
 
     level: float
-    mu: float
 
 
-class CascadingBallElement(Element):
-    """Ball of a cascading sample-space-reducing process.
-
-    The ball multiplies into `mu` balls at every state it hits.
+class BallElement(Element):
+    """Balls of a sample-space-reducing process, each at its state `level`.
 
     Args:
         label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the balls.
 
         level:
-            The initial state.
+            The initial state, one per ball or shared.
+
+        size:
+            The number of balls, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BallElement
+        >>> BallElement('balls', level=10.0, size=3).level
+        10.0
+    """
+
+    visual = VisualSpec('agents', {'color_by': 'level'})
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        level: Annotated[object, NN] = 10.0,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.level = level
+
+
+class CascadeInteraction(Interaction):
+    """Cascade of balls that multiply by `mu` as they jump to lower states.
+
+    At every step a ball at state 1 leaves the cascade, and any other ball becomes `floor(mu)` balls, and one more with
+    the probability of the rest, each at a state drawn uniformly below its own.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The balls of the cascade.
 
         mu:
             The mean number of balls a ball becomes at every jump, the multiplication factor.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.mathematics.stochastic_processes import CascadingBallElement
-        >>> group = GroupElement('balls', element=CascadingBallElement, size=5, values={'mu': 2.0})
-        >>> group.label, group.element.__name__, group.size
-        ('balls', 'CascadingBallElement', 5)
+        >>> from skcomplex.systems.mathematics.stochastic_processes import CascadeInteraction
+        >>> CascadeInteraction('cascade', mu=2.0).mu
+        2.0
     """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'balls', mu: float = 1.5) -> None:
+        super().__init__(label)
+        self.target = target
+        self.mu = mu
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the jump of every ball as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._jump)]
+
+    def _jump(self, agent: BallView, system: SystemView) -> None:
+        """Replace a ball by its offspring at lower states, or remove it at state 1."""
+        if agent.level > 1:
+            whole = math.floor(self.mu)
+            for _ in range(whole + int(system.rng.random() < self.mu - whole)):
+                agent.create(level=float(system.rng.integers(1, round(agent.level))))
+        agent.remove()
+
+
+class FragmentView(AgentViewProtocol, Protocol):
+    """View of a fragment, with its values as attributes."""
+
+    length: float
+
+
+class FragmentElement(Element):
+    """Fragments of integer sizes, each with its size `length`.
+
+    Args:
+        label:
+            The label of the fragments.
+
+        length:
+            The initial size, one per fragment or shared.
+
+        size:
+            The number of fragments, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import FragmentElement
+        >>> FragmentElement('fragments', length=100.0).length
+        100.0
+    """
+
+    visual = VisualSpec('agents', {'color_by': 'length'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
         *,
-        level: Annotated[float, StateSpec(domain=NN)] = 100.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        length: Annotated[object, RealSet.open(0, oo)] = 1000.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.level = level
-        self.mu = mu
-
-    @classmethod
-    def _get_view(cls) -> type[CascadingBallView]:
-        """Return the view of the agents.
-
-        The view types their states and parameters.
-        """
-        return CascadingBallView
-
-    @staticmethod
-    def stops(agent: CascadingBallView, system: SystemView) -> bool:
-        """Return whether a ball has reached the ground state 1, where its cascade ends.
-
-        Args:
-            agent:
-                The ball.
-
-            system:
-                The system.
-
-        Returns:
-            stopped:
-                Whether the ball is at state 1.
-        """
-        return agent.level <= 1
-
-    @staticmethod
-    def multiplies(agent: CascadingBallView, system: SystemView) -> int:
-        """Return the number of balls a ball becomes.
-
-        The number is `floor(mu)`, and one more with the probability of the rest.
-
-        Args:
-            agent:
-                The ball.
-
-            system:
-                The system.
-
-        Returns:
-            count:
-                The number of new balls, of mean `mu`.
-        """
-        whole = math.floor(agent.mu)
-        return whole + int(system.rng.random() < agent.mu - whole)
-
-    @staticmethod
-    def jumps(agent: CascadingBallView, system: SystemView) -> dict[str, float]:
-        """Return the state of a new ball, drawn uniformly below the state of its parent.
-
-        Args:
-            agent:
-                The parent ball.
-
-            system:
-                The system.
-
-        Returns:
-            values:
-                The state of the new ball.
-        """
-        return {'level': float(system.rng.integers(1, round(agent.level)))}
+        super().__init__(label, size=size)
+        self.length = length
 
 
-class FragmentView(AgentView):
-    """View of a fragment, with its states and parameters as attributes."""
+class BreakingInteraction(Interaction):
+    """Breaking of every fragment larger than 1 with the probability `rate` at a uniformly random whole point.
 
-    length: float
-    rate: float
-
-
-class FragmentElement(Element):
-    """Fragment of integer size.
-
-    The breaking of the system cuts the fragment at a uniformly random point into two fragments.
+    The fragment keeps the size left of the cut, and a new fragment takes the rest, so the total size stays the same.
 
     Args:
         label:
-            The label of the agent or group.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        length:
-            The initial size.
+        target:
+            The fragments that break.
 
         rate:
             The probability that a fragment larger than 1 breaks in a step.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.mathematics.stochastic_processes import FragmentElement
-        >>> group = GroupElement('fragments', element=FragmentElement, size=1, values={'length': 100.0})
-        >>> group.label, group.element.__name__, group.size
-        ('fragments', 'FragmentElement', 1)
+        >>> from skcomplex.systems.mathematics.stochastic_processes import BreakingInteraction
+        >>> BreakingInteraction('breaking', rate=0.2).rate
+        0.2
     """
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'length'}),
-        *,
-        length: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.length = length
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role = 'fragments', rate: float = 0.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.rate = rate
 
-    @classmethod
-    def _get_view(cls) -> type[FragmentView]:
-        """Return the view of the agents.
-
-        The view types their states and parameters.
-        """
-        return FragmentView
-
-    @staticmethod
-    def breaks(agent: FragmentView, system: SystemView) -> float:
-        """Return the probability that a fragment breaks in a step, zero at size 1.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the breaking of every fragment as the rule.
 
         Args:
-            agent:
-                The fragment.
-
-            system:
-                The system.
-
-        Returns:
-            probability:
-                The breaking probability, or zero for a fragment of size 1.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return agent.rate if round(agent.length) > 1 else 0.0
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._split)]
 
-    @staticmethod
-    def cut(agent: FragmentView, system: SystemView) -> float:
-        """Return the share of a breaking fragment that stays with it.
-
-        The fragment is cut at a uniformly random whole point.
-
-        Args:
-            agent:
-                The fragment.
-
-            system:
-                The system.
-
-        Returns:
-            share:
-                The share of the size left of the cut.
-        """
+    def _split(self, agent: FragmentView, system: SystemView) -> None:
+        """Cut a fragment in two with the probability `rate`, unless it has size 1."""
         length = round(agent.length)
-        return int(system.rng.integers(1, length)) / length
+        if length > 1 and system.rng.random() < self.rate:
+            kept = int(system.rng.integers(1, length))
+            agent.length = float(kept)
+            agent.create(length=float(length - kept))
 
 
-class ReducingBallView(AgentView):
-    """View of a ball of a sample-space-reducing process.
-
-    The view has the states and parameters of the ball as attributes.
-    """
-
-    level: float
-    n_states: float
-    lam: float
-
-
-class ReducingBallElement(Element):
-    """Ball of the sample-space-reducing process.
-
-    The reducing jump moves its state to a random lower state.
-
-    With probability `lam` the jump takes the ball uniformly to a state below its own, and otherwise uniformly to any
-    state, and the ball restarts from the top state after it reaches state 1.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        level:
-            The initial state, from 1 to `n_states`.
-
-        n_states:
-            The number of states.
-
-        lam:
-            The probability of a reducing jump.
-
-    Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.mathematics.stochastic_processes import ReducingBallElement
-        >>> group = GroupElement('balls', element=ReducingBallElement, size=3, values={'n_states': 10.0})
-        >>> group.label, group.element.__name__, group.size
-        ('balls', 'ReducingBallElement', 3)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'level'}),
-        *,
-        level: Annotated[float, StateSpec(domain=NN)] = 10.0,
-        n_states: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.level = level
-        self.n_states = n_states
-        self.lam = lam
-
-    @classmethod
-    def _get_view(cls) -> type[ReducingBallView]:
-        """Return the view of the agents.
-
-        The view types their states and parameters.
-        """
-        return ReducingBallView
-
-
-class ReducingJumpInteraction(MapInteraction):
-    """Jump of the sample-space-reducing process.
-
-    The ball jumps to a random lower state, to any state, or back to the top state.
+class ReducingJumpInteraction(Interaction):
+    """Jump of a ball of the sample-space-reducing process to a lower state, to any state, or back to the top state.
 
     A ball at state 1 restarts from the top state `n_states`. Otherwise it jumps with probability `lam` uniformly to a
     state below its own, and else uniformly to any state, so the states are visited with probabilities proportional to
@@ -303,27 +210,48 @@ class ReducingJumpInteraction(MapInteraction):
             The label of the interaction.
 
         target:
-            The path of the group of balls.
+            The balls that jump.
+
+        n_states:
+            The number of states.
+
+        lam:
+            The probability of a reducing jump.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import ReducingJumpInteraction
-        >>> ReducingJumpInteraction('jump', target='balls').state
-        'level'
+        >>> ReducingJumpInteraction('jump', n_states=20).n_states
+        20
     """
 
+    law_classes = (UpdateLaw,)
     draws = True
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='level', function=self._get_level, form='agent')
+    def __init__(self, label: str, *, target: Role = 'balls', n_states: int = 10, lam: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.n_states = n_states
+        self.lam = lam
 
-    def _get_level(self, agent: ReducingBallView, system: SystemViewProtocol) -> float:
-        """Return the next state of a ball."""
-        top = round(agent.n_states)
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the jump of every ball as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._jump)]
+
+    def _jump(self, agent: BallView, system: SystemView) -> None:
+        """Move a ball to its next state."""
+        top = round(self.n_states)
         if agent.level <= 1:
-            return float(top)
-        if system.rng.random() < agent.lam:
-            return float(system.rng.integers(1, round(agent.level)))
-        return float(system.rng.integers(1, top + 1))
+            agent.level = float(top)
+        elif system.rng.random() < self.lam:
+            agent.level = float(system.rng.integers(1, round(agent.level)))
+        else:
+            agent.level = float(system.rng.integers(1, top + 1))
 
 
 class SampleSpaceReducingSystem(BaseSystem):
@@ -346,9 +274,15 @@ class SampleSpaceReducingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import SampleSpaceReducingSystem
-        >>> SampleSpaceReducingSystem(4).prepare().system_.elements[0].prepare().size_
+        >>> SampleSpaceReducingSystem(4).prepare().system_.elements[0].size
         4
     """
 
@@ -364,29 +298,22 @@ class SampleSpaceReducingSystem(BaseSystem):
         n_states: int = 10,
         lam: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_balls = n_balls
         self.n_states = n_states
         self.lam = lam
 
-    def _build_system(self) -> CompositeSystem:
-        """Return sample-space-reducing processes.
-
-        Their state visits follow Zipf's law `1 / i` for `lam = 1`.
-        """
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the balls at the top state and their jumps."""
+        super()._prepare(context)
+        jump = ReducingJumpInteraction('jump', target='balls', n_states=self.n_states, lam=self.lam)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'balls',
-                    element=ReducingBallElement,
-                    size=self.n_balls,
-                    values={'level': float(self.n_states), 'n_states': float(self.n_states), 'lam': self.lam},
-                    variable=True,
-                ),
-            ],
-            interactions=[ReducingJumpInteraction('jump', target='balls')],
+            elements=[BallElement('balls', level=float(self.n_states), size=self.n_balls)],
+            interactions=[jump],
         )
 
 
@@ -408,9 +335,15 @@ class FragmentationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import FragmentationSystem
-        >>> FragmentationSystem(50).prepare().system_.elements[0].prepare().size_
+        >>> FragmentationSystem(50).prepare().system_.elements[0].size
         1
     """
 
@@ -425,33 +358,20 @@ class FragmentationSystem(BaseSystem):
         *,
         rate: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.rate = rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the initial object and its breaking."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'fragments',
-                    element=FragmentElement,
-                    size=1,
-                    values={'length': float(self.size), 'rate': self.rate},
-                    variable=True,
-                ),
-            ],
-            interactions=[
-                BirthDeathInteraction(
-                    'breaking',
-                    target='fragments',
-                    birth=FragmentElement.breaks,
-                    split=('length',),
-                    keep=FragmentElement.cut,
-                ),
-            ],
+            elements=[FragmentElement('fragments', length=float(self.size), size=1)],
+            interactions=[BreakingInteraction('breaking', target='fragments', rate=self.rate)],
         )
 
 
@@ -481,9 +401,15 @@ class CascadingSampleSpaceReducingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import CascadingSampleSpaceReducingSystem
-        >>> CascadingSampleSpaceReducingSystem(4).prepare().system_.elements[0].prepare().size_
+        >>> CascadingSampleSpaceReducingSystem(4).prepare().system_.elements[0].size
         4
     """
 
@@ -499,35 +425,19 @@ class CascadingSampleSpaceReducingSystem(BaseSystem):
         n_states: int = 100,
         mu: float = 1.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cascades = n_cascades
         self.n_states = n_states
         self.mu = mu
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of one ball at the top state per cascade and their jumps."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'balls',
-                    element=CascadingBallElement,
-                    size=self.n_cascades,
-                    values={'level': float(self.n_states), 'mu': self.mu},
-                    variable=True,
-                ),
-            ],
-            interactions=[
-                BirthDeathInteraction(
-                    'cascade',
-                    target='balls',
-                    death=CascadingBallElement.stops,
-                    birth=1.0,
-                    offspring=CascadingBallElement.multiplies,
-                    inherit=('mu',),
-                    values=CascadingBallElement.jumps,
-                    replace=True,
-                ),
-            ],
+            elements=[BallElement('balls', level=float(self.n_states), size=self.n_cascades)],
+            interactions=[CascadeInteraction('cascade', target='balls', mu=self.mu)],
         )

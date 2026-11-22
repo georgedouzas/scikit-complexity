@@ -6,6 +6,7 @@ An outbreak strikes only when a strain beats every earlier one.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,26 +14,23 @@ import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import uniform, where
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class PathogenElement(Element):
-    """Pathogen whose strength is drawn anew every season.
-
-    The strength is drawn uniformly from zero to one.
+    """Pathogen whose strength `StrainDrawInteraction` draws anew every season.
 
     Args:
         label:
             The label of the pathogen.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         eta:
             The strength of the strain of the current season.
@@ -43,32 +41,49 @@ class PathogenElement(Element):
         0.0
     """
 
+    def __init__(
+        self,
+        label: str,
+        *,
+        eta: Annotated[object, RealSet.closed_open(0, 1)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.eta = eta
+
+
+class StrainDrawInteraction(Interaction):
+    """Draw of the strength of the strain of every season, uniform from zero to one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the pathogen.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import StrainDrawInteraction
+        >>> StrainDrawInteraction('strain', target='pathogen').target
+        'pathogen'
+    """
+
     draws = True
 
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        eta: Annotated[float, StateSpec(domain=RealSet.closed_open(0, 1))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.eta = eta
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the strength of the next season, a uniform draw.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the strength of the next season, a uniform draw.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the pathogen.
         """
-        return [UpdateLaw(s.eta, uniform('eta'))]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target.eta, uniform('eta'))]
 
 
 class ResidentElement(Element):
@@ -80,14 +95,14 @@ class ResidentElement(Element):
         label:
             The label of the resident or of the group of residents.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         R:
             The resistance, between 0 and 1, where 1 is immunity.
 
         infected:
             Whether the resident was infected in the last outbreak.
+
+        size:
+            The number of members, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ResidentElement
@@ -98,12 +113,12 @@ class ResidentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        R: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        R: Annotated[float | Array, RealSet.closed(0, 1)] = 0.5,
+        infected: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.R = R
         self.infected = infected
 
@@ -137,29 +152,24 @@ class ResistanceInfectionInteraction(Interaction):
         self,
         label: str,
         *,
-        residents: Annotated[str, RoleSpec()],
-        pathogen: Annotated[str, RoleSpec()],
+        residents: Role,
+        pathogen: Role,
     ) -> None:
         super().__init__(label)
         self.residents = residents
         self.pathogen = pathogen
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection and the immunity of the residents below the strain.
-
-        They are the residents whose resistance is below the strength of the strain.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the infection and the immunity of the residents whose resistance is below the strength of the strain.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the residents and the pathogen.
         """
-        resident, strength = s.residents, s.pathogen.eta
+        super()._prepare(context)
+        resident, strength = context.residents, context.pathogen.eta
         susceptible = strength > resident.R
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(resident.R, where(susceptible, 1, resident.R)),
             UpdateLaw(resident.infected, where(susceptible, 1, 0)),
         ]
@@ -187,9 +197,15 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import RecordDynamicsEpidemicSystem
-        >>> RecordDynamicsEpidemicSystem(100).prepare().system_.elements[0].prepare().size_
+        >>> RecordDynamicsEpidemicSystem(100).prepare().system_.elements[0].size
         100
     """
 
@@ -205,21 +221,28 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         *,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of yearly strains that infect less resistant residents.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of yearly strains that infect less resistant residents.
 
-        A strain infects every resident less resistant than its strength.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         resistance = np.random.default_rng(self.seed).random(self.n)
-        residents = GroupElement('residents', element=ResidentElement, size=self.n, values={'R': resistance})
-        return CompositeSystem(
+        residents = ResidentElement('residents', R=resistance, size=self.n)
+        self.system_ = System(
             self.label,
             elements=[residents, PathogenElement('pathogen')],
-            interactions=[ResistanceInfectionInteraction('infection', residents='residents', pathogen='pathogen')],
-            time=DiscreteTime(),
+            interactions=[
+                StrainDrawInteraction('strain', target='pathogen'),
+                ResistanceInfectionInteraction('infection', residents='residents', pathogen='pathogen'),
+            ],
         )

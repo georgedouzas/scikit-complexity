@@ -6,6 +6,7 @@ It includes the security forces that act against it.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -15,12 +16,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -37,31 +41,34 @@ class SecurityAgentsElement(ActivityDensityElement):
         label:
             The label of the distribution.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         x:
             The initial density.
 
         share:
             The share of new recruits that join the efficacy class.
 
+        size:
+            The number of classes, or `None` for one or one per site of the space.
+
+        space:
+            The lattice whose sites are the efficacy classes, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.crowds import SecurityAgentsElement
-        >>> GroupElement('security', element=SecurityAgentsElement, size=3, values={'share': [0.5, 0.3, 0.2]}).size
+        >>> SecurityAgentsElement('security', share=[0.5, 0.3, 0.2], size=3).size
         3
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        share: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x, size=size, space=space)
         self.share = share
 
 
@@ -138,12 +145,12 @@ class CriminalContagionInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        redemption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        candidate: Role,
+        field: Role,
+        classes: Annotated[int, RealSet.open(0, oo)] = 5,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        attraction: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        redemption: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -228,11 +235,11 @@ class DeterrenceInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        forces: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
-        deterrence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        candidate: Role,
+        field: Role,
+        classes: Annotated[int, RealSet.open(0, oo)] = 5,
+        forces: Annotated[int, RealSet.open(0, oo)] = 3,
+        deterrence: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -272,12 +279,12 @@ def criminality_grid(classes: int) -> npt.NDArray[np.float64]:
     return np.linspace(0.0, 1.0, classes)
 
 
-class RecruitmentInteraction(RateInteraction):
+class RecruitmentInteraction(Interaction):
     """Recruitment of security agents in proportion to the mean criminality.
 
-    It is a macro-scale external action. It is a `RateInteraction` of the density `x` of the security forces that reads
-    the citizens. The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the
-    mean criminality of the citizens, a moment of their distribution, and retire at the rate `retirement`.
+    It is a macro-scale external action, a rate of the density `x` of the security forces that reads the citizens. The
+    security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean criminality of
+    the citizens, a moment of their distribution, and retire at the rate `retirement`.
 
     Args:
         label:
@@ -308,17 +315,28 @@ class RecruitmentInteraction(RateInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        citizens: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        recruitment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        retirement: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        citizens: Role,
+        classes: Annotated[int, RealSet.open(0, oo)] = 5,
+        recruitment: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        retirement: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
-        super().__init__(label, target=target, state='x', rate=self._get_rate)
+        super().__init__(label)
+        self.target = target
         self.citizens = citizens
         self.classes = classes
         self.recruitment = recruitment
         self.retirement = retirement
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the recruitment less the retirement of the security forces as the rate of their density.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the recruitment of security agents, less the retirement.
@@ -381,7 +399,7 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
     return moment(s.x, 0, np.arange(forces, dtype=float))
 
 
-def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
+def criminality_observables(classes: int, forces: int) -> list[Observable]:
     """Return the mean criminality, the criminal fraction, and the security density.
 
     The density is that of the security forces of the system.
@@ -404,9 +422,9 @@ def criminality_observables(classes: int, forces: int) -> list[ObservableSpec]:
     """
     criminality = criminality_grid(classes)
     return [
-        ObservableSpec('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
-        ObservableSpec('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
-        ObservableSpec('security_forces', partial(security_density, forces=forces), group='security'),
+        Observable('mean_criminality', partial(mean_criminality, criminality=criminality), group='citizens'),
+        Observable('criminal_fraction', partial(criminal_fraction, criminality=criminality), group='citizens'),
+        Observable('security_forces', partial(security_density, forces=forces), group='security'),
     ]
 
 
@@ -455,6 +473,12 @@ class CriminalitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import CriminalitySystem
         >>> [item.label for item in CriminalitySystem().prepare().system_.interactions]
@@ -468,9 +492,9 @@ class CriminalitySystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+    def _get_sizes_of(system: System) -> tuple[int, int]:
         """Return the number of criminality classes and of efficacy classes of a system."""
-        sizes = {item.label: int(item.size or 0) for item in system.elements}
+        sizes = {item.label: int(item.size or np.size(getattr(item, 'x', ()))) for item in system.elements}
         return sizes['citizens'], sizes['security']
 
     def __init__(
@@ -486,8 +510,10 @@ class CriminalitySystem(BaseSystem):
         recruitment: float = 0.5,
         retirement: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.classes = classes
         self.forces = forces
         self.criminals = criminals
@@ -498,30 +524,20 @@ class CriminalitySystem(BaseSystem):
         self.recruitment = recruitment
         self.retirement = retirement
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         citizens = np.zeros(self.classes)
         citizens[0], citizens[-1] = 1.0 - self.criminals, self.criminals
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'citizens',
-                    element=ActivityDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': citizens},
-                ),
-                GroupElement(
+                ActivityDensityElement('citizens', x=citizens, space=LatticeSpace(self.classes, boundary='fixed')),
+                SecurityAgentsElement(
                     'security',
-                    element=SecurityAgentsElement,
-                    size=self.forces,
-                    on='sites',
+                    x=np.full(self.forces, self.security / self.forces),
+                    share=np.full(self.forces, 1.0 / self.forces),
                     space=LatticeSpace(self.forces, boundary='fixed'),
-                    values={
-                        'x': np.full(self.forces, self.security / self.forces),
-                        'share': np.full(self.forces, 1.0 / self.forces),
-                    },
                 ),
             ],
             interactions=[
@@ -551,15 +567,6 @@ class CriminalitySystem(BaseSystem):
                 ),
             ],
             space=LatticeSpace(self.classes, boundary='fixed'),
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = criminality_observables(*CriminalitySystem._get_sizes_of(system))
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(criminality_observables(*CriminalitySystem._get_sizes_of(self.system_)))

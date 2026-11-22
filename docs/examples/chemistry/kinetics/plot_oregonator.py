@@ -14,14 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import events
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.kinetics import OregonatorSystem
 
 SYSTEM = 'oregonator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-trajectory = simulate(OregonatorSystem(), observers=[observer])
+trajectory = OregonatorSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Limit cycle and period

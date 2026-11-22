@@ -5,18 +5,20 @@ They cover evolutionary games, quasispecies, hypercycles, finite populations, la
 
 from ..common.populations import ReplicatorInteraction
 from ._assembly import (
+    AssemblyDiscoveryInteraction,
     AssemblyGrowthSystem,
     AssemblyLevelElement,
     PolymerAssemblyPoolSystem,
     PolymerElement,
     PolymerJoiningInteraction,
 )
-from ._coevolution import BakSneppenSystem, SpeciesElement
-from ._drift import AlleleFrequencyElement, KimuraDiffusionSystem
+from ._coevolution import BakSneppenSystem, ExtinctionInteraction, SpeciesElement
+from ._drift import AlleleFrequencyElement, KimuraDiffusionSystem, KimuraDriftInteraction
 from ._finite_populations import (
     AdaptiveClimbingInteraction,
     AdaptiveClimbingSystem,
     ClimberElement,
+    ClimbingInteraction,
     IndividualElement,
     MoranProcessSystem,
     MoranStepInteraction,
@@ -24,8 +26,15 @@ from ._finite_populations import (
     TangledNatureLifeCycleInteraction,
     TangledNatureSystem,
 )
-from ._games import CyclicSpeciesElement, ReplicatorDynamicsSystem, RockPaperScissorsSystem, StrategyElement
+from ._games import (
+    CyclicInvasionInteraction,
+    CyclicSpeciesElement,
+    ReplicatorDynamicsSystem,
+    RockPaperScissorsSystem,
+    StrategyElement,
+)
 from ._networks import (
+    AutocatalyticGrowthInteraction,
     ChemicalElement,
     CompetingSpeciesElement,
     CompetitiveJainKrishnaSystem,
@@ -60,25 +69,31 @@ __all__: list[str] = [
     'AdaptiveClimbingInteraction',
     'AdaptiveClimbingSystem',
     'AlleleFrequencyElement',
+    'AssemblyDiscoveryInteraction',
     'AssemblyGrowthSystem',
     'AssemblyLevelElement',
+    'AutocatalyticGrowthInteraction',
     'BakSneppenSystem',
     'CatalysisInteraction',
     'ChemicalElement',
     'ClimberElement',
+    'ClimbingInteraction',
     'CoevolutionaryClimbingInteraction',
     'CoevolvingSpeciesElement',
     'CompetingSpeciesElement',
     'CompetitiveJainKrishnaSystem',
     'CompetitiveSelectionInteraction',
+    'CyclicInvasionInteraction',
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
     'EigenQuasispeciesSystem',
+    'ExtinctionInteraction',
     'GenotypeClassElement',
     'HypercyclesSystem',
     'IndividualElement',
     'JainKrishnaSystem',
     'KimuraDiffusionSystem',
+    'KimuraDriftInteraction',
     'LocusElement',
     'MasterSequenceElement',
     'MoleculeElement',

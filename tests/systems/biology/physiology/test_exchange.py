@@ -1,18 +1,16 @@
 """Test the `_exchange` module of `skcomplex.systems.biology.physiology`."""
 
-from typing import Annotated
+from types import SimpleNamespace
 
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import FieldElement, GroupElement
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import hill, laplacian
-from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.biology.physiology import (
     ClosedContourCellExchangeSystem,
     ContourCellElement,
@@ -22,34 +20,33 @@ from skcomplex.systems.biology.physiology import (
 )
 
 
-class _PreviousCellElement(ExchangingCellElement):
-    """Cell with the exchange in its own law through the graph Laplacian, as before the coupling interaction."""
+class _DegreeCellElement(ExchangingCellElement):
+    """Cells that also hold the degree of their node."""
 
-    def __init__(
-        self,
-        label,
-        visual=None,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec()] = 1.0,
-        beta: Annotated[float, ParameterSpec()] = 10.0,
-        g: Annotated[float, ParameterSpec()] = 0.1,
-        xi: Annotated[float, ParameterSpec()] = 0.0,
-        degree: Annotated[float, ParameterSpec()] = 0.0,
-    ):
-        super().__init__(label, visual=visual, x=x, alpha=alpha, beta=beta, g=g, xi=xi)
+    def __init__(self, label, *, x=0.0, alpha=1.0, beta=10.0, g=0.1, xi=0.0, degree=0.0, space=None):
+        super().__init__(label, x=x, alpha=alpha, beta=beta, g=g, xi=xi, space=space)
         self.degree = degree
 
-    def _get_laws(self, s):
-        """Return the metabolism of the substance and its exchange through gap junctions and nanotubes."""
+
+class _PreviousExchangeInteraction(Interaction):
+    """Metabolism and exchange in one law through the graph Laplacian, as before the coupling interaction."""
+
+    def __init__(self, label, *, target: Role):
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the metabolism of the substance and its exchange through gap junctions and nanotubes."""
+        super()._prepare(context)
+        s = context.target
         exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
-        return [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
+        self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
 
 
 def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():
     """Test that the contour cells synchronize at a stable equilibrium in its domain, and a chaotic one does not."""
-    stable = simulate(ClosedContourCellExchangeSystem(r=2.5), dt=1, until=200).get_values('cells.x')
-    chaotic = simulate(ClosedContourCellExchangeSystem(r=3.9), dt=1, until=200).get_values('cells.x')
+    stable = ClosedContourCellExchangeSystem(r=2.5).prepare().simulate(dt=1, until=200).get_values('cells.x')
+    chaotic = ClosedContourCellExchangeSystem(r=3.9).prepare().simulate(dt=1, until=200).get_values('cells.x')
     equilibrium = stable[-1]
     assert np.ptp(stable[-20:], axis=0).max() < 1e-9
     assert np.ptp(equilibrium) < 1e-9
@@ -65,7 +62,7 @@ def test_nanotube_gap_junction_exchange_destabilizes_past_the_threshold():
     final = {}
     for share in (0.8, 1.2):
         system = NanotubeGapJunctionExchangeSystem(graph, xi=share * critical, x=0.1).prepare().system_
-        final[share] = simulate(system, dt=0.5, until=200).get_values('cells.x')[-1].mean()
+        final[share] = system.prepare().simulate(dt=0.5, until=200).get_values('cells.x')[-1].mean()
     assert final[0.8] < 0.01
     assert final[1.2] > 10
 
@@ -77,24 +74,28 @@ def test_nanotube_gap_junction_exchange_keeps_the_trajectory_of_the_coupling_in_
     field = system.elements[0]
     graph = field.space.graph
     degrees = np.array([graph.degree[node] for node in graph.nodes], dtype=float)
-    cells = FieldElement(
+    cells = _DegreeCellElement(
         'cells',
-        element=_PreviousCellElement,
+        x=field.x,
+        alpha=field.alpha,
+        beta=field.beta,
+        g=field.g,
+        xi=field.xi,
+        degree=degrees,
         space=field.space,
-        values={**field.values, 'degree': degrees},
     )
-    previous = CompositeSystem(elements=[cells], time=ContinuousTime())
-    trajectory = simulate(system, dt=0.5, until=100)
-    expected = simulate(previous, dt=0.5, until=100)
+    previous = System(elements=[cells], interactions=[_PreviousExchangeInteraction('exchange', target='cells')])
+    trajectory = system.prepare().simulate(dt=0.5, until=100)
+    expected = previous.prepare().simulate(dt=0.5, until=100)
     assert np.abs(trajectory.get_values('cells.x') - expected.get_values('cells.x')).max() < 1e-10
 
 
 def test_contour_uptake_interaction_mixes_logistic_map_and_next_cell():
     """Test that every cell mixes its logistic map with the power of the next cell, the last with the first."""
     x, r, c, p = np.array([0.2, 0.5, 0.7]), 3.0, np.array([0.1, 0.2, 0.3]), np.array([0.5, 1.0, 2.0])
-    cells = GroupElement('cells', element=ContourCellElement, size=3, values={'x': x, 'r': r, 'c': c, 'p': p})
+    cells = ContourCellElement('cells', x=x, r=r, c=c, p=p, size=3)
     uptake = ContourUptakeInteraction('uptake', target='cells')
-    system = CompositeSystem(elements=[cells], interactions=[uptake], time=DiscreteTime())
-    found = simulate(system, until=1).get_values('cells.x')[-1]
+    system = System(elements=[cells], interactions=[uptake])
+    found = system.prepare().simulate(until=1).get_values('cells.x')[-1]
     expected = (1 - c) * r * x * (1 - x) + c * np.roll(x, -1) ** p
     np.testing.assert_allclose(found, expected)

@@ -9,7 +9,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.types import Role
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import Stoichiometry
 
@@ -42,14 +44,13 @@ class InfectionInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('S', x=99.0), CompartmentElement('I', x=1.0)],
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
-        >>> trajectory = simulate(system, until=5.0, dt=0.1)
+        >>> trajectory = system.prepare().simulate(until=5.0, dt=0.1)
         >>> round(float(trajectory.get_values('S.x')[-1] + trajectory.get_values('I.x')[-1]), 6)
         100.0
     """
@@ -58,9 +59,9 @@ class InfectionInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        susceptible: Annotated[str, RoleSpec()],
-        infected: Annotated[str, RoleSpec()],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        susceptible: Role,
+        infected: Role,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
         stochastic: bool = False,
     ) -> None:
         super().__init__(label)
@@ -132,9 +133,9 @@ class ImmunityLossInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        recovered: Annotated[str, RoleSpec()],
-        susceptible: Annotated[str, RoleSpec()],
-        xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        recovered: Role,
+        susceptible: Role,
+        xi: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
         stochastic: bool = False,
     ) -> None:
         super().__init__(label)
@@ -198,14 +199,13 @@ class RecoveryInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('I', x=10.0), CompartmentElement('R')],
         ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
         ... )
-        >>> trajectory = simulate(system, until=2.0, dt=0.01)
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.01)
         >>> round(float(trajectory.get_values('I.x')[-1]), 3)
         3.679
     """
@@ -214,9 +214,9 @@ class RecoveryInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        infected: Annotated[str, RoleSpec()],
-        recovered: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        infected: Role,
+        recovered: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
         stochastic: bool = False,
     ) -> None:
         super().__init__(label)
@@ -281,6 +281,12 @@ class SIRSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> [element.label for element in SIRSystem().prepare().system_.elements]
@@ -303,8 +309,10 @@ class SIRSystem(ReactionNetworkSystem):
         gamma: float = 0.1,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.infected = infected
         self.recovered = recovered
@@ -362,6 +370,12 @@ class SISSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SISSystem
         >>> [element.label for element in SISSystem().prepare().system_.elements]
@@ -383,8 +397,10 @@ class SISSystem(ReactionNetworkSystem):
         gamma: float = 0.1,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.infected = infected
         self.beta = beta
@@ -449,6 +465,12 @@ class SIRSSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRSSystem
         >>> SIRSSystem(xi=0.1).prepare().system_.interactions[-1].xi
@@ -472,8 +494,10 @@ class SIRSSystem(ReactionNetworkSystem):
         xi: float = 0.02,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.infected = infected
         self.recovered = recovered
@@ -550,6 +574,12 @@ class ZombieOutbreakSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ZombieOutbreakSystem
         >>> [element.label for element in ZombieOutbreakSystem().prepare().system_.elements]
@@ -575,8 +605,10 @@ class ZombieOutbreakSystem(ReactionNetworkSystem):
         zeta: float = 0.0001,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.susceptible = susceptible
         self.zombies = zombies
         self.removed = removed

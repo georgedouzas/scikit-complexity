@@ -13,14 +13,13 @@ majority only when the sensitivity to the neighbours is large enough.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import ThreeStateOpinionSystem
 
 SYSTEM = 'three_state_opinion'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(ThreeStateOpinionSystem(), observers=[observer], random_state=0)
+trajectory = ThreeStateOpinionSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Order with the sensitivity
@@ -32,7 +31,7 @@ trajectory = simulate(ThreeStateOpinionSystem(), observers=[observer], random_st
 sensitivities = [0.5, 1.0, 2.0, 4.0, 8.0]
 order, undecided = [], []
 for sensitivity in sensitivities:
-    trajectory = simulate(ThreeStateOpinionSystem(sensitivity=sensitivity), until=100, random_state=0)
+    trajectory = ThreeStateOpinionSystem(sensitivity=sensitivity).prepare().simulate(until=100, random_state=0)
     opinions = np.array([trajectory.get_agents('voters', frame).values['opinion'] for frame in range(50, 101)])
     order.append(np.mean(np.abs(opinions.mean(axis=1))))
     undecided.append(np.mean(opinions == 0))

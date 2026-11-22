@@ -11,13 +11,14 @@ import numpy as np
 from sklearn.base import TransformerMixin, clone
 
 from ..components.laws import BaseLaw, RateLaw
-from ..components.spaces import ContinuousTime
-from ..components.systems import CompositeSystem
 from ..engine._utils import vector
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, SamplesSpec
-from ..types import Array, ComplexArray, DataKind
+from ..systems import System
+from ..types import Array, ComplexArray
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -38,12 +39,19 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class ModeDecompositionResult:
     """A result of `mode_decomposition`, a linear system fitted to series.
 
+    It holds the fitted `System`, its matrices, its modes with their growth rates and frequencies, the errors of the
+    fit, and the forecast, such as the frequencies 1 and -1 of a point that turns on the unit circle. It reports the
+    patterns of a fluid flow, brain activity, and traffic in a city.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         samples:
             The series of every run, the names of the variables, and the step.
 
         system:
-            The system of one surrogate element under continuous time, whose states follow `dg/dt = L g + M u`.
+            The `System` of one surrogate element and one interaction whose rate laws `dg/dt = L g + M u` flow in
+            continuous time.
 
         labels:
             The variables, or the observables of the dictionary, in the order of the states.
@@ -88,14 +96,25 @@ class ModeDecompositionResult:
             The fitted dictionary, which lifts new states to the observables, or `None` without a dictionary.
 
         inputs:
-            The names of the adaptive parameters of the surrogate element that hold the inputs.
+            The names of the parameters of the surrogate element that hold the inputs.
 
         forecast:
             The states at the `horizon` samples after the last one, one row per sample.
+
+    See Also:
+        mode_decomposition: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import mode_decomposition
+        >>> times = np.arange(0.0, 10.0, 0.1)
+        >>> result = mode_decomposition(np.column_stack([np.cos(times), np.sin(times)]), horizon=5, dt=0.1)
+        >>> result.forecast.shape
+        (5, 2)
     """
 
-    samples: SamplesSpec
-    system: CompositeSystem
+    samples: _SamplesSpec
+    system: System
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -128,20 +147,14 @@ def mode_decomposition(
 ) -> ModeDecompositionResult:
     """Return the linear system fitted to series by dynamic mode decomposition.
 
-    It is computed with PyDMD. The decomposition fits the exact DMD of the one-sample map `g(t + dt) = A g(t)` to the
-    pairs of consecutive samples of every run. With a dictionary, `g` holds the observables the dictionary computes from
-    the variables, which is extended DMD, and the dictionary should keep the variables among its observables. The fitted
-    system follows the rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` under continuous time and starts at
-    the first sample of the first run. The forecast iterates the map from the last sample of the last run.
+    It fits the matrix `A` of `g(t + dt) = A g(t)` to the pairs of consecutive samples of every run by the exact DMD of
+    PyDMD, and returns a `System` that follows `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+`, starting at the
+    first sample of the first run, such as the frequencies 1 and -1 of a point that turns on the unit circle. With a
+    dictionary, `g` holds the observables it computes from the variables, and with inputs the fit is
+    `g(t + dt) = A g(t) + B u(t)` and the system follows `dg/dt = L g + M u`. It finds the patterns of a fluid flow,
+    brain activity, and traffic in a city, and forecasts them.
 
-    With inputs, the decomposition is dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, where `g`
-    holds the variables that are not inputs or their observables. The fitted system follows `dg/dt = L g + M u`, where
-    `M` gives the same one-sample map under an input held over the sample. Every input is a bounded adaptive parameter
-    of the surrogate element, bounded by its range in the samples, and the forecast holds the inputs at their last
-    values.
-
-    It appears in many fields. It finds the coherent patterns of a fluid flow, of brain activity, and of traffic in a
-    city.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -157,16 +170,19 @@ def mode_decomposition(
 
         dictionary:
             A scikit-learn transformer that computes the observables, such as `PolynomialFeatures(2)`, or `None` for
-            the variables themselves.
+            the variables themselves. This is extended DMD, and the dictionary should keep the variables among its
+            observables.
 
         inputs:
-            The names of the variables that are control inputs, or `None` for none.
+            The names of the variables that are control inputs, or `None` for none. Every input is a parameter of the
+            surrogate element whose allowed values are its range in the samples, `M` gives the same one-sample map
+            under an input held over the sample, and the forecast holds the inputs at their last values.
 
         validation:
             The share of the samples of every run held out at its end to measure the validation error.
 
         horizon:
-            The number of samples to forecast after the last sample of the last run.
+            The number of samples to forecast after the last sample of the last run, by iterating the map.
 
         dt:
             The time between the rows of an array.
@@ -183,23 +199,17 @@ def mode_decomposition(
             The validation share lies outside `[0, 1)`, the horizon is negative, an input is not a variable, or the
             runs differ in variables or step.
 
+    See Also:
+        sparse_identification: Finds nonlinear equations of series from a library of terms.
+        reservoir: Fits a reservoir computer that forecasts series.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import mode_decomposition
         >>> times = np.arange(0.0, 10.0, 0.1)
-        >>> values = np.column_stack([np.cos(times), np.sin(times)])
-        >>> result = mode_decomposition(values, variables=['x', 'y'], horizon=5, dt=0.1)
+        >>> result = mode_decomposition(np.column_stack([np.cos(times), np.sin(times)]), dt=0.1)
         >>> np.sort(result.eigenvalues.imag).round(6).tolist()
         [-1.0, 1.0]
-        >>> bool(np.allclose(result.forecast[:, 0], np.cos(times[-1] + 0.1 * np.arange(1, 6))))
-        True
-        >>> u = np.random.default_rng(0).uniform(-1.0, 1.0, 100)
-        >>> x = np.zeros(100)
-        >>> for k in range(99):
-        ...     x[k + 1] = 0.9 * x[k] + 0.5 * u[k]
-        >>> result = mode_decomposition(np.column_stack([x, u]), variables=['x', 'u'], inputs=['u'], validation=0.0)
-        >>> result.operator.round(6).tolist(), result.input_matrix.round(6).tolist()
-        ([[0.9]], [[0.5]])
     """
     _check_validation(validation)
     _check_horizon(horizon)
@@ -223,7 +233,6 @@ def mode_decomposition(
         label,
         dict(zip(states, map(float, lifted[0][0]), strict=True)),
         _linear_laws(states, generator, names, input_generator),
-        ContinuousTime(),
         inputs=_input_declarations(names, controls),
     )
     last_state = np.asarray(lifted[-1][-1], dtype=float)
@@ -249,7 +258,7 @@ def mode_decomposition(
     )
 
 
-def _split_inputs(samples: SamplesSpec, inputs: Sequence[str] | None) -> tuple[SamplesSpec, list[str], list[Array]]:
+def _split_inputs(samples: _SamplesSpec, inputs: Sequence[str] | None) -> tuple[_SamplesSpec, list[str], list[Array]]:
     """Return the samples without the inputs, and the labels and series of the inputs.
 
     Args:
@@ -277,7 +286,7 @@ def _split_inputs(samples: SamplesSpec, inputs: Sequence[str] | None) -> tuple[S
     columns = [samples.labels.index(name) for name in names]
     labels = [samples.labels[index] for index in others]
     return (
-        SamplesSpec([values[:, others] for values in samples.series], labels, samples.dt),
+        _SamplesSpec([values[:, others] for values in samples.series], labels, samples.dt),
         names,
         [values[:, columns] for values in samples.series],
     )
@@ -379,7 +388,7 @@ def _input_declarations(
     }
 
 
-def _lift(samples: SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
+def _lift(samples: _SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
     """Return the series, labels, and state names of the observables.
 
     Without a dictionary, the observables are the variables.
@@ -427,8 +436,8 @@ def _linear_laws(
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the matrix rate law."""
-        symbols = _symbols_of(s, names)
-        read = [*symbols, *_symbols_of(s, inputs)]
+        symbols = _symbols_of(s.target, names)
+        read = [*symbols, *_symbols_of(s.target, inputs)]
         rows = [sum(float(value) * item for value, item in zip(row, read, strict=True) if value) for row in matrix]
         return [RateLaw(vector(symbols), vector(rows))]
 

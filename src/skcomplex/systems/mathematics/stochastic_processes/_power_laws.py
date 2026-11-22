@@ -6,37 +6,60 @@ The power laws come from exponential growth observed at random times.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, RateLaw
 from ....core.components.laws.utils import draw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class ObservedGrowthElement(Element):
-    """Quantity that grows exponentially.
-
-    The quantity is observed and restarted at exponentially distributed times.
-
-    The quantity follows `x' = mu x` from `x0`, and after a waiting time drawn from the exponential distribution of
-    rate `lam` it is observed and starts again from `x0`.
+    """Quantities `x` that grow, one per sample.
 
     Args:
         label:
-            The label of the element or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the samples.
 
         x:
-            The initial value.
+            The initial value, positive, one per sample or shared.
+
+        size:
+            The number of samples, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import ObservedGrowthElement
+        >>> ObservedGrowthElement('growth', x=2.0).x
+        2.0
+    """
+
+    def __init__(self, label: str, *, x: Annotated[float, RealSet.open(0, oo)] = 1.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+
+
+class ObservedGrowthInteraction(Interaction):
+    """The exponential growth of a quantity that is observed and restarted at exponentially distributed times.
+
+    The quantity follows `x' = mu x` from `x0`, and after a waiting time drawn from the exponential distribution of rate
+    `lam` it is observed and starts again from `x0`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The samples that grow.
 
         x0:
             The value every growth starts from.
@@ -48,46 +71,41 @@ class ObservedGrowthElement(Element):
             The rate of the observation times.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import ObservedGrowthElement
-        >>> ObservedGrowthElement('growth', lam=2.0).lam
+        >>> from skcomplex.systems.mathematics.stochastic_processes import ObservedGrowthInteraction
+        >>> ObservedGrowthInteraction('growth', target='samples', lam=2.0).lam
         2.0
     """
 
-    law_classes = (
-        JumpLaw,
-        RateLaw,
-    )
+    law_classes = (JumpLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        x0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        target: Role = 'samples',
+        x0: float = 1.0,
+        mu: float = 1.0,
+        lam: float = 1.5,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+        super().__init__(label)
+        self.target = target
         self.x0 = x0
         self.mu = mu
         self.lam = lam
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth and the restart at the observation times.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the growth and the restart at the observation times as the laws.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [
-            RateLaw(s.x, s.mu * s.x),
-            JumpLaw(waiting=draw('wait', 'expon', scale=1 / s.lam), reset={s.x: s.x0}, label='observations'),
+        super()._prepare(context)
+        x = context.target.x
+        waiting = draw('wait', 'expon', scale=1 / context.lam)
+        self.laws_: list[BaseLaw] = [
+            RateLaw(x, context.mu * x),
+            JumpLaw(waiting=waiting, reset={x: context.x0}, label='observations'),
         ]
 
 
@@ -117,9 +135,15 @@ class ExponentialGrowthAtRandomTimesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import ExponentialGrowthAtRandomTimesSystem
-        >>> ExponentialGrowthAtRandomTimesSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> ExponentialGrowthAtRandomTimesSystem(10).prepare().system_.elements[0].size
         10
     """
 
@@ -128,7 +152,6 @@ class ExponentialGrowthAtRandomTimesSystem(BaseSystem):
     references = ('Reed and Hughes 2002', 'Thurner et al. 2018')
     until = 20.0
     dt = 1.0
-    solver = RK4Solver(dt=0.01)
 
     def __init__(
         self,
@@ -138,23 +161,22 @@ class ExponentialGrowthAtRandomTimesSystem(BaseSystem):
         lam: float = 1.5,
         x0: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_samples = n_samples
         self.mu = mu
         self.lam = lam
         self.x0 = x0
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the samples and their growth."""
+        super()._prepare(context)
+        growth = ObservedGrowthInteraction('growth', target='samples', x0=self.x0, mu=self.mu, lam=self.lam)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'samples',
-                    element=ObservedGrowthElement,
-                    size=self.n_samples,
-                    values={'x': self.x0, 'x0': self.x0, 'mu': self.mu, 'lam': self.lam},
-                ),
-            ],
+            elements=[ObservedGrowthElement('samples', x=self.x0, size=self.n_samples)],
+            interactions=[growth],
+            solver=RK4Solver(dt=0.01),
         )

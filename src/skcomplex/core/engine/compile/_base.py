@@ -1,4 +1,4 @@
-"""Define the bases of compilation."""
+"""Define the bases of compilers, passes, and lowerings."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,11 +12,13 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression
 
 from ...base import BaseConfig
+from ...components import Observable
 from ...components.laws import BaseLaw
-from ...components.systems import CompositeSystem
+from ...enums import FormKind
 from ...errors import (
     LabelError,
     ParameterError,
+    ParameterShapeError,
     RoleElementError,
     RoleError,
     SkcomplexError,
@@ -25,14 +27,15 @@ from ...errors import (
     TensorSymmetryError,
     ValidationError,
 )
-from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpec
-from ...types import FormKind
-from ..backends import BaseBackend, NumbaBackend, NumpyBackend
+from ..backends import BaseBackend, NumbaBackend, NumpyBackend, SupportSpec
 from ..backends._base import AUTO_MEMBERS
 from ..problems import BaseProblemSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
 from ._compilation import Compilation
+from ._issue_spec import IssueSpec
+from ._validation_report_spec import ValidationReportSpec
 
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
@@ -40,25 +43,31 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     RoleElementError: (
         'role-element',
         (
-            'Bind the role to an element that carries the state, declare the state on the element, or read another '
-            'state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and '
-            'carry.'
+            'Bind the role to an element that has the value, give the element the value, such as '
+            "`Element('ball', values={'x': 0.0})`, or read another value. `get_requirements()` of an interaction shows "
+            'the values its roles read.'
         ),
     ),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
+    ParameterShapeError: ('parameter-shape', 'Bind the roles of the axes of the array to groups of their lengths.'),
     TensorShapeError: ('law-domain', 'Give the tensor operation a matrix or a vector of the shape it reads.'),
     TensorSymmetryError: ('tensor-symmetry', 'Give the state a rate of its declared symmetry.'),
 }
 
+type _Composite = _CompositeSystem
 
-class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
-    """An abstract compiler of a system into a problem of one mathematical form.
 
-    `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
-    and `run(initial_state)` raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`,
-    the solver the problem runs on. A subclass implements the hooks `_issues` and `_compile`, and a compiler of a form
-    the engine does not know names the solver of its problems in `_get_solver`.
+class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
+    """An abstract compiler that turns a system into a problem that a solver runs.
+
+    `prepare(system)` checks the settings and the system and lists what is wrong in `report_`, and `run(initial_state)`
+    raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`, the solver that runs it.
+    A subclass fills in the hooks `_issues` and `_compile`, and a compiler of a kind of problem that the engine does not
+    know names the solver of its problems in `_get_solver`. `PassCompiler` compiles every system of the catalog, and a
+    field package writes its own compiler on this base, as the quantum package does for operators.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         backend:
@@ -85,9 +94,19 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         solver_:
             The solver the compiled problem runs on: the solver setting, the solver the compiler names, or `None` for
             the default solver of the problem's form.
+
+    See Also:
+        PassCompiler: Compiles a system through a sequence of passes.
+        OperatorCompiler: Compiles a system of operator elements.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import BaseCompiler
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> issubclass(PassCompiler, BaseCompiler)
+        True
     """
 
-    system_: CompositeSystem
+    system_: _Composite
     report_: ValidationReportSpec
     problem_: BaseProblemSpec
     solver_: object
@@ -96,17 +115,18 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         self,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
     ) -> None:
         self.backend = backend
         self.solver = solver
         self.observables = observables
 
-    def _prepare(self, context: CompositeSystem | None) -> None:
+    def _prepare(self, context: _Composite | None) -> None:
         """Attach the observables to a system and set the issues it finds.
 
         It first raises an error for a wrong backend or observable. The backend must be a backend and every observable
-        an observable spec.
+        an observable spec. A `System` or a ready-made system of the catalog compiles the composite of its
+        components.
 
         Args:
             context:
@@ -119,25 +139,50 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         if self.backend is not None and not isinstance(self.backend, BaseBackend):
             error_msg = f'The backend is a {type(self.backend).__name__}. Pass a backend instance or `None`.'
             raise ValidationError(error_msg)
-        wrong = [item for item in self.observables if not isinstance(item, ObservableSpec)]
+        wrong = [item for item in self.observables if not isinstance(item, Observable)]
         if wrong:
             error_msg = f'The observables hold a {type(wrong[0]).__name__}. Pass observable specs.'
             raise ValidationError(error_msg)
-        if not isinstance(context, CompositeSystem):
+        get_composite = getattr(context, '_get_composite', None)
+        if not isinstance(context, _CompositeSystem) and callable(get_composite):
+            context = get_composite()
+        if not isinstance(context, _CompositeSystem):
             error_msg = f'A compiler prepares on a system, not on a {type(context).__name__}.'
             raise ValidationError(error_msg)
         system = context.prepare().system_ if context._nests_classes() else context
         try:
-            self.system_ = self._copy_with_observables(system, self.observables)
+            system = self._copy_with_observables(system, self.observables)
         except ValidationError as error:
-            self.system_ = system
+            self.system_ = self._get_declared_system(system)
             self.report_ = ValidationReportSpec(
                 (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return
-        self.report_ = ValidationReportSpec(tuple(self._get_issues(self.system_)))
+        self.system_ = self._get_declared_system(system)
+        roles = self._get_domain_issues(self.system_)
+        self.report_ = ValidationReportSpec(tuple(roles or self._get_issues(self.system_)))
 
-    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_domain_issues(self, system: _CompositeSystem, scope: str = '') -> list[IssueSpec]:
+        """Return the issue of a role bound to a value of a domain it does not accept.
+
+        The values of plain elements have their domains only once the laws show which are states, so a role such as
+        `Annotated[Role, 'boolean']` is checked on the declared system, whatever kind of law the interaction sets.
+        """
+        try:
+            system._check_roles()
+        except RoleElementError as error:
+            return [self._get_issue_of(error, scope or system.label, 'role', 'Bind the role to values of its domains.')]
+        for item in system.systems:
+            found = self._get_domain_issues(item, f'{scope}{item.label}/') if isinstance(item, _CompositeSystem) else []
+            if found:
+                return found
+        return []
+
+    def _get_declared_system(self, system: _CompositeSystem) -> _CompositeSystem:
+        """Return the system with declarations for its plain elements."""
+        return system
+
+    def _get_issues(self, system: _Composite) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
@@ -286,7 +331,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         return expression(SimpleNamespace(**vars(getattr(namespace, element)), t=namespace.t))
 
     @staticmethod
-    def _get_of_root(observable: ObservableSpec) -> ObservableSpec:
+    def _get_of_root(observable: Observable) -> Observable:
         """Return an observable of an element as an observable of the root system.
 
         The observable of the root system is labelled `<element>.<label>`.
@@ -302,7 +347,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         )
 
     @staticmethod
-    def _get_observables_of(system: CompositeSystem, scope: str = '') -> Iterator[tuple[str, ObservableSpec]]:
+    def _get_observables_of(system: _CompositeSystem, scope: str = '') -> Iterator[tuple[str, Observable]]:
         """Yield every observable of a system tree.
 
         Each comes with the path of the system that declares it.
@@ -324,7 +369,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             yield from BaseCompiler._get_observables_of(child, f'{scope}/{child.label}' if scope else child.label)
 
     @staticmethod
-    def _get_system_paths(system: CompositeSystem, scope: str = '') -> Iterator[str]:
+    def _get_system_paths(system: _CompositeSystem, scope: str = '') -> Iterator[str]:
         """Yield the path of every nested system."""
         for child in system.systems:
             path = f'{scope}/{child.label}' if scope else child.label
@@ -333,10 +378,10 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
 
     @staticmethod
     def _get_attached(
-        system: CompositeSystem,
-        by_scope: dict[str, list[ObservableSpec]],
+        system: _CompositeSystem,
+        by_scope: dict[str, list[Observable]],
         scope: str,
-    ) -> CompositeSystem:
+    ) -> _CompositeSystem:
         """Return a copy of a system that holds the observables of its scope.
 
         The copy has its nested systems attached.
@@ -350,7 +395,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
         return copied
 
     @staticmethod
-    def _copy_with_observables(system: CompositeSystem, observables: Sequence[ObservableSpec]) -> CompositeSystem:
+    def _copy_with_observables(system: _CompositeSystem, observables: Sequence[Observable]) -> _CompositeSystem:
         """Return a copy of a system tree with observables in the systems they name.
 
         Every observable is declared in the system its label names.
@@ -370,7 +415,7 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
             ValidationError:
                 An observable names a nested system that does not exist.
         """
-        by_scope: dict[str, list[ObservableSpec]] = {}
+        by_scope: dict[str, list[Observable]] = {}
         for observable in observables:
             observable._check()
             checked = BaseCompiler._get_of_root(observable)
@@ -416,16 +461,28 @@ class BaseCompiler(BaseConfig[CompositeSystem, Mapping[str, object]]):
 
 
 class BasePass(BaseConfig[Compilation, None]):
-    """An abstract pass, a step of a compilation that reads fields and writes others.
+    """An abstract pass, one step of a compilation that reads fields and writes others.
 
-    A pass declares the fields it reads and writes through the hooks `_get_reads` and `_get_writes`, which order the
-    passes of a compilation. `prepare(compilation)` takes the compilation the pass serves, and `run()` calls the hook
-    `_run`, which reads the fields the pass reads from `compilation_` and writes the fields it writes. A pass takes no
-    input to `run`: the compilation it changes is its prepared target.
+    A compilation turns a system into a problem in small steps, and each step is a pass, such as the pass that finds
+    the states of every element or the pass that writes the equations. A pass names the fields of the compilation it
+    reads and writes in the hooks `_get_reads` and `_get_writes`, which set the order in which the passes run.
+    `prepare(compilation)` takes the compilation, and `run()` calls the hook `_run`, which reads its fields from
+    `compilation_` and writes the new ones. A field package adds a pass on this base to compile laws of its own.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         compilation_:
             The compilation the pass reads and writes.
+
+    See Also:
+        Compilation: Holds the fields that passes read and write.
+        PassCompiler: Runs the passes over a compilation.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import BasePass, FlattenPass
+        >>> issubclass(FlattenPass, BasePass)
+        True
     """
 
     compilation_: Compilation
@@ -490,7 +547,26 @@ class BasePass(BaseConfig[Compilation, None]):
             law:
                 The new law, which the compiler reads without checking it again.
         """
-        return type(law)(**{**law.get_params(deep=False), **changes})
+        return dataclasses.replace(law, **changes)
+
+    @staticmethod
+    def _get_checked_law[L: BaseLaw](law: L) -> L:
+        """Return a law once its fields are checked.
+
+        Args:
+            law:
+                The law.
+
+        Returns:
+            law:
+                The same law.
+
+        Raises:
+            ValidationError:
+                A field of the law is invalid, named in the message.
+        """
+        law._check()
+        return law
 
     @staticmethod
     def _get_calls_of(expression: Expression, name: str) -> list[Expression]:
@@ -519,16 +595,17 @@ class BasePass(BaseConfig[Compilation, None]):
 
 
 class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
-    """An abstract lowering of one family of laws.
+    """An abstract lowering, a helper that rewrites one family of laws.
 
-    One pass creates the lowering, later passes finish it, and the compilation keeps it. The constructor stores what the
-    lowering reads, `prepare(compilation)` sets the prepared attributes the lowering gathers, and `run(laws)` sets
-    `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`, and names the type of the laws
-    it lowers and of the laws it runs on, which are the same for most lowerings.
+    To lower a law is to rewrite it in simpler terms that the numeric functions can evaluate, such as a random draw read
+    as a number stored after the parameters, or a Laplacian read as the values of the neighbouring sites. One pass
+    creates the lowering, later passes may finish it, and the compilation keeps it. The constructor stores what the
+    lowering reads, `prepare(compilation)` gathers what it needs from the compilation, and `run(laws)` sets `lowered_`,
+    the rewritten laws. A subclass fills in the hooks `_prepare` and `_run`. A lowering that adds new symbols to the
+    laws notes where they read their values with `_add_reference`, and `_apply_references` gives every changed component
+    the new references, in every field of the compilation.
 
-    A lowering that reads new symbols into laws notes their references with `_add_reference`, reads them back with
-    `_reference_of`, and `_apply_references` replaces every spec it noted references for by a copy that holds them, in
-    every field of the compilation.
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         compilation_:
@@ -539,6 +616,16 @@ class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
 
         lowered_:
             The laws the last run lowered, in the shape of its input.
+
+    See Also:
+        BasePass: The base of the steps of a compilation.
+        DrawLowering: Rewrites random draws as stored numbers.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import BaseLowering
+        >>> from skcomplex.core.engine.compile._draw_lowering import DrawLowering
+        >>> issubclass(DrawLowering, BaseLowering)
+        True
     """
 
     compilation_: Compilation

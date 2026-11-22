@@ -11,9 +11,9 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ..types import Colors, Marks, Outline, Positions
 from ._base import UPWARD, BaseVisual
 from ._points import TRAIL_LENGTH
@@ -34,13 +34,13 @@ SPACE = 3
 class BodiesVisual(BaseVisual):
     """A visual that draws bodies at positions computed from the states of an element.
 
-    It also draws rods, trails, and outlines. The bodies are logged as points under `<path>/bodies`, the rods from the
-    pivot through the bodies in order as one line strip under `<path>/rods`, the trails of the traced bodies as segments
-    under `<path>/trail` that grow more transparent with age, the outlines once as static line strips under
-    `<path>/outline`, and the marks once as static points under `<path>/marks`. Every state is also logged as a time
-    series under `<path>/<state>`. Bodies with three coordinates are drawn in a 3D view. Bodies with two are drawn in a
-    2D view with the second coordinate negated, since Rerun's 2D views point their vertical axis down, so the views draw
-    it upward.
+    It computes the position of every body from the values of an element and draws the bodies as points, with rods
+    from a pivot through them, trails that fade with age, and fixed outlines and marks, such as
+    `BodiesVisual(('x', 'y'), trail=50)` for one body whose position is held by `x` and `y`. Every value is also drawn
+    as a line over time, and bodies in a plane are drawn with the vertical axis up. It shows the swing of a double
+    pendulum, the orbits of planets, and a ball bouncing on a table.
+
+    Read more in the user guide, under Observe.
 
     Args:
         positions:
@@ -83,11 +83,16 @@ class BodiesVisual(BaseVisual):
         drawn_:
             The entity paths whose outline and marks are logged.
 
+    See Also:
+        PointsVisual: Draws a group whose position is one vector value.
+
     Examples:
         >>> from skcomplex.core.engine.viz import BodiesVisual
-        >>> BodiesVisual(('x', 'y'), trail=None).trail is None
-        True
+        >>> BodiesVisual(('x', 'y'), trail=50).trail
+        50
     """
+
+    numeric_options = ('pivot', 'traced', 'trail', 'radius')
 
     def __init__(
         self,
@@ -237,9 +242,13 @@ class BodiesVisual(BaseVisual):
             )
         self._log_trail(recording, path, bodies, share * TRAIL_SHARE)
         for state, name in element.states.items():
-            BaseVisual._log_scalars(recording, f'{path}/{state}', frame.get_value(name))
+            BaseVisual._log_scalars(recording, BaseVisual._get_state_path(path, state), frame.get_value(name))
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return a 2D view of the bodies and a time series view of the states.
 
         The 2D view covers the drawing.
@@ -270,7 +279,7 @@ class BodiesVisual(BaseVisual):
         values = self._get_values_of(element, read)
         bodies = self._get_bodies(values)
         path = element.path
-        contents = [f'+ {path}/{state}/**' for state in element.states]
+        contents = [f'+ {BaseVisual._get_state_path(path, state)}/**' for state in element.states]
         series = rrb.TimeSeriesView(origin=path, contents=contents, name=f'{path} states')
         if bodies.shape[1] == SPACE:
             return [rrb.Spatial3DView(origin=path, name=path), series]

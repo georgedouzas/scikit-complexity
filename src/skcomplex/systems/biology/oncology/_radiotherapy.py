@@ -4,18 +4,22 @@
 # License: MIT
 
 
-from collections.abc import Callable
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import CrossingInteraction, RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, EventLaw, RateLaw
 from ....core.components.laws.utils import periodic_guard, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -37,9 +41,6 @@ class IrradiatedTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A1:
             The initial volume of proliferating cells.
@@ -86,22 +87,21 @@ class IrradiatedTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 27.0,
-        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A4: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A5: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        A6: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Us: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        u_tot: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        a_gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.544,
+        A1: Annotated[float, RealSet.closed_open(0, oo)] = 27.0,
+        A2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A4: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A5: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        A6: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        Us: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        u_tot: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 0.04,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.26,
+        a_gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.004,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 5.544,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A1 = A1
         self.A2 = A2
         self.A3 = A3
@@ -131,9 +131,6 @@ class RadiationCompetitionElement(Element):
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         N:
             The initial concentration of normal cells.
@@ -180,22 +177,21 @@ class RadiationCompetitionElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        N: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.008,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        b1: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        b2: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
         period: float = 7.0,
         width: float = 5.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.N = N
         self.A = A
         self.r1 = r1
@@ -210,7 +206,7 @@ class RadiationCompetitionElement(Element):
         self.width = width
 
 
-class IrradiationInteraction(CrossingInteraction):
+class IrradiationInteraction(Interaction):
     """Radiation fractions of a dose `d`.
 
     They move the lethally irradiated part of the proliferating cells.
@@ -260,21 +256,24 @@ class IrradiationInteraction(CrossingInteraction):
         5
     """
 
+    law_classes = (EventLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.054,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0054,
-        ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.42,
-        au: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        target: Role,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.054,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.0054,
+        ap: Annotated[float, RealSet.closed_open(0, oo)] = 0.42,
+        au: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
         period: float = 1.0,
         start: float = 0.125,
         fractions: int = 10,
     ) -> None:
-        super().__init__(label, target=target, guard=self._get_guard, reset=self._get_resets())
+        super().__init__(label)
+        self.target = target
         self.alpha = alpha
         self.beta = beta
         self.ap = ap
@@ -295,16 +294,23 @@ class IrradiationInteraction(CrossingInteraction):
         """
         return (1 + s.ap * s.target.Us) * (s.alpha * s.dose + s.beta * s.dose**2)
 
-    def _get_resets(self) -> dict[str, Callable[[SimpleNamespace], object]]:
-        """Return the surviving and lethally irradiated cells, and the accumulated dose.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the fractions, which leave the surviving and lethally irradiated cells and add to the dose.
 
         The surviving cells are the proliferating ones.
+
+        Args:
+            context:
+                The namespace of the tumour, with `context.target`.
         """
-        return {
-            'A1': lambda s: s.target.A1 * exp(-self._get_damage(s)),
-            'A5': lambda s: s.target.A5 + (1 - exp(-self._get_damage(s))) * s.target.A1,
-            'u_tot': lambda s: s.target.u_tot + (1 + s.au * s.target.Us) * s.dose,
+        super()._prepare(context)
+        s = context
+        reset = {
+            s.target.A1: SR(s.target.A1 * exp(-self._get_damage(s))),
+            s.target.A5: SR(s.target.A5 + (1 - exp(-self._get_damage(s))) * s.target.A1),
+            s.target.u_tot: SR(s.target.u_tot + (1 + s.au * s.target.Us) * s.dose),
         }
+        self.laws_: list[BaseLaw] = [EventLaw(SR(self._get_guard(s)), reset, 0, False, label=self.label)]
 
 
 class RadiotherapyCompetitionSystem(BaseSystem):
@@ -354,6 +360,12 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import RadiotherapyCompetitionSystem
         >>> RadiotherapyCompetitionSystem(a2=0.1).prepare().system_.elements[0].a2
@@ -380,8 +392,10 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         period: float = 7.0,
         width: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.N = N
         self.A = A
         self.r1 = r1
@@ -393,8 +407,14 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         self.period = period
         self.width = width
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of normal and tumour cells in Lotka-Volterra competition."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of normal and tumour cells in Lotka-Volterra competition.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tissue = RadiationCompetitionElement(
             'tissue',
             N=self.N,
@@ -409,11 +429,10 @@ class RadiotherapyCompetitionSystem(BaseSystem):
             width=self.width,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'normal_growth',
-                target='tissue',
-                state='N',
-                rate=lambda s: s.target.r1 * s.target.N * (1 - s.target.b1 * s.target.N),
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.N, s.target.r1 * s.target.N * (1 - s.target.b1 * s.target.N))],
             ),
             ReactionInteraction(
                 'normal_competition',
@@ -428,11 +447,10 @@ class RadiotherapyCompetitionSystem(BaseSystem):
                 reactants={'N': 1},
                 propensity=lambda s: s.target.epsilon * s.target.N,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tissue',
-                state='A',
-                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A))],
             ),
             ReactionInteraction(
                 'tumour_competition',
@@ -448,7 +466,7 @@ class RadiotherapyCompetitionSystem(BaseSystem):
                 propensity=lambda s: s.target.a2 * pulse_train(s.t, self.period, self.width) * s.target.A,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
+        self.system_ = System(self.label, elements=[tissue], interactions=interactions)
 
 
 class LQRadiosensitizerSystem(BaseSystem):
@@ -514,6 +532,12 @@ class LQRadiosensitizerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import LQRadiosensitizerSystem
         >>> LQRadiosensitizerSystem(Us=0.0).prepare().system_.elements[0].Us
@@ -544,8 +568,10 @@ class LQRadiosensitizerSystem(BaseSystem):
         start: float = 0.125,
         fractions: int = 10,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A1 = A1
         self.Us = Us
         self.r = r
@@ -561,11 +587,16 @@ class LQRadiosensitizerSystem(BaseSystem):
         self.start = start
         self.fractions = fractions
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a xenograft tumour irradiated in fractions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a xenograft tumour irradiated in fractions.
 
         The linear-quadratic system scores the fractions.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         tumour = IrradiatedTumourElement(
             'tumour',
             A1=self.A1,
@@ -588,11 +619,12 @@ class LQRadiosensitizerSystem(BaseSystem):
             fractions=self.fractions,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'growth',
-                target='tumour',
-                state='A1',
-                rate=lambda s: s.target.r * s.target.A1 * exp(-s.target.a_gamma * s.target.u_tot),
+                roles={'target': 'tumour'},
+                laws=lambda s: [
+                    RateLaw(s.target.A1, s.target.r * s.target.A1 * exp(-s.target.a_gamma * s.target.u_tot)),
+                ],
             ),
             ReactionInteraction(
                 'damaged_division',
@@ -643,4 +675,4 @@ class LQRadiosensitizerSystem(BaseSystem):
             ),
             irradiation,
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)

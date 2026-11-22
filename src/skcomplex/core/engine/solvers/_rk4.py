@@ -8,21 +8,16 @@ from collections.abc import Callable
 
 import numpy as np
 
-from ...components.laws import (
-    BilinearLaw,
-    BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
-    JumpLaw,
-    LinearProgramLaw,
-    RateLaw,
-    TransferLaw,
-)
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._steps import step_count
 from ..types import Interpolant
 from ._base import BaseSolver
@@ -31,12 +26,14 @@ from ._solver import Solver
 
 
 class RK4Solver(Solver):
-    """A solver of ordinary differential equations by the classical Runge-Kutta method.
+    """A solver of ordinary differential equations by the classical Runge-Kutta rule.
 
-    ODEs are ordinary differential equations. It takes a fixed internal step. With the Numba backend every internal step
-    of a frame runs in compiled code.
+    It takes steps of a fixed length `dt` and evaluates the rates four times per step, so its error falls with the
+    fourth power of the step, such as `e` to six places for a population that grows at rate 1 over one time unit. With
+    the Numba backend every step of a frame runs in compiled code. Choose it for smooth flows with a fixed step, such as
+    orbits, oscillators, and epidemics.
 
-    Choose it for smooth flows with a fixed step. It appears in every field, such as orbits, oscillators, and epidemics.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -48,39 +45,31 @@ class RK4Solver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        EulerSolver: Steps with the explicit Euler rule.
+        ScipyODESolver: Steps with adaptive steps of SciPy.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import RK4Solver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = RK4Solver(dt=0.001, random_state=0).prepare(problem)
-        >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
-        >>> round(float(stepper.run(step).state_[0]), 10)
-        2.7182818285
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> system = ExponentialGrowthSystem(n=1.0, r=1.0, solver=RK4Solver(dt=0.001)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('population.x').round(6).tolist()
+        [1.0, 2.718282]
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
             laws={
                 JumpLaw,
-                LinearProgramLaw,
+                _LinearProgramLaw,
                 RateLaw,
-                FluxLaw,
-                EquationLaw,
-                CrossingLaw,
-                BoundaryLaw,
-                TransferLaw,
+                ConstraintLaw,
+                EventLaw,
+                _BoundaryLaw,
                 BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),

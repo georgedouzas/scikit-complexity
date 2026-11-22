@@ -1,40 +1,27 @@
 """Test the `_movement` module of `skcomplex.systems.general.agents`."""
 
-from typing import Annotated
+from collections.abc import Callable, Sequence
+from typing import Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TransferInteraction
-from skcomplex.core.components.laws import Sink
-from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.laws import PartnerSpec
+from skcomplex.core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.components.types import AgentViewProtocol, SystemViewProtocol
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, PartnerSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.general.agents import MovementInteraction
-
-
-class BudgetElement(Element):
-    """Walker with a level that its steps cost."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        level: Annotated[float, StateSpec()] = 10.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.level = level
 
 
 class BoldWalkInteraction(MovementInteraction):
     """Walk whose move probability is the parameter `boldness`."""
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], boldness: Annotated[float, ParameterSpec()]):
+    def __init__(self, label: str, *, target: Role, boldness: float):
         super().__init__(label, target=target)
         self.boldness = boldness
 
@@ -46,43 +33,62 @@ class BoldWalkInteraction(MovementInteraction):
 class SureWalkInteraction(MovementInteraction):
     """Walk whose move probability is fixed to 1 without a parameter."""
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]):
+    def __init__(self, label: str, *, target: Role):
         super().__init__(label, target=target, probability=1.0)
 
 
-def _run(system: CompositeSystem, until: int) -> Trajectory:
-    """Return the trajectory of a system run to a time."""
-    return simulate(system, until=until, random_state=0)
+def _walkers(space: BaseSpace, places: Sequence[object], **values: object) -> Element:
+    """Return walkers that start at places of a space, given by their values named after its axes.
+
+    A place is a point or a cell, or a node of a network.
+    """
+    axes = space.prepare().axes_
+    points = [place if isinstance(place, tuple) else (place,) for place in places]
+    located = {axis: [point[index] for point in points] for index, axis in enumerate(axes)}
+    return Element('walkers', values={**values, **located}, size=len(places), space=space)
+
+
+def _budget_walkers(space: BaseSpace, places: Sequence[object], level: object = 10.0) -> Element:
+    """Return walkers with a level that their steps cost, ten by default, that start at places of a space."""
+    return _walkers(space, places, level=np.broadcast_to(np.asarray(level, dtype=float), len(places)).copy())
+
+
+def _run(walkers: Element, walk: MovementInteraction, until: int) -> Trajectory:
+    """Return the trajectory of walkers under a movement run to a time."""
+    return System(elements=[walkers], interactions=[walk]).prepare().simulate(until, random_state=0)
 
 
 def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Trajectory:
     """Return the trajectory of walkers that start at the middle of a 9 by 9 lattice."""
-    walkers = GroupElement('walkers', element=BudgetElement, size=size, location=[(4, 4)] * size)
-    space = LatticeSpace((9, 9), metric='manhattan')
-    return _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), until)
+    walkers = _budget_walkers(LatticeSpace((9, 9), metric='manhattan'), [(4, 4)] * size)
+    return _run(walkers, walk, until)
 
 
-def _cost(amount: float) -> TransferInteraction:
-    """Return the transfer of an amount of the level of a walker to the environment."""
-    return TransferInteraction(
-        'cost',
-        source='walkers',
-        target='walkers',
-        state='level',
-        into=Sink(),
-        amount=amount,
-        form='agent',
-    )
+@runtime_checkable
+class BudgetView(Protocol):
+    """View of a walker, with the level its steps cost."""
+
+    level: float
+
+
+def _cost(amount: float) -> Callable[[AgentViewProtocol, SystemViewProtocol], None]:
+    """Return the cost of a step, which takes an amount of the level of a walker."""
+
+    def pay(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        del system
+        assert isinstance(agent, BudgetView)
+        agent.level -= amount
+
+    return pay
 
 
 def test_move_gaussian_steps_spread_as_diffusion():
     """Test that 10,000 Gaussian walkers of variance `2 D` per step have the mean squared displacement `4 D t`."""
     D, until, size = 0.5, 20, 1000.0
     middle = (size / 2, size / 2)
-    walkers = GroupElement('walkers', element=Element, size=10_000, location=[middle] * 10_000)
+    walkers = _walkers(ContinuousSpace(extent=(size, size), boundary='periodic'), [middle] * 10_000)
     walk = MovementInteraction('walk', target='walkers', step='gaussian', scale=np.sqrt(2 * D))
-    space = ContinuousSpace(extent=(size, size), boundary='periodic')
-    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), until)
+    trajectory = _run(walkers, walk, until)
     displacements = np.asarray(trajectory.get_agents('walkers', until).locations, dtype=float) - middle
     assert (displacements**2).sum(axis=1).mean() == pytest.approx(4 * D * until, rel=0.05)
 
@@ -90,10 +96,9 @@ def test_move_gaussian_steps_spread_as_diffusion():
 def test_move_levy_steps_are_at_least_the_scale():
     """Test that every Lévy step moves a walker by at least the scale."""
     middle = (50.0, 50.0)
-    walkers = GroupElement('walkers', element=Element, size=200, location=[middle] * 200)
+    walkers = _walkers(ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'), [middle] * 200)
     walk = MovementInteraction('walk', target='walkers', step='levy', scale=0.5, exponent=1.5)
-    space = ContinuousSpace(extent=(100.0, 100.0), boundary='periodic')
-    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 1)
+    trajectory = _run(walkers, walk, 1)
     lengths = np.linalg.norm(np.asarray(trajectory.get_agents('walkers', 1).locations, dtype=float) - middle, axis=1)
     assert lengths.min() >= 0.5
 
@@ -109,15 +114,15 @@ def test_move_neighbor_steps_move_to_adjacent_cells():
 def test_move_neighbor_steps_follow_the_edges_of_a_network():
     """Test that neighbour steps on a network move every walker along an edge of the graph."""
     graph = nx.path_graph(6)
-    walkers = GroupElement('walkers', element=Element, size=3, location=[2, 3, 4])
+    walkers = _walkers(NetworkSpace(graph), [2, 3, 4])
     walk = MovementInteraction('walk', target='walkers')
-    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=NetworkSpace(graph)), 10)
+    trajectory = _run(walkers, walk, 10)
     nodes = np.asarray([trajectory.get_agents('walkers', frame).locations for frame in range(11)], dtype=int)
     assert np.all(np.abs(np.diff(nodes, axis=0)) == 1)
 
 
-def test_move_charges_a_transfer_for_every_step():
-    """Test that every step pays the amount of a transfer from the level of the walker."""
+def test_move_charges_a_cost_for_every_step():
+    """Test that every step takes the amount of the cost from the level of the walker."""
     trajectory = _lattice_walk(3, MovementInteraction('walk', target='walkers', cost=_cost(1.5)))
     assert trajectory.get_agents('walkers', 3).values['level'].tolist() == [5.5] * 4
 
@@ -142,10 +147,9 @@ def test_move_without_probability_keeps_walkers_in_place():
 
 def test_move_rate_draws_a_poisson_number_of_steps():
     """Test that walkers with a rate take a Poisson number of steps of that mean, as their spent level counts."""
-    walkers = GroupElement('walkers', element=BudgetElement, size=500, values={'level': 0.0}, location=[(4, 4)] * 500)
+    walkers = _budget_walkers(LatticeSpace((9, 9), metric='manhattan'), [(4, 4)] * 500, level=0.0)
     walk = MovementInteraction('walk', target='walkers', rate=2.0, cost=_cost(1.0))
-    space = LatticeSpace((9, 9), metric='manhattan')
-    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 10)
+    trajectory = _run(walkers, walk, 10)
     steps = -trajectory.get_agents('walkers', 10).values['level']
     assert steps.mean() == pytest.approx(20.0, rel=0.05)
     assert steps.var() == pytest.approx(20.0, rel=0.2)
@@ -153,16 +157,9 @@ def test_move_rate_draws_a_poisson_number_of_steps():
 
 def test_move_condition_moves_only_the_agents_where_it_holds():
     """Test that only the walkers whose condition holds move."""
-    walkers = GroupElement(
-        'walkers',
-        element=BudgetElement,
-        size=2,
-        values={'level': [1.0, 0.0]},
-        location=[(4, 4)] * 2,
-    )
+    walkers = _budget_walkers(LatticeSpace((9, 9), metric='manhattan'), [(4, 4)] * 2, level=[1.0, 0.0])
     walk = MovementInteraction('walk', target='walkers', condition=lambda walker, system: walker.level > 0)
-    space = LatticeSpace((9, 9), metric='manhattan')
-    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 1)
+    trajectory = _run(walkers, walk, 1)
     locations = np.asarray(trajectory.get_agents('walkers', 1).locations)
     assert np.abs(locations - 4).sum(axis=1).tolist() == [1, 0]
 
@@ -184,10 +181,9 @@ def test_move_best_steps_climb_a_score():
 def test_move_exclusive_steps_never_share_a_cell():
     """Test that exclusive walkers on a crowded lattice never stand in one cell."""
     cells = [(row, column) for row in range(3) for column in range(3)][:6]
-    walkers = GroupElement('walkers', element=Element, size=6, location=cells)
+    walkers = _walkers(LatticeSpace((3, 3), metric='chebyshev'), cells)
     walk = MovementInteraction('walk', target='walkers', exclusive=True)
-    space = LatticeSpace((3, 3), metric='chebyshev')
-    trajectory = _run(CompositeSystem(elements=[walkers], interactions=[walk], space=space), 10)
+    trajectory = _run(walkers, walk, 10)
     for frame in range(11):
         locations = {tuple(cell) for cell in np.asarray(trajectory.get_agents('walkers', frame).locations).tolist()}
         assert len(locations) == 6
@@ -270,7 +266,7 @@ class StrollInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        strollers: Annotated[str, RoleSpec()],
+        strollers: Role,
         probability: float = 1.0,
         schedule: str = 'random-sequential',
     ) -> None:

@@ -15,7 +15,7 @@ def test_network_superposition_mixes_the_poisson_degrees_of_its_subgraphs_as_eq_
     system = (
         NetworkSuperpositionSystem(n_nodes, n_subgraphs=1000, exponent=exponent, low=low, high=high).prepare().system_
     )
-    degrees = np.asarray(system.elements[0].values['degree'], dtype=int)
+    degrees = np.asarray(system.elements[0].degree, dtype=int)
     norm = (low ** (1 - exponent) - high ** (1 - exponent)) / (exponent - 1)
     support = np.arange(degrees.max() + 30)
     expected = np.array(

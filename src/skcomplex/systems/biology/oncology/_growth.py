@@ -4,18 +4,22 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import Interaction, RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import minimum, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.populations import (
     ExponentialGrowthInteraction,
     GrowthInteraction,
@@ -35,9 +39,6 @@ class VasculatureElement(Element):
         label:
             The label of the vasculature.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         K:
             The initial carrying capacity.
 
@@ -50,15 +51,14 @@ class VasculatureElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        K: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.K = K
 
 
-class ExponentialLinearGrowthInteraction(RateInteraction):
+class ExponentialLinearGrowthInteraction(Interaction):
     """Growth that is exponential until it reaches a linear rate, and linear after.
 
     The exponential growth is `dx/dt = r0 x`, and the linear rate is `r`.
@@ -85,17 +85,30 @@ class ExponentialLinearGrowthInteraction(RateInteraction):
         67.8
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.31,
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 67.8,
+        target: Role,
+        r0: Annotated[float, RealSet.open(0, oo)] = 0.31,
+        r: Annotated[float, RealSet.open(0, oo)] = 67.8,
     ) -> None:
-        super().__init__(label, target=target, state='x')
+        super().__init__(label)
+        self.target = target
         self.r0 = r0
         self.r = r
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the `x` of the target.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the rate `min(r0 x, r)`.
@@ -112,7 +125,7 @@ class ExponentialLinearGrowthInteraction(RateInteraction):
         return minimum(exponential, s.r)
 
 
-class LogKillInteraction(RateInteraction):
+class LogKillInteraction(Interaction):
     """Cell kill proportional to the tumour and to a drug exposure.
 
     The exposure is given in a train of rectangular doses.
@@ -148,23 +161,36 @@ class LogKillInteraction(RateInteraction):
         21.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         period: float = 7.0,
         width: float = 1.0,
         start: float = 0.0,
     ) -> None:
-        super().__init__(label, target=target, state='x')
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.dose = dose
         self.period = period
         self.width = width
         self.start = start
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the `x` of the target.
+
+        Args:
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.x, self._get_rate(context))]
 
     def _get_rate(self, s: SimpleNamespace) -> Expression:
         """Return the rate `-a x U(t)`.
@@ -216,10 +242,10 @@ class VascularSupportInteraction(Interaction):
         self,
         label: str,
         *,
-        tumour: Annotated[str, RoleSpec()],
-        vasculature: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.63,
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.829,
+        tumour: Role,
+        vasculature: Role,
+        r: Annotated[float, RealSet.open(0, oo)] = 2.63,
+        d: Annotated[float, RealSet.closed_open(0, oo)] = 0.829,
     ) -> None:
         super().__init__(label)
         self.tumour = tumour
@@ -227,19 +253,17 @@ class VascularSupportInteraction(Interaction):
         self.r = r
         self.d = d
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Gompertz growth of the tumour and the growth of the capacity.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the Gompertz growth of the tumour and the growth of the capacity.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         n, K = s.tumour.x, s.vasculature.K
-        return [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
+        self.laws_ = [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
 
 
 class GompertzGrowthInteraction(GrowthInteraction):
@@ -268,14 +292,13 @@ class GompertzGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.oncology import GompertzGrowthInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('tumour', x=1.0)],
         ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
         ... )
-        >>> trajectory = simulate(system, until=30.0, dt=0.1)
+        >>> trajectory = system.prepare().simulate(until=30.0, dt=0.1)
         >>> round(float(trajectory.get_values('tumour.x')[-1]), 3)
         20.0
     """
@@ -284,10 +307,10 @@ class GompertzGrowthInteraction(GrowthInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0719,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1964.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        r: Annotated[float, RealSet.open(0, oo)] = 0.0719,
+        K: Annotated[float, RealSet.open(0, oo)] = 1964.0,
+        tau: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, r=r, K=K, tau=tau, form='gompertz', state=state)
@@ -327,14 +350,13 @@ class PowerLawGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.oncology import PowerLawGrowthInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('tumour', x=1.0)],
         ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
         ... )
-        >>> trajectory = simulate(system, until=2.0, dt=0.01)
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.01)
         >>> round(float(trajectory.get_values('tumour.x')[-1]), 3)
         4.0
     """
@@ -343,9 +365,9 @@ class PowerLawGrowthInteraction(GrowthInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.32,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.58,
+        target: Role,
+        r: Annotated[float, RealSet.open(0, oo)] = 1.32,
+        p: Annotated[float, RealSet.open(0, oo)] = 0.58,
         state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, r=r, p=p, form='power', state=state)
@@ -385,6 +407,12 @@ class ExponentialLinearGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ExponentialLinearGrowthSystem
         >>> ExponentialLinearGrowthSystem().prepare().system_.interactions[0].r0
@@ -404,15 +432,23 @@ class ExponentialLinearGrowthSystem(BaseSystem):
         r0: float = 0.31,
         r: float = 67.8,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r0 = r0
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=self.r0, r=self.r)],
@@ -440,6 +476,12 @@ class PowerLawGrowthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import PowerLawGrowthSystem
         >>> PowerLawGrowthSystem(p=2 / 3).prepare().system_.interactions[0].p
@@ -459,18 +501,25 @@ class PowerLawGrowthSystem(BaseSystem):
         r: float = 1.32,
         p: float = 0.58,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.p = p
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour whose proliferating part scales as a power of its size.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour whose proliferating part scales as a power of its size.
 
         The growth is `dn/dt = r n^p`.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=self.r, p=self.p)],
@@ -501,6 +550,12 @@ class VonBertalanffySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import VonBertalanffySystem
         >>> VonBertalanffySystem().prepare().system_.interactions[1].d
@@ -521,19 +576,26 @@ class VonBertalanffySystem(BaseSystem):
         p: float = 0.918,
         d: float = 0.808,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.p = p
         self.d = d
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour that grows by the balance of anabolism and catabolism.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour that grows by the balance of anabolism and catabolism.
 
         The growth is `dn/dt = r n^p - d n`.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[
@@ -567,6 +629,12 @@ class GeneralizedLogisticSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import GeneralizedLogisticSystem
         >>> GeneralizedLogisticSystem(p=0.5).prepare().system_.interactions[0].p
@@ -587,16 +655,24 @@ class GeneralizedLogisticSystem(BaseSystem):
         K: float = 1221.0,
         p: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.K = K
         self.p = p
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour that saturates at a carrying capacity."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour that saturates at a carrying capacity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[GrowthInteraction('growth', target='tumour', r=self.r, K=self.K, p=self.p, form='logistic')],
@@ -624,6 +700,12 @@ class GompertzSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import GompertzSystem
         >>> GompertzSystem(K=1000.0).prepare().system_.interactions[0].K
@@ -643,18 +725,25 @@ class GompertzSystem(BaseSystem):
         r: float = 0.0719,
         K: float = 1964.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.K = K
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour whose growth slows as the room left shrinks.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour whose growth slows as the room left shrinks.
 
         The growth slows as the logarithm of the room left.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[GompertzGrowthInteraction('growth', target='tumour', r=self.r, K=self.K)],
@@ -686,6 +775,12 @@ class DynamicCarryingCapacitySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import DynamicCarryingCapacitySystem
         >>> DynamicCarryingCapacitySystem().prepare().system_.elements[1].K
@@ -706,16 +801,24 @@ class DynamicCarryingCapacitySystem(BaseSystem):
         r: float = 2.63,
         d: float = 0.829,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.K = K
         self.r = r
         self.d = d
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of Gompertz growth under a carrying capacity."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Gompertz growth under a carrying capacity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n), VasculatureElement('vessels', K=self.K)],
             interactions=[
@@ -755,6 +858,12 @@ class SkipperLogKillSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import SkipperLogKillSystem
         >>> SkipperLogKillSystem(period=21.0).prepare().system_.interactions[1].period
@@ -777,8 +886,10 @@ class SkipperLogKillSystem(BaseSystem):
         period: float = 7.0,
         width: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.a = a
@@ -786,9 +897,15 @@ class SkipperLogKillSystem(BaseSystem):
         self.period = period
         self.width = width
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the log-kill system."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the log-kill system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[
@@ -842,6 +959,12 @@ class NortonSimonSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import NortonSimonSystem
         >>> NortonSimonSystem().prepare().system_.interactions[1].start
@@ -866,8 +989,10 @@ class NortonSimonSystem(BaseSystem):
         width: float = 1.0,
         start: float = 42.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.r = r
         self.K = K
@@ -877,9 +1002,15 @@ class NortonSimonSystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Norton-Simon system."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Norton-Simon system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('tumour', x=self.n)],
             interactions=[

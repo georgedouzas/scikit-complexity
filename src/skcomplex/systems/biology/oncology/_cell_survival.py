@@ -10,23 +10,18 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.laws import EquationLaw
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import ConstraintLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class LinearQuadraticSurvivalElement(Element):
-    """Surviving fraction, Lea-Catcheside factor, and effective dose of cells.
-
-    The effective dose is the biologically effective dose of a total dose.
-
-    The survival is `S = exp(-alpha D - beta G D^2)`, where `D` is the total dose. The Lea-Catcheside factor of `n`
-    fractions, each delivered at a constant rate in a time `T` with repair at the rate `mu`, far enough apart to repair
-    between them, is `G = 2 (mu T - 1 + exp(-mu T)) / (n (mu T)^2)`, which tends to `1 / n` as `T` tends to 0. The
-    biologically effective dose is `BED = D (1 + G D beta / alpha)`.
+    """Irradiated cells, with their surviving fraction, Lea-Catcheside factor, effective dose, and dose.
 
     Args:
         label:
@@ -65,21 +60,19 @@ class LinearQuadraticSurvivalElement(Element):
         30.0
     """
 
-    law_classes = (EquationLaw,)
-
     def __init__(
         self,
         label: str,
         *,
-        survival: Annotated[float, StateSpec()] = 1.0,
-        protraction: Annotated[float, StateSpec()] = 1.0,
-        effective_dose: Annotated[float, StateSpec()] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.03,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        fractions: Annotated[float, ParameterSpec(domain=RealSet.closed_open(1, oo))] = 1.0,
-        repair_rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.46,
-        delivery_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-3,
+        survival: float = 1.0,
+        protraction: float = 1.0,
+        effective_dose: float = 0.0,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        beta: Annotated[float, RealSet.open(0, oo)] = 0.03,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        fractions: Annotated[float, RealSet.closed_open(1, oo)] = 1.0,
+        repair_rate: Annotated[float, RealSet.open(0, oo)] = 0.46,
+        delivery_time: Annotated[float, RealSet.open(0, oo)] = 1e-3,
     ) -> None:
         super().__init__(label)
         self.survival = survival
@@ -92,28 +85,53 @@ class LinearQuadraticSurvivalElement(Element):
         self.repair_rate = repair_rate
         self.delivery_time = delivery_time
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the equations of the Lea-Catcheside factor, the survival, and the dose.
 
-        The dose is the biologically effective dose.
+class LinearQuadraticSurvivalInteraction(Interaction):
+    """Linear-quadratic survival, Lea-Catcheside factor, and effective dose of irradiated cells.
+
+    The survival is `S = exp(-alpha D - beta G D^2)`, where `D` is the total dose. The Lea-Catcheside factor of `n`
+    fractions, each delivered at a constant rate in a time `T` with repair at the rate `mu`, far enough apart to repair
+    between them, is `G = 2 (mu T - 1 + exp(-mu T)) / (n (mu T)^2)`, which tends to `1 / n` as `T` tends to 0. The
+    biologically effective dose is `BED = D (1 + G D beta / alpha)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells, whose values are `survival`, `protraction`, `effective_dose`, `alpha`, `beta`,
+            `dose`, `fractions`, `repair_rate`, and `delivery_time`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import LinearQuadraticSurvivalInteraction
+        >>> LinearQuadraticSurvivalInteraction('survival', target='cells').target
+        'cells'
+    """
+
+    law_classes = (ConstraintLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equations of the Lea-Catcheside factor, the survival, and the biologically effective dose.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The three equations.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context.target
         repaired = s.repair_rate * s.delivery_time
         protraction = 2 * (repaired - 1 + exp(-repaired)) / (s.fractions * repaired**2)
-        return [
-            EquationLaw(s.protraction == protraction, target=s.protraction),
-            EquationLaw(
+        self.laws_ = [
+            ConstraintLaw(s.protraction == protraction, target=s.protraction),
+            ConstraintLaw(
                 s.survival == exp(-s.alpha * s.dose - s.beta * protraction * s.dose**2),
                 target=s.survival,
             ),
-            EquationLaw(
+            ConstraintLaw(
                 s.effective_dose == s.dose * (1 + protraction * s.dose * s.beta / s.alpha),
                 target=s.effective_dose,
             ),
@@ -152,11 +170,15 @@ class LQCellSurvivalSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import LQCellSurvivalSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = LQCellSurvivalSystem(60.0, fractions=30.0).prepare().system_
-        >>> trajectory = simulate(system, until=1.0)
+        >>> trajectory = LQCellSurvivalSystem(60.0, fractions=30.0).prepare().simulate(until=1.0)
         >>> round(float(trajectory.get_values('cells.effective_dose')[0]), 1)
         72.0
     """
@@ -175,8 +197,10 @@ class LQCellSurvivalSystem(BaseSystem):
         repair_rate: float = 0.46,
         delivery_time: float = 1e-3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.dose = dose
         self.fractions = fractions
         self.alpha = alpha
@@ -184,8 +208,14 @@ class LQCellSurvivalSystem(BaseSystem):
         self.repair_rate = repair_rate
         self.delivery_time = delivery_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the linear-quadratic survival of cells after a total dose."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the linear-quadratic survival of cells after a total dose.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         cells = LinearQuadraticSurvivalElement(
             'cells',
             alpha=self.alpha,
@@ -195,4 +225,8 @@ class LQCellSurvivalSystem(BaseSystem):
             repair_rate=self.repair_rate,
             delivery_time=self.delivery_time,
         )
-        return CompositeSystem(self.label, elements=[cells], time=StaticTime())
+        self.system_ = System(
+            self.label,
+            elements=[cells],
+            interactions=[LinearQuadraticSurvivalInteraction('survival', target='cells')],
+        )

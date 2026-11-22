@@ -3,43 +3,91 @@
 The package covers random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes.
 """
 
-from ._branching import GaltonWatsonSystem, IndividualElement
-from ._counting import BernoulliProcessSystem, BernoulliTrialElement, PoissonCounterElement, PoissonProcessSystem
-from ._intermittency import IntermittentVariableElement, OnOffIntermittencySystem
-from ._power_laws import ExponentialGrowthAtRandomTimesSystem, ObservedGrowthElement
-from ._queues import BirthDeathQueueSystem, QueueElement
-from ._random_maps import RandomBranchMapElement, RandomBranchMapSystem
+from ._branching import (
+    BranchingInteraction,
+    GaltonWatsonSystem,
+    IndividualElement,
+)
+from ._counting import (
+    BernoulliProcessSystem,
+    BernoulliTrialElement,
+    BernoulliTrialInteraction,
+    PoissonCounterElement,
+    PoissonEventsInteraction,
+    PoissonProcessSystem,
+)
+from ._intermittency import (
+    IntermittencyInteraction,
+    IntermittentVariableElement,
+    OnOffIntermittencySystem,
+)
+from ._power_laws import (
+    ExponentialGrowthAtRandomTimesSystem,
+    ObservedGrowthElement,
+    ObservedGrowthInteraction,
+)
+from ._queues import (
+    BirthDeathQueueSystem,
+    QueueElement,
+    ServiceInteraction,
+)
+from ._random_maps import (
+    RandomBranchMapElement,
+    RandomBranchMapInteraction,
+    RandomBranchMapSystem,
+)
 from ._reducing import (
-    CascadingBallElement,
+    BallElement,
+    BreakingInteraction,
+    CascadeInteraction,
     CascadingSampleSpaceReducingSystem,
     FragmentationSystem,
     FragmentElement,
-    ReducingBallElement,
     ReducingJumpInteraction,
     SampleSpaceReducingSystem,
 )
-from ._sources import HiddenMarkovSourceElement, HiddenMarkovSourceSystem, MarkovSourceElement, MarkovSourceSystem
-from ._urns import PolyaUrnElement, PolyaUrnSystem
+from ._sources import (
+    HiddenMarkovSourceElement,
+    HiddenMarkovSourceSystem,
+    MarkovChainInteraction,
+    MarkovSourceElement,
+    MarkovSourceSystem,
+)
+from ._urns import (
+    PolyaDrawInteraction,
+    PolyaUrnElement,
+    PolyaUrnSystem,
+)
 from ._walks import (
     AgeingRandomWalkSystem,
+    AgeingStepInteraction,
     AgeingWalkerElement,
+    MemoryStepInteraction,
     MemoryWalkerElement,
     PersistentRandomWalkSystem,
+    PersistentStepInteraction,
     PersistentWalkerElement,
+    RandomStepInteraction,
     RandomWalkerElement,
     RandomWalkSystem,
     RandomWalkWithMemorySystem,
+    WeakeningForceInteraction,
     WeakeningOrnsteinUhlenbeckSystem,
     WeakeningParticleElement,
 )
 
 __all__: list[str] = [
     'AgeingRandomWalkSystem',
+    'AgeingStepInteraction',
     'AgeingWalkerElement',
+    'BallElement',
     'BernoulliProcessSystem',
     'BernoulliTrialElement',
+    'BernoulliTrialInteraction',
     'BirthDeathQueueSystem',
-    'CascadingBallElement',
+    'BranchingInteraction',
+    'BreakingInteraction',
+    'CascadeInteraction',
     'CascadingSampleSpaceReducingSystem',
     'ExponentialGrowthAtRandomTimesSystem',
     'FragmentElement',
@@ -48,27 +96,37 @@ __all__: list[str] = [
     'HiddenMarkovSourceElement',
     'HiddenMarkovSourceSystem',
     'IndividualElement',
+    'IntermittencyInteraction',
     'IntermittentVariableElement',
+    'MarkovChainInteraction',
     'MarkovSourceElement',
     'MarkovSourceSystem',
+    'MemoryStepInteraction',
     'MemoryWalkerElement',
     'ObservedGrowthElement',
+    'ObservedGrowthInteraction',
     'OnOffIntermittencySystem',
     'PersistentRandomWalkSystem',
+    'PersistentStepInteraction',
     'PersistentWalkerElement',
     'PoissonCounterElement',
+    'PoissonEventsInteraction',
     'PoissonProcessSystem',
+    'PolyaDrawInteraction',
     'PolyaUrnElement',
     'PolyaUrnSystem',
     'QueueElement',
     'RandomBranchMapElement',
+    'RandomBranchMapInteraction',
     'RandomBranchMapSystem',
+    'RandomStepInteraction',
     'RandomWalkSystem',
     'RandomWalkWithMemorySystem',
     'RandomWalkerElement',
-    'ReducingBallElement',
     'ReducingJumpInteraction',
     'SampleSpaceReducingSystem',
+    'ServiceInteraction',
+    'WeakeningForceInteraction',
     'WeakeningOrnsteinUhlenbeckSystem',
     'WeakeningParticleElement',
 ]

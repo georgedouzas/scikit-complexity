@@ -11,8 +11,8 @@ from typing import Annotated
 import qutip
 from sage.all__sagemath_symbolics import CC
 
-from .....core.components.elements import Element
-from .....core.specs import HilbertSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element, VisualSpec
+from ._hilbert_spec import HilbertSpec
 
 QUBIT = HilbertSpec(
     2,
@@ -44,23 +44,21 @@ class QubitElement(Element):
         hilbert:
             The Hilbert space of the qubit.
 
-        visual:
-            How the qubit is drawn.
-
     Examples:
         >>> from skcomplex.systems.physics.common.quantum import QubitElement
         >>> sorted(QubitElement('q').hilbert.operators)
         ['minus', 'plus', 'x', 'y', 'z']
     """
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        psi: Annotated[object, CC] = 'up',
         *,
         hilbert: HilbertSpec = QUBIT,
-        visual: VisualSpec | None = VisualSpec('expectations'),
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.psi = psi
         self.hilbert = hilbert

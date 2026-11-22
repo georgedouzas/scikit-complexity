@@ -1,4 +1,4 @@
-"""Lower the kernels of a problem into the numeric functions of its form."""
+"""Join the kernels of a problem into the numeric functions its solver calls."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,23 +11,18 @@ from dataclasses import replace
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....components import EntrySpec
 from ....components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.spaces import DelaunayNeighborhood, DiscreteTime
-from ....components.systems import CompositeSystem
+from ....components.spaces import DelaunayNeighborhood
+from ....components.spaces._discrete_time import _DiscreteTime
+from ....enums import FormKind
 from ....errors import BackendWarning, ValidationError
-from ....specs import (
-    DEFAULT_PHASE,
-    EntrySpec,
-    LayoutSpec,
-    LoweredFunctionsSpec,
-    PhaseSpec,
-    PhasesScheduleSpec,
-    RunStateSpec,
-)
-from ....types import Array, FormKind, Indices, VectorFunction
+from ....types import Array, Indices, VectorFunction
 from ..._utils import symbols_of
-from ...backends import BaseBackend, NumpyBackend
-from ...problems import ProblemSpec
+from ...backends import BaseBackend, LoweredFunctionsSpec, NumpyBackend
+from ...enums import ReadKind
+from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
+from ...problems._composite_system import _CompositeSystem
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._draw_recorder import DrawRecorder
@@ -41,17 +36,32 @@ from ...problems._output_spec import OutputSpec
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._sweep_spec import _SweepSpec
-from ...types import ReadKind
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import STEPWISE_FORMS
+from .._phase_spec import PhaseSpec
+from .._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
 
 
 class FunctionsPass(BasePass):
-    """A pass that lowers the kernels into the numeric functions and form equations.
+    """A pass that joins the kernels into the numeric functions that a solver calls.
 
-    The equations are those of the form.
+    It builds the functions of the kind of problem, such as the drift of a set of rates, and writes the equations of
+    every state in readable form, as `equations_` of a prepared system shows them.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        KernelsPass: Builds the kernels.
+        JacobianPass: Derives the Jacobian of the drift.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import ExponentialGrowthSystem
+        >>> compilation = PassCompiler().prepare(ExponentialGrowthSystem()).run().compilation_
+        >>> compilation.functions.equations
+        {'population.x': r_growth*x_population}
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -305,8 +315,8 @@ class FunctionsPass(BasePass):
         unknown = [item for item in arguments if item not in spec.references]
         if unknown:
             error_msg = (
-                f'The order of an update law of {spec.owner} reads {", ".join(map(str, unknown))}, which the namespace '
-                'does not hold. Order the members by their states, parameters, and draws.'
+                f'The order of an update law of {spec.owner} reads {", ".join(map(str, unknown))}, which its members '
+                'do not hold. Order the members by their states, parameters, and draws.'
             )
             raise ValidationError(error_msg)
         references = [spec.references[item] for item in arguments]
@@ -392,7 +402,8 @@ class FunctionsPass(BasePass):
 
         It is `None` for the default phase alone. The phases are those of the `PhasesScheduleSpec` of the discrete time
         of the system and its nested systems, with the default phase first unless a schedule places it, and a phase
-        without update laws is left out.
+        without update laws is left out. Without a schedule of phases, the phases run in the order their update laws
+        first appear, so the order of the interactions of a system orders them.
 
         Args:
             compilation:
@@ -410,11 +421,12 @@ class FunctionsPass(BasePass):
                 An update law runs in a phase the schedule does not declare, or a phase of update laws repeats or has an
                 activation other than the default.
         """
-        declared = FunctionsPass._get_declared_phases(compilation.system)
+        declared = FunctionsPass._get_declared_phases(compilation.system, compilation.solver)
         kernels: dict[str, list[LawKernel]] = defaultdict(list)
         for kernel in lowered.kernels.get(UpdateLaw, []):
             _, law = lowered.laws[id(kernel.outputs[0])]
             kernels[(law.phase if isinstance(law, UpdateLaw) else None) or DEFAULT_PHASE].append(kernel)
+        declared = declared or [PhaseSpec(name) for name in kernels if name != DEFAULT_PHASE]
         names = [phase.name for phase in declared]
         if set(kernels) <= {DEFAULT_PHASE} and DEFAULT_PHASE not in names:
             return None
@@ -423,7 +435,8 @@ class FunctionsPass(BasePass):
         if unknown:
             error_msg = (
                 f'Update laws run in the phases {", ".join(unknown)}, which the system does not declare. Declare them '
-                'with `DiscreteTime(schedule=PhasesScheduleSpec(...))`. Declared phases are: '
+                "with the phases of its solver, such as `IterationSolver(phases=[PhaseSpec('count')])`. Declared "
+                'phases are: '
                 f'{", ".join(names) or "none"}.'
             )
             raise ValidationError(error_msg)
@@ -444,14 +457,17 @@ class FunctionsPass(BasePass):
         return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]
 
     @staticmethod
-    def _get_declared_phases(system: CompositeSystem) -> list[PhaseSpec]:
-        """Return the phases of the schedules of a system and its nested systems.
+    def _get_declared_phases(system: _CompositeSystem, solver: object = None) -> list[PhaseSpec]:
+        """Return the phases of the solvers and schedules of a system and its subsystems.
 
-        The first of every name is kept.
+        The phases of a solver, such as `MesaSolver(phases=[PhaseSpec('count'), PhaseSpec('copy')])`, come first, the
+        solver of the compilation for the root and the solver of each nested system for its own. The first of every
+        name is kept.
         """
         time = system.time
-        schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
-        phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
+        schedule = time.prepare().schedule_ if isinstance(time, _DiscreteTime) else None
+        phases = list(getattr(solver or getattr(system, 'solver', None), 'phases', None) or ())
+        phases += list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
             phases += FunctionsPass._get_declared_phases(nested)
         kept: dict[str, PhaseSpec] = {}

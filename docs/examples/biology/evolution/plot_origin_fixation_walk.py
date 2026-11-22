@@ -16,14 +16,13 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import OriginFixationWalkSystem
 
 SYSTEM = 'origin_fixation_walk'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(OriginFixationWalkSystem(random_state=0), observers=[observer], random_state=0)
+trajectory = OriginFixationWalkSystem(random_state=0).prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Climbing and the stationary law
@@ -36,24 +35,23 @@ trajectory = simulate(OriginFixationWalkSystem(random_state=0), observers=[obser
 # population of 100 keeps loci with weak fields mixed. A long run of four loci with couplings, a rugged landscape,
 # should spend on each of its 16 genomes the share of time that this law predicts.
 
-fields = OriginFixationWalkSystem(random_state=0).prepare().system_.elements[0].values['h']
+fields = OriginFixationWalkSystem(random_state=0).prepare().system_.elements[0].h
 stationary = 1.0
 for _ in range(100):
     stationary = 1 + np.sum(fields * np.tanh(99 * fields / stationary))
 small = OriginFixationWalkSystem(loci=4, N=10.0, mu=1.0, field_scale=0.1, coupling=0.3, random_state=1)
-alleles = simulate(
-    small,
-    until=5000,
-    dt=1.0,
-    random_state=0,
-).get_values(
-    'genome.s',
-)[100:]
+alleles = (
+    small.prepare()
+    .simulate(until=5000, dt=1.0, random_state=0)
+    .get_values(
+        'genome.s',
+    )[100:]
+)
 visited = np.bincount(((alleles > 0) * 2 ** np.arange(4)).sum(axis=1).astype(int), minlength=16)
 genomes = np.array([[2 * bit - 1 for bit in reversed(bits)] for bits in itertools.product((0, 1), repeat=4)])
 built = small.prepare().system_
 couplings = built.interactions[0].couplings
-fitness = 1.0 + genomes @ built.elements[0].values['h'] + np.einsum('gi,ij,gj->g', genomes, couplings, genomes) / 2
+fitness = 1.0 + genomes @ built.elements[0].h + np.einsum('gi,ij,gj->g', genomes, couplings, genomes) / 2
 
 fig, (climb, law) = plt.subplots(1, 2, figsize=(10, 4))
 climb.plot(trajectory.times, trajectory.get_values('fitness'), label='simulated')

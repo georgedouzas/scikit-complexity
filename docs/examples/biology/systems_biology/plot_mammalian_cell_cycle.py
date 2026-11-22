@@ -12,7 +12,6 @@ of period 7, in which the cyclins E, A, and B rise and fall in turn.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import MammalianCellCycleSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'mammalian_cell_cycle'
 PROTEINS = ('CycD', 'Rb', 'E2F', 'CycE', 'CycA', 'p27', 'Cdc20', 'Cdh1', 'Ubc', 'CycB')
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(MammalianCellCycleSystem(), observers=[observer])
+trajectory = MammalianCellCycleSystem().prepare().simulate(observers=[observer])
 
 # %%
 # The cycle of the cyclins
@@ -30,7 +29,7 @@ trajectory = simulate(MammalianCellCycleSystem(), observers=[observer])
 # state stays fixed.
 
 cycling = trajectory
-resting = simulate(MammalianCellCycleSystem(active=('Rb', 'p27', 'Cdh1')))
+resting = MammalianCellCycleSystem(active=('Rb', 'p27', 'Cdh1')).prepare().simulate()
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, title in zip(
     axes,

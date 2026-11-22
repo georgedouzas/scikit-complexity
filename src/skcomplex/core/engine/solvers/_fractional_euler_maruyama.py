@@ -10,19 +10,14 @@ import numpy.typing as npt
 import scipy.fft
 import scipy.linalg
 
-from ...components.laws import (
-    BoundaryLaw,
-    CrossingLaw,
-    EquationLaw,
-    FluxLaw,
-    NoiseLaw,
-    RateLaw,
-    TransferLaw,
-)
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import ConstraintLaw, EventLaw, NoiseLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._horizon_error import HorizonError
 from ._solver import Solver
@@ -35,13 +30,13 @@ MAX_INCREMENTS = 100_000_000
 class FractionalEulerMaruyamaSolver(Solver):
     """A solver of stochastic equations driven by fractional and ordinary noise.
 
-    SDEs are stochastic differential equations. The stepper draws the correlated increments of every fractional noise
-    row for the whole run when it first advances, on the grid `t0 + k dt` up to the horizon, and adds the stored
-    increment of each step times the amplitude. Ordinary noise rows take independent Wiener increments. A simulation
-    passes the end time of its run as the horizon when the stepper has none.
+    Fractional noise has long memory set by a Hurst index, so a step up makes the next step up more likely when the
+    index is above 0.5. The solver draws the linked increments of every fractional noise for the whole run when it first
+    moves, on the grid `t0 + k dt` up to the horizon, and adds each step's increment times its size. Ordinary noise
+    takes independent increments, and a run passes its end time as the horizon when the solver has none. Choose it for
+    rough prices in finance, river flows, and network traffic.
 
-    Choose it when the noise has long memory, set by a Hurst index. It appears in models of rough volatility in finance,
-    river flows, and network traffic.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -66,38 +61,23 @@ class FractionalEulerMaruyamaSolver(Solver):
         hurst_:
             The Hurst index of every noise row the increments were drawn with.
 
+    See Also:
+        EulerMaruyamaSolver: Steps noise without memory.
+
     Examples:
-        >>> from typing import Annotated
-        >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.laws import NoiseLaw
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> class WalkerElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [NoiseLaw(s.x, 1, hurst=0.75)]
-        >>> system = CompositeSystem(elements=[GroupElement('walkers', element=WalkerElement, size=500)])
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
-        >>> round(float(np.var(state)), 1)
-        1.0
+        >>> from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
+        >>> system = FractionalBrownianMotionSystem(n_walkers=10).prepare()
+        >>> type(system.system_.solver_).__name__, system.simulate(until=1, dt=1).get_values('walkers.x').shape
+        ('FractionalEulerMaruyamaSolver', (2, 10, 2))
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={RateLaw, ConstraintLaw, EventLaw, _BoundaryLaw, NoiseLaw},
             noise=frozenset({NoiseKind.DIAGONAL, NoiseKind.FRACTIONAL}),
             orders=frozenset({OrderKind.INTEGER}),
         )

@@ -5,33 +5,27 @@
 
 import itertools
 
-from ...components.laws import (
-    ArrayUpdateLaw,
-    CascadeLaw,
-    ExtremalLaw,
-    JumpLaw,
-    LocalRuleLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    UpdateLaw,
-)
-from ...types import FormKind
+from ...components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...enums import FormKind
+from ._array_update_law import ArrayUpdateLaw
+from ._relaxation_law import RelaxationLaw
 from ._renewal_law import RenewalLaw
 
-LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, ArrayUpdateLaw, CascadeLaw, ExtremalLaw)
-STEPWISE_FORMS: dict[frozenset[type], FormKind] = {
+LATTICE_LAWS: tuple[type, ...] = (_LocalRuleLaw, ArrayUpdateLaw, RelaxationLaw)
+STEPWISE_FORMS: dict[frozenset[type[BaseLaw]], FormKind] = {
     frozenset({RenewalLaw}): FormKind.RENEWAL,
-    frozenset({RuleLaw}): FormKind.AGENT,
-    frozenset({SampleLaw}): FormKind.MONTE_CARLO,
+    frozenset({_RuleLaw}): FormKind.AGENT,
+    frozenset({_SampleLaw}): FormKind.MONTE_CARLO,
     **{
         frozenset(kinds): FormKind.LATTICE
         for count in range(1, len(LATTICE_LAWS) + 1)
         for kinds in itertools.combinations(LATTICE_LAWS, count)
     },
 }
-FORMS: dict[frozenset[type], FormKind] = {
+FORMS: dict[frozenset[type[BaseLaw]], FormKind] = {
     frozenset(): FormKind.ODE,
     frozenset({RateLaw}): FormKind.ODE,
     frozenset({NoiseLaw}): FormKind.SDE,
@@ -40,4 +34,4 @@ FORMS: dict[frozenset[type], FormKind] = {
     frozenset({UpdateLaw}): FormKind.DISCRETE,
     **STEPWISE_FORMS,
 }
-COMBINED: dict[type, frozenset[type]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}
+COMBINED: dict[type[BaseLaw], frozenset[type[BaseLaw]]] = {RenewalLaw: frozenset({RateLaw, NoiseLaw})}

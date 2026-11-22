@@ -12,17 +12,19 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import hill
-from ....core.components.spaces import ContinuousTime, DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.components.types import Target
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.components.laws.utils import hill, shift_member
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class ContourCellElement(Element):
@@ -38,9 +40,6 @@ class ContourCellElement(Element):
         label:
             The label of the group of cells.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial concentration of signalling molecules in the cell, between 0 and 1.
 
@@ -53,6 +52,9 @@ class ContourCellElement(Element):
         p:
             The affinity of the cell for the uptake of signalling molecules.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import ContourCellElement
         >>> ContourCellElement('cells').r
@@ -62,14 +64,14 @@ class ContourCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.5,
-        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
+        r: Annotated[float | Array, RealSet.closed_open(0, oo)] = 2.5,
+        c: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        p: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.x = x
         self.r = r
         self.c = c
@@ -77,21 +79,11 @@ class ContourCellElement(Element):
 
 
 class ExchangingCellElement(Element):
-    """Cell that metabolizes a substance and exchanges it with its neighbours.
-
-    The exchange runs through gap junctions and nanotubes.
-
-    The concentration follows `dx_i/dt = -alpha_i x_i / (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the
-    first term is Michaelis-Menten metabolism, the one law of the cell, `g` the exchange coefficient of the gap
-    junctions, and `xi` the strength of the tunnelling nanotubes along the same links. The sum over the neighbours is a
-    `CouplingInteraction` of a network of cells.
+    """Cells that metabolize a substance and exchange it with their neighbours.
 
     Args:
         label:
             The label of the field of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial concentration of the substance.
@@ -108,47 +100,74 @@ class ExchangingCellElement(Element):
         xi:
             The strength of the nanotubes.
 
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import ExchangingCellElement
         >>> ExchangingCellElement('cells').g
         0.1
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: float | Array = 1.0,
+        alpha: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float | Array, RealSet.open(0, oo)] = 10.0,
+        g: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        xi: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.x = x
         self.alpha = alpha
         self.beta = beta
         self.g = g
         self.xi = xi
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the metabolism of the substance.
+
+class MetabolismInteraction(Interaction):
+    """Michaelis-Menten metabolism of a substance, `dx/dt = -alpha x / (beta + x)`.
+
+    The concentration of a cell that exchanges the substance with its neighbours follows `dx_i/dt = -alpha_i x_i /
+    (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the first term is the metabolism, `g` the exchange
+    coefficient of the gap junctions, and `xi` the strength of the tunnelling nanotubes along the same links. The sum
+    over the neighbours is an interaction along the links of a network of cells.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells, whose values are `x`, `alpha`, and `beta`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import MetabolismInteraction
+        >>> MetabolismInteraction('metabolism', target='cells').target
+        'cells'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the metabolism of the substance.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RateLaw(s.x, -s.alpha * hill(s.x, s.beta))]
+        super()._prepare(context)
+        s = context.target
+        self.laws_ = [RateLaw(s.x, -s.alpha * hill(s.x, s.beta))]
 
 
-class ContourUptakeInteraction(CouplingInteraction):
+class ContourUptakeInteraction(Interaction):
     """Uptake of every cell of a contour from the next cell.
 
     It is `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^p_i`.
@@ -158,46 +177,40 @@ class ContourUptakeInteraction(CouplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of cells.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> import numpy as np
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.physiology import ContourCellElement, ContourUptakeInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> cells = GroupElement('cells', element=ContourCellElement, size=2, values={'x': [0.25, 1.0], 'c': 0.5})
+        >>> cells = ContourCellElement('cells', x=np.array([0.25, 1.0]), c=0.5, size=2)
         >>> uptake = ContourUptakeInteraction('uptake', target='cells')
-        >>> system = CompositeSystem(elements=[cells], interactions=[uptake], time=DiscreteTime())
-        >>> simulate(system, until=1).get_values('cells.x')[-1].round(4).tolist()
+        >>> system = System(elements=[cells], interactions=[uptake]).prepare()
+        >>> system.simulate(until=1).get_values('cells.x')[-1].round(4).tolist()
         [0.7344, 0.25]
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(
-            label,
-            target=target,
-            read='x',
-            write='x',
-            function=self._get_power,
-            mode='next',
-            form='map',
-            combine=self._get_mix,
-        )
+    law_classes = (UpdateLaw,)
 
-    @staticmethod
-    def _get_power(namespace: SimpleNamespace) -> Target:
-        """Return the power uptake of the next cell, with the affinity of the cell."""
-        return namespace.other.x**namespace.member.p
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-    @staticmethod
-    def _get_mix(namespace: SimpleNamespace, reduction: Target) -> Target:
-        """Return the logistic map of the cell mixed with the uptake from the next cell."""
-        member = namespace.member
-        return (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * reduction
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the logistic map of every cell mixed with the power uptake from the next cell.
+
+        Args:
+            context:
+                The namespace of the group of cells.
+        """
+        super()._prepare(context)
+        member = context.target
+        uptake = shift_member(member.x, 1) ** member.p * SR(1)
+        mixed = (1 - member.c) * member.r * member.x * (1 - member.x) + member.c * uptake
+        self.laws_: list[BaseLaw] = [UpdateLaw(member.x, mixed)]
 
 
 class ClosedContourCellExchangeSystem(BaseSystem):
@@ -231,9 +244,15 @@ class ClosedContourCellExchangeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import ClosedContourCellExchangeSystem
-        >>> ClosedContourCellExchangeSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> ClosedContourCellExchangeSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -252,30 +271,35 @@ class ClosedContourCellExchangeSystem(BaseSystem):
         p: float | Sequence[float] = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cells = n_cells
         self.r = r
         self.c = c
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the exchange of signalling molecules between logistic cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        cells = GroupElement(
+        cells = ContourCellElement(
             'cells',
-            element=ContourCellElement,
+            x=rng.uniform(0.2, 0.8, self.n_cells),
+            r=self.r,
+            c=np.broadcast_to(np.asarray(self.c, dtype=float), self.n_cells).copy(),
+            p=np.broadcast_to(np.asarray(self.p, dtype=float), self.n_cells).copy(),
             size=self.n_cells,
-            values={
-                'x': rng.uniform(0.2, 0.8, self.n_cells),
-                'r': self.r,
-                'c': np.broadcast_to(np.asarray(self.c, dtype=float), self.n_cells).copy(),
-                'p': np.broadcast_to(np.asarray(self.p, dtype=float), self.n_cells).copy(),
-            },
         )
         uptake = ContourUptakeInteraction('uptake', target='cells')
-        return CompositeSystem(self.label, elements=[cells], interactions=[uptake], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[cells], interactions=[uptake])
 
 
 class NanotubeGapJunctionExchangeSystem(BaseSystem):
@@ -317,10 +341,16 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.physiology import NanotubeGapJunctionExchangeSystem
-        >>> NanotubeGapJunctionExchangeSystem(nx.cycle_graph(6), xi=0.01).prepare().system_.elements[0].prepare().size_
+        >>> NanotubeGapJunctionExchangeSystem(nx.cycle_graph(6), xi=0.01).prepare().system_.elements[0].x.size
         6
     """
 
@@ -331,13 +361,22 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _exchange(s: SimpleNamespace) -> Expression:
+    def _get_exchange(member: SimpleNamespace, other: SimpleNamespace) -> Expression:
         """Return the exchange of a cell with a neighbour.
 
         It runs through their gap junction and the nanotube between them.
         """
-        exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
+        exchange: Expression = member.g * (other.x - member.x) + member.xi * other.x
         return exchange
+
+    @staticmethod
+    def _exchange(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the exchange of the two cells at the ends of a link, each with the other."""
+        get_exchange = NanotubeGapJunctionExchangeSystem._get_exchange
+        return [
+            RateLaw(s.target.x, get_exchange(s.target, s.source)),
+            RateLaw(s.source.x, get_exchange(s.source, s.target)),
+        ]
 
     def __init__(
         self,
@@ -350,8 +389,10 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
         x: float | Sequence[float] | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.graph = graph
         self.alpha = alpha
         self.beta = beta
@@ -360,8 +401,14 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
         self.x = x
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the intercellular exchange of a substance on a network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         if graph is None:
@@ -372,19 +419,24 @@ class NanotubeGapJunctionExchangeSystem(BaseSystem):
             if self.x is None
             else np.broadcast_to(np.asarray(self.x, dtype=float), size).copy()
         )
-        values = {
-            'x': initial,
-            'alpha': self.alpha,
-            'beta': self.beta,
-            'g': self.g,
-            'xi': self.xi,
-        }
-        cells = FieldElement('cells', element=ExchangingCellElement, space=NetworkSpace(graph), values=values)
-        exchange = CouplingInteraction(
-            'exchange',
-            target='cells',
-            read='x',
-            write='x',
-            function=NanotubeGapJunctionExchangeSystem._exchange,
+        cells = ExchangingCellElement(
+            'cells',
+            x=initial,
+            alpha=self.alpha,
+            beta=self.beta,
+            g=self.g,
+            xi=self.xi,
+            space=NetworkSpace(graph),
         )
-        return CompositeSystem(self.label, elements=[cells], interactions=[exchange], time=ContinuousTime())
+        exchange = Interaction(
+            'exchange',
+            roles={'nodes': 'cells'},
+            laws=NanotubeGapJunctionExchangeSystem._exchange,
+            along=True,
+        )
+        metabolism = MetabolismInteraction('metabolism', target='cells')
+        self.system_ = System(
+            self.label,
+            elements=[cells],
+            interactions=[metabolism, exchange],
+        )

@@ -7,34 +7,36 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import ClassVar
 
-from sage.all__sagemath_symbolics import SR, Expression
+from sage.all__sagemath_symbolics import SR
 
-from .....core.components.interactions import CrossingInteraction
-from .....core.components.laws import BaseLaw, CrossingLaw
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, EventLaw
 from .....core.components.laws.utils import periodic_guard
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
+from .....core.types import Role
 
 
-class PulseInteraction(CrossingInteraction):
+class PulseInteraction(Interaction):
     """Pulses that set states of the target to new values at given or periodic times.
 
     Engineering names them pulses or impulses, as the kicks of a sampled controller or of a pulsed circuit. The pulses
     fall at every time of `times` and, with a `period`, at `start + j * period` for `j` from 0, `count` times or without
     end. A pulse at the initial time of a run does not fire. The new values are functions of the namespace, which holds
-    `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A pulse sets the states of
+    `namespace.target`, the states and parameters of the target, and the time `namespace.t`. A name with primes sets a
+    derivative, so `{"x'": lambda s: s.target.x.diff(s.t) + 1.0}` kicks the rate of `x`. A pulse sets the states of
     every member of a group at once, and the trajectory records every pulse among its events, under the label of the
     interaction.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose states the pulses set.
 
         reset:
-            A mapping from the name of a state of the target to the function `f(namespace)` of its new value.
+            A mapping from the name of a state of the target, or of its derivative such as `"x'"`, to the function
+            `f(namespace)` of its new value.
 
         times:
             The times of the pulses.
@@ -61,31 +63,29 @@ class PulseInteraction(CrossingInteraction):
         0.0
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EventLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         reset: Mapping[str, Callable[[SimpleNamespace], object]],
         times: Sequence[float] = (),
         period: float | None = None,
         start: float = 0.0,
         count: int | None = None,
     ) -> None:
-        super().__init__(label, target=target, guard=self._get_guard, reset=reset)
+        super().__init__(label)
+        self.target = target
+        self.reset = reset
         self.times = times
         self.period = period
         self.start = start
         self.count = count
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_pulses(self) -> None:
         """Raise an error for pulses without states or times, or a bad period or count.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
@@ -106,28 +106,37 @@ class PulseInteraction(CrossingInteraction):
         ):
             error_msg = f'The count of the pulses {self.label!r} is {self.count!r}. Give a positive integer, or None.'
             raise ValidationError(error_msg)
-        super()._prepare(context)
 
-    def _get_guard(self, namespace: SimpleNamespace) -> Expression:
-        """Return the guard that crosses zero at every periodic pulse, and never without a period."""
-        if self.period is None:
-            return SR(-1)
-        return periodic_guard(namespace.t, self.period, self.start, self.count)
+    @staticmethod
+    def _get_reset_state(context: SimpleNamespace, name: str) -> object:
+        """Return the state a name of `reset` sets, or its derivative for a name with primes, such as `"x'"`."""
+        base = name.rstrip("'")
+        state = getattr(context.target, base)
+        order = len(name) - len(base)
+        return state.diff(context.t, order) if order else state
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the crossing laws of time at the pulses.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
+
+        Raises:
+            ValidationError:
+                The pulses set no state, a new value is not a function, the pulses have no time, the period is not
+                positive, or the count is not a positive integer.
+        """
+        super()._check_arguments()
+        self._check_pulses()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set one event law per given time and one for the periodic pulses.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target` and the time `namespace.t`.
-
-        Returns:
-            laws:
-                One crossing law per given time and one for the periodic pulses.
+            context:
+                The namespace of the target and the time.
         """
-        member = self._get_member(namespace, 'target')
-        reset = {getattr(member, name): SR(f(namespace)) for name, f in (self.reset or {}).items()}
-        laws: list[BaseLaw] = [CrossingLaw(namespace.t - time, reset, 1, label=self.label) for time in self.times]
+        super()._prepare(context)
+        reset = {self._get_reset_state(context, name): SR(f(context)) for name, f in self.reset.items()}
+        laws: list[BaseLaw] = [EventLaw(context.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:
-            laws.extend(super()._get_laws(namespace))
-        return laws
+            guard = periodic_guard(context.t, self.period, self.start, self.count)
+            laws.append(EventLaw(guard, reset, 0, False, label=self.label))
+        self.laws_ = laws

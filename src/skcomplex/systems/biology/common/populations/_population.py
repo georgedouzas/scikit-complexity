@@ -11,7 +11,6 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.specs import StateSpec, VisualSpec
 from ..kinetics import CompartmentElement
 
 
@@ -21,9 +20,6 @@ class PopulationElement(CompartmentElement):
     Args:
         label:
             The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial size.
@@ -37,8 +33,7 @@ class PopulationElement(CompartmentElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x)

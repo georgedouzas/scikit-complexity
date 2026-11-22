@@ -14,17 +14,16 @@ Schwarzschild radius, and the ball becomes a black hole.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.cosmology import OppenheimerSnyderCollapseSystem
 
 SYSTEM = 'oppenheimer_snyder_collapse'
 
-system = OppenheimerSnyderCollapseSystem(n_shells=16, radius=10.0, mass=1.0)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
-trajectory = simulate(system, solver=solver, observers=[observer])
+system = OppenheimerSnyderCollapseSystem(n_shells=16, radius=10.0, mass=1.0, solver=solver)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The cycloid of every shell

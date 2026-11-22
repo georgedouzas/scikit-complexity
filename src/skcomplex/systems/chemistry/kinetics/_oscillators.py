@@ -3,16 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 from ._mass_exchange import MassExchangeInteraction
@@ -29,9 +31,6 @@ class CubicAutocatalysisElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         a:
             The initial concentration of the reactant.
@@ -54,14 +53,13 @@ class CubicAutocatalysisElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        a: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        F: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        F: Annotated[float, RealSet.open(0, oo)] = 0.04,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.a = a
         self.b = b
         self.F = F
@@ -80,9 +78,6 @@ class OregonatorElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial scaled concentration of bromous acid.
@@ -114,17 +109,16 @@ class OregonatorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0004,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0008,
-        f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        y: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        z: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        epsilon: Annotated[float, RealSet.open(0, oo)] = 0.04,
+        delta: Annotated[float, RealSet.open(0, oo)] = 0.0004,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0008,
+        f: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.z = z
@@ -159,6 +153,12 @@ class BrusselatorODESystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
         >>> BrusselatorODESystem(b=1.5).prepare().system_.elements[0].b
@@ -179,16 +179,19 @@ class BrusselatorODESystem(BaseSystem):
         a: float = 1.0,
         b: float = 3.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.u = u
         self.v = v
         self.a = a
         self.b = b
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor and the four reactions of the Brusselator."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor and the four reactions of the Brusselator."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[BrusselatorReactionElement('reactor', u=self.u, v=self.v, a=self.a, b=self.b)],
             interactions=[
@@ -244,6 +247,12 @@ class OregonatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import OregonatorSystem
         >>> OregonatorSystem(f=0.8).prepare().system_.elements[0].f
@@ -255,7 +264,6 @@ class OregonatorSystem(BaseSystem):
     references = ('Field and Noyes 1974', 'Field, Körös, and Noyes 1972', 'Tyson 1985', 'Trzaska 2023')
     until = 30.0
     dt = 0.05
-    solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
 
     def __init__(
         self,
@@ -268,8 +276,10 @@ class OregonatorSystem(BaseSystem):
         q: float = 8e-4,
         f: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -311,8 +321,9 @@ class OregonatorSystem(BaseSystem):
         """Return the propensity `x^2` of the disproportionation of bromous acid."""
         return s.target.x**2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor and the five reactions of the Oregonator."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor and the five reactions of the Oregonator."""
+        super()._prepare(context)
         reactor = OregonatorElement(
             'reactor',
             x=self.x,
@@ -323,7 +334,7 @@ class OregonatorSystem(BaseSystem):
             q=self.q,
             f=self.f,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[reactor],
             interactions=[
@@ -359,6 +370,7 @@ class OregonatorSystem(BaseSystem):
                     products={'y': self._get_y_yield},
                 ),
             ],
+            solver=ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9),
         )
 
 
@@ -388,6 +400,12 @@ class CubicAutocatalysisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import CubicAutocatalysisSystem
         >>> CubicAutocatalysisSystem(k=0.06).prepare().system_.elements[0].k
@@ -408,8 +426,10 @@ class CubicAutocatalysisSystem(BaseSystem):
         F: float = 0.04,
         k: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.a = a
         self.b = b
         self.F = F
@@ -420,12 +440,13 @@ class CubicAutocatalysisSystem(BaseSystem):
         """Return the residence time `1 / F` of the continuously fed reactor."""
         return 1 / s.target.F
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor, the autocatalysis, the decay, and the flows.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor, the autocatalysis, the decay, and the flows.
 
         The flows run through the reactor.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[CubicAutocatalysisElement('reactor', a=self.a, b=self.b, F=self.F, k=self.k)],
             interactions=[

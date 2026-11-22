@@ -3,10 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.types import FormKind
+from skcomplex.core.enums import FormKind
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.kinetics import CompartmentElement
 from skcomplex.systems.biology.epidemiology import (
     InfectionInteraction,
@@ -47,7 +46,7 @@ def test_zombies_overrun_humans_and_conserve_the_total(stochastic):
 
 def test_epidemic_stochastic_mode_is_jump_process():
     """Test that stochastic infection and recovery give integer counts of a jump process."""
-    system = CompositeSystem(
+    system = System(
         elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
@@ -55,7 +54,7 @@ def test_epidemic_stochastic_mode_is_jump_process():
         ],
     )
     assert PassCompiler().prepare(system).run().problem_.form == FormKind.JUMP
-    states = simulate(system, dt=1.0, random_state=3, until=50).states
+    states = system.prepare().simulate(dt=1.0, random_state=3, until=50).states
     assert np.all(states >= 0)
     assert np.all(states == np.round(states))
     assert np.allclose(states.sum(axis=1), 1000)
@@ -63,12 +62,12 @@ def test_epidemic_stochastic_mode_is_jump_process():
 
 def test_epidemic_deterministic_mode_conserves_population():
     """Test that the deterministic SIR system keeps the total population."""
-    system = CompositeSystem(
+    system = System(
         elements=[CompartmentElement('S', x=990), CompartmentElement('I', x=10), CompartmentElement('R')],
         interactions=[
             InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005),
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1),
         ],
     )
-    states = simulate(system, dt=1.0, until=50).states
+    states = system.prepare().simulate(dt=1.0, until=50).states
     assert np.allclose(states.sum(axis=1), 1000)

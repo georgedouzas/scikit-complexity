@@ -8,6 +8,7 @@ Opinions are pulled by triangles that switch on and off in time.
 
 import itertools
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,13 +17,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import HyperedgeInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 TRIANGLE = 3
 
@@ -34,11 +38,11 @@ class OpinionElement(Element):
         label:
             The label of the node or the group.
 
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
         x:
             The initial opinion.
+
+        space:
+            The space with one member per site, or `None` for one member.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import OpinionElement
@@ -46,14 +50,16 @@ class OpinionElement(Element):
         0.5
     """
 
+    visual = VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
+        x: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.x = x
 
 
@@ -66,11 +72,14 @@ class ScheduleElement(Element):
         label:
             The label of the triangle or the group.
 
-        visual:
-            How the triangle is drawn, or `None` for `default_visual_`.
-
         phase:
-            The phase of the schedule, in radians.
+            The phase of the schedule, in radians, one per triangle or shared.
+
+        space:
+            The network whose hyperedges hold one triangle each, or `None` for one triangle.
+
+        on:
+            `'hyperedges'` for one triangle per hyperedge of the network, or `None`.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ScheduleElement
@@ -81,15 +90,16 @@ class ScheduleElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        phase: Annotated[float, ParameterSpec()] = 0.0,
+        phase: object = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.phase = phase
 
 
-class ThreeBodyConsensusInteraction(HyperedgeInteraction):
+class ThreeBodyConsensusInteraction(Interaction):
     """Nonlinear three-body consensus of Neuhäuser, Mellor, and Lambiotte.
 
     It acts on the triangles active at the time. The focal node `i` of an active triangle `ijk` moves towards the two
@@ -99,13 +109,10 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        target:
+        among:
             The path of the group of nodes.
-
-        triangles:
-            The path of the group of the schedules of the triangles.
 
         reinforcement:
             The exponent of the modulating function `s`.
@@ -113,10 +120,13 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
         period:
             The period of the schedules.
 
+        along:
+            The links the laws run on, `'hyperedges'` for the triangles of the network.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ThreeBodyConsensusInteraction
-        >>> ThreeBodyConsensusInteraction('consensus', target='nodes', triangles='triangles').size
-        3
+        >>> ThreeBodyConsensusInteraction('consensus', among='nodes').along
+        'hyperedges'
     """
 
     law_classes = (RateLaw,)
@@ -125,27 +135,28 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        triangles: Annotated[str, RoleSpec()],
-        reinforcement: Annotated[float, ParameterSpec()] = 0.0,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        among: Role,
+        reinforcement: float = 0.0,
+        period: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        along: str = 'hyperedges',
     ) -> None:
-        super().__init__(label, size=TRIANGLE)
-        self.target = target
-        self.triangles = triangles
+        super().__init__(label, among=among, along=along)
         self.reinforcement = reinforcement
         self.period = period
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pull of the two other members of an active triangle.
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the pull of the two other members of an active triangle.
 
-        The pull acts on the focal node.
+        Args:
+            s:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(s)
         x = s.member.x
         first, second = (other.x for other in s.others)
         active = where(sin(2 * pi * s.t / s.period + s.hyperedge.phase) > 0, 1, 0)
         pull = exp(s.reinforcement * abs(first - second)) * (first + second - 2 * x)
-        return [RateLaw(x, active * pull)]
+        self.laws_: list[BaseLaw] = [RateLaw(x, active * pull)]
 
 
 def _spread(s: SimpleNamespace) -> object:
@@ -187,10 +198,16 @@ class HypergraphConsensusSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import HypergraphConsensusSystem
         >>> system = HypergraphConsensusSystem(8, triangles=0.5).prepare().system_
-        >>> system.elements[0].prepare().size_
+        >>> system.elements[0].x.size
         8
     """
 
@@ -200,8 +217,8 @@ class HypergraphConsensusSystem(BaseSystem):
     until = 10.0
     dt = 0.1
     observables = (
-        ObservableSpec('mean_opinion', group='nodes', variable='x'),
-        ObservableSpec('spread', _spread, group='nodes'),
+        Observable('mean_opinion', group='nodes', variable='x'),
+        Observable('spread', _spread, group='nodes'),
     )
 
     def __init__(
@@ -213,41 +230,35 @@ class HypergraphConsensusSystem(BaseSystem):
         period: float = 2.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.triangles = triangles
         self.reinforcement = reinforcement
         self.period = period
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         triads = [
             triad for triad in itertools.combinations(range(self.n_nodes), TRIANGLE) if rng.random() < self.triangles
         ]
         space = NetworkSpace(nx.complete_graph(self.n_nodes), hyperedges=triads)
-        nodes = GroupElement(
-            'nodes',
-            element=OpinionElement,
-            space=space,
-            values={'x': rng.uniform(-1.0, 1.0, self.n_nodes)},
-            visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
-            on='sites',
-        )
-        schedules = GroupElement(
+        nodes = OpinionElement('nodes', x=rng.uniform(-1.0, 1.0, self.n_nodes), space=space)
+        schedules = ScheduleElement(
             'triangles',
-            element=ScheduleElement,
+            phase=rng.uniform(0.0, 2 * math.pi, len(triads)),
             space=space,
             on='hyperedges',
-            values={'phase': rng.uniform(0.0, 2 * math.pi, len(triads))},
         )
         consensus = ThreeBodyConsensusInteraction(
             'consensus',
-            target='nodes',
-            triangles='triangles',
+            among='nodes',
             reinforcement=self.reinforcement,
             period=self.period,
         )
-        return CompositeSystem(self.label, elements=[nodes, schedules], interactions=[consensus])
+        self.system_ = System(self.label, elements=[nodes, schedules], interactions=[consensus])

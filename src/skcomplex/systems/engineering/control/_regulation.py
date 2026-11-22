@@ -15,215 +15,127 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import linearization
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
-from ....core.components.laws.utils import clip, derivative
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
+from ....core.components.laws import BaseLaw, ConstraintLaw, RateLaw, UpdateLaw
+from ....core.components.laws.utils import clip
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 GRAVITY = 9.81
 FORCE_LIMIT = 50.0
 
 
-class CartPendulumElement(Element):
-    """Inverted pendulum on a cart that a bounded horizontal force pushes.
+class CartPendulumInteraction(Interaction):
+    """Motion of an inverted pendulum on a cart that a bounded horizontal force pushes.
 
     It follows Åström and Murray. The cart of mass `M` at position `x` carries a point mass `m` at the end of a rod of
     length `l`, at the angle `theta` from upright, positive towards negative `x`. The equations of motion are
     `(M + m) x'' - m l theta'' cos(theta) + m l theta'^2 sin(theta) = force` and
     `l theta'' - x'' cos(theta) = g sin(theta)`, so upright is unstable and a positive force tilts the pendulum back
-    from a positive angle.
+    from a positive angle. The cart holds `x`, `theta`, the control input `force`, and its masses and length.
 
     Args:
         label:
-            The label of the cart.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position of the cart.
-
-        x_d1:
-            The initial velocity of the cart.
-
-        theta:
-            The initial angle from upright.
-
-        theta_d1:
-            The initial angular velocity.
-
-        force:
-            The horizontal force on the cart, the control input.
-
-        M:
-            The mass of the cart.
-
-        m:
-            The mass at the end of the rod.
-
-        l:
-            The length of the rod.
+        target:
+            The path of the cart.
 
         g:
             The acceleration of gravity.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import CartPendulumElement
-        >>> CartPendulumElement('cart', theta=0.1).theta
-        0.1
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.control import CartPendulumInteraction
+        >>> cart = Element('cart', values={'x': 0.0, 'theta': 0.1, 'force': 0.0, 'M': 1.0, 'm': 0.1, 'l': 0.5})
+        >>> System(elements=[cart], interactions=[CartPendulumInteraction('motion', target='cart')]).prepare().states_
+        ('cart.x', "cart.x'", 'cart.theta', "cart.theta'")
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        theta: Annotated[float, StateSpec(order=2)] = 0.0,
-        theta_d1: float = 0.0,
-        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))] = 0.0,
-        M: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = GRAVITY,
+        target: Role,
+        g: Annotated[float, RealSet.open(0, oo)] = GRAVITY,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.force = force
-        self.M = M
-        self.m = m
-        self.l = l
+        super().__init__(label)
+        self.target = target
         self.g = g
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the equations of motion of the cart and the pendulum.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equations of motion of the cart and the pendulum.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        x_acceleration, theta_acceleration = derivative(s.x, 2), derivative(s.theta, 2)
-        spin = derivative(s.theta, 1)
-        return [
-            EquationLaw(
-                (s.M + s.m) * x_acceleration
-                - s.m * s.l * theta_acceleration * cos(s.theta)
-                + s.m * s.l * spin**2 * sin(s.theta)
-                == s.force,
+        super()._prepare(context)
+        cart, t = context.target, context.t
+        x_acceleration, theta_acceleration = cart.x.diff(t, 2), cart.theta.diff(t, 2)
+        spin = cart.theta.diff(t)
+        self.laws_: list[BaseLaw] = [
+            ConstraintLaw(
+                (cart.M + cart.m) * x_acceleration
+                - cart.m * cart.l * theta_acceleration * cos(cart.theta)
+                + cart.m * cart.l * spin**2 * sin(cart.theta)
+                == cart.force,
             ),
-            EquationLaw(s.l * theta_acceleration - x_acceleration * cos(s.theta) == s.g * sin(s.theta)),
+            ConstraintLaw(
+                cart.l * theta_acceleration - x_acceleration * cos(cart.theta) == context.g * sin(cart.theta),
+            ),
         ]
 
 
-class DrivenOscillatorElement(Element):
-    """Damped harmonic oscillator that a bounded force drives.
+class DrivenOscillatorInteraction(Interaction):
+    """Motion of a damped harmonic oscillator that a force per unit mass drives.
 
-    It follows `x'' = -omega^2 x - 2 zeta omega x' + force`.
+    It follows `x'' = -omega^2 x - 2 zeta omega x' + force`, with the natural frequency `omega`, the damping ratio
+    `zeta`, and the control input `force` of the element it binds. A controller that sets `force`, such as
+    `StateFeedbackInteraction`, closes the loop, and without one `force` is a parameter that `linearization` takes as a
+    control.
 
     Args:
         label:
-            The label of the oscillator.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial displacement.
-
-        x_d1:
-            The initial velocity.
-
-        force:
-            The force per unit mass, the control input.
-
-        omega:
-            The natural frequency.
-
-        zeta:
-            The damping ratio.
+        target:
+            The path of the oscillator, with the values `x`, `force`, `omega`, and `zeta`.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import DrivenOscillatorElement
-        >>> DrivenOscillatorElement('oscillator', x=1.0).omega
-        1.0
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.engineering.control import DrivenOscillatorInteraction
+        >>> oscillator = Element('oscillator', values={'x': 1.0, 'force': 0.0, 'omega': 1.0, 'zeta': 0.0})
+        >>> motion = DrivenOscillatorInteraction('motion', target='oscillator')
+        >>> System(elements=[oscillator], interactions=[motion]).prepare().states_
+        ('oscillator.x', "oscillator.x'")
     """
 
-    law_classes = (RateLaw,)
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        force: Annotated[float, ParameterSpec(adaptive=True, bounds=(-FORCE_LIMIT, FORCE_LIMIT))] = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        zeta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.force = force
-        self.omega = omega
-        self.zeta = zeta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the velocity.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the oscillator.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RateLaw(s.x, -(s.omega**2) * s.x - 2 * s.zeta * s.omega * derivative(s.x, 1) + s.force)]
-
-
-class IntegratorElement(Element):
-    """Element that holds the integral of a signal, whose rate a controller sets.
-
-    Args:
-        label:
-            The label of the integrator.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        value:
-            The initial value of the integral.
-
-    Examples:
-        >>> from skcomplex.systems.engineering.control import IntegratorElement
-        >>> IntegratorElement('memory').value
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        value: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.value = value
+        super()._prepare(context)
+        oscillator, t = context.target, context.t
+        x, omega = oscillator.x, oscillator.omega
+        acceleration = -(omega**2) * x - 2 * oscillator.zeta * omega * x.diff(t) + oscillator.force
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(t, 2), acceleration)]
 
 
 class PIDInteraction(Interaction):
@@ -231,10 +143,10 @@ class PIDInteraction(Interaction):
 
     It sets the control input from the error of a measure. The error is `e = setpoint - y` for the measured state `y`,
     and the controller sets the control input to `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative
-    taken on the measure. The integral `I' = e` of the error lives in an `IntegratorElement` bound to the role
-    `integrator`. The control input is an adaptive parameter of the plant, which the controller sets after every solver
-    step, so it holds within a step like a sampled controller. The derivative term reads the first derivative of the
-    measure, so a measure with a derivative term is a state of order 2.
+    taken on the measure. The integral `I' = e` of the error is the value `value` of the element bound to the role
+    `integrator`, such as `Element('memory', values={'value': 0.0})`. The controller sets the control input of the
+    plant after every solver step, so it holds within a step like a sampled controller. The derivative term reads
+    the first derivative of the measure, so a measure with a derivative term is a state of order 2.
 
     Args:
         label:
@@ -273,18 +185,18 @@ class PIDInteraction(Interaction):
         40.0
     """
 
-    law_classes = (RateLaw, BoundaryLaw)
+    law_classes = (RateLaw, UpdateLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        plant: Annotated[str, RoleSpec()],
-        integrator: Annotated[str, RoleSpec()],
-        kp: Annotated[float, ParameterSpec()] = 1.0,
-        ki: Annotated[float, ParameterSpec()] = 0.0,
-        kd: Annotated[float, ParameterSpec()] = 0.0,
-        setpoint: Annotated[float, ParameterSpec()] = 0.0,
+        plant: Role,
+        integrator: Role,
+        kp: float = 1.0,
+        ki: float = 0.0,
+        kd: float = 0.0,
+        setpoint: float = 0.0,
         control: str = 'u',
         measure: str = 'y',
         limits: tuple[float, float] | None = None,
@@ -300,25 +212,23 @@ class PIDInteraction(Interaction):
         self.measure = measure
         self.limits = limits
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the integral of the error and the control input it sets.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the integral of the error and the control input it sets.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(context)
+        s, value = context, context.integrator.value
         measured = getattr(s.plant, self.measure)
         error = s.setpoint - measured
-        output = s.kp * error + s.ki * s.integrator.value
+        output = s.kp * error + s.ki * value
         if self.kd != 0:
-            output -= s.kd * derivative(measured, 1)
-        return [
-            RateLaw(s.integrator.value, error),
-            BoundaryLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
+            output -= s.kd * measured.diff(s.t)
+        self.laws_: list[BaseLaw] = [
+            RateLaw(value.diff(s.t), error),
+            UpdateLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
         ]
 
 
@@ -340,7 +250,8 @@ class StateFeedbackInteraction(Interaction):
             The name of the adaptive parameter of the plant that the controller sets.
 
         states:
-            The names of the fed back states of the plant, such as `('x', 'x_d1')` for a position and its velocity.
+            The names of the fed back states of the plant, with a prime for a derivative, such as `('x', "x'")` for a
+            position and its velocity.
 
         gain:
             The gain of every state, in the order of `states`.
@@ -351,18 +262,16 @@ class StateFeedbackInteraction(Interaction):
     Examples:
         >>> from skcomplex.systems.engineering.control import StateFeedbackInteraction
         >>> StateFeedbackInteraction(
-        ...     'regulator', plant='mass', control='force', states=('x', 'x_d1'), gain=(1.0, 1.7)
+        ...     'regulator', plant='mass', control='force', states=('x', "x'"), gain=(1.0, 1.7)
         ... ).gain
         (1.0, 1.7)
     """
-
-    law_classes = (BoundaryLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        plant: Annotated[str, RoleSpec()],
+        plant: Role,
         control: str = 'u',
         states: Sequence[str] = (),
         gain: Sequence[float] = (),
@@ -375,22 +284,20 @@ class StateFeedbackInteraction(Interaction):
         self.gain = gain
         self.limits = limits
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the control input the feedback sets.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the control input the feedback sets.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        feedback = -sum(
-            (float(gain) * getattr(s.plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
-            0,
-        )
-        return [BoundaryLaw(getattr(s.plant, self.control), clip(feedback, *(self.limits or (None, None))))]
+        super()._prepare(context)
+        plant, t = context.plant, context.t
+        read = [getattr(plant, name.rstrip("'")).diff(t, name.count("'")) for name in self.states]
+        feedback = -sum((float(gain) * value for value, gain in zip(read, self.gain, strict=True)), 0)
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(getattr(plant, self.control), clip(feedback, *(self.limits or (None, None)))),
+        ]
 
 
 def _get_tilt(s: SimpleNamespace) -> Expression:
@@ -432,6 +339,12 @@ class PidInvertedPendulumSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.control import PidInvertedPendulumSystem
         >>> PidInvertedPendulumSystem(kp=50.0).prepare().system_.interactions[0].kp
@@ -443,8 +356,7 @@ class PidInvertedPendulumSystem(BaseSystem):
     references = ('Åström and Murray 2008',)
     until = 5.0
     dt = 0.05
-    solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('tilt', _get_tilt),)
+    observables = (Observable('tilt', _get_tilt),)
 
     def __init__(
         self,
@@ -457,8 +369,10 @@ class PidInvertedPendulumSystem(BaseSystem):
         m: float = 0.1,
         l: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.kp = kp
         self.ki = ki
@@ -467,9 +381,10 @@ class PidInvertedPendulumSystem(BaseSystem):
         self.m = m
         self.l = l
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        values = {'x': 0.0, 'theta': self.theta, 'force': 0.0, 'M': self.M, 'm': self.m, 'l': self.l}
         controller = PIDInteraction(
             'pid',
             plant='cart',
@@ -481,13 +396,18 @@ class PidInvertedPendulumSystem(BaseSystem):
             kd=self.kd,
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return CompositeSystem(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
+        self.system_ = System(
+            self.label,
+            elements=[Element('cart', values=values), Element('memory', values={'value': 0.0})],
+            interactions=[controller, CartPendulumInteraction('motion', target='cart')],
+            solver=RK4Solver(dt=0.001),
+        )
 
 
 def _get_oscillator_energy(s: SimpleNamespace) -> Expression:
     """Return the energy per unit mass of the oscillator, `(x'^2 + omega^2 x^2) / 2`."""
     oscillator = s.oscillator
-    energy: Expression = (oscillator.x_d1**2 + oscillator.omega**2 * oscillator.x**2) / 2
+    energy: Expression = (oscillator.x.diff(s.t) ** 2 + oscillator.omega**2 * oscillator.x**2) / 2
     return energy
 
 
@@ -518,6 +438,12 @@ class LqrOscillatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.control import LqrOscillatorSystem
         >>> [round(value, 3) for value in LqrOscillatorSystem().prepare().system_.interactions[0].gain]
@@ -529,8 +455,7 @@ class LqrOscillatorSystem(BaseSystem):
     references = ('Åström and Murray 2008',)
     until = 10.0
     dt = 0.05
-    solver = RK4Solver(dt=0.001)
-    observables = (ObservableSpec('energy', _get_oscillator_energy),)
+    observables = (Observable('energy', _get_oscillator_energy),)
 
     def __init__(
         self,
@@ -541,19 +466,24 @@ class LqrOscillatorSystem(BaseSystem):
         q: float = 1.0,
         r: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.omega = omega
         self.zeta = zeta
         self.q = q
         self.r = r
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        values = {'x': self.x, 'force': 0.0, 'omega': self.omega, 'zeta': self.zeta}
+        oscillator = Element('oscillator', values=values)
+        motion = DrivenOscillatorInteraction('motion', target='oscillator')
         linear = linearization(
-            CompositeSystem(elements=[oscillator]),
+            System(elements=[oscillator], interactions=[motion]),
             controls=['oscillator.force'],
             state_weights=self.q * np.eye(2),
             control_weights=[[self.r]],
@@ -571,4 +501,9 @@ class LqrOscillatorSystem(BaseSystem):
             gain=tuple(float(value) for value in gain[0]),
             limits=(-FORCE_LIMIT, FORCE_LIMIT),
         )
-        return CompositeSystem(self.label, elements=[oscillator], interactions=[regulator])
+        self.system_ = System(
+            self.label,
+            elements=[oscillator],
+            interactions=[regulator, motion],
+            solver=RK4Solver(dt=0.001),
+        )

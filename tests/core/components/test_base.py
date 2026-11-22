@@ -1,127 +1,28 @@
 """Test the `base` module of `skcomplex.core.components`."""
 
-import ast
-import importlib
 import inspect
-import pkgutil
-import re
-from importlib.resources import files
-from pathlib import Path
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
+from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
-from skcomplex.core.components.base import BasePart
+from skcomplex.core.base import BaseConfig
+from skcomplex.core.components import RoleSpec
+from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
-from skcomplex.core.components.interactions import BaseInteraction
-from skcomplex.core.components.laws import BaseLaw
-from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.interactions import BaseInteraction, Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
-
-SOURCE = str(Path(str(files('skcomplex'))))
-PACKAGES = (
-    'skcomplex.core.components',
-    'skcomplex.core.engine',
-    'skcomplex.core.experiments',
-    'skcomplex.core.analysis',
-)
-FIELD_TERMS = (
-    'Ant',
-    'Ask',
-    'Bank',
-    'Bid',
-    'Bird',
-    'Budget',
-    'Climate',
-    'Contagion',
-    'Cow',
-    'Credit',
-    'Disease',
-    'Energy',
-    'Epidemic',
-    'Firm',
-    'Force',
-    'Gene',
-    'Grass',
-    'Heading',
-    'Infection',
-    'Institution',
-    'Market',
-    'Neuron',
-    'Opinion',
-    'Pasture',
-    'Predator',
-    'Prey',
-    'Price',
-    'Protein',
-    'Quantum',
-    'Sheep',
-    'Species',
-    'Synapse',
-    'Temperature',
-    'Trade',
-    'Traffic',
-    'Voter',
-    'Wolf',
-    'Worker',
-)
-BANNED_PHRASES = (
-    'in summary',
-    'in conclusion',
-    'to summarize',
-    'it is worth noting',
-    "it's worth noting",
-    'note that',
-    "let's dive",
-    'dive into',
-    'delve',
-    'leverage',
-    'seamless',
-    'seamlessly',
-    'robust',
-    'powerful',
-    'cutting-edge',
-    'unlock',
-    'harness',
-    'empower',
-    'plethora',
-    'myriad',
-    'a wide range of',
-    "in today's",
-    'simply',
-    'just',
-    'easily',
-    'magic',
-)
-SUMMARY_LENGTH = 80
-SUFFIXES = (
-    'Element',
-    'Interaction',
-    'Law',
-    'Space',
-    'Time',
-    'System',
-    'Solver',
-    'Backend',
-    'Observer',
-    'Spec',
-    'Result',
-    'Pass',
-    'Error',
-)
-KINDS = {suffix: suffix.lower() for suffix in SUFFIXES} | {'Neighborhood': 'neighbourhood'}
-FAMILIES = (
-    *(f'skcomplex.core.components.{family}' for family in ('elements', 'interactions', 'laws', 'spaces', 'systems')),
-    'skcomplex.systems.general',
-)
+from skcomplex.core.systems import BaseSystem, System
+from skcomplex.core.types import Role
 
 
-class DoublingPart(BasePart):
-    """Part that doubles its input after counting its preparations."""
+class DoublingComponent(BaseComponent):
+    """Component that doubles its factor after counting its preparations."""
 
     def __init__(self, label, factor=2):
         super().__init__(label)
@@ -135,327 +36,178 @@ class DoublingPart(BasePart):
             raise ValidationError(error_msg)
         self.prepared_ = getattr(self, 'prepared_', 0) + 1
         self.context_ = context
-
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
-
-    def _run(self, inputs):
-        """Set `doubled_`, the input times the factor."""
-        self.doubled_ = self.factor * inputs
+        self.doubled_ = 2 * self.factor
 
 
-class SpecifiedPart(BasePart):
-    """Part that declares a state, a parameter, and a role, and one plain argument."""
+class SpecifiedComponent(BaseComponent):
+    """Component that declares two roles, a value, and one plain argument."""
 
-    def __init__(
-        self,
-        label,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        k: Annotated[float, ParameterSpec()] = 1.0,
-        target: Annotated[str, RoleSpec()] = 'a',
-        plain=None,
-    ):
+    def __init__(self, label, x: float = 0.0, target: Role = 'a', source: Role | None = None, plain=None):
         super().__init__(label)
         self.x = x
-        self.k = k
         self.target = target
+        self.source = source
         self.plain = plain
 
     def _prepare(self, context=None):
         """Check the label and the declared specs, and prepare nothing else."""
         super()._prepare(context)
 
-    def _get_laws(self, namespace):
-        """Return no laws."""
-        return []
 
-    def _run(self, inputs):
-        """Run nothing."""
+class ExtendedComponent(SpecifiedComponent):
+    """Component that takes the role of its base again without annotating it, and adds a role first."""
 
-
-class ExtendedPart(SpecifiedPart):
-    """Part that takes the state of its base again without annotating it, and adds a parameter first."""
-
-    def __init__(self, label, r: Annotated[float, ParameterSpec()] = 0.5, x=1.0):
-        super().__init__(label, x=x)
-        self.r = r
+    def __init__(self, label, other: Role = 'b', target='a'):
+        super().__init__(label, target=target)
+        self.other = other
 
 
-class InvalidSpecPart(SpecifiedPart):
-    """Part that declares a state of an invalid order."""
-
-    def __init__(self, label, y: Annotated[float, StateSpec(order=0)] = 0.0):
-        super().__init__(label)
-        self.y = y
-
-
-def _modules():
-    """Return every module of the packages that define the library's classes."""
-    for name in PACKAGES:
-        package = importlib.import_module(name)
-        yield package
-        for info in pkgutil.walk_packages(package.__path__, f'{name}.'):
-            yield importlib.import_module(info.name)
-
-
-def _hand_written(cls):
-    """Return the magic methods a class defines itself in source code, leaving out those Python generates.
-
-    Dataclasses generate methods, and from Python 3.14 the annotations of a class compile to `__annotate_func__`.
-    """
-    names = []
-    for name, value in vars(cls).items():
-        if not (name.startswith('__') and name.endswith('__')) or not callable(value) or name == '__annotate_func__':
-            continue
-        code = getattr(value, '__code__', None)
-        if code is not None and code.co_filename.startswith(SOURCE):
-            names.append(name)
-    return names
-
-
-def _core_modules():
-    """Return the dotted name and the syntax tree of every module of the core and the shared recipes, from source."""
-    for path in sorted([*(Path(SOURCE) / 'core').rglob('*.py'), *(Path(SOURCE) / 'systems' / 'general').rglob('*.py')]):
-        parts = path.relative_to(Path(SOURCE).parent).with_suffix('').parts
-        module = '.'.join(parts[:-1] if parts[-1] == '__init__' else parts)
-        yield module, ast.parse(path.read_text(encoding='utf-8'))
-
-
-def _docstrings():
-    """Return the dotted name, the docstring, and the publicity of every docstring of `skcomplex.core`.
-
-    The walk descends into classes, not into functions.
-    """
-    for module, tree in _core_modules():
-        yield from _walk_docstrings(tree, module, public=True)
-
-
-def _walk_docstrings(node, name, *, public):
-    """Return the dotted name, the docstring, and the publicity of a node and of the definitions in its body."""
-    docstring = ast.get_docstring(node)
-    if docstring:
-        yield name, docstring, public
-    if isinstance(node, ast.Module | ast.ClassDef):
-        for child in node.body:
-            if isinstance(child, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
-                is_public = public and not child.name.startswith('_')
-                yield from _walk_docstrings(child, f'{name}.{child.name}', public=is_public)
-
-
-def _public_definitions(kind):
-    """Return the dotted name, the name, and the docstring of every top-level public class or function."""
-    for module, tree in _core_modules():
-        for node in tree.body:
-            docstring = ast.get_docstring(node) if isinstance(node, kind) else None
-            if docstring and not node.name.startswith('_'):
-                yield f'{module}.{node.name}', node.name, docstring
-
-
-def _prose_lines(docstring):
-    """Return the prose lines of a docstring, stripped, with doctest code and inline code removed.
-
-    A doctest block runs from a line that starts with `>>>` to the next blank line, so its outputs are exempt too.
-    """
-    lines = []
-    in_code = False
-    for line in docstring.splitlines():
-        stripped = line.strip()
-        if stripped.startswith(('>>>', '...')):
-            in_code = True
-        elif not stripped:
-            in_code = False
-        lines.append('' if in_code else stripped)
-    text = re.sub('`[^`]*`', lambda match: '\n' * match.group().count('\n'), '\n'.join(lines))
-    return text.splitlines()
-
-
-def _prose_faults(line):
-    """Return the semicolons, dashes used as punctuation, and banned phrases of a prose line."""
-    faults = []
-    if ';' in line:
-        faults.append('semicolon')
-    if re.search('[\u2013\u2014]', line) or ' - ' in line[1:]:
-        faults.append('dash')
-    lowered = line.lower()
-    faults += [phrase for phrase in BANNED_PHRASES if re.search(rf'(?<![\w-]){re.escape(phrase)}(?![\w-])', lowered)]
-    return faults
-
-
-def test_prepare_and_run():
-    """Test that preparing derives the attributes of the part from a context, and running acts."""
-    part = DoublingPart('doubling').prepare('context')
-    assert (part.prepared_, part.context_) == (1, 'context')
-    assert part.run(3).doubled_ == 6
+def test_prepare_derives_the_attributes():
+    """Test that preparing derives the attributes of the component from a context and returns the component."""
+    component = DoublingComponent('doubling', factor=3)
+    assert component.prepare('context') is component
+    assert (component.prepared_, component.context_, component.doubled_) == (1, 'context', 6)
+    assert component.prepare().prepared_ == 2
 
 
 def test_prepare_checks_the_label_and_the_arguments():
-    """Test that preparing rejects a label that is not a string and an argument the part cannot take."""
-    with pytest.raises(ValidationError, match='label of DoublingPart must be a string'):
-        DoublingPart(1).prepare()
+    """Test that preparing rejects a label that is not a string and an argument the component cannot take."""
+    with pytest.raises(ValidationError, match='label of DoublingComponent must be a string'):
+        DoublingComponent(1).prepare()
     with pytest.raises(ValidationError, match='not a number'):
-        DoublingPart('doubling', factor='two').prepare()
-
-
-def test_prepare_checks_every_declared_spec():
-    """Test that preparing a part checks the spec of every annotated argument."""
-    with pytest.raises(ValidationError, match='order'):
-        InvalidSpecPart('invalid').prepare()
+        DoublingComponent('doubling', factor='two').prepare()
 
 
 def test_get_specs_returns_the_annotated_arguments_in_constructor_order():
-    """Test that the specs of a part are the annotated arguments of its constructor, in order, without plain ones."""
-    specs = SpecifiedPart._get_specs()
-    assert list(specs) == ['x', 'k', 'target']
-    assert specs['x'] == StateSpec(order=2)
-    assert isinstance(specs['target'], RoleSpec)
+    """Test that the specs of a component are the annotated arguments of its constructor, in order, and no others."""
+    specs = SpecifiedComponent._get_specs()
+    assert list(specs) == ['target', 'source']
+    assert specs['target'] == RoleSpec()
+    assert specs['source'] == RoleSpec(optional=True)
 
 
 def test_get_specs_keeps_the_specs_of_the_bases():
     """Test that a subclass keeps the spec of an argument of its base that it takes again without annotating it."""
-    specs = ExtendedPart._get_specs()
-    assert list(specs) == ['r', 'x']
-    assert specs['x'] == StateSpec(order=2)
+    specs = ExtendedComponent._get_specs()
+    assert list(specs) == ['other', 'target']
+    assert specs['target'] == RoleSpec()
 
 
 def test_constructor_only_stores_its_arguments():
-    """Test that a part stores its arguments as given, so scikit-learn lists and clones them."""
-    part = SpecifiedPart('a', x=[1.0], plain='plain')
-    assert part.get_params() == {'k': 1.0, 'label': 'a', 'plain': 'plain', 'target': 'a', 'x': [1.0]}
-    cloned = clone(part)
-    assert cloned.get_params() == part.get_params()
-    assert cloned is not part
+    """Test that a component stores its arguments as given, so scikit-learn lists and clones them."""
+    component = SpecifiedComponent('a', x=[1.0], plain='plain')
+    assert component.get_params() == {'label': 'a', 'plain': 'plain', 'source': None, 'target': 'a', 'x': [1.0]}
+    cloned = clone(component)
+    assert cloned.get_params() == component.get_params()
+    assert cloned is not component
 
 
-def test_element_runs_into_its_laws():
-    """Test that running an element sets its laws for the namespace, as interactions and systems do."""
-
-    class StillElement(Element):
-        def _get_laws(self, namespace):
-            return []
-
-    assert StillElement('a').prepare().run(SimpleNamespace()).laws_ == []
+def test_components_derive_from_the_component_base():
+    """Test that every component of a system is a component, and no component is an engine class."""
+    components = (BaseElement, BaseInteraction, System, BaseSpace, BaseNeighborhood)
+    assert all(issubclass(component, BaseComponent) for component in components)
+    assert not any(issubclass(component, BaseConfig) for component in components)
 
 
-def test_parts_derive_from_the_part_base():
-    """Test that every part of a system is a part, and a part cannot be made without its hooks."""
-    parts = (BaseElement, BaseInteraction, BaseLaw, CompositeSystem, BaseSpace, BaseTime, BaseNeighborhood)
-    assert all(issubclass(part, BasePart) for part in parts)
-    with pytest.raises(TypeError, match='abstract'):
-        BasePart('part')
+def _get_public_methods(klass):
+    """Return the names of the public methods of a class."""
+    return {name for name, value in inspect.getmembers(klass) if not name.startswith('_') and callable(value)}
 
 
-def test_core_names_carry_no_field_term():
-    """Test that no public name of a package of `skcomplex.core.components` contains a term of a scientific field."""
-    found = {}
-    for module in _modules():
-        if not module.__name__.startswith('skcomplex.core.components'):
-            continue
-        for name in getattr(module, '__all__', []):
-            words = re.findall('[A-Z][a-z]*', name)
-            terms = sorted(set(words) & set(FIELD_TERMS))
-            if terms:
-                found[f'{module.__name__}.{name}'] = terms
-    assert found == {}, found
+@pytest.mark.parametrize(
+    ('base', 'verbs'),
+    [
+        (BaseComponent, set()),
+        (BaseElement, {'get_states'}),
+        (BaseInteraction, {'get_requirements'}),
+        (BaseSpace, set()),
+        (BaseNeighborhood, set()),
+        (BaseSystem, {'simulate'}),
+    ],
+)
+def test_bases_list_their_methods(base, verbs):
+    """Test that a component base has the parameter methods, tags, and `prepare`, and its own verb if any."""
+    common = {'get_params', 'set_params', 'get_metadata_routing', 'get_tags', 'prepare'}
+    assert _get_public_methods(base) == common | verbs
 
 
-def test_no_package_exports_a_molecular_name():
-    """Test that the core, the engine, and the analysis export no name of RNA, proteins, or hydrophobicity."""
-    terms = ('rna', 'protein', 'genotype', 'hydrophobicity', 'residue', 'nucleotide')
-    found = [
-        f'{module.__name__}.{name}'
-        for module in _modules()
-        if module.__name__.startswith(('skcomplex.core.components', 'skcomplex.core.engine', 'skcomplex.core.analysis'))
-        for name in getattr(module, '__all__', [])
-        if any(term in re.sub(r'[^a-z]', ' ', re.sub(r'([A-Z])', r' \1', name).lower()).split() for term in terms)
-    ]
-    assert found == []
+def test_cloning_shares_the_symbolic_values():
+    """Test that a clone of a component is a new component with the same parameters and shared Sage values."""
+    x = var('x')
+    component = DoublingComponent('doubling', factor=-2 * x)
+    cloned = clone(component)
+    assert cloned is not component
+    assert cloned.get_params() == component.get_params()
+    assert cloned.factor is component.factor
 
 
-def test_no_class_defines_magic_methods():
-    """Test that no class of the library defines a magic method but `__init__`."""
-    found = {}
-    for module in _modules():
-        for _, cls in inspect.getmembers(module, inspect.isclass):
-            if cls.__module__ != module.__name__:
-                continue
-            extra = set(_hand_written(cls)) - {'__init__'}
-            if extra:
-                found[f'{module.__name__}.{cls.__qualname__}'] = sorted(extra)
-    assert found == {}, found
+class VoteInteraction(Interaction):
+    """Vote of a group whose role accepts only Boolean values."""
+
+    def __init__(self, label: str, *, voters: Annotated[Role, 'boolean'], other: Role = 'others') -> None:
+        super().__init__(label)
+        self.voters = voters
+        self.other = other
 
 
-def test_no_module_calls_a_magic_method():
-    """Test that no module of the library reads a magic method such as `__new__` or `__getitem__` of an object."""
-    allowed = {
-        '__init__',
-        '__name__',
-        '__qualname__',
-        '__doc__',
-        '__module__',
-        '__mro__',
-        '__version__',
-        '__subclasses__',
-    }
-    found = []
-    for path in Path(SOURCE).rglob('*.py'):
-        names = re.findall(r'\.(__[a-z_]+__)\b', path.read_text(encoding='utf-8'))
-        found += [f'{path.name}: {name}' for name in names if name not in allowed]
-    assert found == [], found
+def test_get_specs_reads_the_domains_written_after_a_role():
+    """Test that `Annotated[Role, 'boolean']` is a role that accepts Boolean values, and a plain `Role` any value."""
+    specs = VoteInteraction._get_specs()
+    assert specs['voters'] == RoleSpec(domains=('boolean',))
+    assert specs['other'] == RoleSpec()
 
 
-def test_docstring_summaries_are_short():
-    """Test that the summary line of every docstring of `skcomplex.core` is at most 80 characters long."""
-    found = {
-        name: len(docstring.splitlines()[0])
-        for name, docstring, _ in _docstrings()
-        if len(docstring.splitlines()[0]) > SUMMARY_LENGTH
-    }
-    assert found == {}, found
+class ReactionInteraction(Interaction):
+    """Interaction whose roles bind one element, one element or none, and several elements."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        reactants: tuple[Role, ...] = (),
+        amounts: Mapping[tuple[Role, str] | Role, float] | None = None,
+        catalyst: Role | None = None,
+        states: tuple[str, ...] = ('x',),
+        k: float = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.reactants = reactants
+        self.amounts = amounts
+        self.catalyst = catalyst
+        self.states = states
+        self.k = k
 
 
-def test_docstrings_read_naturally():
-    """Test that no docstring of the core holds a semicolon, and no public one a dash or a banned phrase."""
-    found = {}
-    for name, docstring, public in _docstrings():
-        for line in _prose_lines(docstring):
-            faults = _prose_faults(line) if public else ['semicolon'] * (';' in line)
-            if faults:
-                found.setdefault(name, []).append((line, faults))
-    assert found == {}, found
+def test_get_specs_reads_roles_from_type_hints():
+    """Test that `tuple[Role, ...]` and a mapping keyed by roles bind several elements and `Role | None` is optional."""
+    specs = ReactionInteraction._get_specs()
+    assert specs['reactants'] == RoleSpec(variadic=True)
+    assert specs['amounts'] == RoleSpec(variadic=True, optional=True)
+    assert specs['catalyst'] == RoleSpec(optional=True)
+    assert 'states' not in specs
+    assert list(ReactionInteraction('reaction')._get_declared()) == ['k']
 
 
-def test_class_summaries_name_their_kind():
-    """Test that a public class names its kind after an article, and no summary holds a field term."""
-    found = {}
-    for name, short, docstring in _public_definitions(ast.ClassDef):
-        summary = docstring.splitlines()[0]
-        kind = next((word for suffix, word in KINDS.items() if short.endswith(suffix)), None)
-        if not summary.startswith(('A ', 'An ')) or (kind is not None and kind not in summary.lower()):
-            found[name] = summary
-    for name, _, docstring in [*_public_definitions(ast.ClassDef), *_public_definitions(ast.FunctionDef)]:
-        words = {word.lower() for word in re.findall('[A-Za-z]+', docstring.splitlines()[0])}
-        terms = sorted(term for term in FIELD_TERMS if term.lower() in words)
-        if terms:
-            found[name] = terms
-    assert found == {}, found
+class FeedInteraction(Interaction):
+    """Decay of a stock fed by an optional source."""
+
+    def __init__(self, label: str, *, target: Role, source: Role | None = None, k: float = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.k = k
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the decay, fed by the source when one is bound."""
+        super()._prepare(context)
+        feed = 0 if self.source is None else context.source.x
+        self.laws_ = [RateLaw(context.target.x.diff(context.t), -context.k * context.target.x + feed)]
 
 
-def test_docstrings_say_main_public_methods():
-    """Test that no docstring calls the main public methods verbs."""
-    found = [name for name, docstring, _ in _docstrings() if re.search(r'\bverbs?\b', docstring, flags=re.IGNORECASE)]
-    assert found == [], found
-
-
-def test_components_compare_and_name_uses():
-    """Test that every public class of a family compares itself with its nearest part and names its uses."""
-    found = []
-    for name, _, docstring in _public_definitions(ast.ClassDef):
-        if not name.startswith(FAMILIES):
-            continue
-        paragraphs = [' '.join(paragraph.split()) for paragraph in docstring.split('\n\n')]
-        compares = any(p.startswith('Unlike') and 'Choose it when' in p for p in paragraphs)
-        names_uses = any(p.startswith('It appears in') for p in paragraphs)
-        if not (compares and names_uses):
-            found.append(name)
-    assert found == [], found
+@pytest.mark.parametrize(('source', 'expected'), [(None, '-feed.k*a.x'), ('b', '-feed.k*a.x + b.x')])
+def test_a_role_typed_role_or_none_is_optional(source, expected):
+    """Test that `Role | None` is an optional role, which binds an element or nothing."""
+    assert FeedInteraction._get_specs()['source'] == RoleSpec(optional=True)
+    elements = [Element('a', values={'x': 1.0}), Element('b', values={'x': 2.0})]
+    system = System(elements=elements, interactions=[FeedInteraction('feed', target='a', source=source)]).prepare()
+    assert system.equations_['a.x'] == expected

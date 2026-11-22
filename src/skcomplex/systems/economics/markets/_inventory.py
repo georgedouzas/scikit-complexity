@@ -6,18 +6,21 @@ The delays are of perception, response, and delivery.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class CarDealershipElement(Element):
@@ -26,15 +29,12 @@ class CarDealershipElement(Element):
     Its orders close the gap to a desired coverage. Sales are the demand, stepping up at `step_time`, limited by the
     inventory. The dealer perceives sales through a first-order smoothing, desires `coverage` days of perceived sales,
     and orders the perceived sales plus the gap to the desired inventory over the response delay, never negative. Orders
-    arrive through a third-order delay. The dealership holds the inventory and the parameters, and a transfer within it
-    of the system moves the cars.
+    arrive through a third-order delay. The dealership holds the inventory and the parameters, and the flows of
+    deliveries and sales of the system move the cars.
 
     Args:
         label:
             The label of the dealership.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         inventory:
             The initial number of cars on the lot.
@@ -69,18 +69,17 @@ class CarDealershipElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='cars')] = 200.0,
-        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        demand_step: Annotated[float, ParameterSpec()] = 2.0,
-        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        coverage: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        perception_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        response_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        delivery_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        inventory: Annotated[float, RealSet.closed_open(0, oo), Quantity('cars')] = 200.0,
+        demand: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        demand_step: float = 2.0,
+        step_time: Annotated[float, RealSet.closed_open(0, oo)] = 25.0,
+        coverage: Annotated[float, RealSet.open(0, oo)] = 10.0,
+        perception_delay: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        response_delay: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        delivery_delay: Annotated[float, RealSet.open(0, oo)] = 5.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.inventory = inventory
         self.demand = demand
         self.demand_step = demand_step
@@ -165,6 +164,12 @@ class CarDealerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import CarDealerSystem
         >>> CarDealerSystem(response_delay=6.0).prepare().system_.elements[0].response_delay
@@ -177,15 +182,15 @@ class CarDealerSystem(BaseSystem):
     until = 100.0
     dt = 1.0
     observables = (
-        ObservableSpec('perceived', _get_perceived, element='dealer'),
-        ObservableSpec('desired_inventory', _get_desired_inventory, element='dealer'),
-        ObservableSpec('orders', _get_orders, element='dealer'),
+        Observable('perceived', _get_perceived, element='dealer'),
+        Observable('desired_inventory', _get_desired_inventory, element='dealer'),
+        Observable('orders', _get_orders, element='dealer'),
     )
 
     @staticmethod
     def _get_dealer(s: SimpleNamespace) -> SimpleNamespace:
-        """Return the symbols of the dealership a transfer moves cars of, with the time."""
-        return SimpleNamespace(t=s.t, **vars(s.source))
+        """Return the symbols of the dealership the flows move cars of, with the time."""
+        return SimpleNamespace(t=s.t, **vars(s.target))
 
     def __init__(
         self,
@@ -199,8 +204,10 @@ class CarDealerSystem(BaseSystem):
         response_delay: float = 3.0,
         delivery_delay: float = 5.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.inventory = inventory
         self.demand = demand
         self.demand_step = demand_step
@@ -211,13 +218,18 @@ class CarDealerSystem(BaseSystem):
         self.delivery_delay = delivery_delay
 
     @staticmethod
-    def _get_deliveries(s: SimpleNamespace) -> Expression:
-        """Return the deliveries of the dealership, its orders through a third-order delay."""
+    def _get_flows(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the deliveries into the lot, the orders through a third-order delay, and the sales out of it."""
         dealer = CarDealerSystem._get_dealer(s)
-        return distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
+        deliveries = distributed_delay(_get_orders(dealer), order=3, time=dealer.delivery_delay)
+        return [
+            RateLaw({s.target.inventory: +1}, deliveries, label='deliveries'),
+            RateLaw({s.target.inventory: -1}, _get_sales(dealer), label='sales'),
+        ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         dealer = CarDealershipElement(
             'dealer',
             inventory=self.inventory,
@@ -229,21 +241,5 @@ class CarDealerSystem(BaseSystem):
             response_delay=self.response_delay,
             delivery_delay=self.delivery_delay,
         )
-        cars = TransferInteraction(
-            'cars',
-            source='dealer',
-            target='dealer',
-            state=Source('factory'),
-            into='inventory',
-            amount=self._get_deliveries,
-            flow='deliveries',
-            legs=[
-                (
-                    'inventory',
-                    Sink('customers'),
-                    lambda s: _get_sales(CarDealerSystem._get_dealer(s)),
-                    'sales',
-                ),
-            ],
-        )
-        return CompositeSystem(self.label, elements=[dealer], interactions=[cars])
+        cars = Interaction('cars', roles={'target': 'dealer'}, laws=self._get_flows)
+        self.system_ = System(self.label, elements=[dealer], interactions=[cars])

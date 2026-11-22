@@ -3,43 +3,39 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, exp, oo, sqrt, vector
-from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction
+from ....core.components import Observable
+from ....core.components.interactions import Interaction
 from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import hyperedges, neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ...general.elements import PointElement
 
 NEIGHBOURS = 10
 
 
-class SwarmAgentElement(Element):
-    """Self-propelled agent driven to the speed `sqrt(alpha / beta)`.
+class RayleighPropulsionInteraction(Interaction):
+    """Rayleigh self-propulsion `x'' = (alpha - beta |x'|^2) x'` of the agents of a swarm.
 
-    The position `x` is a state of order 2, whose velocity `v` is the first derivative `x_d1`, and the agent alone
-    accelerates by the Rayleigh self-propulsion `(alpha - beta |v|^2) v`.
+    It drives every agent to the speed `sqrt(alpha / beta)`.
 
     Args:
         label:
-            The label of the agent.
+            The label of the interaction.
 
-        visual:
-            The visual of the agent, or `None` for the default one.
-
-        x:
-            The position.
-
-        x_d1:
-            The velocity.
+        target:
+            The path of the group of agents, whose position is `x`.
 
         alpha:
             The propulsion.
@@ -48,36 +44,41 @@ class SwarmAgentElement(Element):
             The friction at high speed.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import SwarmAgentElement
-        >>> SwarmAgentElement('agent', alpha=2.0).alpha
+        >>> from skcomplex.systems.biology.collective_behaviour import RayleighPropulsionInteraction
+        >>> RayleighPropulsionInteraction('propulsion', target='agents', alpha=2.0).alpha
         2.0
     """
 
-    law_classes: ClassVar[tuple[type, ...]] = (RateLaw,)
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: npt.ArrayLike = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
+        super().__init__(label)
+        self.target = target
         self.alpha = alpha
         self.beta = beta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[RateLaw]:
-        """Return the self-propulsion of the agent."""
-        velocity = s.x_d1
-        return [RateLaw(s.x, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the propulsion of the velocity of every agent.
+
+        Args:
+            context:
+                The namespace of the agents, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t = context, context.t
+        x = s.target.x
+        velocity = x.diff(t)
+        self.laws_ = [RateLaw(x.diff(t, 2), (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
-class MorseAlignmentInteraction(CouplingInteraction):
+class MorseAlignmentInteraction(Interaction):
     """Morse force and Cucker-Smale alignment between neighbours under a smooth cutoff.
 
     An agent `i` gains from every neighbour `j` within `R` the acceleration
@@ -115,30 +116,25 @@ class MorseAlignmentInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import MorseAlignmentInteraction
-        >>> MorseAlignmentInteraction('pairs', target='agents', R=3.0).neighborhood
-        RadiusNeighborhood(radius=3.0)
+        >>> MorseAlignmentInteraction('pairs', target='agents', R=3.0).R
+        3.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         R: float = 3.0,
-        C_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        l_r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        C_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        l_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        l_v: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        C_r: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
+        l_r: Annotated[float, RealSet.open(0, oo)] = 0.5,
+        C_a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        l_a: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        l_v: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            write='x',
-            function=self._get_pair_term,
-            neighborhood=RadiusNeighborhood(R),
-        )
+        super().__init__(label)
+        self.target = target
         self.R = R
         self.C_r = C_r
         self.l_r = l_r
@@ -147,16 +143,25 @@ class MorseAlignmentInteraction(CouplingInteraction):
         self.gamma = gamma
         self.l_v = l_v
 
-    def _get_pair_term(self, s: SimpleNamespace) -> FreeModuleElement:
-        """Return the Morse force and the alignment of one neighbour under the cutoff."""
-        offset = s.other.x - s.member.x
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sum of the Morse forces and the alignments of the neighbours within `R`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t = context, context.t
+        x, other = s.target.x, s.target.other.x
+        offset = other - x
         rho = sqrt(offset.dot_product(offset))
         slope = -s.C_r / s.l_r * exp(-rho / s.l_r) + s.C_a / s.l_a * exp(-rho / s.l_a)
         cutoff = (1 - rho**2 / self.R**2) ** 2
-        return cutoff * (slope * offset / rho + s.gamma * exp(-rho / s.l_v) * (s.other.x_d1 - s.member.x_d1))
+        term = cutoff * (slope * offset / rho + s.gamma * exp(-rho / s.l_v) * (other.diff(t) - x.diff(t)))
+        self.laws_ = [RateLaw(x.diff(t, 2), neighbors(term, RadiusNeighborhood(self.R)))]
 
 
-class FlankingInteraction(CouplingInteraction):
+class FlankingInteraction(Interaction):
     """Three-body alignment of an agent with pairs of neighbours that flank it.
 
     An agent `i` gains from every pair `j < k` of its neighbours within `R` the acceleration
@@ -182,47 +187,48 @@ class FlankingInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import FlankingInteraction
-        >>> FlankingInteraction('flanking', target='agents').size
-        3
+        >>> FlankingInteraction('flanking', target='agents').kappa_v
+        2.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         R: float = 3.0,
-        kappa_v: Annotated[float, ParameterSpec()] = 2.0,
-        l_3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa_v: float = 2.0,
+        l_3: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            write='x',
-            function=self._get_flanking,
-            mode='hyperedges',
-            size=3,
-            neighborhood=RadiusNeighborhood(R),
-        )
+        super().__init__(label)
+        self.target = target
         self.R = R
         self.kappa_v = kappa_v
         self.l_3 = l_3
 
-    def _get_flanking(self, s: SimpleNamespace) -> FreeModuleElement:
-        """Return the flanking alignment of one pair of neighbours."""
-        weight, relative = SR(1), vector(SR, [0] * len(s.member.x))
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sum of the flanking alignments over the pairs of neighbours within `R`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t, member = context, context.t, context.target
+        weight, relative = SR(1), vector(SR, [0] * len(member.x))
         directions = []
-        for other in s.others:
-            offset = other.x - s.member.x
+        for other in member.others[:2]:
+            offset = other.x - member.x
             rho = sqrt(offset.dot_product(offset))
             weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
             directions.append(offset / rho)
-            relative += other.x_d1 - s.member.x_d1
+            relative += other.x.diff(t) - member.x.diff(t)
         cosine = directions[0].dot_product(directions[1])
-        return s.kappa_v * weight * (1 - cosine) / 2 * relative / 2
+        term = s.kappa_v * weight * (1 - cosine) / 2 * relative / 2
+        self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=3, over=RadiusNeighborhood(self.R)))]
 
 
-class EncirclementInteraction(CouplingInteraction):
+class EncirclementInteraction(Interaction):
     """Four-body alignment of an agent with triples of neighbours that surround it.
 
     An agent `i` gains from every triple `j < k < l` of its neighbours within `R` the acceleration
@@ -249,43 +255,44 @@ class EncirclementInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import EncirclementInteraction
-        >>> EncirclementInteraction('encirclement', target='agents').size
-        4
+        >>> EncirclementInteraction('encirclement', target='agents').kappa_4
+        4.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         R: float = 3.0,
-        kappa_4: Annotated[float, ParameterSpec()] = 4.0,
-        l_3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa_4: float = 4.0,
+        l_3: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            write='x',
-            function=self._get_encirclement,
-            mode='hyperedges',
-            size=4,
-            neighborhood=RadiusNeighborhood(R),
-        )
+        super().__init__(label)
+        self.target = target
         self.R = R
         self.kappa_4 = kappa_4
         self.l_3 = l_3
 
-    def _get_encirclement(self, s: SimpleNamespace) -> FreeModuleElement:
-        """Return the encirclement alignment of one triple of neighbours."""
-        zero = vector(SR, [0] * len(s.member.x))
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the sum of the encirclement alignments over the triples of neighbours within `R`.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, t, member = context, context.t, context.target
+        zero = vector(SR, [0] * len(member.x))
         weight, directions, relative = SR(1), zero, zero
-        for other in s.others:
-            offset = other.x - s.member.x
+        for other in member.others[:3]:
+            offset = other.x - member.x
             rho = sqrt(offset.dot_product(offset))
             weight *= (1 - rho**2 / self.R**2) ** 2 * exp(-rho / s.l_3)
             directions += offset / rho
-            relative += other.x_d1 - s.member.x_d1
-        return s.kappa_4 * weight * (1 - directions.dot_product(directions) / 9) * relative / 3
+            relative += other.x.diff(t) - member.x.diff(t)
+        term = s.kappa_4 * weight * (1 - directions.dot_product(directions) / 9) * relative / 3
+        self.laws_ = [RateLaw(member.x.diff(t, 2), hyperedges(term, size=4, over=RadiusNeighborhood(self.R)))]
 
 
 class ManyBodyAlignmentSwarmSystem(BaseSystem):
@@ -297,7 +304,7 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
     triple of neighbours weighted by `kappa_4`. The neighbours are the agents within `R`, found again at every
     evaluation, and the smooth cutoff `(1 - rho^2 / R^2)^2` weighs every neighbour at the distance `rho`. With
     `kappa_v = kappa_4 = 0` the swarm is the classical pairwise collective. The agents move in a periodic box that holds
-    about ten neighbours around each. The system has the positions `agents.x` and the velocities `agents.x_d1`.
+    about ten neighbours around each. The system has the positions `agents.x` and the velocities `agents.x'`.
 
     Args:
         size:
@@ -348,11 +355,17 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ManyBodyAlignmentSwarmSystem
         >>> system = ManyBodyAlignmentSwarmSystem(12).prepare().system_
-        >>> system.elements[0].prepare().size_, [part.label for part in system.interactions]
-        (12, ['pairs', 'flanking', 'encirclement'])
+        >>> system.elements[0].size, [component.label for component in system.interactions]
+        (12, ['propulsion', 'pairs', 'flanking', 'encirclement'])
     """
 
     field = 'biology/collective_behaviour'
@@ -380,8 +393,10 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         R: float = 3.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.dimension = dimension
         self.alpha = alpha
@@ -398,12 +413,14 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         self.R = R
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the agents and their interactions of every body order.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the agents and their interactions of every body order.
 
-        The agents start near the sites of a square or cubic lattice in a periodic box, whose spacing gives each about
-        ten neighbours, at the preferred speed with random headings.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         spacing = (np.pi * self.R**2 / NEIGHBOURS) ** (1 / self.dimension)
         sides = int(np.ceil(self.size ** (1 / self.dimension)))
@@ -413,12 +430,9 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
         headings = rng.normal(size=(self.size, self.dimension))
         speed = np.sqrt(self.alpha / self.beta)
         velocities = speed * headings / np.linalg.norm(headings, axis=1, keepdims=True)
-        agents = GroupElement(
-            'agents',
-            element=SwarmAgentElement,
-            size=self.size,
-            values={'x': positions, 'x_d1': velocities, 'alpha': self.alpha, 'beta': self.beta},
-        )
+        space = ContinuousSpace(extent=(spacing * sides,) * self.dimension, boundary='periodic')
+        agents = PointElement('agents', x=positions, values={"x'": velocities}, size=self.size, space=space)
+        propulsion = RayleighPropulsionInteraction('propulsion', target='agents', alpha=self.alpha, beta=self.beta)
         pairs = MorseAlignmentInteraction(
             'pairs',
             target='agents',
@@ -438,9 +452,9 @@ class ManyBodyAlignmentSwarmSystem(BaseSystem):
             kappa_4=self.kappa_4,
             l_3=self.l_3,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[agents],
-            interactions=[pairs, flanking, encirclement],
-            space=ContinuousSpace(extent=(spacing * sides,) * self.dimension, boundary='periodic'),
+            interactions=[propulsion, pairs, flanking, encirclement],
+            space=space,
         )

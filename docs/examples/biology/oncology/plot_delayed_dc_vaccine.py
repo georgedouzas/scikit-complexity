@@ -13,7 +13,6 @@ cells hold down the adaptive response, which the vaccine starts only after the d
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DelayedDCVaccineSystem
@@ -22,7 +21,7 @@ SYSTEM = 'delayed_dc_vaccine'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(DelayedDCVaccineSystem(), solver=solver, observers=[observer])
+trajectory = DelayedDCVaccineSystem().set_params(solver=solver).prepare().simulate(observers=[observer])
 
 # %%
 # The lag of two divisions
@@ -31,9 +30,9 @@ trajectory = simulate(DelayedDCVaccineSystem(), solver=solver, observers=[observ
 # small until two divisions `2 tau3`, when the first vaccinated naive helper cells mature, and then rise steeply.
 
 vaccinated = trajectory
-unvaccinated = simulate(DelayedDCVaccineSystem(dose=0.0), solver=solver)
-early = simulate(DelayedDCVaccineSystem(), dt=0.02, solver=solver, until=2)
-early_unvaccinated = simulate(DelayedDCVaccineSystem(dose=0.0), dt=0.02, solver=solver, until=2)
+unvaccinated = DelayedDCVaccineSystem(dose=0.0).set_params(solver=solver).prepare().simulate()
+early = DelayedDCVaccineSystem().set_params(solver=solver).prepare().simulate(dt=0.02, until=2)
+early_unvaccinated = DelayedDCVaccineSystem(dose=0.0).set_params(solver=solver).prepare().simulate(dt=0.02, until=2)
 fig, (lag, cells) = plt.subplots(1, 2, figsize=(10, 4))
 lag.plot(
     early.times,

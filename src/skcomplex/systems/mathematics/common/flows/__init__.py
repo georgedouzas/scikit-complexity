@@ -3,8 +3,10 @@
 The package holds the Rössler flow.
 """
 
-from ._rossler import RosslerElement
+from ._rossler import (
+    RosslerInteraction,
+)
 
 __all__: list[str] = [
-    'RosslerElement',
+    'RosslerInteraction',
 ]

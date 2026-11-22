@@ -13,14 +13,13 @@ ten elements, so an interruption loses only the assembly in hand. Hierarchy wins
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import WatchmakersSystem
 
 SYSTEM = 'watchmakers'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=100)
-trajectory = simulate(WatchmakersSystem(), until=20000, observers=[observer], random_state=0)
+trajectory = WatchmakersSystem().prepare().simulate(until=20000, observers=[observer], random_state=0)
 
 # %%
 # Watches finished

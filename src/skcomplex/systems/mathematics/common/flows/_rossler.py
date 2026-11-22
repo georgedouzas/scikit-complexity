@@ -4,31 +4,21 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
-from .....core.components.elements import Element
+from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, RateLaw
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.types import Role
 
 
-class RosslerElement(Element):
-    """Rössler flow `x' = -y - z`, `y' = x + a y`, `z' = b + z (x - c)`.
+class RosslerInteraction(Interaction):
+    """The laws of the Rössler flow `x' = -y - z`, `y' = x + a y`, `z' = b + z (x - c)`.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        z:
-            The initial third coordinate.
+        target:
+            The element whose coordinates `x`, `y`, and `z` the flow moves.
 
         a:
             The feedback of the second coordinate on itself.
@@ -40,8 +30,8 @@ class RosslerElement(Element):
             The threshold of the third coordinate's growth.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import RosslerElement
-        >>> RosslerElement('rossler', c=4.0).c
+        >>> from skcomplex.systems.mathematics.dynamical_systems import RosslerInteraction
+        >>> RosslerInteraction('flow', target='rossler', c=4.0).c
         4.0
     """
 
@@ -50,36 +40,29 @@ class RosslerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-        z: Annotated[object, StateSpec()] = 1.0,
-        a: Annotated[object, ParameterSpec()] = 0.2,
-        b: Annotated[object, ParameterSpec()] = 0.2,
-        c: Annotated[object, ParameterSpec()] = 5.7,
+        target: Role = 'rossler',
+        a: float = 0.2,
+        b: float = 0.2,
+        c: float = 5.7,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.b = b
         self.c = c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the three coordinates.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the three coordinates as the laws.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [
-            RateLaw(s.x, -s.y - s.z),
-            RateLaw(s.y, s.x + s.a * s.y),
-            RateLaw(s.z, s.b + s.z * (s.x - s.c)),
+        super()._prepare(context)
+        x, y, z = context.target.x, context.target.y, context.target.z
+        self.laws_: list[BaseLaw] = [
+            RateLaw(x, -y - z),
+            RateLaw(y, x + context.a * y),
+            RateLaw(z, context.b + z * (x - context.c)),
         ]

@@ -12,15 +12,14 @@ reactions can decouple the sectors, so each index answers only to its own policy
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import CategorizedPurchasingPowerSystem
 
 SYSTEM = 'categorized_purchasing_power'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-decoupled = simulate(CategorizedPurchasingPowerSystem(), observers=[observer])
-coupled = simulate(CategorizedPurchasingPowerSystem(feedback=False))
+decoupled = CategorizedPurchasingPowerSystem().prepare().simulate(observers=[observer])
+coupled = CategorizedPurchasingPowerSystem(feedback=False).prepare().simulate()
 
 # %%
 # Spillovers with and without feedback

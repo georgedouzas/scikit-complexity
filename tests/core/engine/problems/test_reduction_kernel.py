@@ -2,24 +2,24 @@
 
 import math
 import time
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
 import scipy.sparse
-from sage.all__sagemath_symbolics import cos, heaviside, pi, sin, tanh
+from sage.all__sagemath_symbolics import cos, heaviside, sin, tanh
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element, Period
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, minimum, total, variance
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 RNG = np.random.default_rng(0)
 
@@ -40,11 +40,11 @@ class UnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
+        x: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.x = x
 
 
@@ -54,18 +54,14 @@ class PhaseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        omega: object = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.theta = theta
         self.omega = omega
-
-    def _get_laws(self, s):
-        """Return the laws of the phase element."""
-        return [RateLaw(s.theta, s.omega)]
 
 
 class InhibitorElement(Element):
@@ -74,12 +70,11 @@ class InhibitorElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        z: Annotated[object, StateSpec()] = 0.0,
-        phi: Annotated[object, ParameterSpec()] = 3.0,
+        z: object = 0.0,
+        phi: object = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.z = z
         self.phi = phi
 
@@ -91,19 +86,24 @@ class DriveInteraction(Interaction):
         self,
         label: str,
         *,
-        inhibitor: Annotated[object, RoleSpec()],
-        oscillators: Annotated[object, RoleSpec()],
-        theta_z: Annotated[object, ParameterSpec()] = 0.5,
+        inhibitor: Role,
+        oscillators: Role,
+        theta_z: object = 0.5,
     ) -> None:
         super().__init__(label)
         self.inhibitor = inhibitor
         self.oscillators = oscillators
         self.theta_z = theta_z
 
-    def _get_laws(self, s):
-        """Return the laws of the drive interaction."""
-        return [
-            RateLaw(s.inhibitor.z, s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z)),
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of the drive interaction."""
+        super()._prepare(context)
+        s = context
+        self.laws_ = [
+            RateLaw(
+                s.inhibitor.z,
+                s.inhibitor.phi * (heaviside(maximum(s.oscillators.x) - s.theta_z) - s.inhibitor.z),
+            ),
         ]
 
 
@@ -114,16 +114,18 @@ class MeanPulseInteraction(Interaction):
         self,
         label: str,
         *,
-        neurons: Annotated[object, RoleSpec()],
-        kappa: Annotated[object, ParameterSpec()] = 1.5,
+        neurons: Role,
+        kappa: object = 1.5,
     ) -> None:
         super().__init__(label)
         self.neurons = neurons
         self.kappa = kappa
 
-    def _get_laws(self, s):
-        """Return the laws of the mean pulse interaction."""
-        return [
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of the mean pulse interaction."""
+        super()._prepare(context)
+        s = context
+        self.laws_ = [
             RateLaw(
                 s.neurons.theta,
                 (1 + cos(s.neurons.theta)) * s.kappa * mean(2 / 3 * (1 - cos(s.neurons.theta)) ** 2),
@@ -138,10 +140,10 @@ class MeanCouplingInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[object, RoleSpec()],
-        X: Annotated[object, RoleSpec()],
-        Y: Annotated[object, RoleSpec()],
-        K: Annotated[object, ParameterSpec()] = 1.0,
+        target: Role,
+        X: Role,
+        Y: Role,
+        K: object = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -149,9 +151,11 @@ class MeanCouplingInteraction(Interaction):
         self.Y = Y
         self.K = K
 
-    def _get_laws(self, s):
-        """Return the laws of the mean field coupling interaction."""
-        return [
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of the mean field coupling interaction."""
+        super()._prepare(context)
+        s = context
+        self.laws_ = [
             RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta))),
         ]
 
@@ -163,96 +167,67 @@ class ReaderInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[object, RoleSpec()],
-        source: Annotated[object, RoleSpec()],
+        target: Role,
+        source: Role,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.source = source
 
-    def _get_laws(self, s):
-        """Return the laws of the reader interaction."""
-        return [RateLaw(s.target.x, s.source.value)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of the reader interaction."""
+        super()._prepare(context)
+        s = context
+        self.laws_ = [RateLaw(s.target.x, s.source.value)]
 
 
 def _group_of(laws, size=10, values=None):
-    """Return a system of one group of units whose laws read reductions."""
-
-    class ReducingElement(Element):
-        """Reducing element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            x: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the reducing element."""
-            return laws(s)
-
-    unit = ReducingElement
+    """Return a system of one group of units whose laws, a function of the namespace of the group, read reductions."""
     values = RNG.normal(size=size) if values is None else np.asarray(values, dtype=float)
-    return CompositeSystem(elements=[GroupElement('units', element=unit, size=size, values={'x': values})]), values
+    interaction = Interaction('laws', roles={'target': 'units'}, laws=lambda s: laws(s.target))
+    return System(elements=[UnitElement('units', x=values, size=size)], interactions=[interaction]), values
 
 
 def _rates(system, backend=NumpyBackend):
     """Return the drift of a system at its initial state."""
-    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
+    problem = system.set_params(backend=backend()).prepare()._problem
     return problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+
+
+def _rotation():
+    """Return the turning of the phases of the oscillators at their frequencies."""
+    return Interaction(
+        'rotation',
+        roles={'target': 'oscillators'},
+        laws=lambda s: [RateLaw(s.target.theta, s.target.omega)],
+    )
+
+
+class MeanFieldInteraction(Interaction):
+    """Mean-field coupling of phases through the means of their sines and cosines."""
+
+    def __init__(self, label: str, *, target: Role, K: object = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.K = K
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the coupling of every phase to the mean field."""
+        super()._prepare(context)
+        s, theta = context, context.target.theta
+        self.laws_ = [RateLaw(theta, s.K * (mean(sin(theta)) * cos(theta) - mean(cos(theta)) * sin(theta)))]
 
 
 def _kuramoto(size, *, observables=False):
     """Return a mean-field Kuramoto group, coupled through reductions or through observables."""
     theta, omega = RNG.uniform(0, 2 * math.pi, size), RNG.normal(size=size)
-    oscillators = GroupElement('oscillators', element=PhaseElement, size=size, values={'theta': theta, 'omega': omega})
-    if observables:
-        return (
-            CompositeSystem(
-                elements=[oscillators],
-                interactions=[MeanCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
-            ),
-            theta,
-            omega,
-        )
-
-    class CouplingInteraction(Interaction):
-        """Coupling interaction."""
-
-        def __init__(
-            self,
-            label: str,
-            *,
-            target: Annotated[object, RoleSpec()],
-            K: Annotated[object, ParameterSpec()] = 1.0,
-        ) -> None:
-            super().__init__(label)
-            self.target = target
-            self.K = K
-
-        def _get_laws(self, s):
-            """Return the laws of the coupling interaction."""
-            return [
-                RateLaw(
-                    s.target.theta,
-                    s.K
-                    * (
-                        mean(sin(s.target.theta)) * cos(s.target.theta)
-                        - mean(cos(s.target.theta)) * sin(s.target.theta)
-                    ),
-                ),
-            ]
-
-    coupling = CouplingInteraction
-    return (
-        CompositeSystem(elements=[oscillators], interactions=[coupling('coupling', target='oscillators', K=2.0)]),
-        theta,
-        omega,
+    oscillators = PhaseElement('oscillators', theta=theta, omega=omega, size=size)
+    coupling = (
+        MeanCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)
+        if observables
+        else MeanFieldInteraction('coupling', target='oscillators', K=2.0)
     )
+    return System(elements=[oscillators], interactions=[_rotation(), coupling]), theta, omega
 
 
 def _all_to_all(theta, omega, K=2.0):
@@ -274,21 +249,15 @@ def test_instantaneous_mean_in_interaction():
     class NeuronElement(Element):
         """Neuron element."""
 
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
+        def __init__(self, label: str, *, theta: Annotated[object, Period(2 * math.pi)] = 0.0, size=None) -> None:
+            super().__init__(label, size=size)
             self.theta = theta
 
-    system = CompositeSystem(
-        elements=[GroupElement('neurons', element=NeuronElement, size=40, values={'theta': theta})],
+    system = System(
+        elements=[NeuronElement('neurons', theta=theta, size=40)],
         interactions=[MeanPulseInteraction('pulses', neurons='neurons')],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     expected = (1 + np.cos(theta)) * 1.5 * np.mean(2 / 3 * (1 - np.cos(theta)) ** 2)
     np.testing.assert_allclose(
         problem.drift(0.0, problem.initial_state, problem.initial_parameters),
@@ -302,14 +271,14 @@ def test_instantaneous_mean_in_interaction():
 def test_maximum_drives_single_element(largest, drive):
     """Test that the inhibitor is driven exactly when some oscillator exceeds the threshold."""
     values = np.linspace(-1.0, largest, 8)
-    system = CompositeSystem(
+    system = System(
         elements=[
-            GroupElement('oscillators', element=UnitElement, size=8, values={'x': values}),
+            UnitElement('oscillators', x=values, size=8),
             InhibitorElement('inhibitor'),
         ],
         interactions=[DriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert rates[problem.states.get_entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
 
@@ -362,7 +331,7 @@ def test_weights_of_wrong_shape():
     """Test that weights whose shape does not match the readers and the members are rejected."""
     system, _ = _group_of(lambda s: [RateLaw(s.x, total(s.x, weights=np.ones((3, 4))))], size=3)
     with pytest.raises(ValidationError, match=r'total\(x_units, weights=.*units.*\(3, 4\).*\(3, 3\)'):
-        PassCompiler().prepare(system).run()
+        system.prepare()
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -392,59 +361,66 @@ def test_two_groups_in_one_reduction():
             self,
             label: str,
             *,
-            prey: Annotated[object, RoleSpec()],
-            predators: Annotated[object, RoleSpec()],
-            target: Annotated[object, RoleSpec()],
+            prey: Role,
+            predators: Role,
+            target: Role,
         ) -> None:
             super().__init__(label)
             self.prey = prey
             self.predators = predators
             self.target = target
 
-        def _get_laws(self, s):
-            """Return the laws of the predation interaction."""
-            return [RateLaw(s.target.x, total(s.prey.x * s.predators.x))]
+        def _prepare(self, context: SimpleNamespace) -> None:
+            """Set the laws of the predation interaction."""
+            super()._prepare(context)
+            s = context
+            self.laws_ = [RateLaw(s.target.x, total(s.prey.x * s.predators.x))]
 
-    system = CompositeSystem(
+    system = System(
         elements=[
-            GroupElement('prey', element=UnitElement, size=3),
-            GroupElement('predators', element=UnitElement, size=3),
+            UnitElement('prey', size=3),
+            UnitElement('predators', size=3),
             UnitElement('target'),
         ],
         interactions=[PredationInteraction('predation', prey='prey', predators='predators', target='target')],
     )
     with pytest.raises(RoleError, match=r'total\(.*predators and prey.*one reduction per group'):
-        PassCompiler().prepare(system).run()
+        system.prepare()
 
 
 def test_interaction_reads_second_group_through_reductions():
     """Test that an interaction acts on one group and reads another group through a mean."""
 
-    class CouplingInteraction(Interaction):
+    class SourceMeanInteraction(Interaction):
         """Coupling interaction."""
 
         def __init__(
             self,
             label: str,
             *,
-            target: Annotated[object, RoleSpec()],
-            source: Annotated[object, RoleSpec()],
+            target: Role,
+            source: Role,
         ) -> None:
             super().__init__(label)
             self.target = target
             self.source = source
 
-        def _get_laws(self, s):
-            """Return the laws of the coupling interaction."""
-            return [RateLaw(s.target.x, mean(s.source.x) - s.target.x)]
+        def _prepare(self, context: SimpleNamespace) -> None:
+            """Set the laws of the coupling interaction."""
+            super()._prepare(context)
+            s = context
+            self.laws_ = [RateLaw(s.target.x, mean(s.source.x) - s.target.x)]
 
     first, second = RNG.normal(size=4), RNG.normal(size=6)
-    system = CompositeSystem(
+    system = System(
         elements=[
-            GroupElement('first', element=UnitElement, size=4, values={'x': first}),
-            GroupElement('second', element=UnitElement, size=6, values={'x': second}),
+            UnitElement('first', x=first, size=4),
+            UnitElement('second', x=second, size=6),
         ],
-        interactions=[CouplingInteraction('coupling', target='first', source='second')],
+        interactions=[
+            SourceMeanInteraction('coupling', target='first', source='second'),
+            Interaction('still', roles={'target': 'second'}, laws=lambda s: [RateLaw(s.target.x, 0)]),
+        ],
     )
     for backend in (NumpyBackend, NumbaBackend):
         np.testing.assert_allclose(_rates(system, backend), np.r_[second.mean() - first, np.zeros(6)], atol=1e-12)
@@ -455,10 +431,10 @@ def test_kuramoto_through_observables(backend):
     """Test that laws reading observables of their own partition compile to one ODE at the current state."""
     system, theta, omega = _kuramoto(40, observables=True)
     observables = [
-        ObservableSpec('X', _cosine, group='oscillators'),
-        ObservableSpec('Y', _sine, group='oscillators'),
+        Observable('X', _cosine, group='oscillators'),
+        Observable('Y', _sine, group='oscillators'),
     ]
-    problem = PassCompiler(backend=backend(), observables=observables).prepare(system).run().problem_
+    problem = system.set_params(backend=backend()).prepare(observables)._problem
     assert problem.form.name == 'ODE'
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, _all_to_all(theta, omega), atol=1e-12)
@@ -466,52 +442,29 @@ def test_kuramoto_through_observables(backend):
 
 def test_callable_observable_in_same_partition():
     """Test that a law reading a callable observable of its own partition is rejected."""
-    system = CompositeSystem(
-        elements=[GroupElement('herd', element=UnitElement, size=3), UnitElement('soil')],
+    system = System(
+        elements=[UnitElement('herd', size=3), UnitElement('soil')],
         interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
-        PassCompiler(observables=[ObservableSpec('spread', group='herd', variable='x', reduce=np.ptp)]).prepare(
-            system,
-        ).run()
+        system.prepare([Observable('spread', group='herd', variable='x', reduce=np.ptp)])
 
 
 def test_observable_read_in_its_own_partition():
     """Test that the value a law reads equals the recorded observable at every frame."""
 
-    class SaverElement(Element):
-        """Saver element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            W: Annotated[object, StateSpec()] = 1.0,
-            r: Annotated[object, ParameterSpec()] = 0.1,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.W = W
-            self.r = r
-
-        def _get_laws(self, s):
-            """Return the laws of the saver element."""
-            return [RateLaw(s.W, s.r * s.W)]
-
-    system = CompositeSystem(
-        elements=[
-            GroupElement(
-                'savers',
-                element=SaverElement,
-                size=5,
-                values={'W': RNG.uniform(1, 2, 5), 'r': RNG.uniform(0, 0.2, 5)},
-            ),
-            UnitElement('account'),
-        ],
-        interactions=[ReaderInteraction('reader', target='account', source='mean_wealth')],
+    savers = Element('savers', values={'W': RNG.uniform(1, 2, 5), 'r': RNG.uniform(0, 0.2, 5)}, size=5)
+    saving = Interaction(
+        'saving',
+        roles={'target': 'savers'},
+        laws=lambda s: [RateLaw(s.target.W, s.target.r * s.target.W)],
     )
-    observables = [ObservableSpec('mean_wealth', group='savers', variable='W')]
-    simulation = simulate(system, until=5, dt=0.5, observables=observables)
+    system = System(
+        elements=[savers, UnitElement('account')],
+        interactions=[saving, ReaderInteraction('reader', target='account', source='mean_wealth')],
+    )
+    observables = [Observable('mean_wealth', group='savers', variable='W')]
+    simulation = system.prepare(observables).simulate(until=5, dt=0.5, observables=observables)
     problem, trajectory = simulation.problem, simulation
     assert not problem.partitions
     index = problem.states.get_entry('account.x').start
@@ -528,7 +481,7 @@ def test_synchronous_map(backend):
         lambda s: [UpdateLaw(s.x, (1 - epsilon) * 4 * s.x * (1 - s.x) + epsilon * mean(4 * s.x * (1 - s.x)))],
         values=RNG.uniform(size=10),
     )
-    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
+    problem = system.set_params(backend=backend()).prepare()._problem
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     logistic = 4 * x * (1 - x)
     np.testing.assert_allclose(updated, (1 - epsilon) * logistic + epsilon * logistic.mean(), atol=1e-12)
@@ -546,7 +499,7 @@ def test_propensity_after_event(backend):
         ]
 
     system, _ = _group_of(sis, size=size, values=(RNG.uniform(size=size) < 0.3).astype(float))
-    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
+    problem = system.set_params(backend=backend()).prepare()._problem
     state, p = problem.initial_state.copy(), problem.initial_parameters
     for channel in RNG.integers(0, 2 * size, 20):
         infected = state > 0.5
@@ -555,7 +508,7 @@ def test_propensity_after_event(backend):
         np.testing.assert_allclose(rates, expected, atol=1e-12)
         if rates[channel] > 0:
             state = state + problem.stoichiometry[channel]
-    trajectory = simulate(system, until=2, backend=backend())
+    trajectory = system.prepare().simulate(until=2)
     assert set(np.unique(trajectory.get_values('units.x'))) <= {0.0, 1.0}
 
 
@@ -571,7 +524,7 @@ def test_linear_cost():
     """Test that one Numba drift evaluation grows linearly with the size of a mean-field group."""
     durations = []
     for size in (10_000, 100_000):
-        problem = PassCompiler(backend=NumbaBackend()).prepare(_kuramoto(size)[0]).run().problem_
+        problem = _kuramoto(size)[0].set_params(backend=NumbaBackend()).prepare()._problem
         x, p = problem.initial_state, problem.initial_parameters
         problem.drift(0.0, x, p)
         samples = []
@@ -593,20 +546,22 @@ def test_element_set_reduction():
             self,
             label: str,
             *,
-            units: Annotated[object, RoleSpec()],
+            units: Role,
         ) -> None:
             super().__init__(label)
             self.units = units
 
-        def _get_laws(self, s):
-            """Return the laws of the total interaction."""
-            return [RateLaw(s.units.x, total(s.units.x))]
+        def _prepare(self, context: SimpleNamespace) -> None:
+            """Set the laws of the total interaction."""
+            super()._prepare(context)
+            s = context
+            self.laws_ = [RateLaw(s.units.x, total(s.units.x))]
 
-    system = CompositeSystem(
+    system = System(
         elements=[UnitElement(f'unit_{index}', x=float(index + 1)) for index in range(3)],
         interactions=[TotalInteraction('total', units=['unit_0', 'unit_1', 'unit_2'])],
     )
-    problem = PassCompiler().prepare(system).run().problem_
+    problem = system.prepare()._problem
     assert problem.states.names == ['unit_0.x', 'unit_1.x', 'unit_2.x']
     for backend in (NumpyBackend, NumbaBackend):
         np.testing.assert_allclose(_rates(system, backend), [6.0, 6.0, 6.0])
@@ -622,17 +577,19 @@ def _shared(share, values):
             self,
             label: str,
             *,
-            cells: Annotated[object, RoleSpec()],
+            cells: Role,
         ) -> None:
             super().__init__(label)
             self.cells = cells
 
-        def _get_laws(self, s):
-            """Return the laws of the share interaction."""
-            return [RateLaw(s.cells.x, share(s))]
+        def _prepare(self, context: SimpleNamespace) -> None:
+            """Set the laws of the share interaction."""
+            super()._prepare(context)
+            s = context
+            self.laws_ = [RateLaw(s.cells.x, share(s))]
 
-    return CompositeSystem(
-        elements=[GroupElement('units', element=UnitElement, size=len(values), values={'x': values})],
+    return System(
+        elements=[UnitElement('units', x=values, size=len(values))],
         interactions=[ShareInteraction('share', cells='units')],
     )
 
@@ -660,11 +617,10 @@ def test_element_set_of_mixed_types():
         def __init__(
             self,
             label: str,
-            visual: VisualSpec | None = None,
             *,
-            x: Annotated[object, StateSpec()] = 0.0,
+            x: object = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
+            super().__init__(label)
             self.x = x
 
     class TotalInteraction(Interaction):
@@ -674,21 +630,23 @@ def test_element_set_of_mixed_types():
             self,
             label: str,
             *,
-            units: Annotated[object, RoleSpec()],
+            units: Role,
         ) -> None:
             super().__init__(label)
             self.units = units
 
-        def _get_laws(self, s):
-            """Return the laws of the total interaction."""
-            return [RateLaw(s.units.x, total(s.units.x))]
+        def _prepare(self, context: SimpleNamespace) -> None:
+            """Set the laws of the total interaction."""
+            super()._prepare(context)
+            s = context
+            self.laws_ = [RateLaw(s.units.x, total(s.units.x))]
 
-    system = CompositeSystem(
+    system = System(
         elements=[UnitElement('a'), OtherElement('b')],
         interactions=[TotalInteraction('total', units=['a', 'b'])],
     )
     with pytest.raises(RoleError, match=r"'units'.*UnitElement and OtherElement"):
-        PassCompiler().prepare(system).run()
+        system.prepare()
 
 
 def test_reduction_kernel_reduce_values():

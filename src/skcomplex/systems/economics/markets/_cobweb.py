@@ -3,16 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class MarketElement(Element):
@@ -21,9 +26,6 @@ class MarketElement(Element):
     Args:
         label:
             The label of the market.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         price:
             The initial price.
@@ -37,15 +39,14 @@ class MarketElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        price: Annotated[float, StateSpec()] = 1.0,
+        price: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price
 
 
-class CobwebInteraction(MapInteraction):
+class CobwebInteraction(Interaction):
     """Cobweb system, where supply reacts to the previous price.
 
     Demand clears the market. Demand is `a - b * price` and supply is `c + d * previous price`, so the next price is
@@ -76,29 +77,35 @@ class CobwebInteraction(MapInteraction):
         2
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec()] = 10.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        c: Annotated[float, ParameterSpec()] = 1.0,
-        d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role = 'market',
+        a: float = 10.0,
+        b: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        c: float = 1.0,
+        d: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, target=target, state='price', function=self._get_price)
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.b = b
         self.c = c
         self.d = d
 
-    @staticmethod
-    def _get_price(s: SimpleNamespace) -> Expression:
-        """Return the next price `(a - c - d * price) / b`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next price `(a - c - d * price) / b`, at which demand buys the supply of the last price.
 
-        At this price demand buys the supply of the last price.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return (s.a - s.c - s.d * s.target.price) / s.b
+        super()._prepare(context)
+        s = context
+        self.laws_: list[BaseLaw] = [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
 
 
 class CobwebSystem(BaseSystem):
@@ -125,10 +132,16 @@ class CobwebSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import CobwebSystem
-        >>> CobwebSystem(price=2.0).prepare().system_.elements[0].price
-        2.0
+        >>> CobwebSystem(price=2.0).prepare().simulate(until=2).get_values('market.price').tolist()
+        [2.0, 3.5, 2.75]
     """
 
     field = 'economics/markets'
@@ -146,17 +159,20 @@ class CobwebSystem(BaseSystem):
         c: float = 1.0,
         d: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.price = price
         self.a = a
         self.b = b
         self.c = c
         self.d = d
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the market and its cobweb."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[MarketElement('market', price=self.price)],
             interactions=[CobwebInteraction('cobweb', target='market', a=self.a, b=self.b, c=self.c, d=self.d)],

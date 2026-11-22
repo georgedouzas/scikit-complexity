@@ -12,17 +12,16 @@ while it keeps its spread in depth, so the third dimension stays in use.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import Boids3dSystem
 
 SYSTEM = 'boids3d'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(
-    Boids3dSystem(n_boids=100, cohesion=0.0, separation=0.0, random_state=0),
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    Boids3dSystem(n_boids=100, cohesion=0.0, separation=0.0, random_state=0)
+    .prepare()
+    .simulate(observers=[observer], random_state=0)
 )
 
 # %%
@@ -34,7 +33,8 @@ trajectory = simulate(
 polarization, depth = [], []
 for frame in range(len(trajectory.times)):
     boids = trajectory.get_agents('flock', frame)
-    headings = boids.values['velocity'] / np.linalg.norm(boids.values['velocity'], axis=1, keepdims=True)
+    velocity = np.column_stack([boids.values[name] for name in ('x_d1', 'y_d1', 'z_d1')])
+    headings = velocity / np.linalg.norm(velocity, axis=1, keepdims=True)
     polarization.append(np.linalg.norm(headings.mean(axis=0)))
     depth.append(np.ptp(boids.locations[:, 2]))
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))

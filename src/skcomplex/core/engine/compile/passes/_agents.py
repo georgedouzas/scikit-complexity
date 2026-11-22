@@ -1,4 +1,4 @@
-"""Compile agent-based systems."""
+"""Find the elements and groups that run as agents."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,12 +6,13 @@
 import dataclasses
 import re
 
-from ....components.elements import BaseElement, GroupElement
+from ....components.elements import BaseElement
 from ....components.interactions import BaseInteraction
-from ....components.laws import MatchLaw, RuleLaw
-from ....components.specs import NodeSpec
-from ....types import VariableKind
-from ..._utils import bound_labels, declarations_of, probe_laws
+from ....components.laws._rule import _RuleLaw
+from ....enums import VariableKind
+from ..._utils import binding_of, bound_labels, declarations_of, probe_laws
+from ...problems._group_element import _GroupElement
+from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
 from .._compilation import Compilation
 
@@ -19,13 +20,23 @@ MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
 
 class AgentsPass(BasePass):
-    """A pass that marks the nodes of the elements and groups of the agent stepper.
+    """A pass that finds the elements and groups that run as agents.
 
-    They are the elements and groups that run on the agent stepper. An agent is a member of a variable group, or of an
-    element or group whose own laws include a `RuleLaw`. When the tree holds rules, of components or of interactions,
-    the groups whose element type has no laws of its own are agents too, as passive agents that rules read and change,
-    unless an interaction whose laws are not all rules or matchings binds them through a role. Single elements, such as
-    the holders of reductions, and groups on the sites, edges, or hyperedges of a space are never passive agents.
+    An agent is a member of a group that runs rules, such as a trader that gives a coin to another trader. Groups that
+    the rules only read and change are agents too, as passive agents. A single element, or a group on the sites or edges
+    of a space, is never a passive agent.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        AgentsProblemPass: Adds the agents to the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> compilation = PassCompiler().prepare(BoltzmannWealthSystem()).compilation_
+        >>> [node.path for node in compilation.nodes if node.agent]
+        ['traders']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -49,22 +60,22 @@ class AgentsPass(BasePass):
 
         Its element type has no laws of its own.
         """
-        return isinstance(component, GroupElement) and component.on is None and probe_laws(component) == []
+        return isinstance(component, _GroupElement) and component.on is None and probe_laws(component) == []
 
     @staticmethod
-    def _get_bound_paths(node: NodeSpec) -> set[str]:
+    def _get_bound_paths(node: _NodeSpec) -> set[str]:
         """Return the paths of the components the roles of an interaction bind.
 
         The paths have no member indices.
         """
         paths = set()
-        for name in declarations_of(type(node.component), VariableKind.ROLE):
-            for item in bound_labels(getattr(node.component, name)):
+        for name in declarations_of(node.component, VariableKind.ROLE):
+            for item in bound_labels(binding_of(node.component, name)):
                 paths.add(MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
         return paths
 
     @staticmethod
-    def _get_agent_paths(nodes: list[NodeSpec]) -> set[str]:
+    def _get_agent_paths(nodes: list[_NodeSpec]) -> set[str]:
         """Return the paths of the rule-running components and the passive groups read.
 
         The components are elements and groups, and rules read the passive groups.
@@ -76,13 +87,15 @@ class AgentsPass(BasePass):
         interactions = [
             (node, probe_laws(node.component)) for node in nodes if isinstance(node.component, BaseInteraction)
         ]
-        has_rules = bool(agents) or any(any(isinstance(law, RuleLaw) for law in laws or ()) for _, laws in interactions)
+        has_rules = bool(agents) or any(
+            any(isinstance(law, _RuleLaw) for law in laws or ()) for _, laws in interactions
+        )
         if not has_rules:
             return agents
         bound = {
             path
             for node, laws in interactions
-            if laws is None or not all(isinstance(law, RuleLaw | MatchLaw) for law in laws)
+            if laws is None or not all(isinstance(law, _RuleLaw) for law in laws)
             for path in AgentsPass._get_bound_paths(node)
         }
         return agents | {node.path for node in passive if node.path not in bound}
@@ -101,10 +114,10 @@ class AgentsPass(BasePass):
 
         Returns:
             runs_rules:
-                Whether the component is a variable group, or an element or group whose own laws include a `RuleLaw`.
+                Whether the component is a variable group, or an element or group whose own laws include an agent rule.
         """
-        if isinstance(component, GroupElement) and component.variable:
+        if isinstance(component, _GroupElement) and component.variable:
             return True
         if not isinstance(component, BaseElement):
             return False
-        return any(isinstance(law, RuleLaw) for law in probe_laws(component) or [])
+        return any(isinstance(law, _RuleLaw) for law in probe_laws(component) or [])

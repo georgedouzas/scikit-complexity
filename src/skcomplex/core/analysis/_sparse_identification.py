@@ -9,62 +9,71 @@ import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, RealSet
 
-from ..components.elements import DeclaredElement
+from ..components.elements import Element
+from ..components.interactions import Interaction
 from ..components.laws import BaseLaw, RateLaw
-from ..components.spaces import BaseTime, ContinuousTime
-from ..components.systems import CompositeSystem
-from ..engine.runtime import simulate
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
-from ..types import Array, DataKind
+from ..systems import System
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._utils import load_module
 from .types import Runs
 
 DIFFERENCE_POINTS = 3
-RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'variables', 'group', 'define'})
+RESERVED_NAMES = frozenset({'label', 'values', 'size', 'space', 'on', 'bounds'})
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
-class _SurrogateElement(DeclaredElement):
-    """Surrogate element, whose laws a function fitted to series returns."""
+class _SurrogateElement(Element):
+    """Surrogate element of values by name, with inputs bounded by the samples.
+
+    Every input keeps to its range in the samples.
+    """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        variables: Mapping[str, DeclaredVariableSpec] | None = None,
-        laws: Callable[[SimpleNamespace], list[BaseLaw]] | None = None,
+        values: Mapping[str, object] | None = None,
+        bounds: Mapping[str, tuple[float, float]] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, variables=variables)
-        self.laws = laws
+        super().__init__(label, values=values)
+        self.bounds = bounds
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
-        """Return the laws of the fitted function for a namespace of symbols.
+    def _get_hints(self) -> dict[str, object]:
+        """Return the allowed values of every input, its range in the samples.
 
-        Without a function, there are none.
+        The range is a closed interval. The argument `bounds` describes the values, so it is no value itself.
         """
-        return [] if self.laws is None else self.laws(namespace)
+        return {name: Annotated[float, RealSet.closed(*bounds)] for name, bounds in (self.bounds or {}).items()}
 
 
 @dataclass(frozen=True)
 class SparseIdentificationResult:
     """A result of `sparse_identification`, a sparse symbolic system.
 
-    SINDy is the sparse identification of nonlinear dynamics.
+    It holds the fitted `System`, the candidate terms and the coefficient of each in the rate of every state, the
+    errors of the fit, and the forecast, such as the rate `x' = -2 x` found from a decaying exponential. It reports
+    the equations of a fluid flow, a chemical reaction, and a predator and prey cycle.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         samples:
             The series of every run, the names of the variables, and the step.
 
         system:
-            The system of one surrogate element under continuous time, with one rate law per variable.
+            The `System` of one surrogate element and one interaction with one rate law per variable, which flows in
+            continuous time.
 
         labels:
             The variables the system was fitted to, in the order of its states.
@@ -93,10 +102,20 @@ class SparseIdentificationResult:
 
         forecast:
             The variables at the `horizon` samples after the last one, one row per sample.
+
+    See Also:
+        sparse_identification: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import sparse_identification
+        >>> times = np.arange(0.0, 2.0, 0.001)
+        >>> sparse_identification(np.exp(-2 * times), variables=['x'], degree=1, dt=0.001).features
+        ['1', 'x']
     """
 
-    samples: SamplesSpec
-    system: CompositeSystem
+    samples: _SamplesSpec
+    system: System
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -122,14 +141,14 @@ def sparse_identification(
 ) -> SparseIdentificationResult:
     """Return the sparse symbolic system fitted to series by SINDy, with PySINDy.
 
-    SINDy is the sparse identification of nonlinear dynamics. SINDy writes the derivative of every variable as a sparse
-    sum of the monomials of the variables up to a degree. It estimates the derivatives by centred finite differences and
-    selects the terms by sequentially thresholded least squares. The fitted system holds one rate law per variable under
-    continuous time and starts at the first sample of the first run, and the forecast simulates it from the last sample
-    of the last run.
+    SINDy, the sparse identification of nonlinear dynamics, writes the derivative of every variable as a sum of few
+    monomials of the variables up to a degree, such as `x' = -2 x` for a decaying exponential. It estimates the
+    derivatives by centred finite differences and keeps the terms by least squares that drop small coefficients in
+    turn. The fitted `System` holds one rate law per variable and starts at the first sample of the first run, so
+    `result.system.prepare().simulate(until=...)` runs it. It finds the equations of a fluid flow, a chemical reaction,
+    and a predator and prey cycle from their series.
 
-    It appears in many fields. It finds the equations of a fluid flow, of a chemical reaction, and of a predator and
-    prey cycle from their series.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -151,7 +170,7 @@ def sparse_identification(
             The share of the samples of every run held out at its end to measure the validation error.
 
         horizon:
-            The number of samples to forecast after the last sample of the last run.
+            The number of samples to forecast after the last sample of the last run, by simulating the fitted system.
 
         dt:
             The time between the rows of an array.
@@ -167,6 +186,10 @@ def sparse_identification(
         AnalysisError:
             The validation share lies outside `[0, 1)`, the horizon is negative, or the runs differ in variables or
             step.
+
+    See Also:
+        mode_decomposition: Fits a linear system to series.
+        kramers_moyal: Gives the drift and the diffusion of one series.
 
     Examples:
         >>> import numpy as np
@@ -192,7 +215,6 @@ def sparse_identification(
         label,
         dict(zip(states, map(float, samples.series[0][0]), strict=True)),
         _sparse_laws(states, coefficients, powers),
-        ContinuousTime(),
     )
     last_state = np.asarray(samples.series[-1][-1], dtype=float)
     predict, differentiate = fitted.predict, fitted.differentiation_method
@@ -212,7 +234,7 @@ def sparse_identification(
 
 
 def _forecast(
-    system: CompositeSystem,
+    system: System,
     label: str,
     states: list[str],
     last_state: Array,
@@ -225,8 +247,7 @@ def _forecast(
     There is one row per sample.
     """
     names = [f'{label}.{name}' for name in states]
-    trajectory = simulate(
-        system,
+    trajectory = system.prepare().simulate(
         until=horizon * dt,
         dt=dt,
         initial_state=dict(zip(names, map(float, last_state), strict=True)),
@@ -252,7 +273,7 @@ def _sparse_laws(
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sparse rate laws."""
-        symbols = _symbols_of(s, names)
+        symbols = _symbols_of(s.target, names)
         terms = [_term(symbols, row) for row in powers]
         rates = [
             sum(float(value) * term for value, term in zip(row, terms, strict=True) if value) for row in coefficients
@@ -393,38 +414,36 @@ def _surrogate_system(
     label: str,
     initial: Mapping[str, float],
     laws: Callable[[SimpleNamespace], list[BaseLaw]],
-    time: BaseTime,
     *,
     inputs: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
-) -> CompositeSystem:
-    """Return a system of one surrogate element.
+) -> System:
+    """Return a system of one surrogate element and the interaction of its laws.
 
-    It has the given states, laws, time, and control inputs.
+    The time follows from the laws, continuous for rates and discrete for updates.
 
     Args:
         label:
-            The label of the element.
+            The label of the element. The interaction is labelled `<label>_dynamics`.
 
         initial:
             The initial value of every state, by state name.
 
         laws:
-            The function that returns the laws from the namespace of the element.
-
-        time:
-            The time of the system.
+            The function that returns the laws from the namespace of the interaction, whose `target` is the element.
 
         inputs:
-            The initial value and the bounds of every control input, an adaptive parameter, by name, or `None`.
+            The initial value and the range of every control input, a parameter whose allowed values are that range,
+            by name, or `None`.
 
     Returns:
         system:
             The system.
     """
-    variables = {name: DeclaredVariableSpec(value, StateSpec()) for name, value in initial.items()}
-    for name, (value, bounds) in (inputs or {}).items():
-        variables[name] = DeclaredVariableSpec(value, ParameterSpec(adaptive=True, bounds=bounds))
-    return CompositeSystem(elements=[_SurrogateElement(label, variables=variables, laws=laws)], time=time)
+    values = {**initial, **{name: value for name, (value, _) in (inputs or {}).items()}}
+    bounds = {name: bounds for name, (_, bounds) in (inputs or {}).items()}
+    element = _SurrogateElement(label, values=values, bounds=bounds)
+    interaction = Interaction(f'{label}_dynamics', roles={'target': label}, laws=laws)
+    return System(elements=[element], interactions=[interaction])
 
 
 def _symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:

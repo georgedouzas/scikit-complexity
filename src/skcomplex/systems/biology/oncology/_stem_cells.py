@@ -6,6 +6,7 @@ The stem cells feed the lineages.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, Literal
 
@@ -13,12 +14,14 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import delayed, pulse
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import pulse
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
@@ -41,9 +44,6 @@ class BoneMarrowBloodElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         NBM:
             The initial normal marrow cells.
@@ -144,40 +144,39 @@ class BoneMarrowBloodElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        NBM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10000000000000.0,
-        NPB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3500000000.0,
-        ABM: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 400000000000.0,
-        APB: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5000000000.0,
-        AS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.149,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 58000000000000.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000000.0,
-        theta1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0013,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 27000.0,
-        theta2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-12,
-        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-07,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-14,
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        tau1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 96.0,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-14,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0083,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00396,
-        b3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 368800000000000.0,
-        theta3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000000000.0,
-        m4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0065,
-        m5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
-        tau2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 576.0,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-12,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        b4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-06,
+        NBM: Annotated[float, RealSet.closed_open(0, oo)] = 10000000000000.0,
+        NPB: Annotated[float, RealSet.closed_open(0, oo)] = 3500000000.0,
+        ABM: Annotated[float, RealSet.closed_open(0, oo)] = 400000000000.0,
+        APB: Annotated[float, RealSet.closed_open(0, oo)] = 5000000000.0,
+        AS: Annotated[float, RealSet.closed_open(0, oo)] = 100000.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.149,
+        b1: Annotated[float, RealSet.open(0, oo)] = 58000000000000.0,
+        b2: Annotated[float, RealSet.open(0, oo)] = 10000000000000.0,
+        theta1: Annotated[float, RealSet.open(0, oo)] = 10000000000.0,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0013,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 27000.0,
+        theta2: Annotated[float, RealSet.open(0, oo)] = 10000000000.0,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 1e-12,
+        m3: Annotated[float, RealSet.closed_open(0, oo)] = 1e-07,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1e-14,
+        alpha1: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        tau1: Annotated[float, RealSet.open(0, oo)] = 96.0,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 1e-14,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0083,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 0.00396,
+        b3: Annotated[float, RealSet.open(0, oo)] = 368800000000000.0,
+        theta3: Annotated[float, RealSet.open(0, oo)] = 10000000000.0,
+        m4: Annotated[float, RealSet.closed_open(0, oo)] = 0.0065,
+        m5: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        alpha2: Annotated[float, RealSet.closed_open(0, oo)] = 0.002,
+        tau2: Annotated[float, RealSet.open(0, oo)] = 576.0,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 1e-12,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        r5: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        b4: Annotated[float, RealSet.closed_open(0, oo)] = 1e-06,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.NBM = NBM
         self.NPB = NPB
         self.ABM = ABM
@@ -226,9 +225,6 @@ class LeukaemiaStemCellsElement(Element):
     Args:
         label:
             The label of the niche.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         NS:
             The initial normal stem cells.
@@ -302,31 +298,30 @@ class LeukaemiaStemCellsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        NS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ND: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        AS: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        beta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        beta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        beta3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        NS: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        NPr: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ND: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        AS: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.6,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
+        m2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 0.7,
+        m3: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r5: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        beta1: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        beta2: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        beta3: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.NS = NS
         self.NPr = NPr
         self.ND = ND
@@ -360,7 +355,7 @@ class StemCellDifferentiationElement(Element):
     differentiate. The renewal of normal progenitors gets the feedback `beta0 (1 - ND / (ND + kappa0))` of the
     differentiated cells. Normal progenitors mutate into malignant ones at the rate `m1`. A therapy multiplies the
     death rates of the progenitors and the basal cells by its dose, and that of the normal progenitors also by
-    `1 + delta` times their renewal rate. A pulsed therapy multiplies them by 4 more from `start` for `duration`.
+    `1 + delta` times their renewal rate. A pulsed therapy multiplies them by 4 more for the time of its pulse.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
     `StemCellDifferentiationSystem` read its parameters.
@@ -368,9 +363,6 @@ class StemCellDifferentiationElement(Element):
     Args:
         label:
             The label of the tissue.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         NSq:
             The initial normal quiescent stem cells.
@@ -492,71 +484,58 @@ class StemCellDifferentiationElement(Element):
         uc:
             The dose of the continuous therapy.
 
-        therapy:
-            The mode of therapy, `'none'`, `'pulsed'`, or `'continuous'`.
-
-        start:
-            The time the pulse of a pulsed therapy starts.
-
-        duration:
-            The duration of the pulse of a pulsed therapy.
-
     Examples:
         >>> from skcomplex.systems.biology.oncology import StemCellDifferentiationElement
-        >>> StemCellDifferentiationElement('tissue', therapy='pulsed').therapy
-        'pulsed'
+        >>> StemCellDifferentiationElement('tissue', uc=5.0).uc
+        5.0
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        NSq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        NPr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        NBs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        ND: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        ASq: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        APr: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        ABs: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        d4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d6: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        d7: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        d8: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        k23: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        k34: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
-        k56: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        k65: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        k67: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        k78: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        NPinf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        APinf: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        NPmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        APmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50000.0,
-        Nbmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
-        Abmax: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5000.0,
-        beta0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        kappa0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2000.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        uc: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        therapy: str = 'continuous',
-        start: float = 100.0,
-        duration: float = 100.0,
+        NSq: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        NPr: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        NBs: Annotated[float, RealSet.closed_open(0, oo)] = 2000.0,
+        ND: Annotated[float, RealSet.closed_open(0, oo)] = 2000.0,
+        ASq: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        APr: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        ABs: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        AD: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        d4: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d5: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d6: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        d7: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        d8: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        k12: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        k21: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        k23: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        k34: Annotated[float, RealSet.closed_open(0, oo)] = 0.06,
+        k56: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        k65: Annotated[float, RealSet.closed_open(0, oo)] = 0.9,
+        k67: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        k78: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        r3: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        r4: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        m1: Annotated[float, RealSet.closed_open(0, oo)] = 0.005,
+        NPinf: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        APinf: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        NPmax: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        APmax: Annotated[float, RealSet.open(0, oo)] = 50000.0,
+        Nbmax: Annotated[float, RealSet.open(0, oo)] = 10000.0,
+        Abmax: Annotated[float, RealSet.open(0, oo)] = 5000.0,
+        beta0: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        kappa0: Annotated[float, RealSet.open(0, oo)] = 2000.0,
+        delta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        up: Annotated[float, RealSet.closed_open(0, oo)] = 30.0,
+        uc: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.NSq = NSq
         self.NPr = NPr
         self.NBs = NBs
@@ -597,9 +576,6 @@ class StemCellDifferentiationElement(Element):
         self.delta = delta
         self.up = up
         self.uc = uc
-        self.therapy = therapy
-        self.start = start
-        self.duration = duration
 
 
 class StemCellDifferentiationSystem(BaseSystem):
@@ -642,6 +618,12 @@ class StemCellDifferentiationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import StemCellDifferentiationSystem
         >>> 0.005 <= StemCellDifferentiationSystem(seed=1).prepare().system_.elements[0].m1 < 0.01
@@ -665,8 +647,10 @@ class StemCellDifferentiationSystem(BaseSystem):
         duration: float = 100.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m0 = m0
         self.beta0 = beta0
         self.delta = delta
@@ -706,20 +690,22 @@ class StemCellDifferentiationSystem(BaseSystem):
             )
         return target.d2, SR(1)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the eight-compartment system of stem-cell lineages.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the eight-compartment system of stem-cell lineages.
 
         The lineages are normal and malignant.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         m1 = self.m0 * (1 + np.random.default_rng(self.seed).uniform())
         tissue = StemCellDifferentiationElement(
             'tissue',
             m1=m1,
             beta0=self.beta0,
             delta=self.delta,
-            therapy=self.therapy,
-            start=self.start,
-            duration=self.duration,
         )
         interactions = [
             ReactionInteraction(
@@ -742,17 +728,20 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'NSq': 1},
                 propensity=lambda s: s.target.k21 * (1 - s.target.NPr / (s.target.NPr + s.target.NPinf)) * s.target.NPr,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_renewal',
-                target='tissue',
-                state='NPr',
-                rate=lambda s: self._get_normal_renewal(s.target) * s.target.NPr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [RateLaw(s.target.NPr, self._get_normal_renewal(s.target) * s.target.NPr)],
             ),
-            RateInteraction(
+            Interaction(
                 'normal_progenitor_death',
-                target='tissue',
-                state='NPr',
-                rate=lambda s: -self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NPr,
+                        -self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[0] * s.target.NPr,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'mutation',
@@ -768,13 +757,17 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'NBs': 1},
                 propensity=lambda s: s.target.k23 * s.target.NPr,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_basal_death',
-                target='tissue',
-                state='NBs',
-                rate=lambda s: -s.target.d3
-                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
-                * s.target.NBs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NBs,
+                        -s.target.d3
+                        * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                        * s.target.NBs,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_differentiation',
@@ -783,11 +776,12 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'ND': 1},
                 propensity=lambda s: s.target.k34 * s.target.NBs,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_basal_growth',
-                target='tissue',
-                state='NBs',
-                rate=lambda s: s.target.r2 * (1 - s.target.NBs / s.target.Nbmax) * s.target.NBs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(s.target.NBs, s.target.r2 * (1 - s.target.NBs / s.target.Nbmax) * s.target.NBs),
+                ],
             ),
             ReactionInteraction(
                 'normal_death',
@@ -815,19 +809,24 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'ASq': 1},
                 propensity=lambda s: s.target.k65 * (1 - s.target.APr / (s.target.APr + s.target.APinf)) * s.target.APr,
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_renewal',
-                target='tissue',
-                state='APr',
-                rate=lambda s: s.target.r3 * (1 - s.target.APr / s.target.APmax) * s.target.APr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(s.target.APr, s.target.r3 * (1 - s.target.APr / s.target.APmax) * s.target.APr),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_progenitor_death',
-                target='tissue',
-                state='APr',
-                rate=lambda s: -s.target.d6
-                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
-                * s.target.APr,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.APr,
+                        -s.target.d6
+                        * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                        * s.target.APr,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'malignant_commitment',
@@ -836,13 +835,17 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'ABs': 1},
                 propensity=lambda s: s.target.k67 * s.target.APr,
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_basal_death',
-                target='tissue',
-                state='ABs',
-                rate=lambda s: -s.target.d7
-                * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
-                * s.target.ABs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ABs,
+                        -s.target.d7
+                        * self._get_therapy_deaths(s, self.therapy, self.start, self.duration)[1]
+                        * s.target.ABs,
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'malignant_differentiation',
@@ -851,11 +854,12 @@ class StemCellDifferentiationSystem(BaseSystem):
                 products={'AD': 1},
                 propensity=lambda s: s.target.k78 * s.target.ABs,
             ),
-            RateInteraction(
+            Interaction(
                 'malignant_basal_growth',
-                target='tissue',
-                state='ABs',
-                rate=lambda s: s.target.r4 * (1 - s.target.ABs / s.target.Abmax) * s.target.ABs,
+                roles={'target': 'tissue'},
+                laws=lambda s: [
+                    RateLaw(s.target.ABs, s.target.r4 * (1 - s.target.ABs / s.target.Abmax) * s.target.ABs),
+                ],
             ),
             ReactionInteraction(
                 'malignant_death',
@@ -864,7 +868,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 propensity=lambda s: s.target.d8 * s.target.AD,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tissue], interactions=interactions)
+        self.system_ = System(self.label, elements=[tissue], interactions=interactions)
 
 
 class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
@@ -898,6 +902,12 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import BoneMarrowBloodLeukaemiaSystem
         >>> BoneMarrowBloodLeukaemiaSystem(tau1=144.0).prepare().system_.elements[0].tau1
@@ -909,7 +919,6 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
     references = (BOOK, 'Afenya, Ouifki, and Mundle 2019')
     until = 3000.0
     dt = 10.0
-    solver = ScipyODESolver(method='BDF')
 
     def __init__(
         self,
@@ -919,24 +928,36 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         tau1: float = 96.0,
         tau2: float = 576.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m1 = m1
         self.m3 = m3
         self.tau1 = tau1
         self.tau2 = tau2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the bone marrow and blood system of leukaemia."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the bone marrow and blood system of leukaemia.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
-            RateInteraction(
+            Interaction(
                 'marrow_growth',
-                target='patient',
-                state='NBM',
-                rate=lambda s: s.target.r1
-                * s.target.NBM
-                * log((s.target.b1 + s.target.b2) / (s.target.theta1 + s.target.NBM)),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NBM,
+                        s.target.r1
+                        * s.target.NBM
+                        * log((s.target.b1 + s.target.b2) / (s.target.theta1 + s.target.NBM)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'mutation',
@@ -952,23 +973,31 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 products={'AS': 1},
                 propensity=lambda s: s.target.m3 * s.target.NBM,
             ),
-            RateInteraction(
+            Interaction(
                 'release',
-                target='patient',
-                state='NBM',
-                rate=lambda s: -s.target.m2
-                * s.target.NBM
-                * exp(-s.target.r2 * s.target.APB)
-                / (s.target.theta2 + s.target.NPB),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NBM,
+                        -s.target.m2
+                        * s.target.NBM
+                        * exp(-s.target.r2 * s.target.APB)
+                        / (s.target.theta2 + s.target.NPB),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'arrival',
-                target='patient',
-                state='NPB',
-                rate=lambda s: s.target.m2
-                * delayed(s.target.NBM, s.target.tau1)
-                * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * delayed(s.target.APB, s.target.tau1))
-                / (s.target.theta2 + delayed(s.target.NPB, s.target.tau1)),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NPB,
+                        s.target.m2
+                        * s.target.NBM(t=s.t - s.target.tau1)
+                        * exp(-s.target.alpha1 * s.target.tau1 - s.target.r2 * s.target.APB(t=s.t - s.target.tau1))
+                        / (s.target.theta2 + s.target.NPB(t=s.t - s.target.tau1)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'marrow_competition',
@@ -990,11 +1019,15 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 reactants={'NPB': 1},
                 propensity=lambda s: s.target.d1 * s.target.NPB,
             ),
-            RateInteraction(
+            Interaction(
                 'leukaemic_growth',
-                target='patient',
-                state='ABM',
-                rate=lambda s: s.target.r3 * s.target.ABM * log(s.target.b3 / (s.target.theta3 + s.target.ABM)),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ABM,
+                        s.target.r3 * s.target.ABM * log(s.target.b3 / (s.target.theta3 + s.target.ABM)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_release',
@@ -1003,13 +1036,17 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 products={'APB': 1},
                 propensity=lambda s: s.target.m4 * s.target.ABM,
             ),
-            RateInteraction(
+            Interaction(
                 'conversion_arrival',
-                target='patient',
-                state='ABM',
-                rate=lambda s: s.target.m5
-                * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * delayed(s.target.APB, s.target.tau2))
-                * delayed(s.target.AS, s.target.tau2),
+                roles={'target': 'patient'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.ABM,
+                        s.target.m5
+                        * exp(-s.target.alpha2 * s.target.tau2 - s.target.r4 * s.target.APB(t=s.t - s.target.tau2))
+                        * s.target.AS(t=s.t - s.target.tau2),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_death',
@@ -1017,20 +1054,23 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
                 reactants={'APB': 1},
                 propensity=lambda s: s.target.d2 * s.target.APB,
             ),
-            RateInteraction(
+            Interaction(
                 'stem_growth',
-                target='patient',
-                state='AS',
-                rate=lambda s: s.target.r5 * s.target.AS * (1 - s.target.b4 * s.target.AS),
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.AS, s.target.r5 * s.target.AS * (1 - s.target.b4 * s.target.AS))],
             ),
-            RateInteraction(
+            Interaction(
                 'conversion',
-                target='patient',
-                state='AS',
-                rate=lambda s: -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS,
+                roles={'target': 'patient'},
+                laws=lambda s: [RateLaw(s.target.AS, -s.target.m5 * exp(-s.target.r4 * s.target.APB) * s.target.AS)],
             ),
         ]
-        return CompositeSystem(self.label, elements=[patient], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[patient],
+            interactions=interactions,
+            solver=ScipyODESolver(method='BDF'),
+        )
 
 
 class LeukaemiaStemCellsSystem(BaseSystem):
@@ -1073,6 +1113,12 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import LeukaemiaStemCellsSystem
         >>> LeukaemiaStemCellsSystem(r4=0.5).prepare().system_.elements[0].r4
@@ -1097,8 +1143,10 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         m3: float = 0.2,
         d4: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.NS = NS
         self.AS = AS
         self.r1 = r1
@@ -1108,8 +1156,14 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         self.m3 = m3
         self.d4 = d4
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of normal and leukaemic stem cells."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of normal and leukaemic stem cells.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         niche = LeukaemiaStemCellsElement(
             'niche',
             NS=self.NS,
@@ -1122,11 +1176,15 @@ class LeukaemiaStemCellsSystem(BaseSystem):
             d4=self.d4,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'normal_renewal',
-                target='niche',
-                state='NS',
-                rate=lambda s: s.target.r1 * s.target.NS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NS,
+                        s.target.r1 * s.target.NS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'normal_differentiation',
@@ -1144,27 +1202,33 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 reactants={'NS': 1},
                 propensity=lambda s: s.target.d1 * s.target.NS,
             ),
-            RateInteraction(
+            Interaction(
                 'normal_division',
-                target='niche',
-                state='NPr',
-                rate=lambda s: s.target.r2
-                * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
-                * s.target.NS
-                * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.NPr,
+                        s.target.r2
+                        * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
+                        * s.target.NS
+                        * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'progenitor_growth',
-                target='niche',
-                state='NPr',
-                rate=lambda s: s.target.r3 * s.target.NPr,
+                roles={'target': 'niche'},
+                laws=lambda s: [RateLaw(s.target.NPr, s.target.r3 * s.target.NPr)],
             ),
-            RateInteraction('progenitor_loss', target='niche', state='NPr', rate=lambda s: -s.target.d2 * s.target.NPr),
-            RateInteraction(
+            Interaction(
+                'progenitor_loss',
+                roles={'target': 'niche'},
+                laws=lambda s: [RateLaw(s.target.NPr, -s.target.d2 * s.target.NPr)],
+            ),
+            Interaction(
                 'maturation',
-                target='niche',
-                state='ND',
-                rate=lambda s: s.target.m2 * s.target.d2 * s.target.NPr,
+                roles={'target': 'niche'},
+                laws=lambda s: [RateLaw(s.target.ND, s.target.m2 * s.target.d2 * s.target.NPr)],
             ),
             ReactionInteraction(
                 'differentiated_death',
@@ -1172,11 +1236,15 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 reactants={'ND': 1},
                 propensity=lambda s: s.target.d3 * s.target.ND,
             ),
-            RateInteraction(
+            Interaction(
                 'leukaemic_renewal',
-                target='niche',
-                state='AS',
-                rate=lambda s: s.target.r4 * s.target.AS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AS,
+                        s.target.r4 * s.target.AS * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_differentiation',
@@ -1194,14 +1262,18 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 reactants={'AS': 1},
                 propensity=lambda s: s.target.d4 * s.target.AS,
             ),
-            RateInteraction(
+            Interaction(
                 'leukaemic_division',
-                target='niche',
-                state='AD',
-                rate=lambda s: s.target.r5
-                * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
-                * s.target.AS
-                * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                roles={'target': 'niche'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.AD,
+                        s.target.r5
+                        * exp(-s.target.beta2 * (s.target.NPr + s.target.ND + s.target.AD))
+                        * s.target.AS
+                        * exp(-s.target.beta1 * (s.target.NS + s.target.AS)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'leukaemic_progeny_death',
@@ -1210,4 +1282,4 @@ class LeukaemiaStemCellsSystem(BaseSystem):
                 propensity=lambda s: s.target.d5 * s.target.AD,
             ),
         ]
-        return CompositeSystem(self.label, elements=[niche], interactions=interactions)
+        self.system_ = System(self.label, elements=[niche], interactions=interactions)

@@ -12,14 +12,13 @@ moment, a place invariant of the net.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import PetriNetSystem
 
 SYSTEM = 'petri_net'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(PetriNetSystem(), observers=[observer], random_state=0)
+trajectory = PetriNetSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Stochastic and continuous firing
@@ -27,7 +26,7 @@ trajectory = simulate(PetriNetSystem(), observers=[observer], random_state=0)
 # The stochastic net should fluctuate around the continuous Petri net of the same transitions, and the place invariant
 # `gene_on + gene_off` should stay at 1.
 
-continuous = simulate(PetriNetSystem(stochastic=False))
+continuous = PetriNetSystem(stochastic=False).prepare().simulate()
 fig, (tokens, invariant) = plt.subplots(1, 2, figsize=(11, 4.5))
 tokens.step(trajectory.times, trajectory.get_values('protein.x'), where='post', label='protein, stochastic')
 tokens.plot(continuous.times, continuous.get_values('protein.x'), label='protein, continuous')

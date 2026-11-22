@@ -5,14 +5,16 @@
 
 from collections import deque
 from collections.abc import Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._layout_spec import LayoutSpec
 from ._base import UPWARD, BaseVisual
 
 MAX_POINT_DIMENSIONS = 3
@@ -22,18 +24,15 @@ TRAIL_WIDTH = 0.25
 
 
 class PointsVisual(BaseVisual):
-    """A visual that logs a vector state as points, and other states as time series.
+    """A visual that draws a position value as points and other values as lines.
 
-    There is one point per member of a group. Each state is logged as one batch, so a group of any size takes one log
-    call per state and frame. Positions in two dimensions are logged with the second coordinate negated, since Rerun's
-    2D views point their vertical axis down, so the views draw them with the vertical axis up and show the negated value
-    on hover. Without a given radius, the points take a share of the extent of the positions logged so far, smaller for
-    larger groups. The extent and the count include every element drawn by a points visual of the same position state,
-    so single particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A
-    group of at most ten points in two or three dimensions also logs the trail of its recent positions as line strips
-    under `<path>/trail`, a quarter as wide as that share, whatever the radius. With `strip`, the points in two or three
-    dimensions are also joined in member order by one line strip under `<path>/strip`, with the mean color of the
-    points.
+    It draws one point per member at its position, coloured by another value, such as
+    `PointsVisual(position='x', color_by='v')` for particles coloured by speed. Points in a plane are drawn with the
+    vertical axis up, and without a radius they take a share of the area the positions cover, smaller for larger
+    groups. A group of at most ten points also draws the trail of its recent positions, and `strip` joins the points in
+    member order. It shows the atoms of a gas, the birds of a flock, and the masses of a chain of springs.
+
+    Read more in the user guide, under Observe.
 
     Args:
         position:
@@ -73,11 +72,17 @@ class PointsVisual(BaseVisual):
         span_:
             The range of the colored values logged so far, or `None`.
 
+    See Also:
+        BodiesVisual: Draws bodies whose positions follow from several values.
+        AgentsVisual: Draws agents at their cells, positions, or nodes.
+
     Examples:
         >>> from skcomplex.core.engine.viz import PointsVisual
         >>> PointsVisual(position='x', color_by='v').color_by
         'v'
     """
+
+    numeric_options: ClassVar[tuple[str, ...]] = ('radius', 'color_range', 'trail')
 
     def __init__(
         self,
@@ -124,7 +129,7 @@ class PointsVisual(BaseVisual):
         """
         if self.color_by is None:
             return None
-        values = np.asarray(frame.get_value(element.states[self.color_by]), dtype=float).reshape(count, -1)
+        values = np.asarray(frame.get_value(self._get_path(element, self.color_by)), dtype=float).reshape(count, -1)
         magnitudes = np.linalg.norm(values, axis=1)
         if self.color_range is not None:
             return BaseVisual._get_colors_of(magnitudes, *self.color_range)
@@ -207,13 +212,21 @@ class PointsVisual(BaseVisual):
         kind = rr.LineStrips3D if points.shape[1] == MAX_POINT_DIMENSIONS else rr.LineStrips2D
         recording.log(f'{path}/strip', kind([points], radii=radius, colors=color))
 
+    @staticmethod
+    def _get_path(element: CompiledElementSpec, name: str) -> str:
+        """Return the dotted name of a state or a parameter, such as the velocity `x'`."""
+        name = LayoutSpec._get_internal_name(name)
+        return element.states.get(name) or element.parameters[name]
+
     def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:
         """Return the positions at a frame, one row per point."""
-        return np.atleast_2d(np.asarray(frame.get_value(element.states[self.position]), dtype=float))
+        return np.atleast_2d(np.asarray(frame.get_value(self._get_path(element, self.position)), dtype=float))
 
     def _get_dimension(self, element: CompiledElementSpec, problem: BaseProblemSpec) -> tuple[int, ...]:
         """Return the number of coordinates of a point."""
-        return problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
+        path = self._get_path(element, self.position)
+        layout = problem.states if problem.states.has(path) else problem.parameters
+        return layout.locate(path)[0].shape[-1:] or (1,)
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
         """Log the position, its strip and trail, and the other states.
@@ -249,9 +262,17 @@ class PointsVisual(BaseVisual):
             self.states if self.states is not None else [state for state in element.states if state != self.position]
         )
         for state in others:
-            BaseVisual._log_scalars(recording, f'{element.path}/{state}', frame.get_value(element.states[state]))
+            BaseVisual._log_scalars(
+                recording,
+                BaseVisual._get_state_path(element.path, state),
+                frame.get_value(element.states[state]),
+            )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return a spatial view of the positions and a time series view of other states.
 
         The spatial view is chosen by the dimension of the positions.
@@ -269,25 +290,12 @@ class PointsVisual(BaseVisual):
                 dimensions, followed by a time series view of the other logged states, if any.
 
         Examples:
-            >>> from typing import Annotated
-            >>> from skcomplex.core.components.elements import Element, GroupElement
-            >>> from skcomplex.core.specs import StateSpec
-            >>> class BallElement(Element):
-            ...     def __init__(
-            ...         self,
-            ...         label,
-            ...         x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
-            ...         x_d1=0.0,
-            ...     ):
-            ...         super().__init__(label)
-            ...         self.x = x
-            ...         self.x_d1 = x_d1
+            >>> from skcomplex.core.components.elements import Element
             >>> from skcomplex.core.components.spaces import ContinuousSpace
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.core.systems import System
             >>> from skcomplex.core.engine.viz import PointsVisual
-            >>> gas = GroupElement('gas', element=BallElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
-            >>> problem = simulate(CompositeSystem(elements=[gas], space=ContinuousSpace(n_dim=3)), until=0).problem
+            >>> gas = Element('gas', values={'x': [[0.0, 0.0, 0.0]] * 10}, size=10, space=ContinuousSpace(n_dim=3))
+            >>> problem = System(elements=[gas]).prepare().simulate(until=0).problem
             >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
             >>> views = visual.prepare(problem).views_
             >>> [type(view).__name__ for view in views]
@@ -308,6 +316,6 @@ class PointsVisual(BaseVisual):
             self.states if self.states is not None else [state for state in element.states if state != self.position]
         )
         if others:
-            contents = [f'+ {path}/{state}/**' for state in others]
+            contents = [f'+ {BaseVisual._get_state_path(path, state)}/**' for state in others]
             views.append(rrb.TimeSeriesView(origin=path, contents=contents, name=path))
         return views

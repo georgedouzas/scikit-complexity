@@ -7,51 +7,89 @@ Two species of Vicsek movers align with each other differently.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, I, exp, oo, pi
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.all__sagemath_symbolics import Expression, I, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform
-from ....core.components.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.particles import PropulsionStepInteraction
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 
 
 class NonreciprocalMoverElement(Element):
-    """Vicsek mover of species A (0) or B (1).
-
-    The mover aligns with the neighbours within `radius` by species couplings.
-
-    Every step the heading becomes the direction of `sum_j J(species_i, species_j) exp(i theta_j)` over the movers
-    within the radius, itself included, plus uniform noise of width `eta`. A propulsion step moves the mover along it.
-    `J_aa` and `J_bb` align a species with itself, and `J_ab` and `J_ba` align A with B and B with A, so
-    `J_ab != J_ba` makes the alignment nonreciprocal.
+    """Movers of species A (0) or B (1) with the positions `x` and the headings `theta`.
 
     Args:
         label:
-            The label of the mover.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the movers.
 
         x:
-            The position.
+            The positions, one row per mover or shared.
 
         theta:
-            The heading.
+            The headings, one per mover or shared.
 
         species:
-            The species, 0 for A or 1 for B.
+            The species, 0 for A or 1 for B, one per mover or shared.
+
+        size:
+            The number of movers, or `None` for one.
+
+        space:
+            The continuous space of the movers, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import NonreciprocalMoverElement
+        >>> NonreciprocalMoverElement('mover', species=1.0).species
+        1.0
+    """
+
+    visual = SPECIES
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = (0.0, 0.0),
+        theta: object = 0.0,
+        species: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.theta = theta
+        self.species = species
+
+
+class NonreciprocalAlignmentInteraction(Interaction):
+    """Vicsek alignment of two species whose couplings to each other differ.
+
+    Every step the heading becomes the direction of `sum_j J(species_i, species_j) exp(i theta_j)` over the movers
+    within `radius`, itself included, plus uniform noise of width `eta`. `J_aa` and `J_bb` align a species with itself,
+    and `J_ab` and `J_ba` align A with B and B with A, so `J_ab != J_ba` makes the alignment nonreciprocal. It is a
+    pair of bird species, or two kinds of robots, that chase each other.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the movers, with the positions `x`, the headings `theta`, and the species `species`.
 
         eta:
             The width of the uniform noise of the heading.
@@ -72,34 +110,27 @@ class NonreciprocalMoverElement(Element):
             The radius of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import NonreciprocalMoverElement
-        >>> NonreciprocalMoverElement('mover', J_ba=-1.0).J_ba
+        >>> from skcomplex.systems.physics.active_matter import NonreciprocalAlignmentInteraction
+        >>> NonreciprocalAlignmentInteraction('align', target='movers', J_ba=-1.0).J_ba
         -1.0
     """
-
-    draws = True
 
     law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = SPECIES,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
-        species: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        J_aa: Annotated[float, ParameterSpec()] = 1.0,
-        J_ab: Annotated[float, ParameterSpec()] = 1.0,
-        J_ba: Annotated[float, ParameterSpec()] = 1.0,
-        J_bb: Annotated[float, ParameterSpec()] = 1.0,
-        radius: float = 1.0,
+        target: Role,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        J_aa: float = 1.0,
+        J_ab: float = 1.0,
+        J_ba: float = 1.0,
+        J_bb: float = 1.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.theta = theta
-        self.species = species
+        super().__init__(label)
+        self.target = target
         self.eta = eta
         self.J_aa = J_aa
         self.J_ab = J_ab
@@ -107,32 +138,25 @@ class NonreciprocalMoverElement(Element):
         self.J_bb = J_bb
         self.radius = radius
 
-    def _get_coupling(self, namespace: SimpleNamespace) -> Expression:
-        """Return the alignment of a member with a neighbour, by the species of both."""
-        s = namespace
-        first, second = s.species, s.other.species
-        return (
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the heading alignment of the target with its species-weighted neighbours, plus noise.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        first, second = s.target.species, s.target.other.species
+        coupling = (
             s.J_aa * (1 - first) * (1 - second)
             + s.J_ab * (1 - first) * second
             + s.J_ba * first * (1 - second)
             + s.J_bb * first * second
         )
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the heading alignment with the species-weighted neighbours, plus noise.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update of the heading.
-        """
-        s = namespace
         over = RadiusNeighborhood(self.radius, center=True)
-        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._get_coupling(s))
-        return [UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
+        direction = neighbors(s.target.other.theta, over=over, reduce='circular-mean', weight=coupling)
+        self.laws_ = [UpdateLaw(s.target.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
 
 
 def _get_heading_a(member: SimpleNamespace) -> Expression:
@@ -184,9 +208,15 @@ class NonreciprocalVicsekSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import NonreciprocalVicsekSystem
-        >>> NonreciprocalVicsekSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> NonreciprocalVicsekSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -196,8 +226,8 @@ class NonreciprocalVicsekSystem(BaseSystem):
     until = 300.0
     dt = 1.0
     observables = (
-        ObservableSpec('heading_a', _get_heading_a, group='movers'),
-        ObservableSpec('heading_b', _get_heading_b, group='movers'),
+        Observable('heading_a', _get_heading_a, group='movers'),
+        Observable('heading_b', _get_heading_b, group='movers'),
     )
 
     def __init__(
@@ -210,8 +240,10 @@ class NonreciprocalVicsekSystem(BaseSystem):
         eta: float = 0.3,
         random_state: int | np.random.Generator | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_movers = n_movers
         self.size = size
         self.J_ab = J_ab
@@ -219,30 +251,32 @@ class NonreciprocalVicsekSystem(BaseSystem):
         self.eta = eta
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return two species of Vicsek movers in a periodic box, aligning nonreciprocally.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of two species of Vicsek movers in a periodic box, aligning nonreciprocally.
 
-        The alignment of each species with the other differs between the two.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        species = (np.arange(self.n_movers) % 2).astype(float)
-        movers = GroupElement(
+        movers = NonreciprocalMoverElement(
             'movers',
-            element=NonreciprocalMoverElement,
+            x=rng.uniform(0, self.size, (self.n_movers, 2)),
+            theta=rng.uniform(-math.pi, math.pi, self.n_movers),
+            species=(np.arange(self.n_movers) % 2).astype(float),
             size=self.n_movers,
-            values={
-                'x': rng.uniform(0, self.size, (self.n_movers, 2)),
-                'theta': rng.uniform(-math.pi, math.pi, self.n_movers),
-                'species': species,
-                'J_ab': self.J_ab,
-                'J_ba': self.J_ba,
-                'eta': self.eta,
-            },
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
         )
-        return CompositeSystem(
+        alignment = NonreciprocalAlignmentInteraction(
+            'align',
+            target='movers',
+            eta=self.eta,
+            J_ab=self.J_ab,
+            J_ba=self.J_ba,
+        )
+        self.system_ = System(
             self.label,
             elements=[movers],
-            interactions=[PropulsionStepInteraction('propulsion', target='movers', speed=0.05)],
-            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
-            time=DiscreteTime(),
+            interactions=[alignment, PropulsionStepInteraction('propulsion', target='movers', speed=0.05)],
         )

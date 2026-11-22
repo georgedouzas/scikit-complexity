@@ -15,7 +15,6 @@ coexist in an ever-changing, chaotic patchwork with a stable share of cooperator
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import SpatialPrisonersDilemmaSystem
 
@@ -24,7 +23,7 @@ ROUNDS = 100
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 system = SpatialPrisonersDilemmaSystem(temptation=1.85, random_state=0)
-trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=ROUNDS, observers=[observer], random_state=0)
 
 # %%
 # Three regimes of the temptation
@@ -38,7 +37,11 @@ trajectory = simulate(system, until=ROUNDS, observers=[observer], random_state=0
 
 def cooperators(temptation, rounds=ROUNDS):
     """Return the share of cooperators after every round."""
-    run = simulate(SpatialPrisonersDilemmaSystem(temptation=temptation, random_state=0), until=rounds, random_state=0)
+    run = (
+        SpatialPrisonersDilemmaSystem(temptation=temptation, random_state=0)
+        .prepare()
+        .simulate(until=rounds, random_state=0)
+    )
     return run.get_values('players.strategy').reshape(rounds + 1, -1).mean(axis=1)
 
 

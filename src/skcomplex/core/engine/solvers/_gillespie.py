@@ -6,11 +6,14 @@
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, JumpLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import JumpLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._draw_recorder import DrawRecorder
 from ._base import BaseSolver
@@ -18,45 +21,34 @@ from ._solver import Solver
 
 
 class GillespieSolver(Solver):
-    """A solver that simulates jump processes exactly by the Gillespie direct method.
+    """A solver that runs jump processes exactly by the direct method of Gillespie.
 
-    An event that would fire after `until` is discarded, which is exact because waiting times are memoryless. A run
-    that records its draws keeps the time and the law of every firing, and a run that replays them fires the recorded
-    laws at the recorded times and sums the log-likelihood of the path under its own propensities.
+    It draws the time to the next jump from the total rate and picks the jump in proportion to its rate, one jump at a
+    time, such as each count of three counters that each tick at rate 1. A jump that would come after `until` is
+    dropped, which is exact because the waiting times have no memory. A run that records its draws keeps the time and
+    law of every jump, and a run that replays them gives the log likelihood of the path. Choose it when the units are
+    few and each jump matters, such as molecules in a cell, a small outbreak, or a queue.
 
-    Choose it when the units are few and each event matters. It appears in many fields, such as molecules in a cell,
-    small outbreaks of an epidemic, and queues.
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        RenewalSolver: Runs jumps whose waiting times have memory.
 
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.interactions import JumpInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.solvers import GillespieSolver
-        >>> from skcomplex.core.specs import StateSpec, StepSpec
-        >>> class PopulationElement(Element):
-        ...     def __init__(
-        ...         self, label, i: Annotated[float, StateSpec()] = 10.0, r: Annotated[float, StateSpec()] = 0.0
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.i = i
-        ...         self.r = r
-        >>> recovery = JumpInteraction('recovery', target='pop', changes={'i': -1, 'r': 1}, rate=lambda s: s.target.i)
-        >>> system = CompositeSystem(elements=[PopulationElement('pop')], interactions=[recovery])
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = GillespieSolver(random_state=0).prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()
-        [0.0, 10.0]
+        >>> from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
+        >>> system = PoissonProcessSystem(n_processes=3, solver=GillespieSolver()).prepare()
+        >>> system.simulate(until=10, dt=10, random_state=0).get_values('counters.count')[-1].tolist()
+        [6.0, 11.0, 5.0]
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={JumpLaw, BoundaryLaw, TransferLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={JumpLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

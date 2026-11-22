@@ -12,16 +12,15 @@ velocity and spreads on a periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import operator_measures
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems.physics.common.quantum import operator_measures
 from skcomplex.systems.physics.waves import SchrodingerSystem
 
 SYSTEM = 'schrodinger'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(SchrodingerSystem(), observers=[observer], random_state=0)
+simulation = SchrodingerSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Fields, operators, and dephasing
@@ -33,8 +32,8 @@ simulation = simulate(SchrodingerSystem(), observers=[observer], random_state=0)
 # its trace stays 1.
 
 spacing = 40.0 / 128
-fields = simulate(SchrodingerSystem(n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-operators = simulate(SchrodingerSystem(n_sites=128, formulation='operators'), dt=0.5)
+fields = SchrodingerSystem(n_sites=128).set_params(solver=ETDRK4Solver(dt=0.01)).prepare().simulate(dt=0.5)
+operators = SchrodingerSystem(n_sites=128, formulation='operators').prepare().simulate(dt=0.5)
 density = (fields.get_values('packet.u') ** 2 + fields.get_values('packet.w') ** 2) * spacing
 probability = np.abs(operators.get_values('system.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
@@ -47,7 +46,7 @@ agreement.set_title('The two formulations agree')
 agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = SchrodingerSystem(n_sites=48, length=20.0, formulation='operators', gamma=gamma)
-    trajectory = simulate(dephased)
+    trajectory = dephased.prepare().simulate()
     purity = operator_measures(trajectory, kind='purity').purity
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')

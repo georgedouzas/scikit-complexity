@@ -7,17 +7,22 @@ Engineered systems move the stocks between holders.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, distributed_delay, minimum, series, step
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 MONTHS_PER_YEAR = 12.0
 HUSK_SHARE = 0.2
@@ -34,25 +39,22 @@ class ReliefPipelineElement(Element):
     The food is shipped through a delayed pipeline.
     """
 
-    law_classes = (TransferLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        in_transit: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
-        warehouse: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
-        affected: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
-        ration: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0005,
-        onset: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        shipping_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
-        cover: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 7.0,
-        stock_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 7.0,
-        pipeline_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
-        distribution_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        in_transit: Annotated[object, RealSet.closed_open(0, oo), Quantity('food')] = 0.0,
+        warehouse: Annotated[object, RealSet.closed_open(0, oo), Quantity('food')] = 0.0,
+        affected: Annotated[object, RealSet.closed_open(0, oo)] = 100000.0,
+        ration: Annotated[object, RealSet.closed_open(0, oo)] = 0.0005,
+        onset: Annotated[object, RealSet.closed_open(0, oo)] = 10.0,
+        shipping_delay: Annotated[object, RealSet.open(0, oo)] = 14.0,
+        cover: Annotated[object, RealSet.closed_open(0, oo)] = 7.0,
+        stock_time: Annotated[object, RealSet.open(0, oo)] = 7.0,
+        pipeline_time: Annotated[object, RealSet.open(0, oo)] = 14.0,
+        distribution_time: Annotated[object, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.in_transit = in_transit
         self.warehouse = warehouse
         self.affected = affected
@@ -64,9 +66,41 @@ class ReliefPipelineElement(Element):
         self.pipeline_time = pipeline_time
         self.distribution_time = distribution_time
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of food through the supply line."""
-        return ReliefPipelineElement._get_relief_laws(s)
+
+class ReliefPipelineInteraction(Interaction):
+    """Shipments, arrivals, and distribution of the food of a relief supply line.
+
+    The flows read the stocks and the parameters of the element the role `target` binds.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the stocks and the parameters.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import ReliefPipelineInteraction
+        >>> ReliefPipelineInteraction('flows', target='relief').target
+        'relief'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows of the stocks of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseLaw] = ReliefPipelineInteraction._get_relief_laws(s)
 
     @staticmethod
     def _need(s: SimpleNamespace) -> Expression:
@@ -82,7 +116,7 @@ class ReliefPipelineElement(Element):
 
         The gaps are those of the stock and of the pipeline.
         """
-        need = ReliefPipelineElement._need(s)
+        need = ReliefPipelineInteraction._need(s)
         stock_gap = (s.cover * need - s.warehouse) / s.stock_time
         pipeline_gap = (s.shipping_delay * need - s.in_transit) / s.pipeline_time
         return clip(need + stock_gap + pipeline_gap, 0)
@@ -93,14 +127,17 @@ class ReliefPipelineElement(Element):
 
         They follow a disaster.
         """
-        shipments = ReliefPipelineElement._get_shipments(s)
+        shipments = ReliefPipelineInteraction._get_shipments(s)
         return [
-            TransferLaw(Source('donors'), s.in_transit, shipments, label='shipping'),
-            TransferLaw(s.in_transit, s.warehouse, distributed_delay(shipments, s.shipping_delay, 3), label='arrivals'),
-            TransferLaw(
-                s.warehouse,
-                Sink('beneficiaries'),
-                minimum(ReliefPipelineElement._need(s), s.warehouse / s.distribution_time),
+            RateLaw({s.in_transit: +1}, shipments, label='shipping'),
+            RateLaw(
+                {s.in_transit: -1, s.warehouse: +1},
+                distributed_delay(shipments, s.shipping_delay, 3),
+                label='arrivals',
+            ),
+            RateLaw(
+                {s.warehouse: -1},
+                minimum(ReliefPipelineInteraction._need(s), s.warehouse / s.distribution_time),
                 label='distribution',
             ),
         ]
@@ -112,31 +149,28 @@ class RiceMillElement(Element):
     The paddy is milled into rice, husk, and bran.
     """
 
-    law_classes = (TransferLaw, RateLaw)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        paddy: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 2000.0,
-        rice: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 1300.0,
-        husk: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 400.0,
-        bran: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 160.0,
-        capacity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        harvest: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
-        seasonality: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        procurement_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        milling_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        outturn: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.65,
-        husk_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = HUSK_SHARE,
-        bran_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = BRAN_SHARE,
-        dispatch_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        by_product_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
-        expansion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+        paddy: Annotated[object, RealSet.closed_open(0, oo), Quantity('grain')] = 2000.0,
+        rice: Annotated[object, RealSet.closed_open(0, oo), Quantity('grain')] = 1300.0,
+        husk: Annotated[object, RealSet.closed_open(0, oo), Quantity('grain')] = 400.0,
+        bran: Annotated[object, RealSet.closed_open(0, oo), Quantity('grain')] = 160.0,
+        capacity: Annotated[object, RealSet.closed_open(0, oo)] = 2000.0,
+        harvest: Annotated[object, RealSet.closed_open(0, oo)] = 2000.0,
+        seasonality: Annotated[object, RealSet.closed_open(0, oo)] = 0.8,
+        procurement_delay: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        milling_time: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        outturn: Annotated[object, RealSet.closed_open(0, oo)] = 0.65,
+        husk_share: Annotated[object, RealSet.closed_open(0, oo)] = HUSK_SHARE,
+        bran_share: Annotated[object, RealSet.closed_open(0, oo)] = BRAN_SHARE,
+        dispatch_time: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        by_product_time: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        perception_time: Annotated[object, RealSet.open(0, oo)] = 6.0,
+        expansion_time: Annotated[object, RealSet.open(0, oo)] = 12.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.paddy = paddy
         self.rice = rice
         self.husk = husk
@@ -154,9 +188,41 @@ class RiceMillElement(Element):
         self.perception_time = perception_time
         self.expansion_time = expansion_time
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of grain through the mill and the adjustment of its capacity."""
-        return RiceMillElement._get_rice_mill_laws(s)
+
+class RiceMillInteraction(Interaction):
+    """Procurement, milling, and sales of a rice mill, and the adjustment of its capacity.
+
+    The flows read the stocks and the parameters of the element the role `target` binds.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the stocks and the parameters.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import RiceMillInteraction
+        >>> RiceMillInteraction('flows', target='mill').target
+        'mill'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows of the stocks of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseLaw] = RiceMillInteraction._get_rice_mill_laws(s)
 
     @staticmethod
     def _get_season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
@@ -172,7 +238,7 @@ class RiceMillElement(Element):
 
         It is the seasonal harvest after the procurement delay.
         """
-        season = RiceMillElement._get_season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
+        season = RiceMillInteraction._get_season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR)
         return distributed_delay(season, s.procurement_delay, 3)
 
     @staticmethod
@@ -183,7 +249,7 @@ class RiceMillElement(Element):
     @staticmethod
     def _get_milling(s: SimpleNamespace) -> Expression:
         """Return the milling, the indicated milling limited by the capacity."""
-        return minimum(RiceMillElement._get_indicated_milling(s), s.capacity)
+        return minimum(RiceMillInteraction._get_indicated_milling(s), s.capacity)
 
     @staticmethod
     def _get_rice_mill_laws(s: SimpleNamespace) -> list[BaseLaw]:
@@ -191,18 +257,18 @@ class RiceMillElement(Element):
 
         It also returns the adjustment of its milling capacity.
         """
-        milling = RiceMillElement._get_milling(s)
+        milling = RiceMillInteraction._get_milling(s)
         losses = 1 - s.outturn - s.husk_share - s.bran_share
-        perceived = distributed_delay(RiceMillElement._get_indicated_milling(s), s.perception_time, conserved=False)
+        perceived = distributed_delay(RiceMillInteraction._get_indicated_milling(s), s.perception_time, conserved=False)
         return [
-            TransferLaw(Source('farms'), s.paddy, RiceMillElement._get_procurement(s), label='paddy_purchases'),
-            TransferLaw(s.paddy, s.rice, s.outturn * milling, label='milled_rice'),
-            TransferLaw(s.paddy, s.husk, s.husk_share * milling, label='husk_output'),
-            TransferLaw(s.paddy, s.bran, s.bran_share * milling, label='bran_output'),
-            TransferLaw(s.paddy, Sink('losses'), losses * milling, label='milling_losses'),
-            TransferLaw(s.rice, Sink('market'), s.rice / s.dispatch_time, label='rice_sales'),
-            TransferLaw(s.husk, Sink('fuel'), s.husk / s.by_product_time, label='husk_sales'),
-            TransferLaw(s.bran, Sink('feed'), s.bran / s.by_product_time, label='bran_sales'),
+            RateLaw({s.paddy: +1}, RiceMillInteraction._get_procurement(s), label='paddy_purchases'),
+            RateLaw({s.paddy: -1, s.rice: +1}, s.outturn * milling, label='milled_rice'),
+            RateLaw({s.paddy: -1, s.husk: +1}, s.husk_share * milling, label='husk_output'),
+            RateLaw({s.paddy: -1, s.bran: +1}, s.bran_share * milling, label='bran_output'),
+            RateLaw({s.paddy: -1}, losses * milling, label='milling_losses'),
+            RateLaw({s.rice: -1}, s.rice / s.dispatch_time, label='rice_sales'),
+            RateLaw({s.husk: -1}, s.husk / s.by_product_time, label='husk_sales'),
+            RateLaw({s.bran: -1}, s.bran / s.by_product_time, label='bran_sales'),
             RateLaw(
                 s.capacity,
                 (perceived - s.capacity) / s.expansion_time,
@@ -216,33 +282,30 @@ class IrrigationSchemeElement(Element):
     The water moves between a reservoir, the root zone of crops, and an aquifer.
     """
 
-    law_classes = (TransferLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        reservoir: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 50.0,
-        soil: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 12.0,
-        groundwater: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 100.0,
-        river_inflow: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        seasonality: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        reservoir_capacity: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 80.0,
-        evaporation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        spill_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        release_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        canal_loss: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        potential_et: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        field_capacity: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        target: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        refill_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        percolation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        pump_capacity: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        pump_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        baseflow_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 500.0,
+        reservoir: Annotated[object, RealSet.closed_open(0, oo), Quantity('water')] = 50.0,
+        soil: Annotated[object, RealSet.closed_open(0, oo), Quantity('water')] = 12.0,
+        groundwater: Annotated[object, RealSet.closed_open(0, oo), Quantity('water')] = 100.0,
+        river_inflow: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        seasonality: Annotated[object, RealSet.closed_open(0, oo)] = 0.9,
+        reservoir_capacity: Annotated[object, RealSet.open(0, oo)] = 80.0,
+        evaporation: Annotated[object, RealSet.closed_open(0, oo)] = 0.001,
+        spill_time: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        release_time: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        canal_loss: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        potential_et: Annotated[object, RealSet.closed_open(0, oo)] = 0.4,
+        field_capacity: Annotated[object, RealSet.open(0, oo)] = 20.0,
+        target: Annotated[object, RealSet.closed_open(0, oo)] = 0.7,
+        refill_time: Annotated[object, RealSet.open(0, oo)] = 5.0,
+        percolation: Annotated[object, RealSet.closed_open(0, oo)] = 0.005,
+        pump_capacity: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        pump_time: Annotated[object, RealSet.open(0, oo)] = 10.0,
+        baseflow_time: Annotated[object, RealSet.open(0, oo)] = 500.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reservoir = reservoir
         self.soil = soil
         self.groundwater = groundwater
@@ -262,9 +325,41 @@ class IrrigationSchemeElement(Element):
         self.pump_time = pump_time
         self.baseflow_time = baseflow_time
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of water through the scheme."""
-        return IrrigationSchemeElement._get_irrigation_laws(s)
+
+class IrrigationSchemeInteraction(Interaction):
+    """Flows of water between the reservoir, the soil, and the groundwater of an irrigation scheme.
+
+    The flows read the stocks and the parameters of the element the role `target` binds.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the stocks and the parameters.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import IrrigationSchemeInteraction
+        >>> IrrigationSchemeInteraction('flows', target='scheme').target
+        'scheme'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows of the stocks of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseLaw] = IrrigationSchemeInteraction._get_irrigation_laws(s)
 
     @staticmethod
     def _get_demand(s: SimpleNamespace) -> Expression:
@@ -280,7 +375,7 @@ class IrrigationSchemeElement(Element):
 
         It is the demand before the canal losses, limited by the reservoir.
         """
-        return minimum(IrrigationSchemeElement._get_demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
+        return minimum(IrrigationSchemeInteraction._get_demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
 
     @staticmethod
     def _get_pumping(s: SimpleNamespace) -> Expression:
@@ -288,9 +383,9 @@ class IrrigationSchemeElement(Element):
 
         It is the demand the release leaves, limited by the pumps and the aquifer.
         """
-        unmet = IrrigationSchemeElement._get_demand(s) - (
+        unmet = IrrigationSchemeInteraction._get_demand(s) - (
             1 - s.canal_loss
-        ) * IrrigationSchemeElement._get_reservoir_release(s)
+        ) * IrrigationSchemeInteraction._get_reservoir_release(s)
         return minimum(clip(unmet, 0), minimum(s.pump_capacity, s.groundwater / s.pump_time))
 
     @staticmethod
@@ -299,24 +394,27 @@ class IrrigationSchemeElement(Element):
 
         The root zone is that of the irrigated crops, and the aquifer is below them.
         """
-        release = IrrigationSchemeElement._get_reservoir_release(s)
+        release = IrrigationSchemeInteraction._get_reservoir_release(s)
         crop_water = s.potential_et * series(s.soil / s.field_capacity, *WATER_STRESS)
         spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
         return [
-            TransferLaw(
-                Source('river'),
-                s.reservoir,
-                RiceMillElement._get_season(s.river_inflow, s.seasonality, s.t, DAYS_PER_YEAR),
+            RateLaw(
+                {s.reservoir: +1},
+                RiceMillInteraction._get_season(s.river_inflow, s.seasonality, s.t, DAYS_PER_YEAR),
                 label='inflow',
             ),
-            TransferLaw(s.reservoir, Sink('atmosphere'), s.evaporation * s.reservoir, label='evaporation'),
-            TransferLaw(s.reservoir, Sink('downstream'), spill, label='spill'),
-            TransferLaw(s.reservoir, s.soil, (1 - s.canal_loss) * release, label='irrigation'),
-            TransferLaw(s.reservoir, s.groundwater, s.canal_loss * release, label='seepage'),
-            TransferLaw(s.groundwater, s.soil, IrrigationSchemeElement._get_pumping(s), label='groundwater_pumping'),
-            TransferLaw(s.soil, Sink('atmosphere'), crop_water, label='crop_water'),
-            TransferLaw(s.soil, s.groundwater, s.percolation * s.soil, label='percolation'),
-            TransferLaw(s.groundwater, Sink('downstream'), s.groundwater / s.baseflow_time, label='baseflow'),
+            RateLaw({s.reservoir: -1}, s.evaporation * s.reservoir, label='reservoir_evaporation'),
+            RateLaw({s.reservoir: -1}, spill, label='spill'),
+            RateLaw({s.reservoir: -1, s.soil: +1}, (1 - s.canal_loss) * release, label='irrigation'),
+            RateLaw({s.reservoir: -1, s.groundwater: +1}, s.canal_loss * release, label='seepage'),
+            RateLaw(
+                {s.groundwater: -1, s.soil: +1},
+                IrrigationSchemeInteraction._get_pumping(s),
+                label='groundwater_pumping',
+            ),
+            RateLaw({s.soil: -1}, crop_water, label='crop_water'),
+            RateLaw({s.soil: -1, s.groundwater: +1}, s.percolation * s.soil, label='deep_percolation'),
+            RateLaw({s.groundwater: -1}, s.groundwater / s.baseflow_time, label='baseflow'),
         ]
 
 
@@ -326,31 +424,28 @@ class WasteSystemElement(Element):
     It collects, recycles, composts, and landfills its waste.
     """
 
-    law_classes = (TransferLaw, RateLaw)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1000000.0,
-        uncollected: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
-        recycled: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
-        composted: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
-        landfill: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
-        dumped: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
-        collection_capacity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 150000.0,
-        growth_rate: Annotated[object, ParameterSpec()] = 0.02,
-        per_capita: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        collection_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        recycling_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        composting_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        landfill_capacity: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2000000.0,
-        recycling_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
-        composting_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        capacity_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        population: Annotated[object, RealSet.closed_open(0, oo), Quantity('people')] = 1000000.0,
+        uncollected: Annotated[object, RealSet.closed_open(0, oo), Quantity('waste')] = 0.0,
+        recycled: Annotated[object, RealSet.closed_open(0, oo), Quantity('waste')] = 0.0,
+        composted: Annotated[object, RealSet.closed_open(0, oo), Quantity('waste')] = 0.0,
+        landfill: Annotated[object, RealSet.closed_open(0, oo), Quantity('waste')] = 0.0,
+        dumped: Annotated[object, RealSet.closed_open(0, oo), Quantity('waste')] = 0.0,
+        collection_capacity: Annotated[object, RealSet.closed_open(0, oo)] = 150000.0,
+        growth_rate: object = 0.02,
+        per_capita: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        collection_time: Annotated[object, RealSet.open(0, oo)] = 0.05,
+        recycling_share: Annotated[object, RealSet.closed_open(0, oo)] = 0.2,
+        composting_share: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        landfill_capacity: Annotated[object, RealSet.open(0, oo)] = 2000000.0,
+        recycling_time: Annotated[object, RealSet.open(0, oo)] = 0.25,
+        composting_time: Annotated[object, RealSet.open(0, oo)] = 0.5,
+        capacity_time: Annotated[object, RealSet.open(0, oo)] = 3.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.population = population
         self.uncollected = uncollected
         self.recycled = recycled
@@ -368,12 +463,41 @@ class WasteSystemElement(Element):
         self.composting_time = composting_time
         self.capacity_time = capacity_time
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of waste through the city.
 
-        It also returns the adjustment of its collection capacity.
+class WasteSystemInteraction(Interaction):
+    """Generation, collection, treatment, and sales of the solid waste of a city.
+
+    The flows read the stocks and the parameters of the element the role `target` binds.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the stocks and the parameters.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import WasteSystemInteraction
+        >>> WasteSystemInteraction('flows', target='city').target
+        'city'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows of the stocks of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return WasteSystemElement._get_waste_laws(s)
+        super()._prepare(context)
+        s = SimpleNamespace(t=context.t, **vars(context.target))
+        self.laws_: list[BaseLaw] = WasteSystemInteraction._get_waste_laws(s)
 
     @staticmethod
     def _get_generation(s: SimpleNamespace) -> Expression:
@@ -397,20 +521,20 @@ class WasteSystemElement(Element):
         The waste is that of a growing city.
         """
         generation, collection, acceptance = (
-            WasteSystemElement._get_generation(s),
-            WasteSystemElement._get_collection(s),
-            WasteSystemElement._get_acceptance(s),
+            WasteSystemInteraction._get_generation(s),
+            WasteSystemInteraction._get_collection(s),
+            WasteSystemInteraction._get_acceptance(s),
         )
         residual = (1 - s.recycling_share - s.composting_share) * collection
         return [
-            TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
-            TransferLaw(Source('households'), s.uncollected, generation, label='waste_generation'),
-            TransferLaw(s.uncollected, s.recycled, s.recycling_share * collection, label='recycling'),
-            TransferLaw(s.uncollected, s.composted, s.composting_share * collection, label='composting'),
-            TransferLaw(s.uncollected, s.landfill, acceptance * residual, label='landfilling'),
-            TransferLaw(s.uncollected, s.dumped, (1 - acceptance) * residual, label='dumping'),
-            TransferLaw(s.recycled, Sink('industry'), s.recycled / s.recycling_time, label='recycled_sales'),
-            TransferLaw(s.composted, Sink('farms'), s.composted / s.composting_time, label='compost_sales'),
+            RateLaw({s.population: +1}, s.growth_rate * s.population, label='population_growth'),
+            RateLaw({s.uncollected: +1}, generation, label='waste_generation'),
+            RateLaw({s.uncollected: -1, s.recycled: +1}, s.recycling_share * collection, label='recycling'),
+            RateLaw({s.uncollected: -1, s.composted: +1}, s.composting_share * collection, label='composting'),
+            RateLaw({s.uncollected: -1, s.landfill: +1}, acceptance * residual, label='landfilling'),
+            RateLaw({s.uncollected: -1, s.dumped: +1}, (1 - acceptance) * residual, label='dumping'),
+            RateLaw({s.recycled: -1}, s.recycled / s.recycling_time, label='recycled_sales'),
+            RateLaw({s.composted: -1}, s.composted / s.composting_time, label='compost_sales'),
             RateLaw(s.collection_capacity, (generation - s.collection_capacity) / s.capacity_time),
         ]
 
@@ -429,8 +553,9 @@ class RiceMillingSystem(BaseSystem):
     parameters in tonnes and months, since the case data are specific to their study.
 
     The system has the grain stocks `mill.paddy`, `mill.rice`, `mill.husk`, and `mill.bran` in tonnes, the capacity
-    `mill.capacity`, and the flows `mill.paddy_purchases`, `mill.milled_rice`, `mill.husk_output`, `mill.bran_output`,
-    `mill.milling_losses`, `mill.rice_sales`, `mill.husk_sales`, and `mill.bran_sales` in tonnes per month, over months.
+    `mill.capacity`, and the flows `mill.paddy_purchases`, `mill.milled_rice`, `mill.husk_output`,
+    `mill.bran_output`, `mill.milling_losses`, `mill.rice_sales`, `mill.husk_sales`, and `mill.bran_sales` in
+    tonnes per month, over months.
     The observables of the system are `mill.procurement`, `mill.indicated_milling`, and `mill.milling`.
 
     Args:
@@ -455,6 +580,12 @@ class RiceMillingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import RiceMillingSystem
         >>> RiceMillingSystem(capacity=1500.0).prepare().system_.elements[0].capacity
@@ -467,9 +598,9 @@ class RiceMillingSystem(BaseSystem):
     until = 120.0
     dt = 0.25
     observables = (
-        ObservableSpec('procurement', RiceMillElement._get_procurement, element='mill'),
-        ObservableSpec('indicated_milling', RiceMillElement._get_indicated_milling, element='mill'),
-        ObservableSpec('milling', RiceMillElement._get_milling, element='mill'),
+        Observable('procurement', RiceMillInteraction._get_procurement, element='mill'),
+        Observable('indicated_milling', RiceMillInteraction._get_indicated_milling, element='mill'),
+        Observable('milling', RiceMillInteraction._get_milling, element='mill'),
     )
 
     def __init__(
@@ -482,8 +613,10 @@ class RiceMillingSystem(BaseSystem):
         capacity: float = 2000.0,
         expansion_time: float = 12.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.harvest = harvest
         self.seasonality = seasonality
         self.procurement_delay = procurement_delay
@@ -491,8 +624,9 @@ class RiceMillingSystem(BaseSystem):
         self.capacity = capacity
         self.expansion_time = expansion_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         mill = RiceMillElement(
             'mill',
             paddy=self.harvest,
@@ -506,7 +640,7 @@ class RiceMillingSystem(BaseSystem):
             outturn=self.outturn,
             expansion_time=self.expansion_time,
         )
-        return CompositeSystem(self.label, elements=[mill])
+        self.system_ = System(self.label, elements=[mill], interactions=[RiceMillInteraction('flows', target='mill')])
 
 
 class SolidWasteSystem(BaseSystem):
@@ -523,9 +657,9 @@ class SolidWasteSystem(BaseSystem):
 
     The system has the population `city.population`, the waste stocks `city.uncollected`, `city.recycled`,
     `city.composted`, `city.landfill`, and `city.dumped` in tonnes, the capacity `city.collection_capacity`, and the
-    flows `city.population_growth`, `city.waste_generation`, `city.recycling`, `city.composting`, `city.landfilling`,
-    `city.dumping`, `city.recycled_sales`, and `city.compost_sales` per year, over years. The observables of the system
-    are `city.generation`, `city.collection`, and `city.acceptance`.
+    flows `city.population_growth`, `city.waste_generation`, `city.recycling`, `city.composting`,
+    `city.landfilling`, `city.dumping`, `city.recycled_sales`, and `city.compost_sales` per year, over years. The
+    observables of the system are `city.generation`, `city.collection`, and `city.acceptance`.
 
     Args:
         population:
@@ -549,6 +683,12 @@ class SolidWasteSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import SolidWasteSystem
         >>> SolidWasteSystem(landfill_capacity=1e6).prepare().system_.elements[0].landfill_capacity
@@ -561,9 +701,9 @@ class SolidWasteSystem(BaseSystem):
     until = 40.0
     dt = 0.1
     observables = (
-        ObservableSpec('generation', WasteSystemElement._get_generation, element='city'),
-        ObservableSpec('collection', WasteSystemElement._get_collection, element='city'),
-        ObservableSpec('acceptance', WasteSystemElement._get_acceptance, element='city'),
+        Observable('generation', WasteSystemInteraction._get_generation, element='city'),
+        Observable('collection', WasteSystemInteraction._get_collection, element='city'),
+        Observable('acceptance', WasteSystemInteraction._get_acceptance, element='city'),
     )
 
     def __init__(
@@ -576,8 +716,10 @@ class SolidWasteSystem(BaseSystem):
         composting_share: float = 0.3,
         landfill_capacity: float = 2e6,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.population = population
         self.growth_rate = growth_rate
         self.per_capita = per_capita
@@ -585,8 +727,9 @@ class SolidWasteSystem(BaseSystem):
         self.composting_share = composting_share
         self.landfill_capacity = landfill_capacity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         city = WasteSystemElement(
             'city',
             population=self.population,
@@ -597,7 +740,11 @@ class SolidWasteSystem(BaseSystem):
             composting_share=self.composting_share,
             landfill_capacity=self.landfill_capacity,
         )
-        return CompositeSystem(self.label, elements=[city])
+        self.system_ = System(
+            self.label,
+            elements=[city],
+            interactions=[WasteSystemInteraction('flows', target='city')],
+        )
 
 
 class FoodReliefSystem(BaseSystem):
@@ -637,6 +784,12 @@ class FoodReliefSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import FoodReliefSystem
         >>> FoodReliefSystem(shipping_delay=7.0).prepare().system_.elements[0].shipping_delay
@@ -649,8 +802,8 @@ class FoodReliefSystem(BaseSystem):
     until = 120.0
     dt = 0.5
     observables = (
-        ObservableSpec('need', ReliefPipelineElement._need, element='relief'),
-        ObservableSpec('shipments', ReliefPipelineElement._get_shipments, element='relief'),
+        Observable('need', ReliefPipelineInteraction._need, element='relief'),
+        Observable('shipments', ReliefPipelineInteraction._get_shipments, element='relief'),
     )
 
     def __init__(
@@ -663,8 +816,10 @@ class FoodReliefSystem(BaseSystem):
         cover: float = 7.0,
         stock_time: float = 7.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.affected = affected
         self.ration = ration
         self.onset = onset
@@ -672,8 +827,9 @@ class FoodReliefSystem(BaseSystem):
         self.cover = cover
         self.stock_time = stock_time
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         relief = ReliefPipelineElement(
             'relief',
             affected=self.affected,
@@ -683,7 +839,11 @@ class FoodReliefSystem(BaseSystem):
             cover=self.cover,
             stock_time=self.stock_time,
         )
-        return CompositeSystem(self.label, elements=[relief])
+        self.system_ = System(
+            self.label,
+            elements=[relief],
+            interactions=[ReliefPipelineInteraction('flows', target='relief')],
+        )
 
 
 class IrrigationSystem(BaseSystem):
@@ -700,9 +860,9 @@ class IrrigationSystem(BaseSystem):
     Arshad and Noh (2017, Section 4.11), with illustrative parameters in millions of cubic metres and days.
 
     The system has the water stocks `scheme.reservoir`, `scheme.soil`, and `scheme.groundwater`, and the flows
-    `scheme.inflow`, `scheme.evaporation`, `scheme.spill`, `scheme.irrigation`, `scheme.seepage`,
-    `scheme.groundwater_pumping`, `scheme.crop_water`, `scheme.percolation`, and `scheme.baseflow` per day, over days.
-    The observables of the system are `scheme.demand`, `scheme.release`, and `scheme.pumping`.
+    `scheme.inflow`, `scheme.reservoir_evaporation`, `scheme.spill`, `scheme.irrigation`, `scheme.seepage`,
+    `scheme.groundwater_pumping`, `scheme.crop_water`, `scheme.deep_percolation`, and `scheme.baseflow` per day,
+    over days. The observables of the system are `scheme.demand`, `scheme.release`, and `scheme.pumping`.
 
     Args:
         river_inflow:
@@ -726,6 +886,12 @@ class IrrigationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.processes import IrrigationSystem
         >>> IrrigationSystem(pump_capacity=0.0).prepare().system_.elements[0].pump_capacity
@@ -738,9 +904,9 @@ class IrrigationSystem(BaseSystem):
     until = 730.0
     dt = 1.0
     observables = (
-        ObservableSpec('demand', IrrigationSchemeElement._get_demand, element='scheme'),
-        ObservableSpec('release', IrrigationSchemeElement._get_reservoir_release, element='scheme'),
-        ObservableSpec('pumping', IrrigationSchemeElement._get_pumping, element='scheme'),
+        Observable('demand', IrrigationSchemeInteraction._get_demand, element='scheme'),
+        Observable('release', IrrigationSchemeInteraction._get_reservoir_release, element='scheme'),
+        Observable('pumping', IrrigationSchemeInteraction._get_pumping, element='scheme'),
     )
 
     def __init__(
@@ -753,8 +919,10 @@ class IrrigationSystem(BaseSystem):
         canal_loss: float = 0.2,
         pump_capacity: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.river_inflow = river_inflow
         self.seasonality = seasonality
         self.reservoir_capacity = reservoir_capacity
@@ -762,8 +930,9 @@ class IrrigationSystem(BaseSystem):
         self.canal_loss = canal_loss
         self.pump_capacity = pump_capacity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         scheme = IrrigationSchemeElement(
             'scheme',
             river_inflow=self.river_inflow,
@@ -773,4 +942,8 @@ class IrrigationSystem(BaseSystem):
             canal_loss=self.canal_loss,
             pump_capacity=self.pump_capacity,
         )
-        return CompositeSystem(self.label, elements=[scheme])
+        self.system_ = System(
+            self.label,
+            elements=[scheme],
+            interactions=[IrrigationSchemeInteraction('flows', target='scheme')],
+        )

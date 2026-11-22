@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import BernoulliProcessSystem
 
@@ -28,7 +27,7 @@ def successes(trajectory):
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BernoulliProcessSystem(n_sequences=6), dt=1, observers=[observer], random_state=0)
+trajectory = BernoulliProcessSystem(n_sequences=6).prepare().simulate(dt=1, observers=[observer], random_state=0)
 
 # %%
 # Binomial counts
@@ -40,7 +39,7 @@ fig, ax = plt.subplots(figsize=(6.5, 4.5))
 grid = np.arange(0, 80)
 for p, color in ((0.2, 'C1'), (0.5, 'C0')):
     final = successes(
-        simulate(BernoulliProcessSystem(n_sequences=2000, p=p), dt=1, random_state=1),
+        BernoulliProcessSystem(n_sequences=2000, p=p).prepare().simulate(dt=1, random_state=1),
     )
     ax.hist(final[-1], bins=np.arange(-0.5, 80.5), density=True, alpha=0.5, color=color, label=f'simulated, p = {p}')
     ax.plot(grid, stats.binom.pmf(grid, 100, p), '.-', color=color, markersize=3, label=f'B(100, {p})')

@@ -12,11 +12,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.laws.utils import pulse
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import SpeciesElement
 
@@ -37,9 +39,6 @@ class GProteinElement(Element):
     Args:
         label:
             The label of the G protein.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         g:
             The initial active fraction.
@@ -68,16 +67,15 @@ class GProteinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        g: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k_on: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k_gtp: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        hormone: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        start: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        k_on: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        k_gtp: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        hormone: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        start: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.g = g
         self.k_on = k_on
         self.k_gtp = k_gtp
@@ -127,6 +125,12 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The activation and inactivation rates do not give one value per stage.
@@ -154,8 +158,10 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
         start: float = 1.0,
         width: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.alpha = alpha
         self.beta = beta
         self.k_on = k_on
@@ -164,8 +170,14 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
         self.start = start
         self.width = width
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the adenylate cyclase cascade."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the adenylate cyclase cascade.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         if len(self.alpha) != len(STAGES) or len(self.beta) != len(STAGES):
             error_msg = f'Give one activation and one inactivation rate per stage, {len(STAGES)} of each.'
             raise ValidationError(error_msg)
@@ -203,7 +215,7 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
                 propensity=lambda s: s.target.k_gtp * s.target.g,
             ),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[g_protein, *stages],
             interactions=[*switching, *activations, *inactivations],

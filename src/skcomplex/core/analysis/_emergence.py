@@ -15,13 +15,14 @@ import numpy.typing as npt
 from scipy import stats
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError, UnobservedStatesWarning
-from ..specs import AnalysisTags
-from ..types import AnyArray, Array, DataKind, IntArray
+from ..types import AnyArray, Array, IntArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_series
 from ._information import _knn_chain, _log_determinant, _row_codes
 from ._markov import _stationary_distribution
-from .types import Partition, Source
+from .types import DataSource, Partition
 
 MATRIX_DIMENSIONS = 2
 KINDS = ('effective-information', 'causal', 'criteria', 'closure')
@@ -46,7 +47,14 @@ KIND_TAGS = {
 
 @dataclass(frozen=True)
 class EmergenceResult:
-    """A result of `emergence`, the emergence of a macro scale over a micro scale.
+    """A result of `emergence`, how much a coarse scale adds over a fine scale.
+
+    It holds what the kind measures: the effective information of a matrix of moves with its determinism and degeneracy,
+    the best grouping of states with its gain, the criteria of Rosas et al., or the gap of a closed coarse view. Four
+    states that each go to themselves carry 2 bits. It asks whether a flock, a brain region, or an economy acts as more
+    than its parts.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         matrix:
@@ -104,6 +112,15 @@ class EmergenceResult:
 
         gap:
             The information the micro past adds about the macro future, zero for a closed coarse-graining.
+
+    See Also:
+        emergence: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import emergence
+        >>> emergence(np.eye(4), kind='effective-information').information
+        2.0
     """
 
     matrix: Array | None = None
@@ -127,7 +144,7 @@ class EmergenceResult:
 
 
 def emergence(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'causal',
     variables: Sequence[str] | None = None,
@@ -140,25 +157,13 @@ def emergence(
     k: int = 3,
     base: float = 2.0,
 ) -> EmergenceResult:
-    """Return the emergence of a macro scale over a micro scale, of one kind.
+    """Return how much a coarse scale adds over a fine scale, of one kind.
 
-    The kinds read a transition matrix or the series of micro variables:
+    It reads a matrix of the chances of moving between fine states, or series of fine variables, and asks whether
+    grouping the states into coarse ones predicts better, such as the 2 bits of four states that each stay put. It asks
+    whether a flock, a brain region, or an economy acts as more than its parts.
 
-    - `'effective-information'`: the effective information of a transition matrix, `H(mean row) - mean H(row)` over
-      the states with observed transitions, split into determinism and degeneracy. A matrix of counts is normalised
-      by row first.
-    - `'causal'`: the causal emergence of a transition matrix, the gain in effective information of the macro matrix
-      of a given or searched partition over the micro matrix. The macro matrix sums the micro transitions from every
-      block to every block, weighting the micro states of a block uniformly, as Hoel, Albantakis, and Tononi (2013)
-      do, or by the stationary distribution, as Klein and Hoel (2020) do. The greedy search of Klein and Hoel (2020)
-      merges the pair of blocks with the largest macro effective information while that grows, so it can miss the
-      best partition. The exhaustive search tries every partition of at most 10 states.
-    - `'criteria'`: the criteria Ψ, Δ, and Γ of Rosas et al. (2020) for the macro feature of the micro series given
-      by `partition`, estimated `lag` steps ahead with the minimum mutual information redundancy.
-    - `'closure'`: how well the macro past and the micro past of the macro series given by `partition` predict the
-      macro future. The coarse-graining is closed when the gap is zero up to the bias of the plug-in estimator.
-
-    It appears in many fields. It asks whether a flock, a brain region, or an economy behaves as more than its parts.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -166,7 +171,13 @@ def emergence(
             an array of micro series for `'criteria'` and `'closure'`.
 
         kind:
-            The emergence to measure, one of the kinds above.
+            `'effective-information'` gives `H(mean row) - mean H(row)` of a matrix of moves, split into determinism and
+            degeneracy, normalising a matrix of counts by row. `'causal'` gives the gain of the coarse matrix of a given
+            or searched grouping over the fine one, weighting the states of a group evenly (Hoel et al. 2013) or by how
+            often they are visited (Klein and Hoel 2020), with a greedy search or an exhaustive one up to 10 states.
+            `'criteria'` gives the criteria Psi, Delta, and Gamma of Rosas et al. (2020) for the coarse feature that
+            `partition` gives, `lag` steps ahead. `'closure'` gives how much better the fine past predicts the coarse
+            future than the coarse past does, 0 for a closed view.
 
         variables:
             The micro variables of a trajectory to read, or `None` for every scalar series.
@@ -212,19 +223,15 @@ def emergence(
         UnobservedStatesWarning:
             Some rows of the micro matrix hold no transition, and the warning names their states.
 
+    See Also:
+        information: Measures shared information between series.
+        markov: Fits a chain of moves between states.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import emergence
         >>> emergence(np.eye(4), kind='effective-information').information
         2.0
-        >>> matrix = np.zeros((4, 4))
-        >>> matrix[:3, :3], matrix[3, 3] = 1 / 3, 1.0
-        >>> found = emergence(matrix, kind='causal')
-        >>> found.partition.tolist(), round(found.gain, 3)
-        ([0, 0, 0, 1], 0.189)
-        >>> micro = np.random.default_rng(0).integers(0, 4, 5000)
-        >>> round(emergence(micro, kind='closure', partition=[0, 0, 1, 1]).gap, 2)
-        0.0
     """
     for name, value, choices in (
         ('kind', kind, KINDS),

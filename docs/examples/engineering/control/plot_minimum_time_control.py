@@ -14,14 +14,13 @@ small neighbourhood of the origin, whose size shrinks with the interval.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import MinimumTimeControlSystem
 
 SYSTEM = 'minimum_time_control'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-trajectory = simulate(MinimumTimeControlSystem(), observers=[observer])
+trajectory = MinimumTimeControlSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Three plants
@@ -47,8 +46,8 @@ curves = {
 }
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, (plant, (x, v)) in zip(axes, starts.items(), strict=True):
-    trajectory = simulate(MinimumTimeControlSystem(plant=plant, x=x, v=v, interval=0.01))
-    ax.plot(np.ravel(trajectory.get_values('plant.x')), np.ravel(trajectory.get_values('plant.y')))
+    trajectory = MinimumTimeControlSystem(plant=plant, x=x, v=v, interval=0.01).prepare().simulate()
+    ax.plot(np.ravel(trajectory.get_values('plant.x')), np.ravel(trajectory.get_values("plant.x'")))
     ax.plot(grid[plant], curves[plant](grid[plant]), linestyle=':', color='black')
     ax.set_title(plant.replace('_', ' '))
     ax.set_xlabel('position x')

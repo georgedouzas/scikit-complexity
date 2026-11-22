@@ -8,7 +8,7 @@ import os
 import re
 import sys
 import warnings
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Literal
 
@@ -16,22 +16,23 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 from rerun import bindings
+from sage.all__sagemath_symbolics import SR
 
+from ...components.elements import VisualSpec
 from ...components.spaces import NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...specs import RenewalRecordSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._declared_element import _DeclaredElement
+from ..problems._group_element import _GroupElement
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
-from ._cayley import CayleyVisual
 from ._cells import CellVisual
 from ._expectation import ExpectationVisual
-from ._geometry import GeometryVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
 from ._linear_programs import LinearProgramVisual
@@ -59,10 +60,8 @@ VISUALS: dict[str, type[BaseVisual]] = {
     'agents': AgentsVisual,
     'axes': AxisVisual,
     'bodies': BodiesVisual,
-    'cayley': CayleyVisual,
     'cell': CellVisual,
     'expectations': ExpectationVisual,
-    'geometry': GeometryVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
     'linear_program': LinearProgramVisual,
@@ -78,17 +77,15 @@ VISUALS: dict[str, type[BaseVisual]] = {
 class RerunObserver(BaseObserver):
     """An observer that logs the frames of a run to the Rerun viewer.
 
-    Its entity paths follow the system tree. `prepare(problem)` creates the recording, builds the visual of every
-    element and agent group from the visual its type declares, lays out their views, and sends the recording to its
-    sinks. `run(frame)` logs a frame, and `run(final=True)` flushes the recording. Each logged frame sets the `sim_time`
-    and `step` timelines, logs every element with its visual, logs every parameter up to a matrix under
-    `parameters/<name>`, leaving out coupling tensors, whose entries no view can draw, and logs the renewals of renewal
-    laws since the previous frame as text entries under `renewals/<label>`. A subclass logs entities of its own apart
-    from the system's with `_log_extra`.
+    It draws every element of a system with the visual its class names, in the Rerun viewer or in a `.rrd` file, such
+    as `system.simulate(until=10.0, observers=[RerunObserver(save_path='run.rrd')])`. `prepare(problem)` builds the
+    visuals and lays out their views, `run(frame)` draws one frame, and `run(final=True)` writes out what is left. Each
+    frame also draws the parameters and the renewals of renewal laws, on timelines of the simulated time and the step.
+    The default layout puts the pictures of space first, side by side, and the lines over time below them. A subclass
+    draws more with `_log_extra`. It replays a predator and prey cycle, the spread of an epidemic on a network, and the
+    patterns of a chemical reaction.
 
-    The default blueprint puts spatial views first and side by side, with time series views below them. Scalar elements
-    of one type share a time series view with at most six series, and time series views show the whole run. The side
-    panels are collapsed, the top panel is hidden, and the time panel follows the latest frame of the simulated time.
+    Read more in the user guide, under Observe.
 
     Args:
         application_id:
@@ -118,6 +115,10 @@ class RerunObserver(BaseObserver):
         parameters:
             Whether the default blueprint has a time series view of the parameters.
 
+        visuals:
+            How to draw elements by path, such as `{'oscillators': VisualSpec('phase_ring', {'phase': 'theta'})}`, in
+            place of the drawing each element has by default, or `None` to keep every default.
+
     Attributes:
         recording_:
             The Rerun recording stream.
@@ -135,32 +136,16 @@ class RerunObserver(BaseObserver):
         logged_frames_:
             The number of frames logged.
 
-    Examples:
-        >>> import tempfile
-        >>> from pathlib import Path
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.viz import RerunObserver
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('a', x=1)],
-        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ... )
-        >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
-        >>> _ = simulate(system, until=1, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
-        >>> path.exists()
-        True
-        >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = simulate(system, until=1, dt=0.1, observers=[observer])
-        >>> path.with_suffix('.rbl').exists()
-        True
+    See Also:
+        BaseVisual: Draws one element at every frame.
 
-        The default blueprint of a compiled problem, with a chosen view first:
-        >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-        >>> problem = simulate(GrayScottSystem(shape=(16, 16)), until=0).problem
-        >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
-        >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
-        ['cells/v', 'cells/u']
+    Examples:
+        >>> from skcomplex.core.engine.viz import RerunObserver
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> observer = RerunObserver(interval=10)
+        >>> _ = LotkaVolterraSystem().prepare().simulate(until=1.0, dt=0.1, observers=[observer])
+        >>> observer.logged_frames_
+        2
     """
 
     def __init__(
@@ -174,6 +159,7 @@ class RerunObserver(BaseObserver):
         blueprint: Literal['default'] | rrb.Blueprint | None = None,
         primary: str | None = None,
         parameters: bool = False,
+        visuals: Mapping[str, VisualSpec] | None = None,
     ) -> None:
         self.application_id = application_id
         self.spawn = spawn
@@ -183,6 +169,7 @@ class RerunObserver(BaseObserver):
         self.blueprint = blueprint
         self.primary = primary
         self.parameters = parameters
+        self.visuals = visuals
 
     def _check_settings(self) -> None:
         """Raise an error for an unknown blueprint or an unused setting.
@@ -204,6 +191,17 @@ class RerunObserver(BaseObserver):
             error_msg = f'interval = {self.interval!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
+    def _check_visuals(self, problem: BaseProblemSpec) -> None:
+        """Raise an error for a drawing whose path names no element of the problem."""
+        paths = [element.path for element in problem.elements] + [group.path for group in problem.agents]
+        unknown = sorted(set(self.visuals or {}) - set(paths))
+        if unknown:
+            error_msg = (
+                f'visuals names {", ".join(map(repr, unknown))}, which is not an element of the system. '
+                f'The elements are {", ".join(map(repr, paths))}.'
+            )
+            raise ValidationError(error_msg)
+
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Create the recording, build the visuals, and send the recording to its sinks.
 
@@ -223,13 +221,14 @@ class RerunObserver(BaseObserver):
             error_msg = 'A Rerun observer prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)
         problem = context
+        self._check_visuals(problem)
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
         bindings.flush_and_cleanup_orphaned_recordings()
         self.recording_ = rr.RecordingStream(self.application_id, batcher_config=self._get_batcher_config())
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(self._get_visual_of(element).prepare(problem) for element in problem.elements),
+            *(self._get_visual_of(element, problem).prepare(problem) for element in problem.elements),
             *(self._get_agents_visual_of(group, problem).prepare(problem) for group in agents),
             *self._get_matrix_visuals(problem),
         ]
@@ -268,21 +267,53 @@ class RerunObserver(BaseObserver):
         names = ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')
         return sys.platform == 'linux' and not any(os.environ.get(name) for name in names)
 
-    def _get_visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
+    def _get_visual_of(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> BaseVisual:
         """Return the visual the spec of an element names.
 
-        It is built with the options of the spec.
+        It is built with the options of the spec. An option the visual lists in `numeric_options`, given as an
+        expression of the parameters of the element, such as `'R_0 / 2'`, takes its value at the start of the run.
         """
-        spec = element.visual
-        visual = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
-        return visual(**dict(spec.options), path=element.path, recording=self.recording_)
+        spec = (self.visuals or {}).get(element.path, element.visual)
+        visual: type[BaseVisual] = VISUALS[spec.kind] if isinstance(spec.kind, str) else spec.kind
+        options = {
+            name: self._get_option_value(value, element, problem) if name in visual.numeric_options else value
+            for name, value in spec.options.items()
+        }
+        return visual(**options, path=element.path, recording=self.recording_)
 
-    def _get_agents_visual_of(self, agents: CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
+    @staticmethod
+    def _get_option_value(
+        value: object,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> object:
+        """Return an option, with an expression of parameters replaced by its value."""
+        names: Mapping[str, str] = getattr(element, 'parameters', {})
+        if not isinstance(value, str) or not names:
+            return value
+        try:
+            expression = SR(value)
+        except (TypeError, ValueError, SyntaxError):
+            return value
+        symbols = [str(symbol) for symbol in expression.variables()]
+        if not symbols or not all(symbol in names for symbol in symbols):
+            return value
+        values = {
+            SR.var(symbol): float(np.ravel(problem.parameters.read(problem.initial_parameters, names[symbol]))[0])
+            for symbol in symbols
+        }
+        return float(expression.subs(values))
+
+    def _get_agents_visual_of(self, agents: _CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group.
 
         It is its declared agents visual, or the histogram visual without a space.
         """
-        visual = self._get_visual_of(agents)
+        visual = self._get_visual_of(agents, problem)
         if not isinstance(visual, AgentsVisual):
             visual = AgentsVisual(path=agents.path, recording=self.recording_)
         if problem.agent_space is None and type(visual) is AgentsVisual and visual.position is None:
@@ -321,7 +352,7 @@ class RerunObserver(BaseObserver):
         series: list[rrb.View] = []
         points: dict[type, list[rrb.View]] = {}
         for visual in self.visuals_:
-            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, CompiledAgentsSpec):
+            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, _CompiledAgentsSpec):
                 continue
             for view in visual.views_:
                 if isinstance(view, rrb.TimeSeriesView):
@@ -337,7 +368,7 @@ class RerunObserver(BaseObserver):
 
         They are merged into one per view class when the groups share a space.
         """
-        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, CompiledAgentsSpec)]
+        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, _CompiledAgentsSpec)]
         views = [view for visual in agents for view in visual.views_]
         if problem.agent_space is None:
             return views
@@ -585,9 +616,14 @@ class RerunObserver(BaseObserver):
 
     @staticmethod
     def _get_type_name(element: CompiledElementSpec) -> str:
-        """Return the name of the element type of an element or of the members of a group."""
-        kind = getattr(element.element, 'element', None) or type(element.element)
-        return str(getattr(kind, '__name__', type(element.element).__name__))
+        """Return the name of the element type of an element or of the members of a group.
+
+        An element declared from a plain element is named after the class of that element, such as `PopulationElement`.
+        """
+        component = element.element
+        member = component._get_member() if isinstance(component, _GroupElement) else component
+        origin = member.origin if isinstance(member, _DeclaredElement) else None
+        return (origin or type(member)).__name__
 
     @staticmethod
     def _get_chunks(

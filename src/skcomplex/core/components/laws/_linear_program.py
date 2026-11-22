@@ -5,28 +5,33 @@
 
 import operator
 from collections.abc import Sequence
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
-from ...specs import LinearObjectiveSpec, RequirementSpec
-from ..spaces import ContinuousTime, DiscreteTime, StaticTime
+from ..spaces._continuous_time import _ContinuousTime
+from ..spaces._discrete_time import _DiscreteTime
+from ..spaces._static_time import _StaticTime
 from ._base import BaseLaw
+from ._linear_objective_spec import LinearObjectiveSpec
+from ._requirement_spec import RequirementSpec
 
 INFEASIBLE_POLICIES = ('raise', 'zero', 'hold')
 RELATIONS = (operator.eq, operator.le, operator.ge)
 
 
-class LinearProgramLaw(BaseLaw):
+@dataclass(frozen=True)
+class _LinearProgramLaw(BaseLaw):
     """A law that sets algebraic states to the optimum of a linear program.
 
     A linear program maximizes or minimizes a linear objective under linear constraints. The law sets its variables,
-    which are algebraic states, to the optimum at every time. The laws whose variables overlap, from any part, form one
-    program: their variables unite, their constraints add, and at most one of them holds objectives. The objectives are
-    solved in order, and each optimum is kept within a relative tolerance of `1e-9` while the next one is solved.
+    which are algebraic states, to the optimum at every time. The laws whose variables overlap, from any component, form
+    one program: their variables unite, their constraints add, and at most one of them holds objectives. The objectives
+    are solved in order, and each optimum is kept within a relative tolerance of `1e-9` while the next one is solved.
 
-    Unlike `EquationLaw`, which fixes states by equations, it fixes them by an optimum under inequalities. Choose it
+    Unlike `ConstraintLaw`, which fixes states by equations, it fixes them by an optimum under inequalities. Choose it
     when a quantity at each time is the best choice under constraints.
 
     It appears in many fields. Flux balance analysis finds the fluxes of a metabolic network, an economy dispatches
@@ -60,38 +65,24 @@ class LinearProgramLaw(BaseLaw):
     Raises:
         ValidationError:
             A constraint is not a relation, an objective is not a `LinearObjectiveSpec`, or the policy is unknown,
-            raised by `prepare`.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LinearProgramLaw
-        >>> from skcomplex.core.specs import LinearObjectiveSpec
-        >>> v, w = var('v w')
-        >>> law = LinearProgramLaw([v, w], [v + w <= 1], [LinearObjectiveSpec(v)]).prepare('flows')
-        >>> law.targets_
-        (v, w)
+            raised by `_check`.
     """
 
     law_tag: ClassVar[str] = 'equation'
 
-    def __init__(
-        self,
-        variables: Sequence[Expression],
-        constraints: Sequence[Expression],
-        objectives: Sequence[LinearObjectiveSpec] = (),
-        *,
-        active: Expression | None = None,
-        infeasible: str = 'raise',
-        duals: bool = False,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.variables = variables
-        self.constraints = constraints
-        self.objectives = objectives
-        self.active = active
-        self.infeasible = infeasible
-        self.duals = duals
+    variables: Sequence[Expression]
+    constraints: Sequence[Expression]
+    objectives: Sequence[LinearObjectiveSpec] = ()
+    _: KW_ONLY
+    active: Expression | None = None
+    infeasible: str = 'raise'
+    duals: bool = False
+    label: str = ''
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'ObjectiveLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the algebraic states the program sets."""
@@ -100,21 +91,17 @@ class LinearProgramLaw(BaseLaw):
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous, discrete, or static time."""
-        return RequirementSpec(time=(ContinuousTime, DiscreteTime, StaticTime))
+        return RequirementSpec(time=(_ContinuousTime, _DiscreteTime, _StaticTime))
 
-    def _prepare(self, context: str | None = None) -> None:
+    def _check(self) -> None:
         """Raise an error for no variables, a bad constraint or objective, or a bad policy.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
 
         Raises:
             ValidationError:
                 The program has no variables, a constraint is not a relation, an objective is not a
                 `LinearObjectiveSpec`, or the policy is unknown.
         """
-        super()._prepare(context)
+        super()._check()
         if not len(self.variables):
             error_msg = 'A linear program law sets at least one variable, but it has none.'
             raise ValidationError(error_msg)
@@ -131,6 +118,7 @@ class LinearProgramLaw(BaseLaw):
             objective._check()
         if self.infeasible not in INFEASIBLE_POLICIES:
             error_msg = (
-                f'Unknown infeasibility policy {self.infeasible!r}. Use one of {", ".join(INFEASIBLE_POLICIES)}.'
+                f'Unknown choice {self.infeasible!r} for constraints that cannot all hold. Use one of '
+                f'{", ".join(INFEASIBLE_POLICIES)}.'
             )
             raise ValidationError(error_msg)

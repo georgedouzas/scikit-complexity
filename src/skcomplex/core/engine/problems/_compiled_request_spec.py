@@ -7,17 +7,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ...specs._base_spec import BaseSpec
-from ...specs._network_rows_spec import NetworkRowsSpec
-from ...specs._topology_request_spec import TopologyRequestSpec
+from ...base import BaseSpec
+from ...components.laws import TopologyRequestSpec
 from ._law_kernel import LawKernel
+from ._network_rows_spec import _NetworkRowsSpec
 
 
 @dataclass(frozen=True)
 class CompiledRequestSpec(BaseSpec):
-    """A spec of a topology request of a law with the rows it runs for.
+    """A spec of a request to change a network, with the kernels that decide it.
 
-    It also holds the kernels that decide and direct the request.
+    A law may ask to add or remove a node or an edge, such as a new node that joins old nodes in proportion to their
+    degree. The spec holds that request, the rows of the network it runs for, and the compiled kernels of its
+    probability, of the weight of every candidate end, and of the score of every candidate edge. It grows the web of
+    citations, the friendships of a school, and the trade links of countries.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         request:
@@ -30,8 +35,8 @@ class CompiledRequestSpec(BaseSpec):
             The variable groups of the network it changes.
 
         rows:
-            `'node'` for a law of the nodes, `'edge'` for a law of the edges of a layer, `'hyperedge'` for a law of
-            the hyperedges, or `'single'` for a law that runs once.
+            `'node'` for a law of the nodes, `'edge'` for a law of the edges of a layer, `'hyperedge'` for a law of the
+            hyperedges, or `'single'` for a law that runs once.
 
         condition:
             The kernel of the probability that an update law fires the request for every row, or `None` for a jump.
@@ -41,11 +46,20 @@ class CompiledRequestSpec(BaseSpec):
 
         score:
             The kernel of the score of every node row as the end of a candidate edge, or `None` for none.
+
+    See Also:
+        TopologyKernel: Applies the requests between steps.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> request = BarabasiAlbertSystem().prepare().simulate(until=0).problem.topology.requests[0]
+        >>> request.owner, request.rows
+        ('growth', 'single')
     """
 
     request: TopologyRequestSpec
     owner: str
-    network: NetworkRowsSpec
+    network: _NetworkRowsSpec
     rows: str
     condition: LawKernel | None = None
     toward: LawKernel | None = None

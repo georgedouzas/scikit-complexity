@@ -7,22 +7,26 @@ They choose under ethics, budget, and peer influence.
 # License: MIT
 
 import math
-from typing import Annotated
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
 
-class ConsumerView(AgentView):
+@runtime_checkable
+class ConsumerView(AgentViewProtocol, Protocol):
     """Consumer as the shopping rule sees it.
 
     It holds its choice `fair`, `ethics`, and `budget`, and its parameters. The parameters are the `premium` of fair
@@ -50,9 +54,6 @@ class ConsumerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         fair:
             One when the consumer bought fair food in the last step, zero otherwise.
 
@@ -74,26 +75,39 @@ class ConsumerElement(Element):
         social_weight:
             The weight of the share of neighbours who buy fair food.
 
+        values:
+            Further values by name, such as the cell `x` and `y` of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid whose axes `x` and `y` place the members, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import ConsumerElement
-        >>> GroupElement('consumers', element=ConsumerElement, size=4, values={'ethics': 0.5}).size
+        >>> ConsumerElement('consumers', ethics=0.5, size=4).size
         4
     """
+
+    visual = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'fair', 'color_range': (0.0, 1.0)}),
         *,
-        fair: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        ethics: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        budget: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        premium: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        ethics_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        price_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        social_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        fair: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        ethics: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        budget: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        premium: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        ethics_weight: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        price_weight: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        social_weight: Annotated[object, RealSet.closed_open(0, oo)] = 2.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.fair = fair
         self.ethics = ethics
         self.budget = budget
@@ -101,14 +115,6 @@ class ConsumerElement(Element):
         self.ethics_weight = ethics_weight
         self.price_weight = price_weight
         self.social_weight = social_weight
-
-    @classmethod
-    def _get_view(cls) -> type[ConsumerView]:
-        """Return the view of a consumer.
-
-        It holds its states and the parameters of its utility.
-        """
-        return ConsumerView
 
 
 class FairFoodSystem(BaseSystem):
@@ -157,9 +163,15 @@ class FairFoodSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import FairFoodSystem
-        >>> FairFoodSystem(5, 4).prepare().system_.elements[0].prepare().size_
+        >>> FairFoodSystem(5, 4).prepare().system_.elements[0].size
         20
     """
 
@@ -167,7 +179,7 @@ class FairFoodSystem(BaseSystem):
     topics = ('consumer choice', 'social influence', 'agents', 'grid')
     references = ('Brock and Durlauf 2001',)
     until = 50
-    observables = (ObservableSpec('fair_share', group='consumers', variable='fair'),)
+    observables = (Observable('fair_share', group='consumers', variable='fair'),)
 
     def __init__(
         self,
@@ -183,8 +195,10 @@ class FairFoodSystem(BaseSystem):
         high_budget: float = 3.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.premium = premium
@@ -214,23 +228,24 @@ class FairFoodSystem(BaseSystem):
             + agent.social_weight * share,
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = self.width * self.height
-        consumers = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic', capacity=1)
+        x, y = np.array([(x, y) for x in range(self.width) for y in range(self.height)]).T
+        consumers = ConsumerElement(
             'consumers',
-            element=ConsumerElement,
+            ethics=rng.random(size),
+            budget=rng.uniform(self.low_budget, self.high_budget, size),
+            premium=self.premium,
+            ethics_weight=self.ethics_weight,
+            price_weight=self.price_weight,
+            social_weight=self.social_weight,
+            values={'x': x, 'y': y},
             size=size,
-            values={
-                'ethics': rng.random(size),
-                'budget': rng.uniform(self.low_budget, self.high_budget, size),
-                'premium': self.premium,
-                'ethics_weight': self.ethics_weight,
-                'price_weight': self.price_weight,
-                'social_weight': self.social_weight,
-            },
-            location=[(x, y) for x in range(self.width) for y in range(self.height)],
+            space=space,
         )
         choice = ChoiceInteraction(
             'shopping',
@@ -239,12 +254,11 @@ class FairFoodSystem(BaseSystem):
             options=(0, 1),
             utility=self._get_utility,
             intensity=self.intensity,
-            form='agent',
+            schedule='synchronous',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[consumers],
             interactions=[choice],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
-            time=DiscreteTime(),
+            space=space,
         )

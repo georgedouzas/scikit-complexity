@@ -1,18 +1,22 @@
-"""Define the helpers of agent rules, transfers and the pairs of a step."""
+"""Define the transfers of agent rules."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 
 from ....errors import ValidationError
-from ...types import SystemViewProtocol
 
 
 def transfer(source: object, sink: object, amount: float, state: str, sink_state: str | None = None) -> None:
-    """Move an amount of a quantity from one agent to another at once, inside a rule.
+    """Move an amount of a quantity from one agent to another inside a rule.
 
-    It is the imperative form of `TransferLaw` for agent rules. Both holdings change together, so the total of the
-    quantity over all agents is unchanged, and a negative holding is an amount the agent owes.
+    It subtracts `amount` from the value `state` of `source` and adds it to the value of `sink`, so the total over all
+    agents stays the same, such as 4 units moving from a holding of 10 to a holding of 0. It is what a rule of an
+    `UpdateLaw` calls for a flow that `RateLaw({s.source.cash: -1, s.target.cash: +1}, f)` states for a whole group. A
+    negative holding is an amount the agent owes. It pays a seller, hands food from one ant to another, and moves charge
+    between two cells.
+
+    Read more in the user guide, under Agents.
 
     Args:
         source:
@@ -34,6 +38,9 @@ def transfer(source: object, sink: object, amount: float, state: str, sink_state
         ValidationError:
             An agent has no such state.
 
+    See Also:
+        UpdateLaw: Runs the rule that calls it.
+
     Examples:
         >>> from types import SimpleNamespace
         >>> from skcomplex.core.components.laws.utils import transfer
@@ -52,21 +59,3 @@ def transfer(source: object, sink: object, amount: float, state: str, sink_state
     source_value, sink_value = getattr(source, state), getattr(sink, target)
     setattr(source, state, source_value - amount)
     setattr(sink, target, sink_value + amount)
-
-
-def matches(system: SystemViewProtocol, label: str = 'match') -> list[tuple[object, object]]:
-    """Return the pairs a matching law stored for the current step.
-
-    Args:
-        system:
-            The system view a rule receives.
-
-        label:
-            The label of the matching law.
-
-    Returns:
-        pairs:
-            The pairs of agents, or none before the law runs.
-    """
-    pairs = system.storage.get(f'match:{label}', ())
-    return list(pairs) if isinstance(pairs, list | tuple) else []

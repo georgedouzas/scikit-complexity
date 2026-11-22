@@ -9,9 +9,9 @@ from functools import cached_property
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._base_spec import BaseSpec
-from ...specs._entry_spec import EntrySpec
-from ...specs._wiener_process_spec import WienerProcessSpec
+from ...base import BaseSpec
+from ...components import EntrySpec
+from ...components.interactions import WienerProcessSpec
 from ...types import Array
 from ._block_spec import BlockSpec
 
@@ -22,7 +22,14 @@ MEMBERS = '_members'
 
 @dataclass(frozen=True)
 class DeclarationsSpec(BaseSpec):
-    """A spec of the entries, initial values, and blocks declared for the parts.
+    """A spec of every value the components of a system declare, laid out for a run.
+
+    While it compiles, the engine lists the states and parameters of every component in the order of the vectors of the
+    run, with their initial values and the symbols that stand for them, such as the size of a population at index 0 of
+    the states. Later passes of the compiler read the values from it. It lays out the values of an epidemic, a reactor,
+    and a market.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         time:
@@ -51,6 +58,16 @@ class DeclarationsSpec(BaseSpec):
 
         agents:
             The path of the agent group and the variable of every symbol of agents.
+
+    See Also:
+        BlockSpec: The values and symbols of one component.
+        EntrySpec: Where one value sits in a vector.
+
+    Examples:
+        >>> from skcomplex.core.engine._utils import symbol
+        >>> from skcomplex.core.engine.problems._declarations_spec import DeclarationsSpec
+        >>> DeclarationsSpec(symbol('t')).states
+        ()
     """
 
     time: Expression

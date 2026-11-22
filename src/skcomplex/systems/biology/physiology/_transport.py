@@ -13,12 +13,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, CallSpec, RateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class VesselSegmentElement(Element):
@@ -30,11 +33,14 @@ class VesselSegmentElement(Element):
         label:
             The label of the segment or of the group on the edges.
 
-        visual:
-            How the segment is drawn, or `None` for `default_visual_`.
-
         C:
             The initial conductance.
+
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
+        on:
+            `'edges'` for one member per edge of a network space, or `None` for one per site.
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import VesselSegmentElement
@@ -45,11 +51,12 @@ class VesselSegmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        C: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.C = C
 
 
@@ -97,12 +104,12 @@ class FlowAdaptationInteraction(Interaction):
         self,
         label: str,
         *,
-        vessels: Annotated[str, RoleSpec()],
+        vessels: Role,
         edges: Sequence[tuple[int, int]] = (),
         h: Sequence[float] = (),
-        alpha1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        alpha1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label)
         self.vessels = vessels
@@ -112,21 +119,19 @@ class FlowAdaptationInteraction(Interaction):
         self.alpha2 = alpha2
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the adaptation of every conductance to the pressure drop.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the adaptation of every conductance to the pressure drop.
 
         The pressure drop is that of the current flows.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
+        super()._prepare(context)
+        s = context
         rate = CallSpec(self._get_adaptation, (s.vessels.C, s.alpha1, s.alpha2, s.gamma), vectorized=True)
-        return [RateLaw(s.vessels.C, rate)]
+        self.laws_: list[BaseLaw] = [RateLaw(s.vessels.C, rate)]
 
     def _get_adaptation(
         self,
@@ -191,9 +196,15 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import AdaptiveFlowNetworkSystem
-        >>> AdaptiveFlowNetworkSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> AdaptiveFlowNetworkSystem(3).prepare().system_.elements[0].C.size
         12
     """
 
@@ -213,8 +224,10 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         inflow: float | None = None,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.side = side
         self.alpha1 = alpha1
         self.alpha2 = alpha2
@@ -222,11 +235,14 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.inflow = inflow
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a square grid of vessels.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a square grid of vessels.
 
-        It is fed at one corner and drained at every other node.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         graph = nx.convert_node_labels_to_integers(nx.grid_2d_graph(self.side, self.side))
         space = NetworkSpace(graph).prepare()
         sources, targets = space.edges_[None]
@@ -235,13 +251,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         h = np.full(n_nodes, -supply / (n_nodes - 1))
         h[0] = supply
         rng = np.random.default_rng(self.seed)
-        vessels = GroupElement(
-            'vessels',
-            element=VesselSegmentElement,
-            space=space,
-            on='edges',
-            values={'C': rng.uniform(0.5, 1.5, n_edges)},
-        )
+        vessels = VesselSegmentElement('vessels', C=rng.uniform(0.5, 1.5, n_edges), space=space, on='edges')
         adaptation = FlowAdaptationInteraction(
             'adaptation',
             vessels='vessels',
@@ -251,4 +261,4 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
             alpha2=self.alpha2,
             gamma=self.gamma,
         )
-        return CompositeSystem(self.label, elements=[vessels], interactions=[adaptation])
+        self.system_ = System(self.label, elements=[vessels], interactions=[adaptation])

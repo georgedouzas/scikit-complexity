@@ -14,30 +14,31 @@ import skfem
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.spaces import LatticeSpace, MeshSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import IMEXEulerSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, IMEXEulerSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.fields import DiffusivityInteraction
 
 
 class HeatElement(Element):
-    """Site of a plate with the temperature `u` and the heat diffusion coefficient `D`.
+    """Sites of a plate with the temperature `u` and the heat diffusion coefficient `D`.
 
     Args:
         label:
-            The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
+            The label of the plate.
 
         u:
-            The initial temperature.
+            The initial temperature, one value per site or one for all.
 
         D:
             The diffusion coefficient.
+
+        space:
+            The lattice or the mesh of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.heat import HeatElement
@@ -48,12 +49,12 @@ class HeatElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        u: object = 0.0,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.u = u
         self.D = D
 
@@ -81,10 +82,16 @@ class HeatDiffusionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
-        >>> HeatDiffusionSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> HeatDiffusionSystem((10, 10), boundary='fixed').prepare().system_.elements[0].space.boundary
+        {'u': ('fixed', 0.0)}
     """
 
     field = 'physics/heat'
@@ -101,39 +108,32 @@ class HeatDiffusionSystem(BaseSystem):
         spacing: float = 1.0,
         boundary: str = 'zero-flux',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.D = D
         self.spacing = spacing
         self.boundary = boundary
 
-    def _build_system(self) -> CompositeSystem:
-        """Return heat diffusing on a plate from a hot square in its middle.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of heat diffusing on a plate from a hot square in its middle.
 
-        The temperature follows `du/dt = D laplacian(u)`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         shape = tuple(self.shape)
         u = np.zeros(shape)
         middle = tuple(slice(size // 2 - max(size // 8, 1), size // 2 + max(size // 8, 1)) for size in shape)
         u[middle] = 1.0
         condition = ('fixed', 0.0) if self.boundary == 'fixed' else self.boundary
-        space = LatticeSpace(shape, spacing=self.spacing)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                FieldElement(
-                    'plate',
-                    element=HeatElement,
-                    space=space,
-                    boundary={'u': condition},
-                    values={'u': u, 'D': self.D},
-                ),
-            ],
-            interactions=[
-                DiffusivityInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
-            ],
-        )
+        space = LatticeSpace(shape, spacing=self.spacing, boundary={'u': condition})
+        plate = HeatElement('plate', u=u.ravel(), D=self.D, space=space)
+        conduction = DiffusivityInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D)
+        self.system_ = System(self.label, elements=[plate], interactions=[conduction])
 
 
 def harmonic(x: Array, y: Array) -> Array:
@@ -182,9 +182,15 @@ class HeatLShapeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for implicit Euler steps of 0.05.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.heat import HeatLShapeSystem
-        >>> HeatLShapeSystem(1).prepare().system_.elements[0].prepare().size_
+        >>> HeatLShapeSystem(1).prepare().system_.elements[0].space.prepare().size_
         21
     """
 
@@ -193,7 +199,6 @@ class HeatLShapeSystem(BaseSystem):
     references = ('Strang and Fix 1973', 'Gustafsson and McBain 2020')
     until = 2.0
     dt = 0.1
-    solver = IMEXEulerSolver(dt=0.05)
 
     def __init__(
         self,
@@ -202,29 +207,24 @@ class HeatLShapeSystem(BaseSystem):
         D: float = 1.0,
         temperature: Callable[[Array, Array], Array] | float = harmonic,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.refine = refine
         self.D = D
         self.temperature = temperature
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of heat on the L-shaped mesh with fixed boundary temperatures.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         grid = skfem.MeshTri.init_lshaped().refined(self.refine)
-        mesh = MeshSpace(grid.p, grid.t)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                FieldElement(
-                    'plate',
-                    element=HeatElement,
-                    space=mesh,
-                    boundary={'u': ('fixed', self.temperature)},
-                    values={'D': self.D},
-                    discretization='finite-element',
-                ),
-            ],
-            interactions=[
-                DiffusivityInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D),
-            ],
-        )
+        mesh = CellComplexSpace(points=grid.p, cells=grid.t, boundary={'u': ('fixed', self.temperature)})
+        plate = HeatElement('plate', D=self.D, space=mesh)
+        conduction = DiffusivityInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D)
+        self.system_ = System(self.label, elements=[plate], interactions=[conduction], solver=IMEXEulerSolver(dt=0.05))

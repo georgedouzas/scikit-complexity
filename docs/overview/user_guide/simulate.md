@@ -3,7 +3,7 @@
 This tutorial runs the predator and prey model of the [build tutorial](build_a_custom_system/index.md) and reads what
 the run returns. It sets the [run settings](glossary.md#run-settings), chooses a [solver](glossary.md#solver) and a [backend](glossary.md#backend) from the [tags](glossary.md#tag) of the [system](glossary.md#system), makes random runs
 reproducible, records and replays their draws, and closes with large systems, external simulators, and systems whose
-parts need different solvers.
+components need different solvers.
 
 ## The first run
 
@@ -18,7 +18,6 @@ San Diego State University) to Purves, Sadava, Orians, and Heller, *Life: The Sc
 ```python
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 years = np.arange(1900, 1921)
@@ -31,13 +30,14 @@ lynx = np.array(
     + [8.0, 12.3, 19.5, 45.7, 51.1, 29.7, 15.8, 9.7, 10.1, 8.6]
 )
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-trajectory = simulate(system, until=20, dt=1.0)
+trajectory = system.prepare().simulate(until=20, dt=1.0)
 trajectory.get_values('prey.x').round(1)[:6].tolist()
 ```
 
-[simulate][skcomplex.core.engine.runtime.simulate] checks the system, compiles its [laws](glossary.md#law) into one problem, picks a
-solver, and advances the problem from time 0 to `until` in [frames](glossary.md#frame) of `dt`. Here a frame is one year. The simulated hares
-rise from 30.0 to 81.2 thousand in 1903 and fall to 18.6 thousand in 1905, as the records do.
+[prepare][skcomplex.core.systems.System.prepare] checks the system, compiles its [laws](glossary.md#law) into one
+problem, and picks a solver. [simulate][skcomplex.core.systems.System.simulate] advances the problem from time 0 to
+`until` in [frames](glossary.md#frame) of `dt`. Here a frame is one year. The simulated hares rise from 30.0 to 81.2
+thousand in 1903 and fall to 18.6 thousand in 1905, as the records do.
 
 ```python continuation
 fit = np.sqrt(np.mean((trajectory.get_values('prey.x') - hares) ** 2))
@@ -49,15 +49,16 @@ of the highest count. The system itself does not change in a run, so the same in
 
 ## The trajectory
 
-A [Trajectory][skcomplex.core.engine.runtime.Trajectory] holds the frames of a run. Every [state](glossary.md#state) and parameter has a
-[dotted name](glossary.md#dotted-name), the [label](glossary.md#label) of its part and the name of the value, such as `prey.x` or `predation.a`.
+A [Trajectory][skcomplex.core.engine.runtime.Trajectory] holds the frames of a run. Every [state](glossary.md#state) and
+parameter has a [dotted name](glossary.md#dotted-name), the [label](glossary.md#label) of its component and the name of
+the value, such as `prey.x` or `predation.a`.
 
 ```python continuation
 trajectory.names, trajectory.times[:3].tolist(), trajectory.states.shape, trajectory.parameters.shape
 ```
 
 - `names` lists the states `prey.x` and `predators.x`, then the parameters `growth.r`, `predation.a`, `predation.b`,
-  and `death.d`, the parameters of the built parts.
+  and `death.d`, the parameters of the built components.
 - `times` holds the time of every frame, 0, 1, 2, and so on.
 - `states` holds one row per frame and one column per state, here 21 frames of 2 states.
 - `parameters` holds one row per frame and one column per parameter, 21 by 4.
@@ -68,21 +69,20 @@ because a [schedule](glossary.md#schedule) may change it during the run, as the 
 ## Run settings
 
 The arguments of `simulate` set how a run starts and evolves. Each one left out comes from the tuned run settings of
-the class of the system, which `get_run_settings()` returns.
+the class of the system, its class attributes such as `until` and `dt`.
 
 ```python continuation
-settings = system.get_run_settings()
-settings['until'], settings['dt'], len(simulate(system).times)
+system.until, system.dt, len(system.prepare().simulate().times)
 ```
 
 `LotkaVolterraSystem` tunes `until=50.0` and `dt=0.1`, so a call without them runs fifty years in 501 frames. The
 settings are these.
 
-- `until` sets the end time. A system without a tuned end time, such as a plain `CompositeSystem`, raises an error
-  that asks for it.
+- `until` sets the end time. A system without a tuned end time, such as a plain `System`, raises an error that asks
+  for it.
 - `dt` sets the time between frames. Without a tuned value it is 1 for discrete maps and [agents](glossary.md#agent). For other forms it
   is 0.01, raised to the smallest of 0.02, 0.05, 0.1, and so on, in steps of 1, 2, and 5 times a power of ten, that
-  keeps the run at most 1000 frames long. So a plain composite run with `until=1000` takes frames of 1.
+  keeps the run at most 1000 frames long. So a plain `System` run with `until=1000` takes frames of 1.
 - `initial_state` replaces initial values of the [elements](glossary.md#element) for one run, by dotted name.
 - `schedule` sets parameters from functions of time at every frame, such as a slow ramp of a control parameter.
 - `solver` and `backend` choose how the run steps and evaluates its laws, as the section on solvers shows.
@@ -96,9 +96,9 @@ A schedule changes a parameter while the system runs, and `initial_state` contin
 Here the first run covers 1900 to 1910, and the second starts from its last frame with predation switched off.
 
 ```python continuation
-first = simulate(system, until=10, dt=1.0)
+first = system.prepare().simulate(until=10, dt=1.0)
 last = {name: first.get_values(name)[-1] for name in ('prey.x', 'predators.x')}
-second = simulate(system, until=10, dt=1.0, initial_state=last, schedule={'predation.a': lambda t: 0.0})
+second = system.prepare().simulate(until=10, dt=1.0, initial_state=last, schedule={'predation.a': lambda t: 0.0})
 second.get_values('prey.x')[0] == first.get_values('prey.x')[-1], second.get_values('prey.x').round(1)[-1]
 ```
 
@@ -107,9 +107,9 @@ predation the hares grow at the rate 0.55 a year and reach 5735.6 thousand in te
 lynx hold back. A ramp works the same way: `schedule={'growth.r': lambda t: 0.55 + 0.01 * t}` raises the birth rate
 from 0.55 to 0.75 over twenty years.
 
-A changed [model parameter](glossary.md#model-parameter), such as `LotkaVolterraSystem(r=0.65)` or `set_params(r=0.65)`, builds a new set of parts,
-which compile again. A schedule changes a value of the built parts, so it names them by their path, such as
-`growth.r`.
+A changed [model parameter](glossary.md#model-parameter), such as `LotkaVolterraSystem(r=0.65)` or `set_params(r=0.65)`,
+builds a new set of components, which compile again. A schedule changes a value of the built components, so it names
+them by their path, such as `growth.r`.
 
 ### Observables and invariants
 
@@ -117,7 +117,7 @@ An [observable](glossary.md#observable) is a value computed from the states at e
 `V = b H - d ln H + a L - r ln L` constant along every orbit, so it serves as a check of the numerical integration.
 
 ```python continuation
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
 
 def get_constant(t, values):
@@ -125,12 +125,12 @@ def get_constant(t, values):
     return 0.024 * prey - 0.80 * np.log(prey) + 0.028 * predators - 0.55 * np.log(predators)
 
 
-constant = ObservableSpec('constant', function=get_constant)
-observed = simulate(system, until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
+constant = Observable('constant', function=get_constant)
+observed = system.prepare().simulate(until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
 observed.get_values('constant').round(4)[[0, -1]].tolist()
 ```
 
-The [ObservableSpec][skcomplex.core.specs.ObservableSpec] reads the dotted names of the states and returns a number,
+The [Observable][skcomplex.core.components.Observable] reads the dotted names of the states and returns a number,
 which the trajectory records under its label. The constant is -2.6514 at the start and at the end, and the run raises
 no error, because it stays within the tolerance of 0.001 that `invariants` gives it. The section on solvers below shows
 a run that leaves it.
@@ -158,10 +158,10 @@ Euler with a step of 0.1 drifts off the orbit, and the [invariant](glossary.md#i
 from skcomplex.core.engine.solvers import EulerSolver, RK4Solver
 from skcomplex.core.errors import ConservationError
 
-rk4 = simulate(system, until=20, dt=1.0, solver=RK4Solver()).get_values('prey.x').round(1)[:6].tolist()
+rk4 = system.set_params(solver=RK4Solver()).prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 euler = EulerSolver(dt=0.1)
 try:
-    simulate(system, until=20, dt=1.0, solver=euler, observables=[constant], invariants={'constant': 1e-3})
+    system.set_params(solver=euler).prepare().simulate(until=20, dt=1.0, observables=[constant], invariants={'constant': 1e-3})
 except ConservationError as error:
     message = str(error)
 rk4, message
@@ -170,6 +170,37 @@ rk4, message
 `RK4Solver`, the classical Runge-Kutta method of order four, gives the same hares as the default solver. The message
 says that the invariant changed from -2.65142 to -2.64349 at frame 1, time 1, beyond its tolerance. Forward Euler gains
 a little on every turn of the cycle, so a smaller step or a solver of higher order fixes it.
+
+### One model, two solvers
+
+The solver is a setting of the system, not of its components, so the same laws can run in two ways. In the reaction
+`A + B -> C` of the [running examples](index.md#the-running-examples), a `JumpLaw` fires at the rate `0.01 a b` and
+turns one molecule of `A` and one of `B` into one of `C`. By default the system is a jump process, run molecule by
+molecule by `GillespieSolver`. Given `ScipyODESolver()`, the same system runs the rate equations of the mean, which
+chemists write for large amounts.
+
+```python continuation
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import JumpLaw
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.systems import System
+
+bind = Interaction(
+    'bind',
+    roles={'a': 'A', 'b': 'B', 'c': 'C'},
+    laws=lambda s: [JumpLaw(0.01 * s.a.n * s.b.n, {s.a.n: -1, s.b.n: -1, s.c.n: +1})],
+)
+molecules = [Element('A', values={'n': 100}), Element('B', values={'n': 80}), Element('C', values={'n': 0})]
+network = System(elements=molecules, interactions=[bind]).prepare()
+counted = network.simulate(until=5, dt=1, random_state=0).get_values('C.n').tolist()
+averaged = network.set_params(solver=ScipyODESolver()).prepare().simulate(until=5, dt=1).get_values('C.n')
+counted, averaged.round(1).tolist()
+```
+
+The jumps make 43, 58, 65, 68, and 69 molecules of `C` after one to five time units, and the rate equations make 42.0,
+56.9, 64.3, 68.8, and 71.7. With a hundred molecules the two agree within a few, and the fewer the molecules, the more
+chance decides what happens.
 
 ### Backends
 
@@ -208,7 +239,7 @@ reactions = {
     'deaths': ({'lynx': 1}, {}, 0.80),
 }
 jumps = ReactionNetworkSystem(species={'hares': 30, 'lynx': 4}, reactions=reactions, mode='jump')
-runs = [simulate(jumps, until=20, dt=1.0, random_state=seed).get_values('hares.x')[:6].tolist() for seed in (0, 0, 1)]
+runs = [jumps.prepare().simulate(until=20, dt=1.0, random_state=seed).get_values('hares.x')[:6].tolist() for seed in (0, 0, 1)]
 jumps.get_tags().randomness, runs
 ```
 
@@ -220,7 +251,7 @@ hares, 30, 41, 58, 78, 44, and 9, and the seed 1 gives another path, 30, 49, 64,
 A random run answers a question the equations cannot, such as how often the lynx die out within ten years.
 
 ```python continuation
-ends = [simulate(jumps, until=10, dt=1.0, random_state=seed).get_values('lynx.x')[-1] for seed in range(20)]
+ends = [jumps.prepare().simulate(until=10, dt=1.0, random_state=seed).get_values('lynx.x')[-1] for seed in range(20)]
 sum(end == 0 for end in ends)
 ```
 
@@ -236,7 +267,7 @@ number of equal steps on NumPy and Numba, and the Gillespie solver draws its eve
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 
 paths = [
-    simulate(jumps, until=20, dt=1.0, random_state=0, backend=backend).get_values('hares.x')
+    jumps.set_params(backend=backend).prepare().simulate(until=20, dt=1.0, random_state=0).get_values('hares.x')
     for backend in (NumpyBackend(), NumbaBackend())
 ]
 bool((paths[0] == paths[1]).all())
@@ -256,12 +287,12 @@ distribution from its own parameters and states, and its trajectory holds the to
 draws as `log_probability`.
 
 ```python continuation
-recorded = simulate(jumps, until=20, dt=1.0, random_state=0, record_draws=True)
+recorded = jumps.prepare().simulate(until=20, dt=1.0, random_state=0, record_draws=True)
 scores = {}
 for birth_rate in (0.45, 0.55, 0.65):
     changed = {**reactions, 'births': ({'hares': 1}, {'hares': 2}, birth_rate)}
     candidate = ReactionNetworkSystem(species={'hares': 30, 'lynx': 4}, reactions=changed, mode='jump')
-    replayed = simulate(candidate, until=20, dt=1.0, random_state=0, replay=recorded)
+    replayed = candidate.prepare().simulate(until=20, dt=1.0, random_state=0, replay=recorded)
     scores[birth_rate] = round(float(replayed.log_probability), 1)
 len(recorded.draws.firing_times), bool((replayed.states == recorded.states).all()), scores
 ```
@@ -286,12 +317,11 @@ example, a gas of 50,000 molecules, shows one.
 
 ```python
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
-gas = IdealGasSystem(n_molecules=50_000, random_state=0)
-trajectory = simulate(gas, until=0.5, dt=0.01, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
+gas = IdealGasSystem(n_molecules=50_000, random_state=0, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
+trajectory = gas.prepare().simulate(until=0.5, dt=0.01)
 trajectory.get_values('gas.x').shape
 ```
 
@@ -303,22 +333,13 @@ A law can call a fast function of its own, once per member, with `CallSpec(funct
 groups grows at a rate that saturates with its size.
 
 ```python
-from typing import Annotated
-
 import numba
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec
-
-
-class PopulationElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
-        super().__init__(label)
-        self.n = n
+from skcomplex.core.components.laws import CallSpec, RateLaw
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
 @numba.njit
@@ -326,21 +347,20 @@ def saturating(t, n, r):
     return r * n / (1 + n)
 
 
-class SaturationInteraction(Interaction):
-    def __init__(self, label, *, target: Annotated[str, RoleSpec()], r: Annotated[float, ParameterSpec()] = 1.0):
+class Saturation(Interaction):
+    def __init__(self, label, *, target: Role, r=1.0):
         super().__init__(label)
         self.target = target
         self.r = r
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.n, CallSpec(saturating, (s.target.n, s.r)))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        self.laws_ = [RateLaw(s.target.n, CallSpec(saturating, (s.target.n, s.r)))]
 
 
-herds = CompositeSystem(
-    elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
-    interactions=[SaturationInteraction('growth', target='herds')],
-)
-round(float(simulate(herds, until=1, dt=0.1).get_values('herds.n')[-1, 0]), 4)
+herds = Element('herds', values={'n': 1.0}, size=2000)
+system = System(elements=[herds], interactions=[Saturation('growth', target='herds')])
+round(float(system.prepare().simulate(until=1, dt=0.1).get_values('herds.n')[-1, 0]), 4)
 ```
 
 Each herd grows from 1 to 1.5571 in one time unit. A function compiled with Numba runs inside the compiled kernels,
@@ -356,58 +376,46 @@ Rerun visualization. `LammpsSolver` runs particle systems in LAMMPS, which integ
 100 atoms under the Lennard-Jones potential and a drag start on a square grid.
 
 ```python
-from typing import Annotated
-
 import numpy as np
+from sage.all__sagemath_symbolics import sqrt
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import PairInteraction, RateInteraction
-from skcomplex.core.components.laws.utils import derivative
-from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.engine.solvers import LammpsSolver
-from skcomplex.core.specs import ParameterSpec, StateSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 
-class AtomElement(Element):
-    def __init__(
-        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
-    ):
+class LennardJones(Interaction):
+    def __init__(self, label, *, target: Role, cutoff=2.5, epsilon=1.0, sigma=1.0):
         super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
-
-
-class LennardJonesInteraction(PairInteraction):
-    def __init__(
-        self,
-        label,
-        first,
-        second,
-        cutoff=1.0,
-        position='x',
-        *,
-        epsilon: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label, first, second, cutoff=cutoff, position=position, potential=self._get_energy)
+        self.target = target
+        self.cutoff = cutoff
         self.epsilon = epsilon
         self.sigma = sigma
 
-    @staticmethod
-    def _get_energy(s, r):
-        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+    def _prepare(self, s):
+        super()._prepare(s)
+        x = s.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        force = 24 * s.epsilon * (2 * (s.sigma / r) ** 12 - (s.sigma / r) ** 6) / r**2 * separation
+        self.laws_ = [RateLaw(x.diff(s.t, 2), neighbors(force, RadiusNeighborhood(self.cutoff)))]
 
 
-class DragInteraction(RateInteraction):
-    def __init__(self, label, *, target, gamma: Annotated[float, ParameterSpec()] = 1.0):
-        super().__init__(label, target=target, state='x', rate=self._get_rate)
+class Drag(Interaction):
+    def __init__(self, label, *, target: Role, gamma=1.0):
+        super().__init__(label)
+        self.target = target
         self.gamma = gamma
 
-    @staticmethod
-    def _get_rate(s):
-        return -s.gamma * s.target.x.apply_map(lambda item: derivative(item, 1))
+    def _prepare(self, s):
+        super()._prepare(s)
+        x = s.target.x
+        self.laws_ = [RateLaw(x.diff(s.t, 2), -s.gamma * x.diff(s.t))]
 
 
 def get_pair_coefficients(value):
@@ -420,18 +428,15 @@ def get_drag_fix(fix):
 
 side = np.arange(10) * 1.2
 grid = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
-atoms = CompositeSystem(
-    elements=[GroupElement('atoms', element=AtomElement, size=100, values={'x': grid})],
-    interactions=[
-        LennardJonesInteraction('lj', 'atoms', 'atoms', cutoff=2.5),
-        DragInteraction('air', target='atoms', gamma=1.0),
-    ],
+pairs = {LennardJones: ('lj/cut', get_pair_coefficients)}
+fixes = {Drag: get_drag_fix}
+atoms = System(
+    elements=[Element('atoms', values={'x': grid}, size=100)],
+    interactions=[LennardJones('lj', target='atoms'), Drag('air', target='atoms', gamma=1.0)],
     space=ContinuousSpace(n_dim=2),
+    solver=LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes),
 )
-pairs = {LennardJonesInteraction: ('lj/cut', get_pair_coefficients)}
-fixes = {DragInteraction: get_drag_fix}
-solver = LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes)
-trajectory = simulate(atoms, until=1, dt=0.05, solver=solver, random_state=0)
+trajectory = atoms.prepare().simulate(until=1, dt=0.05, random_state=0)
 trajectory.get_values('atoms.x').shape
 ```
 
@@ -448,36 +453,85 @@ function in `fixes` reads a seed from the random state of the run with `fix.seed
 Before the first frame the solver checks the system. It raises one error that lists every element, interaction, and
 law it cannot run. The library translates a system to LAMMPS as follows.
 
-- Elements and groups with a vector position of order 2, such as `AtomElement`, become one atom type per element or
-  group. The velocities of the atoms are the first derivatives of the positions. Their mass is the parameter that the
-  `divisor` of their interactions names, or 1 without one.
+- Elements and groups with a vector position whose laws set its second derivative, such as `atoms`, become one atom
+  type per element or group. The velocities of the atoms are the first derivatives of the positions. Their mass is their value `m`, or 1
+  without one.
 - Two or three dimensions become `dimension 2` with `fix enforce2d`, or `dimension 3`.
 - `ContinuousSpace(extent, boundary='reflecting')` becomes `fix wall/reflect` at `0` and the extent.
 - `ContinuousSpace(extent, boundary='periodic')` becomes periodic boundaries of the extent, shared by every group.
 - A class in `pairs`, such as `LennardJonesInteraction`, becomes its native pair style, such as `pair_style lj/cut`.
-- Any other `PairInteraction` with a potential becomes `pair_style lepton`, with the potential printed as a
-  Lepton expression.
 - A class in `fixes` becomes its native fix, such as `fix addforce`, `fix viscous`, or `fix langevin`.
 - Any other interaction that only changes the derivatives of the positions becomes `fix external`, which the library
   evaluates at every step.
 
 ## Co-simulation
 
-Some systems hold parts that need different solvers, such as farming agents next to the differential equation of the
-land they harvest. Such a system is split into [partitions](glossary.md#partition) at the boundaries of its [nested systems](glossary.md#nested-system), and each partition
-runs with its own solver.
+Some systems hold components that need different solvers, such as farming agents next to the differential equation of
+the land they harvest. Such a system is split into [partitions](glossary.md#partition) at the boundaries of its [nested
+systems](glossary.md#nested-system), and each partition runs with its own solver.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.economics.resources import HarvestingSystem
 
-trajectory = simulate(HarvestingSystem(farmers=10, effort=0.05), until=50, random_state=0)
+trajectory = HarvestingSystem(farmers=10, effort=0.05).prepare().simulate(until=50, random_state=0)
 round(trajectory.get_values('land/stock.n')[-1]), trajectory.get_agents('village/farmers', 50).values['wealth'].size
 trajectory.get_values('village/farmers_count.value')[-1]
 ```
 
 The land is a differential equation and the village holds agents, so each runs as its own partition. After fifty years
 the village still counts 10 farmers.
+
+Each nested system keeps the time its own laws imply, and no time is given to any of them. A nested system whose laws
+are updates steps once per unit of time, and one whose laws are rates runs in continuous time between those steps. A
+heater that a thermostat switches once a minute is a discrete controller next to a continuous room.
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
+
+
+class Heating(Interaction):
+    def __init__(self, label, *, room: Role, heater: Role, k=0.1):
+        super().__init__(label)
+        self.room = room
+        self.heater = heater
+        self.k = k
+
+    def _prepare(self, context):
+        super()._prepare(context)
+        room, t = context.room, context.t
+        self.laws_ = [RateLaw(room.T.diff(t), -context.k * room.T + context.heater.power)]
+
+
+class Thermostat(Interaction):
+    def __init__(self, label, *, heater: Role, room: Role):
+        super().__init__(label)
+        self.heater = heater
+        self.room = room
+
+    def _prepare(self, context):
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.heater.power, (context.room.T < 5) * 1.0)]
+
+
+house = System(
+    systems=[
+        System('control', elements=[Element('heater', values={'power': 0.0})]),
+        System('house', elements=[Element('room', values={'T': 0.0})]),
+    ],
+    interactions=[
+        Thermostat('thermostat', heater='control/heater', room='house/room'),
+        Heating('heating', room='house/room', heater='control/heater'),
+    ],
+).prepare()
+trajectory = house.simulate(until=60, dt=1)
+house.form_, set(trajectory.get_values('control/heater.power').tolist())
+```
+
+The thermostat changes the heater once a minute, and the room warms or cools in continuous time in between.
 
 Every nested system whose laws fit one form becomes a partition. A law joins the partition that owns its target, so
 an interaction of the parent system may contribute to several partitions. A nested system whose own elements mix law

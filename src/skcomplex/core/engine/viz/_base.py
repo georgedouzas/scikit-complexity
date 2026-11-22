@@ -1,10 +1,10 @@
-"""Define the base class of visuals."""
+"""Define the base of the visuals, which draw one element in Rerun."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 
-from typing import Self
+from typing import ClassVar, Self
 
 import networkx as nx
 import numpy as np
@@ -14,10 +14,11 @@ import rerun.blueprint as rrb
 
 from ...base import BaseConfig
 from ...components.spaces import BaseSpace, NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ...specs import AgentSnapshotSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..enums import ComplexComponentKind
+from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._layout_spec import LayoutSpec
 
 UPWARD = np.array([1.0, -1.0])
 LAYOUT_SEED = 0
@@ -26,9 +27,7 @@ POINT_SHARE = 0.02
 CROWD_SIZE = 10
 CROWD_EXPONENT = 0.25
 GRID_RADIUS = 0.4
-MODULUS = 'modulus'
-PHASE = 'phase'
-PARTS = ('real', 'imag')
+PARTS = (ComplexComponentKind.REAL, ComplexComponentKind.IMAG)
 SERIES_COLORS = (
     (230, 159, 0),
     (86, 180, 233),
@@ -73,15 +72,17 @@ PHASE_PALETTE = (
 
 
 class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
-    """An abstract visual, which logs a part of a system to Rerun at every frame.
+    """An abstract visual, which logs a component of a system to Rerun at every frame.
 
-    A visual logs the state of one element or agent group to a Rerun recording. A visual follows the common API of the
-    engine. `prepare(problem)` finds the element or agent group of the problem at the entity path `path`, forgets what
-    earlier frames left, and sets the Rerun views that show what the visual logs. `run(frame)` logs the element at one
-    frame to the recording `recording`: a compiled element through the hook `_log`, and agents through the hook
-    `_log_agents` with the snapshot of the frame. Subclasses implement `_log`, `_log_agents`, or both, declare their
-    views with `_views`, and are named by the kind of a `VisualSpec`. `RerunObserver` builds the visual of every element
-    and agent group with their path and its recording.
+    A subclass draws the values of one element or group in the Rerun viewer, such as the prey of a predator and prey
+    system in `ScalarsVisual(path='prey')`. `prepare(problem)` finds the element at `path` and sets the views that show
+    it, and `run(frame)` draws it at one frame. A subclass draws elements with `_log`, agents with `_log_agents`, and
+    names its views with `_views`. A subclass lists the options that take numbers in `numeric_options`, so that
+    `RerunObserver` evaluates such an option given as an expression of parameters, such as `'R_0 / 2'`.
+    `RerunObserver` builds one visual per element. Its subclasses draw the populations of an ecosystem, the spins of a
+    magnet, and the traders of a market.
+
+    Read more in the user guide, under Observe.
 
     Args:
         path:
@@ -106,15 +107,20 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         views_:
             The Rerun views that show what the visual logs, each with an entity path of the element as origin.
 
+    See Also:
+        RerunObserver: Builds the visual of every element and logs the frames of a run.
+        ScalarsVisual: Draws the values of an element as lines over time.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.viz import ScalarsVisual
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
-        >>> problem = simulate(LotkaVolterraSystem(), until=0).problem
+        >>> problem = LotkaVolterraSystem().prepare().simulate(until=0).problem
         >>> visual = ScalarsVisual(path='prey').prepare(problem)
         >>> visual.element_.path, str(visual.views_[0].origin)
         ('prey', 'prey')
     """
+
+    numeric_options: ClassVar[tuple[str, ...]] = ()
 
     def __init__(self, *, path: str | None = None, recording: rr.RecordingStream | None = None) -> None:
         self.path = path
@@ -149,7 +155,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)
         problem = context
-        items: list[CompiledElementSpec | CompiledAgentsSpec] = [*problem.elements, *problem.agents]
+        items: list[CompiledElementSpec | _CompiledAgentsSpec] = [*problem.elements, *problem.agents]
         elements = {item.path: item for item in items}
         if self.path not in elements:
             error_msg = (
@@ -157,7 +163,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
                 f'{", ".join(elements)}.'
             )
             raise ValidationError(error_msg)
-        self.element_: CompiledElementSpec | CompiledAgentsSpec = elements[self.path]
+        self.element_: CompiledElementSpec | _CompiledAgentsSpec = elements[self.path]
         self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
         self.space_: BaseSpace | None = problem.agent_space
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
@@ -182,7 +188,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         if self.recording_ is None:
             error_msg = 'No Rerun recording is active. Pass `recording` or start one with `rerun.init`.'
             raise ValidationError(error_msg)
-        if isinstance(self.element_, CompiledAgentsSpec):
+        if isinstance(self.element_, _CompiledAgentsSpec):
             snapshot = inputs.agents.get(self.element_.path)
             if snapshot is not None:
                 self._log_agents(self.recording_, self.element_.path, snapshot, self.space_)
@@ -223,7 +229,11 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         super().run(frame, final)
         return self
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the Rerun views that show what the visual logs for an element.
 
         By default there are none.
@@ -362,6 +372,15 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         It is smaller for crowds so they do not overlap.
         """
         return POINT_SHARE * (extent if extent > 0 else 1.0) / max(count / CROWD_SIZE, 1.0) ** CROWD_EXPONENT
+
+    @staticmethod
+    def _get_state_path(path: str, state: str) -> str:
+        """Return the entity path of a state, naming a derivative with primes.
+
+        The derivative `x_d1` of `node_0` is logged under the escaped form of `node_0/x'`, as Rerun writes a prime in
+        an entity path.
+        """
+        return f'{path}/{rr.escape_entity_path_part(LayoutSpec._get_display_name(state))}'
 
     @staticmethod
     def _log_scalars(recording: rr.RecordingStream, path: str, value: object) -> None:

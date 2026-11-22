@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import NetworkMeasuresResult, network_measures
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
 from skcomplex.systems.social.segregation import SchellingSystem
@@ -18,7 +17,7 @@ def _network(kind: str, source: object, **settings: object) -> NetworkMeasuresRe
 
 def _schelling_contacts() -> nx.Graph:
     """Return the network of neighbouring residents of a relaxed Schelling system, with their groups."""
-    trajectory = simulate(SchellingSystem(width=30, height=30, random_state=0), until=100, random_state=0)
+    trajectory = SchellingSystem(width=30, height=30, random_state=0).prepare().simulate(until=100, random_state=0)
     residents = trajectory.get_agents('residents', -1)
     cells = {tuple(int(item) for item in place): index for index, place in enumerate(residents.locations)}
     group = next(iter(residents.values.values()))
@@ -165,7 +164,7 @@ def test_centralities():
 
 def test_network_analysis_of_every_frame_of_a_trajectory():
     """Test that a network trajectory gives one summary per frame and that an ignored setting raises an error."""
-    trajectory = simulate(NetworkDiffusionSystem(), until=0.2, random_state=0)
+    trajectory = NetworkDiffusionSystem().prepare().simulate(until=0.2, random_state=0)
     summary = _network('summary', trajectory)
     assert summary.nodes.tolist() == [34] * len(trajectory.times)
     with pytest.raises(AnalysisError, match='does not read measure'):

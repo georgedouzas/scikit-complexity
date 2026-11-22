@@ -2,8 +2,8 @@
 
 import numpy as np
 
+from skcomplex.core.components.laws import TopologyRequestSpec
 from skcomplex.core.engine.problems._topology_kernel import TopologyKernel
-from skcomplex.core.specs import TopologyRequestSpec
 
 
 def test_topology_kernel_get_independent():

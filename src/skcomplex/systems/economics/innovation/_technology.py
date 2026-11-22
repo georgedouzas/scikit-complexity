@@ -8,27 +8,29 @@ They redesign their components or combine logic circuits.
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 NAND = (2, 0b0111)
 FALSE = (0, 0)
 TRUE = (0, 1)
 
 
-class TechnologyView(AgentView):
+class TechnologyView(AgentViewProtocol, Protocol):
     """Technology as the invention sees it.
 
     It holds its `arity`, its truth `table`, and its `cost` in NAND gates.
@@ -39,7 +41,7 @@ class TechnologyView(AgentView):
     cost: float
 
 
-class PartView(AgentView):
+class PartView(AgentViewProtocol, Protocol):
     """Part of a technology as the redesign sees it: its unit `cost`."""
 
     cost: float
@@ -52,48 +54,27 @@ class PartElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         cost:
             The initial unit cost.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.innovation import PartElement
-        >>> GroupElement('components', element=PartElement, size=5, values={'cost': 0.5}).size
+        >>> PartElement('components', cost=0.5, size=5).size
         5
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        cost: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        cost: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.cost = cost
-
-    @classmethod
-    def _get_view(cls) -> type[PartView]:
-        """Return the view of the agents of the element."""
-        return PartView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since redesigns change several components at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 def _truth_table(arity: int, function: Callable[..., bool]) -> int:
@@ -150,15 +131,15 @@ class InventionInteraction(Interaction):
         6
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        technologies: Annotated[str, RoleSpec()],
-        max_components: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12,
-        max_inputs: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+        technologies: Role,
+        max_components: Annotated[float, RealSet.open(0, oo)] = 12,
+        max_inputs: Annotated[float, RealSet.open(0, oo)] = 3,
     ) -> None:
         super().__init__(label)
         self.technologies = technologies
@@ -181,18 +162,15 @@ class InventionInteraction(Interaction):
             cost += int(part.cost)
         return n_inputs, signals[-1], cost
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the invention rule.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.invent)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.invent)]
 
     def invent(self, system: SystemView) -> None:
         """Wire a random circuit and add it to the pool if it is better.
@@ -203,7 +181,7 @@ class InventionInteraction(Interaction):
             system:
                 The system.
         """
-        pool = system.get_agents('technologies', TechnologyView)
+        pool = cast(list[TechnologyView], system.get_agents('technologies'))
         arity, table, cost = self._wire(pool, system)
         if (arity, table) not in GOALS:
             return
@@ -257,31 +235,28 @@ class RedesignInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        components: Annotated[str, RoleSpec()],
+        components: Role,
         dependencies: Sequence[Sequence[float]] = (),
     ) -> None:
         super().__init__(label)
         self.components = components
         self.dependencies = dependencies
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the redesign rule.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the system.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.redesign)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.redesign)]
 
     def redesign(self, system: SystemView) -> None:
         """Propose new costs for a random component and its dependents.
@@ -292,7 +267,7 @@ class RedesignInteraction(Interaction):
             system:
                 The system.
         """
-        components = sorted(system.get_agents('components', PartView), key=lambda component: component.id)
+        components = sorted(cast(list[PartView], system.get_agents('components')), key=lambda component: component.id)
         cost = np.array([component.cost for component in components])
         proposal, changed = RedesignInteraction._get_components(
             cost,
@@ -330,9 +305,6 @@ class TechnologyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         arity:
             The number of inputs.
 
@@ -342,47 +314,28 @@ class TechnologyElement(Element):
         cost:
             The number of NAND gates in the circuit.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import TechnologyElement
-        >>> GroupElement(
-        ...     'technologies', element=TechnologyElement, size=3, values={'arity': [2, 0, 0], 'table': [7, 0, 1]}
-        ... ).size
+        >>> TechnologyElement('technologies', arity=[2, 0, 0], table=[7, 0, 1], size=3).size
         3
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        arity: Annotated[float, StateSpec(domain=NN)] = 2,
-        table: Annotated[float, StateSpec(domain=NN)] = NAND[1],
-        cost: Annotated[float, StateSpec(domain=NN)] = 1,
+        arity: Annotated[object, NN] = 2,
+        table: Annotated[object, NN] = NAND[1],
+        cost: Annotated[object, NN] = 1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.arity = arity
         self.table = table
         self.cost = cost
-
-    @classmethod
-    def _get_view(cls) -> type[TechnologyView]:
-        """Return the view of the agents of the element."""
-        return TechnologyView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since inventions combine several technologies at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class NkTechnologySystem(BaseSystem):
@@ -406,17 +359,23 @@ class NkTechnologySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import NkTechnologySystem
         >>> NkTechnologySystem(5, 1).prepare().system_.interactions[0].dependencies[0]
-        [1.0, 0.0, 0.0, 0.0, 0.0]
+        (1.0, 0.0, 0.0, 0.0, 0.0)
     """
 
     field = 'economics/innovation'
     topics = ('innovation', 'technology', 'learning curve', 'agents')
     references = ('Thurner et al. 2018', 'McNerney et al. 2011')
     until = 200
-    observables = (ObservableSpec('total_cost', group='components', reduce='sum', variable='cost'),)
+    observables = (Observable('total_cost', group='components', reduce='sum', variable='cost'),)
 
     def __init__(
         self,
@@ -425,8 +384,10 @@ class NkTechnologySystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_components = n_components
         self.d = d
         self.random_state = random_state
@@ -443,20 +404,22 @@ class NkTechnologySystem(BaseSystem):
             matrix[others, column] = 1.0
         return matrix
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         dependencies = self._get_design_structure(self.n_components, self.d, rng)
-        components = GroupElement(
-            'components',
-            element=PartElement,
-            size=self.n_components,
-            values={'cost': rng.random(self.n_components)},
-        )
-        return CompositeSystem(
+        components = PartElement('components', cost=rng.random(self.n_components), size=self.n_components)
+        self.system_ = System(
             self.label,
             elements=[components],
-            interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
+            interactions=[
+                RedesignInteraction(
+                    'redesign',
+                    components='components',
+                    dependencies=tuple(map(tuple, dependencies.tolist())),
+                ),
+            ],
         )
 
 
@@ -479,9 +442,15 @@ class ArthurPolakSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.innovation import ArthurPolakSystem
-        >>> ArthurPolakSystem().prepare().system_.elements[0].prepare().size_
+        >>> ArthurPolakSystem().prepare().system_.elements[0].size
         3
     """
 
@@ -496,24 +465,23 @@ class ArthurPolakSystem(BaseSystem):
         max_components: int = 12,
         max_inputs: int = 3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.max_components = max_components
         self.max_inputs = max_inputs
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         primitives = (NAND, FALSE, TRUE)
-        technologies = GroupElement(
+        technologies = TechnologyElement(
             'technologies',
-            element=TechnologyElement,
+            arity=[float(arity) for arity, _ in primitives],
+            table=[float(table) for _, table in primitives],
+            cost=[1.0, 0.0, 0.0],
             size=len(primitives),
-            values={
-                'arity': [float(arity) for arity, _ in primitives],
-                'table': [float(table) for _, table in primitives],
-                'cost': [1.0, 0.0, 0.0],
-            },
-            variable=True,
         )
         invention = InventionInteraction(
             'invention',
@@ -521,4 +489,4 @@ class ArthurPolakSystem(BaseSystem):
             max_components=float(self.max_components),
             max_inputs=float(self.max_inputs),
         )
-        return CompositeSystem(self.label, elements=[technologies], interactions=[invention])
+        self.system_ = System(self.label, elements=[technologies], interactions=[invention])

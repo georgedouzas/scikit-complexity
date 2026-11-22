@@ -1,4 +1,4 @@
-"""Lower reads of group members at an offset to neighbour reads."""
+"""Rewrite reads of other members of a group as reads of their positions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,18 +8,19 @@ from collections import defaultdict
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ...components.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws.utils import shift_member
 from ...components.laws.utils._draws import draws_in
 from ...components.spaces import LatticeNeighborhood, LatticeSpace
 from ...components.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
-from ...specs import NeighborReadSpec
 from .._utils import domain_of, symbol, vector
+from ..enums import ReadKind
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
@@ -27,13 +28,14 @@ SHIFT = 'shift_member'
 
 
 class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the member offset reads of the laws of one component.
+    """A lowering that rewrites reads of other members of a group by their offset.
 
-    They are lowered to neighbour reads of the index table of its group. `prepare(compilation)` reads the time of the
-    compilation, and `run(laws)` sets `lowered_`, the laws with every member offset read replaced by a symbol that reads
-    the offset member, whose reference it notes for the spec. A parameter of a single element or interaction is the same
-    at every member and stays as it is. A draw read at an offset stays a member offset read of the draw, which the
-    lowering of draws reads at the offset member.
+    A law of a group may read the member next to the one it changes, such as the car ahead on a road or the next site of
+    a ring of oscillators. This lowering rewrites every such read as a read through a table that gives, for every
+    member, the position of the member at that offset. A parameter of a single element or interaction is the same for
+    every member and stays as it is. It serves the cars of a road, the sites of a ring, and the neurons of a chain.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         spec:
@@ -45,6 +47,18 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         shifted_:
             The member symbol, offset, boundary, and fill that every offset read reads.
+
+    See Also:
+        MemberShiftPass: The pass that runs this lowering.
+        DrawLowering: Reads draws of other members too.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._members import MemberLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> MemberLowering(compilation.specs[0][0]).prepare(compilation).time_
+        t
     """
 
     time_: Expression
@@ -67,7 +81,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         super()._prepare(context)
         layout = self.compilation_.layout
         if layout is None:
-            error_msg = 'The compilation has no layout yet. Lower member offsets after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting member offsets.'
             raise ValidationError(error_msg)
         self.time_ = layout.time
         self.shifted_ = {}
@@ -94,7 +108,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                     else:
                         changes[key] += float(SR(increment))
                 result.append(JumpLaw(self._lower(law.rate), {**changes, **functions}))
-            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
                 result.append(BasePass._get_replaced(law, value=self._lower(law.value)))
             else:
                 result.append(law)
@@ -186,10 +200,15 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         Raises:
             ValidationError:
-                The expression reads a single element, two groups, or nests reads with different boundaries.
+                The expression reads a single element, two groups, or nests reads with different boundaries. An
+                expression of the values of single elements and interactions alone, such as a parameter of a single
+                element, reads no member at an offset.
         """
         expression = self._shift_draws(SR(expression), offset, boundary, fill)
         members = {item: self._get_member(item) for item in expression.variables() if not self._is_single(item)}
+        values = [item for item in expression.variables() if item != self.time_]
+        if offset and values and not members:
+            self._get_member(values[0])
         groups = {self.spec.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
         if len(groups) > 1:
             error_msg = (
@@ -232,7 +251,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return self._shift(SR(self._lower(expression)), offset, boundary, fill)
 
     @staticmethod
-    def _get_neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> NeighborReadSpec:
+    def _get_neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> _NeighborReadSpec:
         """Return the read of the member at an offset of every member of a group.
 
         The group has `rows` members.
@@ -241,7 +260,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         table = lattice._get_index_table(LatticeNeighborhood(((offset,),)))[:, 0]
         ghost = fill if boundary == 'fixed' else None
         kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
-        return NeighborReadSpec(table, ghost, (rows,), (offset,), MODES[kind])
+        return _NeighborReadSpec(table, ghost, (rows,), (offset,), MODES[kind])
 
     @staticmethod
     def _shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
@@ -257,4 +276,4 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 value read past the ends of a fixed boundary.
         """
         expression, offset, boundary, fill = call.operands()
-        return expression, int(offset), BOUNDARIES[int(boundary)], float(fill)
+        return expression, int(offset), BOUNDARIES[int(boundary)].value, float(fill)

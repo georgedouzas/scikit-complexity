@@ -3,14 +3,83 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import abs_symbolic
 
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class StommelSystem(DynamicalSystem):
+class StommelInteraction(Interaction):
+    """Relaxation and mixing of the temperature and salinity differences of two ocean boxes.
+
+    The differences `T` and `S` of the target follow `T' = eta1 - T (1 + |T - S|)` and `S' = eta2 - S (eta3 + |T -
+    S|)`, a relaxation to their forcing and a mixing by a flow proportional to the density difference.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the boxes.
+
+        eta1:
+            The thermal forcing.
+
+        eta2:
+            The freshwater forcing.
+
+        eta3:
+            The ratio of the relaxation times of temperature and salinity.
+
+    Examples:
+        >>> from skcomplex.systems.physics.oceanography import StommelInteraction
+        >>> StommelInteraction('circulation', target='ocean', eta2=1.0).eta2
+        1.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        eta1: float = 3.0,
+        eta2: float = 1.2,
+        eta3: float = 0.3,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.eta1 = eta1
+        self.eta2 = eta2
+        self.eta3 = eta3
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the temperature and salinity differences.
+
+        Args:
+            context:
+                The namespace of the boxes, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        T, S, t = context.target.T, context.target.S, context.t
+        flow = abs_symbolic(T - S)
+        self.laws_ = [
+            RateLaw(T.diff(t), context.eta1 - T * (1 + flow)),
+            RateLaw(S.diff(t), context.eta2 - S * (context.eta3 + flow)),
+        ]
+
+
+class StommelSystem(BaseSystem):
     """Stommel's two-box thermohaline circulation.
 
     The circulation is bistable between a thermal and a haline mode.
@@ -39,9 +108,15 @@ class StommelSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.oceanography import StommelSystem
-        >>> StommelSystem(eta2=1.0).prepare().system_.elements[0].get_value('eta2')
+        >>> StommelSystem(eta2=1.0).prepare().system_.interactions[0].eta2
         1.0
     """
 
@@ -60,36 +135,28 @@ class StommelSystem(DynamicalSystem):
         eta2: float = 1.2,
         eta3: float = 0.3,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label, solver=solver, backend=backend)
         self.T = T
         self.S = S
         self.eta1 = eta1
         self.eta2 = eta2
         self.eta3 = eta3
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'ocean'
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the two ocean boxes and their circulation.
 
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state."""
-        return {
-            'T': self.T,
-            'S': self.S,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the parameters of the equations."""
-        return {
-            'eta1': self.eta1,
-            'eta2': self.eta2,
-            'eta3': self.eta3,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the relaxation of both differences to their forcing and their mixing."""
-        return {
-            'T': lambda s: s.target.eta1 - s.target.T * (1 + abs_symbolic(s.target.T - s.target.S)),
-            'S': lambda s: s.target.eta2 - s.target.S * (s.target.eta3 + abs_symbolic(s.target.T - s.target.S)),
-        }
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('ocean', values={'T': self.T, 'S': self.S})],
+            interactions=[
+                StommelInteraction('circulation', target='ocean', eta1=self.eta1, eta2=self.eta2, eta3=self.eta3),
+            ],
+        )

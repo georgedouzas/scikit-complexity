@@ -9,9 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.spaces import BaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
 
@@ -29,11 +31,14 @@ class SpeciesElement(NonnegativeElement):
         label:
             The label of the species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial concentration.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The space with one member per site, such as a lattice of classes, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import SpeciesElement
@@ -44,11 +49,12 @@ class SpeciesElement(NonnegativeElement):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x, size=size, space=space)
 
 
 class NanoparticleCoronaSystem(BaseSystem):
@@ -91,6 +97,12 @@ class NanoparticleCoronaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import NanoparticleCoronaSystem
         >>> round(NanoparticleCoronaSystem().prepare().system_.interactions[0].k, 7)
@@ -102,7 +114,6 @@ class NanoparticleCoronaSystem(BaseSystem):
     references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Dell\'Orco et al. 2010')
     until = 10800.0
     dt = 60.0
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12)
 
     def __init__(
         self,
@@ -115,8 +126,10 @@ class NanoparticleCoronaSystem(BaseSystem):
         association: Sequence[float] = (2.4e3, 3e4, 2e3),
         dissociation: Sequence[float] = (2e-3, 3e-5, 2e-3),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.nanoparticle = nanoparticle
         self.radius = radius
         self.proteins = proteins
@@ -133,11 +146,12 @@ class NanoparticleCoronaSystem(BaseSystem):
         """
         return 4 * (radius + protein_radius) ** 2 / protein_radius**2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the nanoparticles, the proteins, and the binding and release reactions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the nanoparticles, the proteins, and the binding and release reactions.
 
         The proteins are free and bound, and every protein binds and is released.
         """
+        super()._prepare(context)
         elements = [SpeciesElement('nanoparticle', x=self.nanoparticle)]
         interactions: list[ReactionInteraction] = []
         rows = zip(
@@ -167,4 +181,9 @@ class NanoparticleCoronaSystem(BaseSystem):
                     k=delta,
                 ),
             ]
-        return CompositeSystem(self.label, elements=elements, interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=elements,
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-12),
+        )

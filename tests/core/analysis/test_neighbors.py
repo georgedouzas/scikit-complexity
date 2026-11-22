@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import NeighborsResult, neighbors
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, LennardJonesFluidSystem
@@ -23,11 +22,8 @@ def _neighbors(kind: str, source: object, **settings: object) -> NeighborsResult
 
 def _schelling_grid(side: int) -> np.ndarray:
     """Return the groups of a relaxed Schelling system with tolerance 0.5 on a grid, `EMPTY` for empty cells."""
-    trajectory = simulate(
-        SchellingSystem(width=side, height=side, threshold=0.5, random_state=0),
-        until=100,
-        random_state=0,
-    )
+    system = SchellingSystem(width=side, height=side, threshold=0.5, random_state=0)
+    trajectory = system.prepare().simulate(until=100, random_state=0)
     residents = trajectory.get_agents('residents', -1)
     group = next(iter(residents.values.values()))
     grid = np.full((side, side), EMPTY)
@@ -59,7 +55,7 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
     gas = rng.random((20, 4000, 2)) * 20
     density = _neighbors('radial-distribution', gas, box=[20.0, 20.0], bins=20).distribution
     assert np.all(np.abs(density - 1) < 0.05)
-    trajectory = simulate(LennardJonesFluidSystem(), random_state=0)
+    trajectory = LennardJonesFluidSystem().prepare().simulate(random_state=0)
     box = np.asarray(trajectory.problem.system.space.extent_, dtype=float)
     positions = np.mod(np.asarray(trajectory.get_values('fluid.x'), dtype=float)[-10:], box)
     fluid = _neighbors('radial-distribution', positions, box=box, bins=150, r_max=3.0)
@@ -68,7 +64,7 @@ def test_radial_distribution_of_a_gas_and_a_fluid():
 
 def test_neighbor_distances_of_every_frame_of_a_trajectory():
     """Test that a flock in a periodic box gives one distance per agent and frame and one ratio per frame."""
-    trajectory = simulate(BoidsSystem(), until=3, random_state=0)
+    trajectory = BoidsSystem().prepare().simulate(until=3, random_state=0)
     distances = _neighbors('distances', trajectory).distances
     assert distances.shape == (len(trajectory.times), trajectory.get_agents('flock', 0).ids.size)
     assert np.all(distances > 0)
@@ -80,7 +76,7 @@ def test_like_neighbor_share_same_index_on_two_domains():
     """Test that a relaxed Schelling system and a quenched Ising lattice exceed 0.75, unlike random arrangements."""
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)
-    quench = simulate(IsingSystem(size=64, temperature=1.0).prepare().system_, until=200, dt=1)
+    quench = IsingSystem(size=64, temperature=1.0).prepare().simulate(until=200, dt=1)
     ising = quench.get_lattice('spins.spin')[-1]
     for grid, empty in ((schelling, EMPTY), (ising, None)):
         assert _neighbors('like-share', grid, empty=empty).share[0] > 0.75

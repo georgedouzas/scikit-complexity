@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import lag
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -24,9 +28,6 @@ class EconomyElement(Element):
     Args:
         label:
             The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         k:
             The initial capital per worker.
@@ -40,19 +41,17 @@ class EconomyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        k: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.k = k
 
 
-class SolowGrowthInteraction(RateInteraction):
+class SolowGrowthInteraction(Interaction):
     """Solow growth of the capital per worker `k` of a target.
 
-    It follows `dk/dt = s * k**alpha - delta * k`. A rate interaction on the state `k` whose rate is the saving of a
-    Cobb-Douglas output minus depreciation.
+    It follows `dk/dt = s * k**alpha - delta * k`, the saving of a Cobb-Douglas output minus depreciation.
 
     Args:
         label:
@@ -76,34 +75,33 @@ class SolowGrowthInteraction(RateInteraction):
         0.3
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        target: Role,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        delta: Annotated[float, RealSet.open(0, oo)] = 0.05,
     ) -> None:
-        super().__init__(label, target=target, state='k')
+        super().__init__(label)
+        self.target = target
         self.s = s
         self.alpha = alpha
         self.delta = delta
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate `s * k**alpha - delta * k`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate `s * k**alpha - delta * k` of the capital per worker as the law.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespace of the target.
-
-        Returns:
-            rate:
-                The rate of the capital per worker.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        k = namespace.target.k
-        rate: Expression = namespace.s * k**namespace.alpha - namespace.delta * k
-        return rate
+        super()._prepare(context)
+        k = context.target.k
+        self.laws_: list[BaseLaw] = [RateLaw(k, context.s * k**context.alpha - context.delta * k)]
 
 
 class SolowSystem(BaseSystem):
@@ -127,6 +125,12 @@ class SolowSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import SolowSystem
         >>> SolowSystem(s=0.3).prepare().system_.interactions[0].s
@@ -147,16 +151,19 @@ class SolowSystem(BaseSystem):
         alpha: float = 0.3,
         delta: float = 0.05,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.k = k
         self.s = s
         self.alpha = alpha
         self.delta = delta
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[EconomyElement('economy', k=self.k)],
             interactions=[
@@ -190,9 +197,15 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import MultiplierAcceleratorSystem
-        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].get_value('v')
+        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].values['v']
         0.5
     """
 
@@ -211,8 +224,10 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         v: float = 1.5,
         G: float = 20.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.income = income
         self.previous = previous
         self.c = c
@@ -224,7 +239,7 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         """Return the income of the next period, `c (1 + v) Y_t - c v Y_{t-1} + G`."""
         economy = s.target
         income: Expression = (
-            economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * lag(economy.Y, 1) + economy.G
+            economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * economy.Y(t=s.t - 1) + economy.G
         )
         return income
 
@@ -236,17 +251,23 @@ class MultiplierAcceleratorSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'Y': DeclaredVariableSpec(self.income, StateSpec(lags=1, initial=(100.0,))),
-            'c': DeclaredVariableSpec(self.c, ParameterSpec()),
-            'v': DeclaredVariableSpec(self.v, ParameterSpec()),
-            'G': DeclaredVariableSpec(self.G, ParameterSpec()),
+            'Y': self.income,
+            'Y[-1]': 100.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'c': self.c,
+            'v': self.v,
+            'G': self.G,
         }
 
     def _get_equations(self) -> Equations:
-        """Return the parts of the system built from its model parameters."""
+        """Return the components of the system built from its model parameters."""
         return {
             'Y': self._get_next_income,
         }

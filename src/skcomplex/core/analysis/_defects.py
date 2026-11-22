@@ -8,11 +8,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_fields
-from .types import Source
+from .types import DataSource
 
 FIELD_RANK = 2
 CHARGE_TOLERANCE = 1e-6
@@ -21,9 +22,13 @@ TAGS = AnalysisTags(DataKind.FIELD)
 
 @dataclass(frozen=True)
 class DefectsResult:
-    """A result of `defects`, the point defects of a field of angles.
+    """A result of `defects`, the points where a field of angles winds around.
 
-    They come with their topological charges.
+    It holds, for every frame, the angles, the positions of the defects, and their charges, the number of whole turns
+    the angle makes around each, such as one defect of charge 1 at the centre of a vortex. It reports the vortices of a
+    superfluid, the defects of a liquid crystal, and the swirls of a swarm of bacteria.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         angles:
@@ -34,6 +39,17 @@ class DefectsResult:
 
         charges:
             The charges of the defects at every frame, each an array in the order of `positions`.
+
+    See Also:
+        defects: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import defects
+        >>> rows, columns = np.meshgrid(np.arange(8.0), np.arange(8.0), indexing='ij')
+        >>> result = defects(np.arctan2(rows - 3.5, columns - 3.5), period=2 * np.pi, periodic=False)
+        >>> result.positions[0].tolist(), result.charges[0].tolist()
+        ([[3.5, 3.5]], [1.0])
     """
 
     angles: Array
@@ -42,22 +58,21 @@ class DefectsResult:
 
 
 def defects(
-    source: Source,
+    source: DataSource,
     *,
     period: float = np.pi,
     variables: Sequence[str] | None = None,
     periodic: bool = True,
 ) -> DefectsResult:
-    """Return the point defects of a two-dimensional field of angles at every frame.
+    """Return the points where a field of angles winds around, at every frame.
 
-    They come with their topological charges. The winding around a plaquette of four neighbouring sites is the sum of
-    the differences of the angles along its edges, each wrapped to one period around 0, over `2 pi`. A plaquette with a
-    winding that is not 0 holds a defect of that charge. The charges of a periodic lattice sum to 0.
+    Around every square of four neighbouring sites it adds the changes of the angle along the sides, each wrapped to
+    within half a turn, and divides by a whole turn, so a square the angle winds around once holds a defect of charge 1.
+    The charges of a periodic grid sum to 0. An array of two dimensions holds one frame and one of three dimensions one
+    frame per row. It finds the vortices of a superfluid, the defects of a liquid crystal, and the swirls of a swarm of
+    bacteria.
 
-    An array of two dimensions holds one snapshot, and an array of three dimensions one frame per row of its first axis.
-
-    It appears in many fields. It finds the vortices of a superfluid, the defects of a liquid crystal, and the swirls of
-    a bacterial swarm.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -80,12 +95,15 @@ def defects(
         AnalysisError:
             The period is not positive, or the field is not two-dimensional.
 
+    See Also:
+        alignment: Measures how well the members line up.
+        domains: Finds the regions of a field.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import defects
         >>> rows, columns = np.meshgrid(np.arange(8.0), np.arange(8.0), indexing='ij')
-        >>> vortex = np.arctan2(rows - 3.5, columns - 3.5)
-        >>> result = defects(vortex, period=2 * np.pi, periodic=False)
+        >>> result = defects(np.arctan2(rows - 3.5, columns - 3.5), period=2 * np.pi, periodic=False)
         >>> result.positions[0].tolist(), result.charges[0].tolist()
         ([[3.5, 3.5]], [1.0])
     """

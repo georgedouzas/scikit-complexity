@@ -11,23 +11,36 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ..components.systems import BaseSystem
+from ..engine.problems import NetworkSnapshotSpec
 from ..engine.runtime import Trajectory
-from ..specs import NetworkSnapshotSpec
+from ..systems import BaseSystem
 from ..types import AnyArray, Array
 
 type Point = Mapping[str, Expression | float]
 type Partition = npt.ArrayLike | Callable[[AnyArray], npt.ArrayLike]
-type Source = Trajectory | BaseSystem | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
+type DataSource = Trajectory | BaseSystem | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
 type Run = Trajectory | npt.ArrayLike
-type Runs = Source | list[Run]
-type Item = str | tuple[int, ...]
+type Runs = DataSource | list[Run]
 
 
 class ReservoirNodeProtocol(Protocol):
     """A protocol of a node of ReservoirPy, as the reservoir step reads it.
 
-    It is imported on first use, and it is a reservoir or a ridge readout.
+    It names what `reservoir` uses of a node of ReservoirPy, a reservoir or a ridge readout, which is imported on first
+    use: its state, its weights, and the methods that initialize, run, step, and fit it, such as the fitted readout
+    that turns the features of a sine wave into its next change. It types the nodes of a reservoir model of a chaotic
+    flow, a power demand, or a speech signal.
+
+    Read more in the user guide, under Analyse.
+
+    See Also:
+        reservoir: Fits the nodes this protocol describes.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import reservoir
+        >>> reservoir(np.sin(0.1 * np.arange(400.0)), variables=['x']).step.readout.initialized
+        True
     """
 
     initialized: bool

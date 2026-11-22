@@ -11,9 +11,16 @@ from ...errors import ValidationError
 
 
 class RandomStream:
-    """A random stream of one problem.
+    """A random stream of one problem, the generator its laws draw from.
 
-    A solver binds it when it prepares, and functions of laws read it when it runs.
+    A solver binds the random generator of a run to the stream when it prepares, and the Python functions of laws that
+    draw random numbers read it when they run, so one seed gives the same run every time. It draws the moves of a
+    walker, the shocks of a market, and the mutations of a population.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        DrawKernel: Draws the random numbers of update laws.
 
     Examples:
         >>> import numpy as np

@@ -13,11 +13,12 @@ from scipy.spatial import cKDTree
 from scipy.stats import bootstrap, linregress
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
-from .types import Source
+from .types import DataSource
 
 MIN_LINE_POINTS = 2
 KINDS = (
@@ -57,9 +58,11 @@ KIND_TAGS = {
 class ScalingResult:
     """A result of `scaling`, a scaling exponent, a fractal dimension, or a law.
 
-    The law is a scaling law.
+    It holds what the source was read as, the exponent of every series or the dimension of a set of cells or points,
+    and the curves it is fitted on, such as the dimension 2 of a filled square. It reports the long memory of river
+    flows, the fractal dimension of a coastline, and the critical exponents of a magnet.
 
-    The exponent is that of every series, and the dimension that of a set of cells or points.
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -99,6 +102,15 @@ class ScalingResult:
 
         interval:
             The lower and upper ends of the confidence interval of the allometric exponent, for `'allometric'`.
+
+    See Also:
+        scaling: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import scaling
+        >>> round(scaling(np.ones((256, 256)), kind='box-counting').exponent, 2)
+        2.0
     """
 
     values: Array
@@ -116,7 +128,7 @@ class ScalingResult:
 
 
 def scaling(
-    source: Source | Mapping[float, npt.ArrayLike],
+    source: DataSource | Mapping[float, npt.ArrayLike],
     *,
     kind: str = 'detrended-fluctuation',
     variables: Sequence[str] | None = None,
@@ -133,40 +145,37 @@ def scaling(
 ) -> ScalingResult:
     """Return the scaling exponent of series, fractal dimension of points, or a law.
 
-    The law is a scaling law. The exponent is that of every series, and the dimension that of cells or points.
+    A scaling law says how a measure grows with the size of a window, a box, a radius, or a system, `y ~ s^b`, and the
+    exponent `b` is the slope of `log y` against `log s`, such as 1.5 for the fluctuations of a random walk. The kinds
+    read series, fields, points, or samples at several sizes. It measures the long memory of river flows, the fractal
+    dimension of a coastline, and the critical exponents of a magnet.
 
-    The kinds read series, fields, points, or samples at several sizes:
-
-    - `'detrended-fluctuation'`: the slope of the log fluctuation of the integrated series, detrended in windows by
-      a polynomial of degree `order`, against the log window size. It is 0.5 for white noise, the Hurst exponent `H`
-      for fractional Gaussian noise, and `H + 1` for its integral, such as 1.5 for a random walk.
-    - `'rescaled-range'`: the Hurst exponent by the rescaled range, 0.5 for uncorrelated noise, above 0.5 for
-      persistent and below 0.5 for anti-persistent noise.
-    - `'box-counting'`: the box-counting dimension of the occupied cells of a field, the slope of the log box count
-      against the log box size, read from the last frame of a trajectory.
-    - `'correlation-dimension'`: the Grassberger-Procaccia correlation dimension of a point set, one row per point,
-      such as the columns of an embedded series, from tree counts of close pairs.
-    - `'variance-mean'`: the mean and the standard deviation of a quantity at every scale, and the slope of
-      `log deviation` against `log mean` with `against='mean'`, or of `log (deviation / mean)` against `log size` with
-      `against='size'`. It reads the counts of a density field in square boxes of growing side over every frame, where
-      the slope against the mean is 1/2 for independent particles and above for giant fluctuations, or a mapping from
-      size to samples, where the slope against the size is -1/2 for the sums of independent parts.
-    - `'power'`: the exponent `b` of the power law `y ~ |p - p_c|^b` of every series against the distance of the
-      control `parameters` to the `critical` value, fitted on the side above or below it where `y` is positive, such as
-      the exponent `beta` of an order parameter.
-    - `'allometric'`: the slope of the logarithm of every sample of a quantity against the logarithm of its size, the
-      exponent `b` of `y ~ N^b` across a set of runs, with a bootstrap confidence interval over the pairs. It reads a
-      mapping from size to samples, or two columns of sizes and samples.
-
-    It appears in many fields. It measures the long memory of river flows, the fractal dimension of a coastline, and the
-    critical exponents of a magnet.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, the series, the field, the points, or a mapping from size to samples.
 
         kind:
-            The scaling to measure, one of the kinds above.
+            What to return. `'detrended-fluctuation'` gives the slope of the log fluctuation of the integrated series,
+            detrended in windows by a polynomial of degree `order`, against the log window size, 0.5 for white noise,
+            the Hurst exponent `H` for fractional Gaussian noise, and `H + 1` for its integral. `'rescaled-range'`
+            gives the Hurst exponent by the rescaled range, 0.5 for uncorrelated noise, above 0.5 for persistent and
+            below 0.5 for anti-persistent noise. `'box-counting'` gives the box counting dimension of the occupied
+            cells of a field, the slope of the log box count against the log box size, read from the last frame of a
+            trajectory. `'correlation-dimension'` gives the correlation dimension of Grassberger and Procaccia of a
+            point set, one row per point, such as the columns of an embedded series, from tree counts of close pairs.
+            `'variance-mean'` gives the mean and the standard deviation of a quantity at every scale, and the slope of
+            `log deviation` against `log mean` with `against='mean'`, or of `log (deviation / mean)` against `log size`
+            with `against='size'`. It reads the counts of a density field in square boxes of growing side over every
+            frame, where the slope against the mean is 1/2 for independent particles and above for giant
+            fluctuations, or a mapping from size to samples, where the slope against the size is -1/2 for the sums
+            of independent parts. `'power'` gives the exponent `b` of the power law `y ~ |p - p_c|^b` of every series
+            against the distance of the control `parameters` to the `critical` value, fitted on the side above or
+            below it where `y` is positive, such as the exponent `beta` of an order parameter. `'allometric'` gives
+            the slope of the logarithm of every sample of a quantity against the logarithm of its size, the exponent
+            `b` of `y ~ N^b` across a set of runs, with a bootstrap confidence interval over the pairs. It reads a
+            mapping from size to samples, or two columns of sizes and samples.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series, or the first field for a field.
@@ -213,30 +222,16 @@ def scaling(
             The kind or a setting does not fit, or `'allometric'` reads a sample or a size that is not positive, or
             fewer than two sizes.
 
+    See Also:
+        fit_law: Fits a power law to the tail of a sample.
+        embedding: Gives the points made of delayed copies of one series.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import scaling
         >>> walk = np.cumsum(np.random.default_rng(0).standard_normal(5000))
         >>> scaling(walk).exponent.round(1).tolist()
         [1.5]
-        >>> round(scaling(np.ones((256, 256)), kind='box-counting').exponent, 2)
-        2.0
-        >>> points = np.random.default_rng(0).random((5000, 2))
-        >>> round(scaling(points, kind='correlation-dimension').exponent, 1)
-        2.0
-        >>> counts = np.random.default_rng(0).poisson(5.0, (20, 64, 64))
-        >>> round(scaling(counts, kind='variance-mean').exponent, 1)
-        0.5
-        >>> power = scaling([0.1**0.5, 0.01**0.5], kind='power', parameters=[0.9, 0.99], critical=1.0)
-        >>> power.exponent.round(6).tolist()
-        [0.5]
-        >>> rng = np.random.default_rng(0)
-        >>> samples = {size: size**1.15 * rng.lognormal(0.0, 0.1, 5) for size in (100, 200, 400, 800, 1600)}
-        >>> allometric = scaling(samples, kind='allometric', resamples=200)
-        >>> round(allometric.exponent, 1)
-        1.2
-        >>> bool(allometric.interval[0] < 1.15 < allometric.interval[1])
-        True
     """
     _check_choice('scaling', 'kind', kind, KINDS)
     _check_choice('scaling', 'against', against, AGAINST)
@@ -349,7 +344,7 @@ def _check(
 
 
 def _read(
-    source: Source | Mapping[float, npt.ArrayLike],
+    source: DataSource | Mapping[float, npt.ArrayLike],
     kind: str,
     variables: Sequence[str] | None,
 ) -> tuple[Array, dict[float, Array] | None, list[str]]:

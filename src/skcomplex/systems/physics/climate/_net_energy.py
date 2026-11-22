@@ -6,16 +6,20 @@ The energy return on investment of a finite fossil reserve falls as it is deplet
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 def _get_gross_energy(s: SimpleNamespace) -> Expression:
@@ -50,9 +54,6 @@ class EnergySectorElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         reserve:
             The initial energy reserve.
@@ -90,28 +91,22 @@ class EnergySectorElement(Element):
         20.0
     """
 
-    law_classes = (
-        RateLaw,
-        TransferLaw,
-    )
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        reserve: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='energy')] = 1000.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1.0,
-        reserve_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        initial_eroi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        decline: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        reinvestment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        birth_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        death_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
+        reserve: Annotated[float, RealSet.closed_open(0, oo), Quantity('energy')] = 1000.0,
+        capacity: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        population: Annotated[float, RealSet.closed_open(0, oo), Quantity('people')] = 1.0,
+        reserve_size: Annotated[float, RealSet.open(0, oo)] = 1000.0,
+        initial_eroi: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        decline: Annotated[float, RealSet.open(0, oo)] = 3.0,
+        reinvestment: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        lifetime: Annotated[float, RealSet.open(0, oo)] = 20.0,
+        birth_rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        death_rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.015,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.reserve = reserve
         self.capacity = capacity
         self.population = population
@@ -122,29 +117,6 @@ class EnergySectorElement(Element):
         self.lifetime = lifetime
         self.birth_rate = birth_rate
         self.death_rate = death_rate
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the extraction of the reserve and its energy cost.
-
-        The laws also hold the growth of the capacity and the population.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The transfers out of the reserve, the rate law of the capacity, and the births and deaths.
-        """
-        cost = _get_extraction_cost(s)
-        net = _get_gross_energy(s) - cost
-        return [
-            TransferLaw(s.reserve, Sink('extraction_work'), cost, label='energy_cost'),
-            TransferLaw(s.reserve, Sink('society'), net, label='net_energy'),
-            RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
-            TransferLaw(Source('births'), s.population, s.birth_rate * s.population, label='births'),
-            TransferLaw(s.population, Sink('deaths'), s.death_rate * s.population, label='deaths'),
-        ]
 
 
 def _get_net_per_capita(s: SimpleNamespace) -> Expression:
@@ -189,6 +161,12 @@ class EnergyReturnSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import EnergyReturnSystem
         >>> EnergyReturnSystem(initial_eroi=20.0).prepare().system_.elements[0].initial_eroi
@@ -201,10 +179,10 @@ class EnergyReturnSystem(BaseSystem):
     until = 250.0
     dt = 1.0
     observables = (
-        ObservableSpec('eroi', _get_eroi, element='energy'),
-        ObservableSpec('gross_energy', _get_gross_energy, element='energy'),
-        ObservableSpec('extraction_cost', _get_extraction_cost, element='energy'),
-        ObservableSpec('net_per_capita', _get_net_per_capita, element='energy'),
+        Observable('eroi', _get_eroi, element='energy'),
+        Observable('gross_energy', _get_gross_energy, element='energy'),
+        Observable('extraction_cost', _get_extraction_cost, element='energy'),
+        Observable('net_per_capita', _get_net_per_capita, element='energy'),
     )
 
     def __init__(
@@ -216,16 +194,48 @@ class EnergyReturnSystem(BaseSystem):
         reinvestment: float = 0.1,
         birth_rate: float = 0.03,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.reserve = reserve
         self.capacity = capacity
         self.initial_eroi = initial_eroi
         self.reinvestment = reinvestment
         self.birth_rate = birth_rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    @staticmethod
+    def _get_sector_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the extraction of the reserve and its energy cost.
+
+        The laws also hold the growth of the capacity and the population.
+
+        Args:
+            s:
+                The namespace of the energy sector.
+
+        Returns:
+            laws:
+                The flows out of the reserve, the rate law of the capacity, and the births and deaths.
+        """
+        cost = _get_extraction_cost(s)
+        net = _get_gross_energy(s) - cost
+        return [
+            RateLaw({s.reserve: -1}, cost, label='energy_cost'),
+            RateLaw({s.reserve: -1}, net, label='net_energy'),
+            RateLaw(s.capacity, s.reinvestment * net - s.capacity / s.lifetime),
+            RateLaw({s.population: +1}, s.birth_rate * s.population, label='births'),
+            RateLaw({s.population: -1}, s.death_rate * s.population, label='deaths'),
+        ]
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the energy sector and its finite reserve.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         sector = EnergySectorElement(
             'energy',
             reserve=self.reserve,
@@ -235,4 +245,9 @@ class EnergyReturnSystem(BaseSystem):
             reinvestment=self.reinvestment,
             birth_rate=self.birth_rate,
         )
-        return CompositeSystem(self.label, elements=[sector])
+        flows = Interaction(
+            'flows',
+            roles={'target': 'energy'},
+            laws=lambda s: EnergyReturnSystem._get_sector_laws(s.target),
+        )
+        self.system_ = System(self.label, elements=[sector], interactions=[flows])

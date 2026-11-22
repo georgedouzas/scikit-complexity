@@ -3,22 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class TaskView(AgentView):
+class TaskView(AgentViewProtocol, Protocol):
     """View of a task of the priority queue system.
 
     Its states and parameters are attributes.
@@ -39,9 +43,6 @@ class TaskElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         priority:
             The priority, uniform on 0 to 1 for a new task.
 
@@ -54,37 +55,33 @@ class TaskElement(Element):
         greed:
             The probability that the highest priority task is executed rather than a random one.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.organizations import TaskElement
-        >>> group = GroupElement('tasks', element=TaskElement, size=2, values={'priority': [0.2, 0.7]})
-        >>> group.label, group.element.__name__, group.size
+        >>> group = TaskElement('tasks', priority=[0.2, 0.7], size=2)
+        >>> group.label, type(group).__name__, group.size
         ('tasks', 'TaskElement', 2)
     """
+
+    visual = VisualSpec('histograms', {'color_by': 'age', 'shown': ('agents',)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'age', 'shown': ('agents',)}),
         *,
-        priority: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        age: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        wait: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        greed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.99999,
+        priority: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        age: Annotated[object, NN] = 0.0,
+        wait: Annotated[object, NN] = 0.0,
+        greed: Annotated[object, RealSet.closed_open(0, oo)] = 0.99999,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.priority = priority
         self.age = age
         self.wait = wait
         self.greed = greed
-
-    @classmethod
-    def _get_view(cls) -> type[TaskView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return TaskView
 
 
 class ExecutionInteraction(Interaction):
@@ -109,7 +106,7 @@ class ExecutionInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('wait',)
 
@@ -117,23 +114,20 @@ class ExecutionInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
     ) -> None:
         super().__init__(label)
         self.target = target
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the execution rule.
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the execution rule.
 
         Args:
             s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.execute)]
+        super()._prepare(s)
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.execute)]
 
     def execute(self, system: SystemView) -> None:
         """Execute one task and replace it with a new one.
@@ -142,7 +136,7 @@ class ExecutionInteraction(Interaction):
             system:
                 The system.
         """
-        tasks = system.get_agents(self.target, TaskView)
+        tasks = cast(list[TaskView], system.get_agents(self.target))
         if not tasks:
             return
         priorities = [task.priority for task in tasks]
@@ -174,9 +168,15 @@ class PriorityQueuesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import PriorityQueuesSystem
-        >>> PriorityQueuesSystem(3, random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> PriorityQueuesSystem(3, random_state=0).prepare().system_.elements[0].size
         3
     """
 
@@ -192,22 +192,20 @@ class PriorityQueuesSystem(BaseSystem):
         greed: float = 0.99999,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_tasks = n_tasks
         self.greed = greed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         priorities = np.random.default_rng(self.random_state).random(self.n_tasks)
-        tasks = GroupElement(
-            'tasks',
-            element=TaskElement,
-            size=self.n_tasks,
-            values={'priority': priorities, 'greed': self.greed},
-        )
-        return CompositeSystem(
+        tasks = TaskElement('tasks', priority=priorities, greed=self.greed, size=self.n_tasks)
+        self.system_ = System(
             self.label,
             elements=[tasks],
             interactions=[ExecutionInteraction('execution', target='tasks')],

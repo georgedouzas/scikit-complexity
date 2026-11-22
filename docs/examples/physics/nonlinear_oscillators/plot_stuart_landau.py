@@ -12,7 +12,6 @@ amplitude saturates at `sqrt(μ)`, the universal behaviour near the onset of any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import StuartLandauSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'stuart_landau'
 mu, omega, beta = 1.0, 2.0, 1.0
 system = StuartLandauSystem(x=0.01, y=0.0, mu=mu, omega=omega, beta=beta)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=20, observers=[observer])
+trajectory = system.prepare().simulate(until=20, observers=[observer])
 
 # %%
 # Amplitude and frequency

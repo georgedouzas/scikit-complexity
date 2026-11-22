@@ -6,16 +6,18 @@ The jumps are jump processes and the Langevin equations are chemical Langevin eq
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction, ReactionNetworkSystem
 from ...general.reactions.types import ReactionTable
 
@@ -33,9 +35,6 @@ class SchloglElement(Element):
     Args:
         label:
             The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial number of molecules of `X`.
@@ -67,17 +66,16 @@ class SchloglElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-06,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0025,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0002,
-        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
-        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
-        B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
+        x: Annotated[float, RealSet.closed_open(0, oo)] = 50.0,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.5e-06,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0025,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 0.0002,
+        c4: Annotated[float, RealSet.closed_open(0, oo)] = 3.5,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 100000.0,
+        B: Annotated[float, RealSet.closed_open(0, oo)] = 200000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.c1 = c1
         self.c2 = c2
@@ -118,6 +116,12 @@ class MichaelisMentenSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import MichaelisMentenSystem
         >>> [element.label for element in MichaelisMentenSystem().prepare().system_.elements]
@@ -154,8 +158,10 @@ class MichaelisMentenSystem(ReactionNetworkSystem):
         k_catalysis: float = 0.1,
         stochastic: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.enzyme = enzyme
         self.substrate = substrate
         self.k_binding = k_binding
@@ -215,6 +221,12 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinEquationSystem
         >>> ChemicalLangevinEquationSystem(c4=3.0).prepare().system_.elements[0].c4
@@ -226,7 +238,6 @@ class ChemicalLangevinEquationSystem(BaseSystem):
     references = ('Schlögl 1972', 'Gillespie 2000', 'Trzaska 2023')
     until = 200.0
     dt = 0.05
-    solver = EulerMaruyamaSolver(dt=1e-3)
 
     def __init__(
         self,
@@ -239,8 +250,10 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         A: float = 1e5,
         B: float = 2e5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.c1 = c1
         self.c2 = c2
@@ -273,11 +286,12 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         reactor = s.reactants[0]
         return reactor.c4 * reactor.x
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the reactor and the four channels of Schlögl's reaction.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the reactor and the four channels of Schlögl's reaction.
 
         The channels are chemical Langevin equations.
         """
+        super()._prepare(context)
         reactor = SchloglElement(
             'reactor',
             x=self.x,
@@ -288,7 +302,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
             A=self.A,
             B=self.B,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[reactor],
             interactions=[
@@ -309,6 +323,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
                 ReactionInteraction('production', products={X: 1}, propensity=self._get_production, mode='langevin'),
                 ReactionInteraction('conversion', reactants={X: 1}, propensity=self._get_conversion, mode='langevin'),
             ],
+            solver=EulerMaruyamaSolver(dt=1e-3),
         )
 
 
@@ -339,6 +354,12 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.chemistry.kinetics import ChemicalLangevinNetworkSystem
         >>> [reaction.mode for reaction in ChemicalLangevinNetworkSystem().prepare().system_.interactions]
@@ -350,7 +371,6 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
     references = ('Michaelis and Menten 1913', 'Gillespie 2000')
     until = 50.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=1e-3)
 
     def __init__(
         self,
@@ -361,13 +381,19 @@ class ChemicalLangevinNetworkSystem(ReactionNetworkSystem):
         k_unbinding: float = 0.1,
         k_catalysis: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.enzyme = enzyme
         self.substrate = substrate
         self.k_binding = k_binding
         self.k_unbinding = k_unbinding
         self.k_catalysis = k_catalysis
+
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return EulerMaruyamaSolver(dt=1e-3)
 
     def _get_species(self) -> dict[str, float]:
         """Return the initial amounts of the enzyme, substrate, complex, and product."""

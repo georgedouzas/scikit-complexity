@@ -1,4 +1,4 @@
-"""Generate, compile, and cache Numba kernels and stepper loops."""
+"""Define the backend that compiles the functions of a problem with Numba."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,41 +16,22 @@ import numba
 import numpy as np
 from numba.core.dispatcher import Dispatcher
 
-from ...components.laws import (
-    ArrayUpdateLaw,
-    BilinearLaw,
-    BoundaryLaw,
-    CascadeLaw,
-    CrossingLaw,
-    DissipatorLaw,
-    EquationLaw,
-    ExtremalLaw,
-    FluxLaw,
-    GeneratorLaw,
-    JumpLaw,
-    LocalRuleLaw,
-    MatchLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...components.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-    StaticTime,
-)
+from ...components import EntrySpec
+from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...components.spaces._static_time import _StaticTime
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import BackendWarning, ValidationError
-from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, NeighborReadSpec, SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
+from ...types import Array, VectorFunction
+from ..enums import ReadKind
+from ..problems._accelerated_spec import _AcceleratedSpec
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -58,15 +39,17 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._metric_search import MetricSearch
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
-from ..types import ReadKind
 from . import _numba_components, _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
+from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
+from ._support_spec import SupportSpec
 
 FORM_KINDS: dict[FormKind, list[type]] = {
     FormKind.ODE: [RateLaw],
@@ -98,13 +81,14 @@ from skcomplex.core.engine.problems._steps import step_count
 
 
 class NumbaBackend(BaseBackend):
-    """A backend that compiles fused kernels and stepper loops with Numba.
+    """A backend that compiles the functions of a problem to machine code with Numba.
 
-    They are cached on disk. Kinds of laws that contain a plain Python callable fall back to the NumPy functions, and
-    the problem then has no compiled stepper loops.
+    It writes the laws as Python source, compiles it with Numba, and keeps it on disk, so a second run starts at once,
+    as in `System(..., backend=NumbaBackend())`. It also compiles the loop that steps the solver, which makes large
+    groups run much faster than NumPy. Laws that hold a plain Python function fall back to NumPy. Long runs of a spin
+    lattice, a sandpile, and an epidemic on a large network all gain from it.
 
-    Choose it for large lattices, networks, and agent groups, where compiled loops run much faster than NumPy. It
-    appears in many fields, such as long runs of spin lattices, sandpiles, and epidemics on large networks.
+    Read more in the user guide, under Backends.
 
     Args:
         cache_dir:
@@ -114,18 +98,17 @@ class NumbaBackend(BaseBackend):
             Whether member and pair loops over groups of at least 1000 members run in parallel threads. Kernels that
             the compiled loops of jump processes and discrete maps call once per event always run serially.
 
+    See Also:
+        NumpyBackend: Writes the functions with NumPy, the default.
+        JaxBackend: Writes functions that JAX differentiates.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-        >>> system = CompositeSystem(
-        ...     elements=[GroupElement('herds', element=PopulationElement, size=2, values={'x': [1.0, 2.0]})],
-        ...     interactions=[ExponentialGrowthInteraction('growth', target='herds', r=3.0)],
-        ... )
-        >>> problem = simulate(system, until=0, backend=NumbaBackend()).problem
-        >>> problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist()
-        [3.0, 6.0]
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.engine.backends import NumbaBackend
+        >>> from skcomplex.core.systems import System
+        >>> system = System(elements=[Element('herd', values={'x': 2.0})], backend=NumbaBackend())
+        >>> system.prepare().simulate(until=0).problem.backend
+        'numba'
     """
 
     @classmethod
@@ -135,28 +118,19 @@ class NumbaBackend(BaseBackend):
         It is the times, spaces, laws, noise, and orders.
         """
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime, StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            time={_ContinuousTime, _DiscreteTime, _StaticTime},
+            space={None, BaseSpace},
             laws={
-                BoundaryLaw,
-                CrossingLaw,
-                DissipatorLaw,
-                ArrayUpdateLaw,
-                EquationLaw,
-                ExtremalLaw,
-                FluxLaw,
-                GeneratorLaw,
+                _BoundaryLaw,
+                EventLaw,
+                ConstraintLaw,
                 JumpLaw,
-                LocalRuleLaw,
-                MatchLaw,
+                _LocalRuleLaw,
                 NoiseLaw,
                 BilinearLaw,
                 RateLaw,
-                CascadeLaw,
-                RuleLaw,
-                SampleLaw,
-                TransferLaw,
-                TransitionLaw,
+                _RuleLaw,
+                _SampleLaw,
                 UpdateLaw,
             },
             noise=frozenset(NoiseKind),
@@ -189,8 +163,8 @@ class NumbaBackend(BaseBackend):
             error_msg = 'A backend runs on the kernels of a problem of one form. Pass a `LoweredKernelsSpec` to `run`.'
             raise ValidationError(error_msg)
         form, size, kernels, draws = inputs.form, inputs.size, inputs.kernels, inputs.draws
-        used: dict[type, list[LawKernel]] = {
-            BoundaryLaw: kernels.get(BoundaryLaw, []),
+        used: dict[type[BaseLaw], list[LawKernel]] = {
+            _BoundaryLaw: kernels.get(_BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in RATE_FORMS else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == FormKind.SDE else [],
             JumpLaw: kernels.get(JumpLaw, []) if form == FormKind.JUMP else [],
@@ -199,7 +173,7 @@ class NumbaBackend(BaseBackend):
         reductions = inputs.reductions or ReductionScheduleSpec()
         reduced = bool(reductions.steps)
         fused = self._get_reductions_compile(reductions)
-        compiled: dict[type, bool] = {
+        compiled: dict[type[BaseLaw], bool] = {
             kind: fused and all(self._is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
         if JumpLaw in compiled and any(
@@ -212,11 +186,11 @@ class NumbaBackend(BaseBackend):
             NoiseLaw: ('diffusion', 'concatenate'),
             JumpLaw: ('propensities', 'concatenate'),
             UpdateLaw: ('update', 'assign'),
-            BoundaryLaw: ('boundary', 'assign'),
+            _BoundaryLaw: ('boundary', 'assign'),
         }
         needed = list(FORM_KINDS[form])
-        if kernels.get(BoundaryLaw):
-            needed = [*needed, BoundaryLaw]
+        if kernels.get(_BoundaryLaw):
+            needed = [*needed, _BoundaryLaw]
         parts = [
             (*plan[kind], used[kind], reduced and any(kernel.reads_reductions for kernel in used[kind]))
             for kind in needed
@@ -231,7 +205,7 @@ class NumbaBackend(BaseBackend):
             FormKind.DISCRETE: 'iterate' if draws is None else 'iterate_random',
         }.get(form, '')
         has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
-        bounded = 'HAS_BOUNDARY = True\n' if BoundaryLaw in needed else NO_BOUNDARY
+        bounded = 'HAS_BOUNDARY = True\n' if _BoundaryLaw in needed else NO_BOUNDARY
         loops = (
             [
                 bounded,
@@ -266,8 +240,8 @@ class NumbaBackend(BaseBackend):
         form: FormKind,
         needed: list[type],
         *,
-        used: Mapping[type, list[LawKernel]],
-        compiled: Mapping[type, bool],
+        used: Mapping[type[BaseLaw], list[LawKernel]],
+        compiled: Mapping[type[BaseLaw], bool],
         changes: Mapping[int, list[tuple[ReferenceSpec, object]]],
         size: int,
         module: ModuleType,
@@ -296,14 +270,14 @@ class NumbaBackend(BaseBackend):
             NoiseLaw: lambda: BaseBackend._get_concatenating_function(used[NoiseLaw]),
             JumpLaw: lambda: BaseBackend._get_concatenating_function(used[JumpLaw]),
             UpdateLaw: lambda: BaseBackend._get_assigning_function(used[UpdateLaw]),
-            BoundaryLaw: lambda: BaseBackend._get_assigning_function(used[BoundaryLaw]),
+            _BoundaryLaw: lambda: BaseBackend._get_assigning_function(used[_BoundaryLaw]),
         }
         names: dict[type, str] = {
             RateLaw: 'drift',
             NoiseLaw: 'diffusion',
             JumpLaw: 'propensities',
             UpdateLaw: 'update',
-            BoundaryLaw: 'boundary',
+            _BoundaryLaw: 'boundary',
         }
         functions: dict[type, VectorFunction | None] = {
             kind: (
@@ -327,7 +301,7 @@ class NumbaBackend(BaseBackend):
             ),
             jumps=LawKernel._jump_channels(used[JumpLaw], changes) if form == FormKind.JUMP else (),
             update=functions[UpdateLaw] if form in (FormKind.DISCRETE, FormKind.STATIC) else None,
-            boundary=functions.get(BoundaryLaw),
+            boundary=functions.get(_BoundaryLaw),
         )
         if form == FormKind.SDE:
             rows, columns, processes, blocks = LawKernel._lower_noise(used[NoiseLaw])
@@ -347,12 +321,12 @@ class NumbaBackend(BaseBackend):
         layout: np.ndarray,
         lowering: LoweredFunctionsSpec,
         draws: DrawKernel | None,
-    ) -> AcceleratedSpec:
+    ) -> _AcceleratedSpec:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
             verlet, yoshida4 = module.velocity_verlet, module.yoshida4
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 rk4=lambda t, x, p, until, h: function(t, x, p, layout, until, h),
                 yoshida4=lambda t, x, p, until, h, first, second, weights: yoshida4(
                     t,
@@ -378,20 +352,20 @@ class NumbaBackend(BaseBackend):
             )
         if loop == 'euler_maruyama':
             noise = self._get_noise_arrays(lowering)
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
             targets, increments = self._get_channel_arrays(lowering)
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
         if loop == 'iterate_random' and draws is not None:
             offset, flags = draws.offset, draws.normal
-            return AcceleratedSpec(
+            return _AcceleratedSpec(
                 iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags),
             )
-        return AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+        return _AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
 
     @staticmethod
     def _search_entries(search: object) -> dict[str, EntrySpec]:
@@ -403,14 +377,15 @@ class NumbaBackend(BaseBackend):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
         if not isinstance(search, MetricSearch):
             return {}
-        found = {search.positions.name: search.positions}
+        placed = search.positions if isinstance(search.positions, tuple) else (search.positions,)
+        found = {entry.name: entry for entry in placed}
         if search.direction is not None:
             found[search.direction.entry.name] = search.direction.entry
         return found
 
     @staticmethod
     def _get_layout_entries(
-        used: Mapping[type, list[LawKernel]],
+        used: Mapping[type[BaseLaw], list[LawKernel]],
         reductions: ReductionScheduleSpec,
     ) -> dict[str, EntrySpec]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
@@ -428,7 +403,7 @@ class NumbaBackend(BaseBackend):
                     entries[search.target.name] = search.target
                 for reference in kernel.references.values():
                     read = reference.neighbor
-                    if isinstance(read, NeighborReadSpec) and read.entry is not None:
+                    if isinstance(read, _NeighborReadSpec) and read.entry is not None:
                         entries[read.entry.name] = read.entry
         for item in reductions.reductions:
             entries[item.entry.name] = item.entry
@@ -551,8 +526,8 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _report_fallbacks(
         name: str,
-        used: Mapping[type, list[LawKernel]],
-        compiled: Mapping[type, bool],
+        used: Mapping[type[BaseLaw], list[LawKernel]],
+        compiled: Mapping[type[BaseLaw], bool],
         reductions: ReductionScheduleSpec,
     ) -> dict[str, str]:
         """Warn once about the kinds run in Python, and return the runners.
@@ -577,7 +552,7 @@ class NumbaBackend(BaseBackend):
                 The backend name for every law kind with kernels, `'python'` for those that run in Python.
         """
         kinds = [kind for kind, items in used.items() if items]
-        fallen = [kind.__name__ for kind in kinds if not compiled[kind]]
+        fallen = sorted({kind._get_name() for kind in kinds if not compiled[kind]})
         if fallen:
             unprinted = NumbaBackend._get_unprinted_reduction(reductions)
             reason = (

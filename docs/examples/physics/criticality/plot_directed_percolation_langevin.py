@@ -17,8 +17,6 @@ absorbing state.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import DirectedPercolationLangevinSystem
 
@@ -26,14 +24,7 @@ SYSTEM = 'directed_percolation_langevin'
 
 system = DirectedPercolationLangevinSystem(energy=1.05, e=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='neurons/rho', interval=1)
-trajectory = simulate(
-    system.prepare().system_,
-    until=100,
-    dt=1.0,
-    solver=EulerMaruyamaSolver(dt=0.01),
-    observers=[observer],
-    random_state=0,
-)
+trajectory = system.prepare().simulate(until=100, dt=1.0, observers=[observer], random_state=0)
 
 # %%
 # The absorbing transition
@@ -45,12 +36,7 @@ trajectory = simulate(
 energies = np.linspace(0.6, 1.8, 13)
 densities = []
 for energy in energies:
-    run = simulate(
-        DirectedPercolationLangevinSystem(shape=(16, 16), energy=energy).prepare().system_,
-        until=40,
-        dt=1.0,
-        solver=EulerMaruyamaSolver(dt=0.01),
-    )
+    run = DirectedPercolationLangevinSystem(shape=(16, 16), energy=energy).prepare().simulate(until=40, dt=1.0)
     densities.append(np.asarray(run.get_values('neurons.rho'))[-10:].mean())
 
 fig, ax = plt.subplots(figsize=(6, 4))

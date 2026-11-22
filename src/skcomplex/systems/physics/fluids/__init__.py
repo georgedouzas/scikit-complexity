@@ -21,11 +21,20 @@ from ._kinetic_equations import (
     BhatnagarGrossKrookInteraction,
     BoltzmannEquationSystem,
     EnskogSystem,
+    RelaxationTimeInteraction,
     VlasovEquationSystem,
 )
 from ._kinetics import CarlemanGasElement, DiscreteVelocityBoltzmannSystem, WaveBreakingSystem, WaveNumberElement
-from ._lattice_gases import FHPLatticeGasSystem, FHPSiteElement, HPPLatticeGasSystem, HPPSiteElement
-from ._marangoni import BenardMarangoniSystem, MarangoniLayerElement
+from ._lattice_gases import (
+    FHPLatticeGasSystem,
+    FHPSiteElement,
+    HPPLatticeGasSystem,
+    HPPSiteElement,
+    LatticeGasCollisionInteraction,
+    LatticeGasPropagationInteraction,
+    ParticleCountInteraction,
+)
+from ._marangoni import BenardMarangoniSystem, MarangoniLayerElement, ThermocapillaryInteraction
 
 __all__: list[str] = [
     'BGKEquationSystem',
@@ -45,10 +54,15 @@ __all__: list[str] = [
     'HPPSiteElement',
     'KuramotoSivashinskyElement',
     'KuramotoSivashinskySystem',
+    'LatticeGasCollisionInteraction',
+    'LatticeGasPropagationInteraction',
     'MarangoniLayerElement',
+    'ParticleCountInteraction',
     'RayleighBenardSystem',
+    'RelaxationTimeInteraction',
     'ShallowWaterElement',
     'ShallowWaterSystem',
+    'ThermocapillaryInteraction',
     'VlasovEquationSystem',
     'VorticityElement',
     'WaveBreakingSystem',

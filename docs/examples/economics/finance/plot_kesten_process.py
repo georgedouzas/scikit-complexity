@@ -17,7 +17,6 @@ import numpy as np
 from scipy.optimize import brentq
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import KestenProcessSystem
 
@@ -25,8 +24,8 @@ SYSTEM = 'kesten_process'
 N_FIRMS, LOW, HIGH, STEPS = 3000, 0.48, 1.48, 250
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system_system = KestenProcessSystem(n_firms=N_FIRMS)
-trajectory = simulate(system_system, until=STEPS, observers=[observer], random_state=0)
+system = KestenProcessSystem(n_firms=N_FIRMS)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Tail exponent

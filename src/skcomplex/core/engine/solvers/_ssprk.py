@@ -7,11 +7,14 @@ import math
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._solver import Solver
 
@@ -19,15 +22,14 @@ SECOND_ORDER = 2
 
 
 class SSPRKSolver(Solver):
-    """A solver by strong-stability-preserving Runge-Kutta of order 2 or 3.
+    """A solver by strong stability preserving Runge-Kutta steps of order 2 or 3.
 
-    Its steps come from the CFL condition of conservation laws. The schemes of Shu and Osher are convex combinations of
-    Euler steps, so they keep the total variation bound of a limited finite-volume scheme. With finite-volume fields the
-    step is the smaller of `cfl * h / s`, for the cell size `h` and the largest wave speed `s`, and the stability limit
-    of the Laplacian rates at the current parameters, and otherwise `dt`.
+    Each step of the schemes of Shu and Osher is an average of Euler steps, so a field with shocks, such as a traffic
+    jam, gains no new wiggles and keeps its total. With finite volume fields the step is the smaller of `cfl * h / s`,
+    for the cell size `h` and the largest wave speed `s`, and the stability limit of the diffusion, and otherwise `dt`.
+    Choose it for conservation laws with shocks, in models of traffic, gas flows, and shallow water.
 
-    Choose it for conservation laws with shocks, where it keeps the scheme free of new oscillations. It appears in
-    models of traffic, gas dynamics, and shallow water.
+    Read more in the user guide, under Solvers.
 
     Args:
         order:
@@ -45,26 +47,24 @@ class SSPRKSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        RK4Solver: Steps smooth flows with the classical Runge-Kutta rule.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.physics.fluids import BurgersSystem
         >>> from skcomplex.core.engine.solvers import SSPRKSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> problem = simulate(BurgersSystem(64), until=0).problem
-        >>> stepper = SSPRKSolver(random_state=0).prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
-        >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
-        True
+        >>> from skcomplex.systems.physics.fluids import BurgersSystem
+        >>> u = BurgersSystem(64, solver=SSPRKSolver()).prepare().simulate(until=1, dt=1).get_values('line.u')
+        >>> round(float(u[0].sum()), 6), round(float(u[-1].sum()), 6)
+        (96.0, 96.0)
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, BoundaryLaw, TransferLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={RateLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

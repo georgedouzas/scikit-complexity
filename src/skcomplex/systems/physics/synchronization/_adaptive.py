@@ -7,20 +7,23 @@ Their coupling weights evolve with the phases they couple.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import sin
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import NeighborInteraction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.oscillators import PhaseOscillatorElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.oscillators import PhaseOscillatorElement, PhaseRotationInteraction
 
 
 class AdaptiveLinkElement(Element):
@@ -32,15 +35,14 @@ class AdaptiveLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         kappa:
-            The initial coupling weight.
+            The initial coupling weight, or one weight per link.
 
-    Attributes:
-        default_visual_:
-            The visual of the link when it sets none.
+        space:
+            The network of the links, or `None` for one link.
+
+        on:
+            `'edges'` for one link on every edge of the network, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import AdaptiveLinkElement
@@ -51,15 +53,16 @@ class AdaptiveLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        kappa: Annotated[float, StateSpec()] = 0.0,
+        kappa: object = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.kappa = kappa
 
 
-class AdaptiveCouplingInteraction(NeighborInteraction):
+class AdaptiveCouplingInteraction(Interaction):
     """Adaptive Kuramoto-Sakaguchi coupling.
 
     The weights relax towards a phase-lagged sine of the phase difference.
@@ -70,13 +73,13 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        nodes:
-            The path of the group of phase oscillators on the nodes.
+        among:
+            The path of the group of phase oscillators on the nodes, whose edges hold the adaptive links.
 
-        links:
-            The path of the group of adaptive links on the edges.
+        along:
+            `True` for the edges of the network of the oscillators, or the name of a layer.
 
         K:
             The coupling strength, `1 / N` for the mean coupling of `N` oscillators.
@@ -92,7 +95,7 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import AdaptiveCouplingInteraction
-        >>> AdaptiveCouplingInteraction('adaptation', nodes='nodes', links='links').epsilon
+        >>> AdaptiveCouplingInteraction('adaptation', among='nodes').epsilon
         0.01
     """
 
@@ -102,38 +105,39 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.0,
-        beta: Annotated[float, ParameterSpec()] = 0.0,
-        epsilon: Annotated[float, ParameterSpec()] = 0.01,
+        among: Role,
+        along: bool | str | None = True,
+        K: float = 1.0,
+        alpha: float = 0.0,
+        beta: float = 0.0,
+        epsilon: float = 0.01,
     ) -> None:
-        super().__init__(label)
-        self.nodes = nodes
-        self.links = links
+        super().__init__(label, among=among, along=along)
         self.K = K
         self.alpha = alpha
         self.beta = beta
         self.epsilon = epsilon
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the coupling of every link's target and the adaptation of its weight.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the coupling of every link's target and the adaptation of its weight.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the ends `source` and `target` and the `edge`.
-
-        Returns:
-            laws:
-                The rate law of the phase of the target and the rate law of the weight of the link.
+            context:
+                The namespace of the ends `source` and `target`, the link `edge`, the time `t`, and the parameters.
         """
-        s = namespace
+        super()._prepare(context)
+        s = context
         difference = s.target.theta - s.source.theta
-        return [
-            RateLaw(s.target.theta, -s.K * s.edge.kappa * sin(difference + s.alpha)),
-            RateLaw(s.edge.kappa, -s.epsilon * (s.edge.kappa + sin(difference + s.beta))),
+        self.laws_ = [
+            RateLaw(s.target.theta.diff(s.t), -s.K * s.edge.kappa * sin(difference + s.alpha)),
+            RateLaw(s.edge.kappa.diff(s.t), -s.epsilon * (s.edge.kappa + sin(difference + s.beta))),
         ]
+
+
+class NodeOscillatorElement(PhaseOscillatorElement):
+    """Phase oscillator on a node, drawn with its phase."""
+
+    visual = VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi})
 
 
 class AdaptiveKuramotoSystem(BaseSystem):
@@ -171,9 +175,15 @@ class AdaptiveKuramotoSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.synchronization import AdaptiveKuramotoSystem
-        >>> AdaptiveKuramotoSystem(5).prepare().system_.elements[1].prepare().size_
+        >>> AdaptiveKuramotoSystem(5).prepare().system_.elements[1].space.graph.number_of_edges()
         20
     """
 
@@ -193,8 +203,10 @@ class AdaptiveKuramotoSystem(BaseSystem):
         omega: float = 0.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_oscillators = n_oscillators
         self.alpha = alpha
         self.beta = beta
@@ -202,36 +214,38 @@ class AdaptiveKuramotoSystem(BaseSystem):
         self.omega = omega
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return globally coupled phase oscillators with adaptive coupling weights.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of globally coupled phase oscillators whose weights adapt to the phase differences.
 
-        The weights adapt to the phase differences.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         graph = nx.complete_graph(self.n_oscillators, create_using=nx.DiGraph)
         space = NetworkSpace(graph)
-        nodes = GroupElement(
+        nodes = NodeOscillatorElement(
             'nodes',
-            element=PhaseOscillatorElement,
+            theta=rng.uniform(0.0, 2 * math.pi, self.n_oscillators),
+            omega=self.omega,
             space=space,
-            on='sites',
-            values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_oscillators), 'omega': self.omega},
-            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
         )
-        links = GroupElement(
+        links = AdaptiveLinkElement(
             'links',
-            element=AdaptiveLinkElement,
+            kappa=rng.uniform(-1.0, 1.0, graph.number_of_edges()),
             space=space,
             on='edges',
-            values={'kappa': rng.uniform(-1.0, 1.0, graph.number_of_edges())},
         )
-        adaptation = AdaptiveCouplingInteraction(
-            'adaptation',
-            nodes='nodes',
-            links='links',
-            K=1 / self.n_oscillators,
-            alpha=self.alpha,
-            beta=self.beta,
-            epsilon=self.epsilon,
-        )
-        return CompositeSystem(self.label, elements=[nodes, links], interactions=[adaptation])
+        interactions = [
+            PhaseRotationInteraction('rotation', target='nodes'),
+            AdaptiveCouplingInteraction(
+                'adaptation',
+                among='nodes',
+                K=1 / self.n_oscillators,
+                alpha=self.alpha,
+                beta=self.beta,
+                epsilon=self.epsilon,
+            ),
+        ]
+        self.system_ = System(self.label, elements=[nodes, links], interactions=interactions)

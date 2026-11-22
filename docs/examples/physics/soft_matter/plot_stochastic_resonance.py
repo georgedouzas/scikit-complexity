@@ -15,7 +15,6 @@ of the particle jumping between `-1` and `1` in step with the slow forcing of pe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import StochasticResonanceSystem
@@ -25,7 +24,9 @@ SYSTEM = 'stochastic_resonance'
 system = StochasticResonanceSystem(D=0.1)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.05)
-trajectory = simulate(system, until=1000, solver=solver, dt=4.0, observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=1000, dt=4.0, observers=[observer], random_state=0)
+)
 
 # %%
 # Resonance in the noise intensity
@@ -38,7 +39,8 @@ trajectory = simulate(system, until=1000, solver=solver, dt=4.0, observers=[obse
 intensities = np.array([0.04, 0.06, 0.08, 0.1, 0.12, 0.16, 0.22, 0.3])
 responses = []
 for intensity in intensities:
-    run = simulate(StochasticResonanceSystem(D=intensity), until=4000, solver=solver, dt=1.0, random_state=1)
+    particle = StochasticResonanceSystem(D=intensity, solver=solver).prepare()
+    run = particle.simulate(until=4000, dt=1.0, random_state=1)
     times = run.times
     well = np.sign(run.get_values('particle.x'))
     responses.append(2 * np.abs(np.mean(well * np.exp(-2j * np.pi * 0.01 * times))))

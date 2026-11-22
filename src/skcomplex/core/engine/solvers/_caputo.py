@@ -8,11 +8,14 @@ from abc import abstractmethod
 
 import numpy as np
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...components.laws import ConstraintLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ._solver import Solver
 
@@ -21,21 +24,34 @@ CHANGE_TOLERANCE = 1e-12
 
 
 class CaputoSolver(Solver):
-    """An abstract solver of Caputo fractional differential equations.
+    """An abstract solver of Caputo fractional differential equations on a fixed grid.
 
-    They step on a fixed grid from the start of a run. A state of order `alpha` follows `D^alpha x = f(t, x)`, and a
-    state of order 1 follows `dx/dt = f(t, x)`. The stepper keeps the history of the run on the grid `t0 + k dt`. A
-    change of a fractional state between frames starts a new history from the changed state, and a change of a state of
-    order 1 carries on.
+    A state of order `alpha` follows `D^alpha x = f(t, x)`, whose rate remembers the whole past of the state, such as
+    the slow relaxation of a polymer, and a state of order 1 follows `dx/dt = f(t, x)`. The solver keeps the history of
+    the run on the grid `t0 + k dt` from the start of the run. A change of a fractional state between frames starts a
+    new history from the changed state, and a change of a state of order 1 goes on. It is the base of the solvers of
+    materials with memory, anomalous diffusion, and epidemics with memory.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        FractionalABMSolver: The default fractional solver.
+        L1Solver: Weighs the past steps by the L1 scheme.
+        GrunwaldLetnikovSolver: Weighs the past steps by Grünwald-Letnikov.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import CaputoSolver, L1Solver
+        >>> isinstance(L1Solver(dt=0.01), CaputoSolver)
+        True
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw, TransferLaw},
+            time={_ContinuousTime},
+            space={None, BaseSpace},
+            laws={RateLaw, ConstraintLaw, _BoundaryLaw},
             orders=frozenset(OrderKind),
         )
 

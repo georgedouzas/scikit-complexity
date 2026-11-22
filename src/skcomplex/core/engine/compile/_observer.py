@@ -1,4 +1,4 @@
-"""Values of the observables that laws read at the current state."""
+"""Give the values of the observables that laws read at the current state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,17 +11,18 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...base import BaseConfig
+from ...components import Observable
+from ...components.interactions import BaseInteraction
 from ...components.laws.utils import count, maximum, mean, minimum, total, variance
-from ...components.specs import NodeSpec
 from ...errors import ValidationError
-from ...specs import ObservableSpec
 from .._utils import vector
+from ..enums import ReadKind
 from ..problems import ProblemSpec
 from ..problems._block_spec import BlockSpec
 from ..problems._declarations_spec import DeclarationsSpec
+from ..problems._node_spec import _NodeSpec
 from ..problems._observed_spec import ObservedSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._observables import Declared, ObservableEvaluator
 
 REDUCERS: dict[str, Callable[..., Expression]] = {
@@ -33,12 +34,15 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
-    """An observer of the values of the observables that laws read at a state.
+class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
+    """An observer that gives the values of the observables that laws read.
 
-    They are built from the blocks of a system. `prepare()` starts with no observable evaluated, and `run((node,
-    label))` sets `observed_`, the namespace of the observable a role of a component binds to, evaluating every
-    observable once.
+    A law may read an observable of the system, such as the mean opinion of a crowd that pulls every person towards it.
+    The observer evaluates every such observable once, from the states and parameters of the system, and gives the law
+    the symbols of its value. It serves the mean field of a crowd, the total demand of a market, and the order of a
+    flock.
+
+    Read more in the user guide, under Observe.
 
     Args:
         declarations:
@@ -54,6 +58,17 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         observed_:
             The namespace of the observable the last run's role binds to with the references of its symbols, or `None`
             for a role bound to no live observable.
+
+    See Also:
+        ObservableEvaluator: Computes the observables a run records.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._observer import Observer
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> Observer(compilation.layout, {}).prepare().values_
+        {}
     """
 
     values_: dict[str, tuple[object, dict[Expression, ReferenceSpec]]]
@@ -72,7 +87,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         """
         self.values_ = {}
 
-    def _run(self, inputs: tuple[NodeSpec, object] | None) -> None:
+    def _run(self, inputs: tuple[_NodeSpec, object] | None) -> None:
         """Set the namespace of the observable a role binds to.
 
         It is `None` for a role bound to no live observable.
@@ -101,7 +116,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         self,
         path: str,
         scope: str,
-        observable: ObservableSpec,
+        observable: Observable,
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return an expression of the symbols of a system's elements.
 
@@ -128,14 +143,13 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
                 value, other_references = self._get_value(other, other_scope, earlier)
                 setattr(namespace, earlier.label, value)
                 references.update(other_references)
-        expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
-        return expression, references
+        return self._get_value_of(observable.expression, namespace, self.declarations.time), references
 
     def _get_value(
         self,
         path: str,
         scope: str,
-        observable: ObservableSpec,
+        observable: Observable,
     ) -> tuple[object, dict[Expression, ReferenceSpec]]:
         """Return the value of an observable with the references of the symbols it reads."""
         if path in self.values_:
@@ -146,8 +160,20 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         block = self.declarations.blocks[ObservableEvaluator._join(scope, observable.group)]
         source = self._get_source_of(block)
         references = {item: replace(reference, source=source) for item, reference in block.references.items()}
-        self.values_[path] = (self._get_reduced_value(path, observable, block), references)
+        self.values_[path] = (self._get_reduced_value(path, observable, block, self.declarations.time), references)
         return self.values_[path]
+
+    @staticmethod
+    def _get_value_of(expression: object, namespace: SimpleNamespace, time: Expression) -> object:
+        """Return the value of an expression, reading its symbols as functions of time.
+
+        A derivative such as `x.diff(t)` is the derivative of the state `x`, as in a law.
+        """
+        if not callable(expression):
+            return expression
+        functions: dict[str, Expression] = {}
+        value = expression(BaseInteraction._get_functional(namespace, time, functions))
+        return BaseInteraction._get_translated(value, time, functions, False)
 
     @staticmethod
     def _get_source_of(block: BlockSpec) -> ReadKind:
@@ -173,25 +199,28 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
         return SimpleNamespace(**symbols)
 
     @staticmethod
-    def _get_reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:
-        """Return an observable that reduces a group over its member symbols."""
+    def _get_reduced_value(path: str, observable: Observable, block: BlockSpec, time: Expression) -> object:
+        """Return an observable that reduces a group over its member symbols.
+
+        The expression of one member reads its states as functions of the time `time`, so it may read their
+        derivatives, such as the mean of `x.diff(t)` over the agents.
+        """
         namespace = Observer._get_namespace_of(block)
         if observable.reduce == 'count':
             return count(over=namespace)
         if observable.variable is not None:
             if observable.variable not in block.symbols:
                 error_msg = (
-                    f'ObservableSpec {path} reduces {observable.variable}, which {block.node.path} does not declare.'
+                    f'Observable {path} reduces {observable.variable}, which {block.node.path} does not declare.'
                 )
                 raise ValidationError(error_msg)
             value: object = block.symbols[observable.variable]
         elif observable.expression is None:
-            error_msg = (
-                f'ObservableSpec {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
-            )
+            error_msg = f'Observable {path} reduces {block.node.path} with {observable.reduce!r} but names no variable.'
             raise ValidationError(error_msg)
         else:
-            value = observable.expression(namespace) if callable(observable.expression) else observable.expression
+            member = SimpleNamespace(**{**vars(namespace), 't': time})
+            value = Observer._get_value_of(observable.expression, member, time)
         reducer = REDUCERS[str(observable.reduce)]
         if isinstance(value, FreeModuleElement):
             return vector(reducer(item, over=namespace) for item in value)

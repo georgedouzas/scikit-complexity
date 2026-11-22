@@ -7,60 +7,64 @@ The module covers sandpiles and forest fires.
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     BaseNeighborhood,
-    LatticeNeighborhood,
+    BaseSpace,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
-from ..common.avalanches import SandpileCellElement, TopplingInteraction
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
+from ..common.avalanches import TopplingInteraction
 
-NEAREST = BallNeighborhood(metric='manhattan', center='first')
+NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 BURNING = 2
-SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
-    'triangular': BallNeighborhood(metric='hexagonal', center='first'),
+SITE_NEIGHBORHOODS: dict[str, RadiusNeighborhood | AdjacencyNeighborhood] = {
+    'triangular': RadiusNeighborhood(1, metric='hexagonal', center=True),
     'graph': AdjacencyNeighborhood(center=True),
 }
 MANNA_THRESHOLD = 2
 
 
 class ForestElement(Element):
-    """Site of the Drossel-Schwabl forest fire.
+    """Sites of the Drossel-Schwabl forest fire.
 
-    The site is empty at 0, a tree at 1, or burning at 2.
+    Every site is empty at 0, a tree at 1, or burning at 2.
 
     A `FireInteraction` grows trees on empty sites with probability `growth`, sets them on fire from a burning
     neighbour or from lightning with probability `lightning`, and empties burning sites.
 
     Args:
         label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the site or the lattice of sites.
 
         cover:
-            The initial cover, 0, 1, or 2.
+            The initial cover, 0, 1, or 2, or one cover per site.
 
         growth:
             The probability that a tree grows on an empty site per step.
 
         lightning:
             The probability that lightning strikes a tree per step.
+
+        space:
+            The lattice or network of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import ForestElement
@@ -71,13 +75,13 @@ class ForestElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        cover: Annotated[float, StateSpec(domain=NN)] = 0,
-        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        lightning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        cover: object = 0.0,
+        growth: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        lightning: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.cover = cover
         self.growth = growth
         self.lightning = lightning
@@ -119,7 +123,7 @@ class AvalancheInteraction(TopplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'height',
         threshold: int = 4,
         mode: str = 'redistribute',
@@ -135,14 +139,14 @@ class AvalancheInteraction(TopplingInteraction):
         )
 
     @staticmethod
-    def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
+    def _drop_grain(heights: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
         """Return the heights with one grain added on a random site."""
         following = heights.copy()
         following[tuple(random.integers(size) for size in heights.shape)] += 1
         return following
 
 
-class FireInteraction(LocalRuleInteraction):
+class FireInteraction(Interaction):
     """Stochastic rule of the Drossel-Schwabl forest fire.
 
     The cover is 0 for empty, 1 for a tree, and 2 for burning.
@@ -152,10 +156,10 @@ class FireInteraction(LocalRuleInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
-            The path of the lattice or network group of sites.
+            The path of the lattice or network of sites.
 
         neighborhood:
             The neighbours a fire spreads to, the von Neumann neighbourhood of a square lattice, the six neighbours of
@@ -163,34 +167,42 @@ class FireInteraction(LocalRuleInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.criticality import FireInteraction
-        >>> FireInteraction('fire', target='forest').stochastic
-        True
+        >>> FireInteraction('fire', target='forest').neighborhood.metric
+        'manhattan'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        neighborhood: BaseNeighborhood = NEAREST,
-    ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='cover',
-            rule=self._burn,
-            neighborhood=neighborhood,
-            stochastic=True,
-        )
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, neighborhood: BaseNeighborhood = NEAREST) -> None:
+        super().__init__(label)
+        self.target = target
+        self.neighborhood = neighborhood
 
     @staticmethod
-    def _burn(cover: Array, *around: Array, growth: float | Array, lightning: float | Array, random: Array) -> Array:
+    def _burn(
+        cover: Array,
+        *around: Array,
+        growth: float | Array,
+        lightning: float | Array,
+        random: Array,
+        **kwargs: object,
+    ) -> Array:
         """Return the covers after trees catch fire, fires burn out, and trees grow."""
         burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
         ignites = burning | (random < lightning)
         tree = np.where(ignites, float(BURNING), 1.0)
         empty = np.where(random < growth, 1.0, 0.0)
         return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the covers of the target.
+
+        Args:
+            context:
+                The namespace of the target and the time `t`.
+        """
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood, stochastic=True)]
 
 
 class SandpileSystem(BaseSystem):
@@ -211,10 +223,17 @@ class SandpileSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import SandpileSystem
-        >>> SandpileSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> trajectory = SandpileSystem((10, 10)).prepare().simulate(until=2, dt=1, random_state=0)
+        >>> trajectory.get_values('pile.height').shape
+        (3, 100)
     """
 
     field = 'physics/criticality'
@@ -229,23 +248,26 @@ class SandpileSystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Bak-Tang-Wiesenfeld sandpile on a lattice with open edges.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Bak-Tang-Wiesenfeld sandpile, which starts from random stable heights.
 
-        The pile starts from random stable heights.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         heights = np.random.default_rng(self.random_state).integers(0, 4, size=tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
-            ],
+            elements=[Element('pile', values={'height': heights.ravel()}, space=space)],
             interactions=[AvalancheInteraction('avalanche', target='pile')],
         )
 
@@ -268,10 +290,17 @@ class MannaSandpileSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import MannaSandpileSystem
-        >>> MannaSandpileSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> trajectory = MannaSandpileSystem((10, 10)).prepare().simulate(until=2, dt=1, random_state=0)
+        >>> trajectory.get_values('pile.height').shape
+        (3, 100)
     """
 
     field = 'physics/criticality'
@@ -286,25 +315,28 @@ class MannaSandpileSystem(BaseSystem):
         *,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Manna sandpile.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Manna sandpile, a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
 
-        It is a stochastic sandpile of another universality class than Bak-Tang-Wiesenfeld.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         heights = (
             np.random.default_rng(self.random_state).integers(0, MANNA_THRESHOLD, size=tuple(self.shape)).astype(float)
         )
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement('pile', element=SandpileCellElement, space=space, values={'height': heights}, on='sites'),
-            ],
+            elements=[Element('pile', values={'height': heights.ravel()}, space=space)],
             interactions=[AvalancheInteraction('avalanche', target='pile', threshold=MANNA_THRESHOLD, mode='random')],
         )
 
@@ -335,9 +367,15 @@ class ForestFireSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import ForestFireSystem
-        >>> ForestFireSystem((10, 10)).prepare().system_.elements[0].values['growth']
+        >>> ForestFireSystem((10, 10)).prepare().system_.elements[0].growth
         0.05
     """
 
@@ -356,34 +394,33 @@ class ForestFireSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.growth = growth
         self.lightning = lightning
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Drossel-Schwabl forest fire.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the Drossel-Schwabl forest fire, where slow growth and rare lightning give fires of every size.
 
-        Slow growth and rare lightning give fires of every size.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         cover = (np.random.default_rng(self.random_state).random(tuple(self.shape)) < self.density).astype(float)
-        space = LatticeSpace(tuple(self.shape))
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'forest',
-                    element=ForestElement,
-                    space=space,
-                    values={'cover': cover, 'growth': self.growth, 'lightning': self.lightning},
-                    on='sites',
-                ),
-            ],
-            interactions=[FireInteraction('fire', target='forest')],
+        forest = ForestElement(
+            'forest',
+            cover=cover.ravel(),
+            growth=self.growth,
+            lightning=self.lightning,
+            space=LatticeSpace(tuple(self.shape)),
         )
+        self.system_ = System(self.label, elements=[forest], interactions=[FireInteraction('fire', target='forest')])
 
 
 class HexagonalForestFireSystem(BaseSystem):
@@ -420,12 +457,18 @@ class HexagonalForestFireSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
-        >>> HexagonalForestFireSystem((10, 10)).prepare().system_.elements[0].prepare().size_
+        >>> HexagonalForestFireSystem((10, 10)).prepare().system_.elements[0].space.prepare().size_
         100
-        >>> HexagonalForestFireSystem(graph=nx.cycle_graph(12)).prepare().system_.elements[0].prepare().size_
+        >>> HexagonalForestFireSystem(graph=nx.cycle_graph(12)).prepare().system_.elements[0].space.prepare().size_
         12
     """
 
@@ -446,8 +489,10 @@ class HexagonalForestFireSystem(BaseSystem):
         cover: Sequence[float] | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.graph = graph
         self.growth = growth
@@ -456,8 +501,14 @@ class HexagonalForestFireSystem(BaseSystem):
         self.cover = cover
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the forest fire on the cells of a triangular lattice or on the nodes of a graph.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         space = (
             LatticeSpace(tuple(self.shape), geometry='triangular') if self.graph is None else NetworkSpace(self.graph)
         ).prepare()
@@ -467,15 +518,9 @@ class HexagonalForestFireSystem(BaseSystem):
             if self.cover is None
             else np.ravel(np.asarray(self.cover, dtype=float))
         )
-        forest = GroupElement(
-            'forest',
-            element=ForestElement,
-            space=space,
-            values={'cover': initial, 'growth': self.growth, 'lightning': self.lightning},
-            on='sites',
-        )
+        forest = ForestElement('forest', cover=initial, growth=self.growth, lightning=self.lightning, space=space)
         neighborhood = SITE_NEIGHBORHOODS['triangular' if self.graph is None else 'graph']
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[forest],
             interactions=[FireInteraction('fire', target='forest', neighborhood=neighborhood)],

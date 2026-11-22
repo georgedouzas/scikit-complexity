@@ -10,9 +10,9 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, I, arctan2, sqrt
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, CallSpec, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....errors import ValidationError
-from ....specs import CallSpec
 from ..._utils import components_of
 from ...types import Parts
 from .._base import BasePass
@@ -49,9 +49,23 @@ STAND_IN = '_split_part_'
 
 
 class LowerComplexPass(BasePass):
-    """A pass that splits every law of a complex state into laws of its parts.
+    """A pass that splits every law of a complex state into real and imaginary parts.
 
-    The parts are the real and imaginary parts.
+    The solvers step real numbers, so a state that holds complex numbers, such as the amplitude of a wave, is stored as
+    two real values, and every law of it becomes one law of the real part and one of the imaginary part.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OrdersPass: Rewrites derivatives and past values.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import I
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.general.dynamics import DynamicalSystem
+        >>> system = DynamicalSystem({'z': 0.5 + 0.2j}, {'z': lambda s: I * s.target.z})
+        >>> [law.target for _, laws, _ in PassCompiler().prepare(system).compilation_.lowered for law in laws]
+        [z_state_re, z_state_im]
     """
 
     @staticmethod
@@ -98,7 +112,7 @@ class LowerComplexPass(BasePass):
     def _get_stand_in(part: Expression, stand_ins: dict[Expression, Expression]) -> Expression:
         """Return a real symbol that stands for a real part.
 
-        The symbol stands for the part while Sage splits the function applied to it.
+        The symbol stands for the real part while Sage splits the function applied to it.
         """
         if part.operator() is None:
             return part
@@ -156,7 +170,7 @@ class LowerComplexPass(BasePass):
 
     @staticmethod
     def _split_where(function: Callable[..., Expression], operands: list[Expression], owner: str) -> Parts:
-        """Return the parts of a choice between two values.
+        """Return the real and imaginary parts of a choice between two values.
 
         The condition of the choice takes real values.
         """
@@ -244,7 +258,7 @@ class LowerComplexPass(BasePass):
         Raises:
             ValidationError:
                 The expression orders complex values, gives a complex value to a function that takes real values, or
-                applies a function whose parts Sage cannot write.
+                applies a function whose real and imaginary parts Sage cannot write.
         """
         parsed: Expression = SR(expression)
         if not parsed.has(I):
@@ -323,7 +337,7 @@ class LowerComplexPass(BasePass):
 
     @staticmethod
     def _split_assignment(
-        law: RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw,
+        law: RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw,
         owner: str,
         state_of: Callable[[Expression], str],
     ) -> list[BaseLaw]:
@@ -331,7 +345,7 @@ class LowerComplexPass(BasePass):
 
         The law is a rate, noise, update, or boundary law.
         """
-        description = f'{type(law).__name__} of {owner}'
+        description = f'{law._get_name()} of {owner}'
         targets = components_of(law._get_targets()[0])
         values = (
             None
@@ -351,20 +365,21 @@ class LowerComplexPass(BasePass):
         ]
 
     @staticmethod
-    def _split_equation(equation: EquationLaw, owner: str) -> list[BaseLaw]:
+    def _split_equation(equation: ConstraintLaw, owner: str) -> list[BaseLaw]:
         """Return the real equations of the real and imaginary parts of a complex equation."""
         description = f'Equation of {owner}'
-        real_lhs, imaginary_lhs = LowerComplexPass._split_complex(equation.lhs_, description)
-        real_rhs, imaginary_rhs = LowerComplexPass._split_complex(equation.rhs_, description)
+        left, right = equation._get_sides()
+        real_lhs, imaginary_lhs = LowerComplexPass._split_complex(left, description)
+        real_rhs, imaginary_rhs = LowerComplexPass._split_complex(right, description)
         real = LowerComplexPass._is_zero(imaginary_lhs) and LowerComplexPass._is_zero(imaginary_rhs)
         target = equation.target if real else None
-        equations: list[BaseLaw] = [EquationLaw(real_lhs, real_rhs, target=target).prepare()]
+        equations: list[BaseLaw] = [ConstraintLaw(real_lhs, real_rhs, target=target)]
         if not real:
-            equations.append(EquationLaw(imaginary_lhs, imaginary_rhs).prepare())
+            equations.append(ConstraintLaw(imaginary_lhs, imaginary_rhs))
         return equations
 
     @staticmethod
-    def _split_event(event: CrossingLaw, owner: str, state_of: Callable[[Expression], str]) -> CrossingLaw:
+    def _split_event(event: EventLaw, owner: str, state_of: Callable[[Expression], str]) -> EventLaw:
         """Return an event with a real guard and a reset of real states."""
         description = f'Event of {owner}'
         guard = LowerComplexPass._get_real(
@@ -425,7 +440,7 @@ class LowerComplexPass(BasePass):
 
         The complex law has complex states and values. A law with no complex value is returned unchanged. A law with a
         complex value becomes one law per real component of its target, two for every complex component, and an equation
-        with complex sides becomes the equations of their parts.
+        with complex sides becomes the equations of their real and imaginary parts.
 
         Args:
             law:
@@ -448,16 +463,16 @@ class LowerComplexPass(BasePass):
         """
         if isinstance(law, AGENT_LAWS) or not any(LowerComplexPass._has_complex(item) for item in law._get_values()):
             return [law]
-        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return LowerComplexPass._split_assignment(law, owner, state_of)
-        if isinstance(law, CrossingLaw):
+        if isinstance(law, EventLaw):
             return [LowerComplexPass._split_event(law, owner, state_of)]
         if isinstance(law, JumpLaw):
             return [LowerComplexPass._split_jump(law, owner)]
-        if isinstance(law, EquationLaw):
+        if isinstance(law, ConstraintLaw):
             return LowerComplexPass._split_equation(law, owner)
         error_msg = (
-            f'A {type(law).__name__} of {owner} holds a complex value. {type(law).__name__}s take real states and '
+            f'A {law._get_name()} of {owner} holds a complex value. {law._get_name()}s take real states and '
             'real values.'
         )
         raise ValidationError(error_msg)

@@ -6,27 +6,27 @@ The subshifts are the S-gap, even, context-free, and Morse subshifts.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
 import itertools
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import scipy.optimize
-from sage.all__sagemath_symbolics import ZZ, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import ZZ
 
-from ....core.components.elements import Element, GroupElement, WordElement
-from ....core.components.interactions import LocalRuleInteraction
-from ....core.components.laws import ProductionLaw
-from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
+from ...general.rewriting import ProductionLaw, RewritingInteraction, WordElement
 from ._binary_cell import BinaryCellElement
 
 OUTSIDE = -1.0
@@ -40,90 +40,49 @@ BALANCED_BLOCK = 0.5
 class DigitCellElement(Element):
     """Cell holding a digit of a q-adic integer, from 0 to `base - 1`.
 
-    The digit is the label of a vertex of the q-ary tree.
+    The digit is the label of a vertex of the q-ary tree. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the cells.
 
         digit:
-            The initial digit.
+            The initial digit, or one digit per cell.
 
-        base:
-            The base `q` of the digits, at least 2.
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import DigitCellElement
-        >>> DigitCellElement('cell', digit=1).base
-        2
+        >>> DigitCellElement('cell', digit=1).digit
+        1
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        digit: Annotated[float, StateSpec(domain=ZZ)] = 0,
-        base: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
+        digit: Annotated[float | Array, ZZ] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.digit = digit
-        self.base = base
-
-
-class MorseElement(WordElement):
-    """Word rewritten by the Thue-Morse substitution `0 → 01`, `1 → 10`.
-
-    From the axiom `0`, generation `n` is the word `a_n = T(0) T(1) ... T(2^n - 1)` of the Thue-Morse sequence, whose
-    term `T(k)` is the parity of the number of ones in the binary expansion of `k`.
-
-    Args:
-        label:
-            The label of the word.
-
-        axiom:
-            The word at generation 0.
-
-    Examples:
-        >>> from skcomplex.systems.computer_science.automata import MorseElement
-        >>> MorseElement('morse', axiom='0').axiom
-        '0'
-    """
-
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
-        """Return the productions of the Thue-Morse substitution.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The productions of the word.
-        """
-        del s
-        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
 
 
 class TernaryCellElement(Element):
     """Cell of a subshift over the alphabet `{0, 1, 2}`.
 
-    An example is the context-free subshift.
+    An example is the context-free subshift. With `space`, the element holds one cell on every site.
 
     Args:
         label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the cells.
 
         symbol:
-            The initial symbol, 0, 1, or 2.
+            The initial symbol, 0, 1, or 2, or one symbol per cell.
+
+        space:
+            The space with one cell on every site, such as a lattice, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import TernaryCellElement
@@ -134,12 +93,221 @@ class TernaryCellElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        symbol: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1, 2]))] = 0,
+        symbol: Annotated[float | Array, {0, 1, 2}] = 0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.symbol = symbol
+
+
+class GapShiftInteraction(Interaction):
+    """Shift of a window of a binary configuration whose gaps between ones are independent.
+
+    Every step moves the window one cell to the left. The cell entering on the right is a one with the hazard of the
+    gap since the last one, the probability that a gap of that length ends there.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells of the window, whose state `alive` the shift moves.
+
+        hazards:
+            The probability that a gap ends at every length, from 0.
+
+        size:
+            The number of cells of the window.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GapShiftInteraction
+        >>> GapShiftInteraction('shift', target='cells', hazards=(0.5, 1.0), size=10).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'cells',
+        hazards: Sequence[float] = (1.0,),
+        size: int = 120,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.hazards = hazards
+        self.size = size
+
+    def _get_function(self) -> Callable[..., Array]:
+        """Return the shift that reads the cell to the right, or draws a new cell at the right end."""
+        hazards = np.asarray(self.hazards, dtype=float)
+
+        def shift(*values: Array, random: Array, **kwargs: object) -> Array:
+            window = np.stack(values)
+            right, inside = window[-1], window[1:-1]
+            ones = inside[::-1] == 1
+            gap = np.where(ones.any(axis=0), ones.argmax(axis=0), inside.shape[0])
+            drawn = (random < hazards[np.minimum(gap, hazards.size - 1)]).astype(float)
+            return np.where(right == OUTSIDE, drawn, right)
+
+        return shift
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shift, which reads the whole window and the cell to the right, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        window = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
+        alive = context.target.alive
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(alive, self._get_function(), neighborhood=window, label=self.label, stochastic=True),
+        ]
+
+
+class ContextFreeMoveInteraction(Interaction):
+    """Random moves of a ring of symbols that stay in the context-free subshift.
+
+    Every step proposes to change every cell, in a random order, to one of the two other symbols, and rejects the
+    changes that would leave a block `0 1^h 2^k 0` with `h != k`. The moves sample the admissible rings uniformly.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells of the ring, whose state `symbol` the moves change.
+
+        size:
+            The number of cells of the ring.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import ContextFreeMoveInteraction
+        >>> ContextFreeMoveInteraction('moves', target='cells', size=12).size
+        12
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', size: int = 60) -> None:
+        super().__init__(label)
+        self.target = target
+        self.size = size
+
+    @staticmethod
+    def _is_balanced(word: Array) -> bool:
+        """Return whether a word over `{1, 2}` between two zeros is no block `1^h 2^k` with `h != k`."""
+        if np.any(np.diff(word) < 0):
+            return True
+        ones = int(np.sum(word == 1))
+        return ones == word.size - ones
+
+    @staticmethod
+    def _is_context_free(ring: Array) -> bool:
+        """Return whether a ring of symbols holds no block `0 1^h 2^k 0` with `h != k` between consecutive zeros."""
+        zeros = np.flatnonzero(ring == 0)
+        if zeros.size == 0:
+            return True
+        rolled = np.roll(ring, -int(zeros[0]))
+        bounds = [*(zeros - zeros[0]).tolist(), ring.size]
+        return all(
+            ContextFreeMoveInteraction._is_balanced(rolled[start + 1 : end])
+            for start, end in itertools.pairwise(bounds)
+        )
+
+    @staticmethod
+    def _get_move(*values: Array, random: Array, **kwargs: object) -> Array:
+        """Return the cell changed to another random symbol, unless the ring would leave the subshift."""
+        window = np.stack(values)
+        size = (window.shape[0] + 1) // 2
+        center = window[size - 1]
+        proposals = (center + 1 + np.floor(2 * random)) % SYMBOLS
+        following = center.copy()
+        for row in range(window.shape[1]):
+            ring = window[size - 1 :, row].copy()
+            ring[0] = proposals[row]
+            if ContextFreeMoveInteraction._is_context_free(ring):
+                following[row] = proposals[row]
+        return following
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the moves, which read every cell of the ring from both sides, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        ring = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, self.size)))
+        symbol = context.target.symbol
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(
+                symbol,
+                self._get_move,
+                neighborhood=ring,
+                schedule='random-sequential',
+                label=self.label,
+                stochastic=True,
+            ),
+        ]
+
+
+class CarryInteraction(Interaction):
+    """Addition of 1 to the digits of a q-adic integer, the lowest first.
+
+    A digit turns by the cycle `0 → 1 → ... → q - 1 → 0` when every lower digit is `q - 1`, the carry, and keeps its
+    value otherwise. The lowest digit reads `q - 1` beyond the digits, so it turns at every step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The cells of the digits, whose state `digit` the addition changes.
+
+        base:
+            The base `q`.
+
+        digits:
+            The number of digits.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import CarryInteraction
+        >>> CarryInteraction('carry', target='cells', base=3).base
+        3
+    """
+
+    def __init__(self, label: str, *, target: Role = 'cells', base: int = 2, digits: int = 6) -> None:
+        super().__init__(label)
+        self.target = target
+        self.base = base
+        self.digits = digits
+
+    def _get_function(self) -> Callable[..., Array]:
+        """Return the digit plus 1 modulo the base when every lower digit is `base - 1`, and the digit otherwise."""
+        base = self.base
+
+        def carry(*digits: Array, **kwargs: object) -> Array:
+            window = np.stack(digits)
+            carried = np.all(window[:-1] == base - 1, axis=0)
+            return np.where(carried, (window[-1] + 1) % base, window[-1])
+
+        return carry
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the carry, which reads every lower digit, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        lower = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.digits, 1)))
+        digit = context.target.digit
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(digit, self._get_function(), neighborhood=lower, label=self.label),
+        ]
 
 
 class GapSubshiftSystem(BaseSystem):
@@ -168,13 +336,19 @@ class GapSubshiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             No allowed gap lies below ten times the size.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import GapSubshiftSystem
-        >>> cells = GapSubshiftSystem(40).prepare().system_.elements[0].values['alive']
+        >>> cells = GapSubshiftSystem(40).prepare().system_.elements[0].alive
         >>> runs = [len(run) for run in ''.join(str(int(cell)) for cell in cells).strip('0').split('1') if run]
         >>> all(run % 2 == 0 for run in runs)
         True
@@ -185,7 +359,7 @@ class GapSubshiftSystem(BaseSystem):
     references = ('Ceccherini-Silberstein and Coornaert 2023',)
     until = 100
     dt = 1
-    observables = (ObservableSpec('density', group='cells', variable='alive'),)
+    observables = (Observable('density', group='cells', variable='alive'),)
 
     def __init__(
         self,
@@ -194,8 +368,10 @@ class GapSubshiftSystem(BaseSystem):
         gaps: Sequence[int] | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.gaps = gaps
         self.random_state = random_state
@@ -247,48 +423,17 @@ class GapSubshiftSystem(BaseSystem):
             cells += [1.0] + [0.0] * int(generator.choice(probabilities.size, p=probabilities))
         return np.asarray(cells[-size:])
 
-    @staticmethod
-    def _get_gap_shift(*values: Array, random: Array, hazards: Array) -> Array:
-        """Return the cell to the right, or at the right end a new cell.
-
-        The new cell is drawn from the gap since the last one.
-        """
-        window = np.stack(values)
-        right, inside = window[-1], window[1:-1]
-        ones = inside[::-1] == 1
-        gap = np.where(ones.any(axis=0), ones.argmax(axis=0), inside.shape[0])
-        drawn = (random < hazards[np.minimum(gap, hazards.size - 1)]).astype(float)
-        return np.where(right == OUTSIDE, drawn, right)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the shift on the S-gap subshift.
-
-        The S-gap subshift holds the binary sequences whose runs of zeros between ones lie in `S`.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a window drawn from the maximal entropy measure and its shift."""
+        super()._prepare(context)
         _, probabilities, hazards = self._get_gap_law(self._get_gap_lengths(self.size, self.gaps))
         cells = self._get_renewal_cells(self.size, probabilities, self.random_state)
-        neighborhood = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
-        return CompositeSystem(
+        space = LatticeSpace(self.size, boundary='fixed', fill=OUTSIDE)
+        shift = GapShiftInteraction('shift', target='cells', hazards=tuple(hazards.tolist()), size=self.size)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=BinaryCellElement,
-                    space=LatticeSpace(self.size, boundary='fixed', fill=OUTSIDE),
-                    values={'alive': cells},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'shift',
-                    target='cells',
-                    state='alive',
-                    rule=functools.partial(self._get_gap_shift, hazards=hazards),
-                    neighborhood=neighborhood,
-                    stochastic=True,
-                ),
-            ],
+            elements=[BinaryCellElement('cells', alive=cells, space=space)],
+            interactions=[shift],
         )
 
 
@@ -316,13 +461,19 @@ class ContextFreeSubshiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The initial ring is not admissible.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import ContextFreeSubshiftSystem
-        >>> ContextFreeSubshiftSystem(12).prepare().system_.elements[0].values['symbol'].tolist()
+        >>> ContextFreeSubshiftSystem(12).prepare().system_.elements[0].symbol.tolist()
         [0.0, 1.0, 1.0, 2.0, 2.0, 0.0, 1.0, 2.0, 0.0, 1.0, 2.0, 0.0]
     """
 
@@ -339,66 +490,17 @@ class ContextFreeSubshiftSystem(BaseSystem):
         initial: npt.ArrayLike | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.initial = initial
         self.random_state = random_state
 
-    @staticmethod
-    def _is_balanced(word: Array) -> bool:
-        """Return whether a word over `{1, 2}` is no block `1^h 2^k` with `h != k`.
-
-        The word lies between two zeros.
-        """
-        if np.any(np.diff(word) < 0):
-            return True
-        ones = int(np.sum(word == 1))
-        return ones == word.size - ones
-
-    @staticmethod
-    def _is_context_free(ring: Array) -> bool:
-        """Return whether a ring of symbols holds no block `0 1^h 2^k 0` with `h != k`.
-
-        The blocks lie between consecutive zeros.
-        """
-        zeros = np.flatnonzero(ring == 0)
-        if zeros.size == 0:
-            return True
-        rolled = np.roll(ring, -int(zeros[0]))
-        bounds = [*(zeros - zeros[0]).tolist(), ring.size]
-        return all(
-            ContextFreeSubshiftSystem._is_balanced(rolled[start + 1 : end]) for start, end in itertools.pairwise(bounds)
-        )
-
-    @staticmethod
-    def _get_context_free_move(*values: Array, random: Array) -> Array:
-        """Return the cell changed to another random symbol.
-
-        The change is refused when the ring would leave the context-free subshift.
-        """
-        window = np.stack(values)
-        size = (window.shape[0] + 1) // 2
-        center = window[size - 1]
-        proposals = (center + 1 + np.floor(2 * random)) % SYMBOLS
-        following = center.copy()
-        for row in range(window.shape[1]):
-            ring = window[size - 1 :, row].copy()
-            ring[0] = proposals[row]
-            if ContextFreeSubshiftSystem._is_context_free(ring):
-                following[row] = proposals[row]
-        return following
-
-    @staticmethod
-    def _get_whole_ring(size: int) -> LatticeNeighborhood:
-        """Return the offsets from `-(size - 1)` to `size - 1`.
-
-        They read every cell of a ring from both sides.
-        """
-        return LatticeNeighborhood(tuple((offset,) for offset in range(1 - size, size)))
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ring of balanced blocks and its random moves."""
+        super()._prepare(context)
         if self.initial is None:
             generator = np.random.default_rng(self.random_state)
             blocks: list[float] = []
@@ -410,31 +512,13 @@ class ContextFreeSubshiftSystem(BaseSystem):
             symbols[:cut] = blocks[:cut]
         else:
             symbols = np.asarray(self.initial, dtype=float)
-        if not self._is_context_free(symbols):
+        if not ContextFreeMoveInteraction._is_context_free(symbols):
             error_msg = f'The initial ring {symbols.tolist()} holds a block 0 1^h 2^k 0 with h != k.'
             raise ParameterError(error_msg)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=TernaryCellElement,
-                    space=LatticeSpace(self.size),
-                    values={'symbol': symbols},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'moves',
-                    target='cells',
-                    state='symbol',
-                    rule=self._get_context_free_move,
-                    neighborhood=self._get_whole_ring(self.size),
-                    schedule='random-sequential',
-                    stochastic=True,
-                ),
-            ],
+            elements=[TernaryCellElement('cells', symbol=symbols, space=LatticeSpace(self.size))],
+            interactions=[ContextFreeMoveInteraction('moves', target='cells', size=self.size)],
         )
 
 
@@ -455,10 +539,15 @@ class MorseSubshiftSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
-        >>> simulate(MorseSubshiftSystem(), until=3).get_values('morse.size').tolist()
+        >>> MorseSubshiftSystem().prepare().simulate(until=3).get_values('morse.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -468,13 +557,31 @@ class MorseSubshiftSystem(BaseSystem):
     until = 10
     dt = 1
 
-    def __init__(self, axiom: str = '0', *, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        axiom: str = '0',
+        *,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.axiom = axiom
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the word and its substitution."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[WordElement('morse', axiom=self.axiom, alphabet='01')],
+            interactions=[
+                RewritingInteraction(
+                    'doubling',
+                    target='morse',
+                    laws=[ProductionLaw('0', '01'), ProductionLaw('1', '10')],
+                ),
+            ],
+        )
 
 
 class AddingMachineSystem(BaseSystem):
@@ -502,14 +609,20 @@ class AddingMachineSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The base is below 2.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import AddingMachineSystem
-        >>> AddingMachineSystem(4).prepare().system_.elements[0].prepare().size_
-        4
+        >>> AddingMachineSystem(3).prepare().simulate(until=5).get_values('cells.digit')[-1].tolist()
+        [1.0, 0.0, 1.0]
     """
 
     field = 'computer_science/automata'
@@ -525,49 +638,24 @@ class AddingMachineSystem(BaseSystem):
         base: int = 2,
         initial: npt.ArrayLike | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.digits = digits
         self.base = base
         self.initial = initial
 
-    @staticmethod
-    def _carry(*digits: Array, base: Array | float) -> Array:
-        """Return the digit of the adding machine after a carry.
-
-        It is the digit plus 1 modulo the base when every lower digit is `base - 1`, and the digit otherwise.
-        """
-        window = np.stack(digits)
-        carried = np.all(window[:-1] == base - 1, axis=0)
-        return np.where(carried, (window[-1] + 1) % base, window[-1])
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the adding machine `r → r + 1` on the q-adic integers.
-
-        It is the odometer acting on the q-ary tree.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the digits and the addition of 1."""
+        super()._prepare(context)
         if self.base < MIN_BASE:
             error_msg = f'The base of the adding machine is at least 2, but it is {self.base}.'
             raise ParameterError(error_msg)
         values = np.zeros(self.digits) if self.initial is None else np.asarray(self.initial, dtype=float)
-        return CompositeSystem(
+        space = LatticeSpace(self.digits, boundary='fixed', fill=self.base - 1)
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'cells',
-                    element=DigitCellElement,
-                    space=LatticeSpace(self.digits, boundary='fixed', fill=self.base - 1),
-                    values={'digit': values, 'base': self.base},
-                    on='sites',
-                ),
-            ],
-            interactions=[
-                LocalRuleInteraction(
-                    'carry',
-                    target='cells',
-                    state='digit',
-                    rule=self._carry,
-                    neighborhood=LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.digits, 1))),
-                ),
-            ],
+            elements=[DigitCellElement('cells', digit=values, space=space)],
+            interactions=[CarryInteraction('carry', target='cells', base=self.base, digits=self.digits)],
         )

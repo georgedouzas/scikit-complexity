@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.markets import BarterSystem, contract_curve
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = BarterSystem(n_barterers=100, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=30, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=30, observers=[observer], random_state=0)
 
 # %%
 # The contract curve of the Edgeworth box
@@ -54,7 +53,7 @@ rng = np.random.default_rng(1)
 for index in range(8):
     x, y = rng.uniform(1, 9, 2)
     edgeworth = BarterSystem(chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
-    final = simulate(edgeworth, until=2, random_state=0).get_agents('barterers', 2).values
+    final = edgeworth.prepare().simulate(until=2, random_state=0).get_agents('barterers', 2).values
     label = ('endowment', 'final allocation') if index == 0 else (None, None)
     box.plot([x, final['chocolate'][0]], [y, final['cigarettes'][0]], color='grey', lw=0.8)
     box.scatter(x, y, color='C0', label=label[0])

@@ -13,14 +13,13 @@ middle cell, the `k`-th cell to the left holds `C(s, k) (-t)^k` after `s` steps.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import PowerSeriesAutomatonSystem
 
 SYSTEM = 'power_series_automaton'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(PowerSeriesAutomatonSystem(size=31, order=8), observers=[observer])
+trajectory = PowerSeriesAutomatonSystem(size=31, order=8).prepare().simulate(observers=[observer])
 
 # %%
 # Coefficients and the inverse

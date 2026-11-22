@@ -17,19 +17,22 @@ from pymoo.algorithms.soo.nonconvex.pso import PSO
 from pymoo.core.algorithm import Algorithm
 from pymoo.core.problem import Problem
 from pymoo.core.termination import NoTermination
-from sage.all__sagemath_symbolics import Expression, cos, pi
+from sage.all__sagemath_symbolics import SR, Expression, cos, oo, pi
+from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, SamplingInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.base import BaseSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, ObjectiveLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BallNeighborhood, BaseSpace, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, MetropolisSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, RoleSpec, StateSpec
-from ....core.types import Array, ElementKind
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 SEEDS = 2**31
 ANNEALING = 'annealing'
@@ -180,7 +183,7 @@ class OptimizationInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('best', 'mean')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     draws = True
 
@@ -188,7 +191,7 @@ class OptimizationInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
+        target: Role,
         state: str,
         objective: Callable[[Array], npt.ArrayLike],
         bounds: tuple[npt.ArrayLike, npt.ArrayLike],
@@ -203,18 +206,14 @@ class OptimizationInteraction(Interaction):
         self.algorithm = algorithm
         self.phase = phase
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an algorithm that is not a spec, or an uncallable objective.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an algorithm that is not a spec or an uncallable objective.
 
         Raises:
             ValidationError:
                 The algorithm is not an algorithm spec, or the objective is not callable.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not isinstance(self.algorithm, ALGORITHM_SPECS):
             names = ', '.join(item.__name__ for item in ALGORITHM_SPECS)
             error_msg = f'The algorithm {self.algorithm!r} of {self.label!r} is no algorithm spec. Use one of {names}.'
@@ -222,6 +221,16 @@ class OptimizationInteraction(Interaction):
         if not callable(self.objective):
             error_msg = f'The objective of {self.label!r} must be a function of the array of candidates.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of a step.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance, phase=self.phase)]
 
     def _get_differential_evolution(self, spec: DifferentialEvolutionSpec, candidates: Array) -> Algorithm:
         """Return differential evolution from the candidates."""
@@ -288,7 +297,7 @@ class OptimizationInteraction(Interaction):
 
         It does not advance once the algorithm has converged.
         """
-        agents = system.get_agents(self._get_role('target'))
+        agents = system.get_agents(self.target)
         if 'algorithm' not in system.storage:
             candidates = np.array([getattr(agent, self.state) for agent in agents], dtype=float)
             seed = int(system.rng.integers(SEEDS))
@@ -309,19 +318,6 @@ class OptimizationInteraction(Interaction):
         system.report('best', best)
         system.report('mean', float(values.mean()))
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one generation.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, which the rule does not read.
-
-        Returns:
-            laws:
-                The rule that advances the population.
-        """
-        return [RuleLaw(self._advance, phase=self.phase)]
-
 
 class AnnealedCandidateElement(Element):
     """Candidate solution of the plane.
@@ -338,6 +334,9 @@ class AnnealedCandidateElement(Element):
         y:
             The second coordinate.
 
+        space:
+            The lattice whose sites hold one candidate each, or `None` for one candidate.
+
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import AnnealedCandidateElement
         >>> AnnealedCandidateElement('candidate', x=1.0).x
@@ -347,12 +346,78 @@ class AnnealedCandidateElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
+        x: object = 0.0,
+        y: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.x = x
         self.y = y
+
+
+class AnnealingInteraction(Interaction):
+    """Boltzmann weight of the energy of candidates at a temperature that falls geometrically.
+
+    The objective of every candidate is its energy over the temperature of the time `t`,
+    `E / (T * 1e-3 ** (t / generations))`, so the temperature falls to 1e-3 of its start over `generations` steps,
+    and the `MetropolisSolver` of the system moves the state, such as
+    `MetropolisSolver(moves={'candidates.x': 'gaussian'})`.
+    It anneals a route of a salesman, the placement of a circuit, or the weights of a model.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of candidates on the sites of a lattice.
+
+        state:
+            The name of the state the moves change.
+
+        energy:
+            The function `energy(namespace)` of the energy of a candidate, which reads it as `namespace.target`.
+
+        temperature:
+            The temperature at the start.
+
+        generations:
+            The number of steps over which the temperature falls to 1e-3 of its start.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import AnnealingInteraction
+        >>> energy = lambda s: s.target.x**2
+        >>> AnnealingInteraction('anneal', target='candidates', state='x', energy=energy, temperature=5.0).temperature
+        5.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        state: str,
+        energy: Callable[[SimpleNamespace], Expression],
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        generations: Annotated[float, RealSet.open(0, oo)] = 100.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.energy = energy
+        self.temperature = temperature
+        self.generations = generations
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the objective of every candidate, its energy over the temperature of the time.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        state = getattr(self._get_member(context, 'target'), self.state)
+        cooled = SR(context.temperature) * COOLED ** (context.t / context.generations)
+        self.laws_: list[BaseLaw] = [ObjectiveLaw(SR(self.energy(context)) / cooled, state)]
 
 
 class RunningBestElement(Element):
@@ -371,7 +436,7 @@ class RunningBestElement(Element):
         5.0
     """
 
-    def __init__(self, label: str, best: Annotated[float, StateSpec()] = 1e300) -> None:
+    def __init__(self, label: str, best: float = 1e300) -> None:
         super().__init__(label)
         self.best = best
 
@@ -384,7 +449,10 @@ class SearchCandidateElement(Element):
             The label of the candidate or the group.
 
         x:
-            The vector of the candidate.
+            The vector of the candidate, one row per candidate.
+
+        size:
+            The number of candidates, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import SearchCandidateElement
@@ -392,8 +460,8 @@ class SearchCandidateElement(Element):
         (0.0, 1.0)
     """
 
-    def __init__(self, label: str, x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = (0.0, 0.0)) -> None:
-        super().__init__(label)
+    def __init__(self, label: str, x: npt.ArrayLike = (0.0, 0.0), size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.x = x
 
 
@@ -424,25 +492,23 @@ class RunningBestInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.source = source
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the update of the lowest value.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of the lowest value.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update of `best`.
+            context:
+                The namespace of the target and of the observable.
         """
-        return [UpdateLaw(s.target.best, where(s.source.value < s.target.best, s.source.value, s.target.best))]
+        super()._prepare(context)
+        best, value = context.target.best, context.source.value
+        self.laws_ = [UpdateLaw(best, where(value < best, value, best))]
 
 
 def _rastrigin(x: Expression, y: Expression) -> Expression:
@@ -498,10 +564,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
     """A population of candidates that searches a two-dimensional landscape.
 
     Each step is one generation. A population optimiser moves the candidates through `OptimizationInteraction`, and
-    reports `search.best`. Simulated annealing samples every coordinate through `SamplingInteraction` at a temperature
-    that falls geometrically to 1e-3 of its start over `generations` steps, and `tracker/record.best` holds the lowest
-    energy it has reached, from the observable `search/lowest` that the catalog lists, so a run passes it in
-    `observables` (Raman 2021 §6.3.3.3, §6.3.4). The system has the group `candidates`.
+    reports `search.best`. Simulated annealing samples every coordinate through `AnnealingInteraction` at a temperature
+    that falls geometrically to 1e-3 of its start over `generations` steps, moved by a `MetropolisSolver`, and
+    `tracker/record.best` holds the lowest energy it has reached, from the observable `search/lowest` that the catalog
+    lists, so a run passes it in `observables` (Raman 2021 §6.3.3.3, §6.3.4). The system has the group `candidates`.
 
     Args:
         n_candidates:
@@ -529,6 +595,12 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The algorithm or the landscape is unknown.
@@ -555,8 +627,10 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         generations: float = 100.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_candidates = n_candidates
         self.algorithm = algorithm
         self.landscape = landscape
@@ -565,57 +639,47 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         self.generations = generations
         self.random_state = random_state
 
-    @staticmethod
-    def _get_annealing(
-        start: Array,
-        energy: Callable[[SimpleNamespace], Expression],
-        temperature: float,
-        width: float,
-        generations: float,
-        *,
-        label: str,
-    ) -> CompositeSystem:
+    def _get_annealing(self, start: Array, energy: Callable[[SimpleNamespace], Expression]) -> System:
         """Return candidates that anneal one state at a time, and the best-energy element.
 
-        The element keeps the lowest energy the candidates reach.
+        The search and the tracker of the best energy run side by side, and the tracker reads the lowest energy the
+        candidates reach, the observable `search/lowest`.
         """
-        candidates = GroupElement(
+        candidates = AnnealedCandidateElement(
             'candidates',
-            element=AnnealedCandidateElement,
+            x=start[:, 0],
+            y=start[:, 1],
             space=LatticeSpace((len(start),)),
-            values={'x': start[:, 0], 'y': start[:, 1]},
-            on='sites',
         )
         samplers = [
-            SamplingInteraction(
+            AnnealingInteraction(
                 f'anneal_{state}',
                 target='candidates',
                 state=state,
-                objective=energy,
-                move='gaussian',
-                width=width,
-                intensity=1 / temperature,
-                schedule='colored',
-                neighborhood=BallNeighborhood(metric='manhattan', n_dim=1),
-                cooling=lambda t: COOLED ** (t / generations),
+                energy=energy,
+                temperature=self.temperature,
+                generations=self.generations,
             )
             for state in ('x', 'y')
         ]
-        return CompositeSystem(
-            label,
+        solver = MetropolisSolver(
+            moves={'candidates.x': 'gaussian', 'candidates.y': 'gaussian'},
+            schedule='colored',
+            neighborhood=RadiusNeighborhood(1, metric='manhattan'),
+            width=self.width,
+        )
+        return System(
+            self.label,
             systems=[
-                CompositeSystem('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
-                CompositeSystem('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
+                System('search', elements=[candidates], interactions=samplers, solver=solver),
+                System('tracker', elements=[RunningBestElement('record')]),
             ],
             interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],
-            time=DiscreteTime(),
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a population of candidates that searches a two-dimensional landscape.
-
-        Each step is one generation.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if (self.algorithm not in ALGORITHMS and self.algorithm != ANNEALING) or self.landscape not in LANDSCAPES:
             names = ', '.join((*ALGORITHMS, ANNEALING))
             error_msg = (
@@ -626,13 +690,11 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         energy, objective, bound = LANDSCAPES[self.landscape]
         start = np.random.default_rng(self.random_state).uniform(-bound, bound, (self.n_candidates, N_DIM))
         if self.algorithm == ANNEALING:
-            return self._get_annealing(start, energy, self.temperature, self.width, self.generations, label=self.label)
-        candidates = GroupElement(
-            'candidates',
-            element=SearchCandidateElement,
-            size=self.n_candidates,
-            values={'x': start},
-        )
+            member = MEMBER_ENERGIES[self.landscape]
+            self.observables_ = (Observable('search/lowest', member, group='candidates', reduce='min'),)
+            self.system_ = self._get_annealing(start, energy)
+            return
+        candidates = SearchCandidateElement('candidates', x=start, size=self.n_candidates)
         search = OptimizationInteraction(
             'search',
             target='candidates',
@@ -641,27 +703,4 @@ class EvolutionaryOptimisersSystem(BaseSystem):
             bounds=(-bound, bound),
             algorithm=ALGORITHMS[self.algorithm],
         )
-        return CompositeSystem(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        They record the lowest candidate energy of simulated annealing. A population optimiser keeps the default
-        settings. Simulated annealing nests the search and the tracker of the best energy, which run side by side, and
-        records the lowest energy its candidates reach, as `search/lowest`, which the tracker reads.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
-
-        Examples:
-            >>> from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
-            >>> settings = EvolutionaryOptimisersSystem(algorithm='annealing').get_run_settings()
-            >>> [spec.label for spec in settings['observables']]
-            ['search/lowest']
-        """
-        settings = super().get_run_settings()
-        if self.algorithm == ANNEALING and self.landscape in MEMBER_ENERGIES:
-            member = MEMBER_ENERGIES[self.landscape]
-            settings['observables'] = (ObservableSpec('search/lowest', member, group='candidates', reduce='min'),)
-        return settings
+        self.system_ = System(self.label, elements=[candidates], interactions=[search])

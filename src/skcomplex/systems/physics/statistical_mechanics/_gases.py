@@ -6,22 +6,38 @@ The module covers gases, fluids, and spin systems.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+
 import numpy as np
 
-from ....core.components.elements import GroupElement
+from ....core.components import Observable
+from ....core.components.elements import VisualSpec
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import VelocityVerletSolver
-from ....core.specs import VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
+from ....core.systems import BaseSystem, System
 from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement
+
+
+class GasMoleculeElement(MassPointElement):
+    """Molecule of an ideal gas, drawn as a point coloured by its velocity.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import GasMoleculeElement
+        >>> GasMoleculeElement('molecule', m=2.0).m
+        2.0
+    """
+
+    visual = VisualSpec('points', {'position': 'x', 'color_by': "x'", 'states': ()})
 
 
 class IdealGasSystem(BaseSystem):
     """An ideal gas of non-interacting molecules in a reflecting box.
 
     Positions are uniform in the box and velocity components are normal with variance `kT / mass`, with the mean
-    velocity removed. The molecules are drawn as points colored by speed. NOTE-RETURNS: The gas.
+    velocity removed. The molecules need no law: given their starting velocities `x'`, they keep them between the
+    walls, as Newton's first law says. The molecules are drawn as points colored by speed. NOTE-RETURNS: The gas.
 
     Args:
         n_molecules:
@@ -45,11 +61,17 @@ class IdealGasSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
-        >>> group = IdealGasSystem(1000, random_state=0).prepare().system_.elements[0]
-        >>> group.label, group.element.__name__, group.size
-        ('gas', 'MassPointElement', 1000)
+        >>> gas = IdealGasSystem(1000, random_state=0).prepare().system_.elements[0]
+        >>> gas.label, type(gas).__name__, gas.size
+        ('gas', 'GasMoleculeElement', 1000)
     """
 
     field = 'physics/statistical_mechanics'
@@ -68,8 +90,10 @@ class IdealGasSystem(BaseSystem):
         mass: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_molecules = n_molecules
         self.kT = kT
         self.size = size
@@ -77,28 +101,27 @@ class IdealGasSystem(BaseSystem):
         self.mass = mass
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return an ideal gas of non-interacting molecules in a reflecting box."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the molecules at uniform positions with thermal velocities.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         velocities = rng.normal(0.0, np.sqrt(self.kT / self.mass), size=(self.n_molecules, self.n_dim))
         velocities -= velocities.mean(axis=0)
-        visual = VisualSpec('points', {'position': 'x', 'radius': self.size / 200, 'color_by': 'x_d1', 'states': ()})
-        molecules = GroupElement(
+        box = ContinuousSpace(extent=[self.size] * self.n_dim, boundary='reflecting')
+        molecules = GasMoleculeElement(
             'gas',
-            element=MassPointElement,
+            x=rng.uniform(0.0, self.size, size=(self.n_molecules, self.n_dim)),
+            m=self.mass,
+            values={"x'": velocities},
             size=self.n_molecules,
-            values={
-                'x': rng.uniform(0.0, self.size, size=(self.n_molecules, self.n_dim)),
-                'x_d1': velocities,
-                'm': self.mass,
-            },
-            visual=visual,
+            space=box,
         )
-        return CompositeSystem(
-            self.label,
-            elements=[molecules],
-            space=ContinuousSpace(extent=[self.size] * self.n_dim, boundary='reflecting'),
-        )
+        self.system_ = System(self.label, elements=[molecules], space=box)
 
 
 class LennardJonesFluidSystem(BaseSystem):
@@ -128,9 +151,15 @@ class LennardJonesFluidSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
-        >>> LennardJonesFluidSystem(100).prepare().system_.elements[0].prepare().size_
+        >>> LennardJonesFluidSystem(100).prepare().system_.elements[0].size
         100
     """
 
@@ -139,7 +168,6 @@ class LennardJonesFluidSystem(BaseSystem):
     references = ('Lennard-Jones 1924', 'Verlet 1967')
     until = 0.5
     dt = 0.005
-    solver = VelocityVerletSolver()
 
     def __init__(
         self,
@@ -150,19 +178,24 @@ class LennardJonesFluidSystem(BaseSystem):
         cutoff: float = 2.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.density = density
         self.temperature = temperature
         self.cutoff = cutoff
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Lennard-Jones particles in a periodic square box.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the particles on a jittered grid, with an optional thermostat.
 
-        A thermostat optionally holds the particles at a temperature.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = float(np.sqrt(self.n_particles / self.density))
         side = int(np.ceil(np.sqrt(self.n_particles)))
@@ -172,22 +205,13 @@ class LennardJonesFluidSystem(BaseSystem):
         velocities = rng.normal(0, np.sqrt(self.temperature or 1.0), (self.n_particles, 2))
         velocities -= velocities.mean(axis=0)
         interactions: list[BaseInteraction] = [
-            LennardJonesInteraction('lj', first='fluid', second='fluid', cutoff=self.cutoff, divisor='m', period=size),
+            LennardJonesInteraction('lj', target='fluid', cutoff=self.cutoff),
         ]
         if self.temperature is not None:
             interactions.append(
                 LangevinThermostatInteraction('thermostat', target='fluid', temperature=self.temperature),
             )
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'fluid',
-                    element=MassPointElement,
-                    size=self.n_particles,
-                    values={'x': positions, 'x_d1': velocities},
-                ),
-            ],
-            interactions=interactions,
-            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-        )
+        box = ContinuousSpace(extent=(size, size), boundary='periodic')
+        fluid = MassPointElement('fluid', x=positions, values={"x'": velocities}, size=self.n_particles, space=box)
+        solver = VelocityVerletSolver() if self.temperature is None else 'auto'
+        self.system_ = System(self.label, elements=[fluid], interactions=interactions, space=box, solver=solver)

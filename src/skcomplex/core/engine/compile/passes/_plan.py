@@ -1,29 +1,46 @@
-"""Plan the partitions of a system from the census of its laws."""
+"""Split a system into the partitions that one solver each can run."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Iterable, Mapping
 
-from ....components.specs import CensusSpec
-from ....components.systems import CompositeSystem
+from ....components.laws import BaseLaw
+from ....enums import FormKind
 from ....errors import IncompatibleLawsError, UnregisteredLawError
-from ....specs import IssueSpec
-from ....specs._owners_spec import _OwnersSpec
-from ....specs._plan_spec import _PlanSpec
-from ....specs._planned_partition_spec import _PlannedPartitionSpec
-from ....types import FormKind
+from ...problems._composite_system import _CompositeSystem
 from .._base import BaseCompiler, BasePass
+from .._census_spec import _CensusSpec
 from .._compilation import Compilation
 from .._forms import FORMS
+from .._issue_spec import IssueSpec
 from .._laws import FORMLESS_LAWS
+from .._owners_spec import _OwnersSpec
+from .._plan_spec import _PlanSpec
+from .._planned_partition_spec import _PlannedPartitionSpec
 from ._form import FormPass
+from ._kernels import KernelsPass
 
 
 class PlanPass(BasePass):
-    """A pass that plans the partitions of the system.
+    """A pass that splits a system into the partitions that one solver each can run.
 
-    It uses the registered forms and solvers.
+    Most systems form one partition that one solver runs as a whole. A system whose components need different solvers,
+    such as a field of rates beside agents that follow rules, is split into partitions that advance side by side, and a
+    system that no solver can run is reported.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CensusPass: Lists the laws the plan is made from.
+        FormPass: Finds the kind of problem of a partition.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [partition.name for partition in compilation.plan.partitions]
+        ['system']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -44,19 +61,19 @@ class PlanPass(BasePass):
         )
 
     @staticmethod
-    def _get_listed(owners: Mapping[str, Iterable[object]]) -> str:
+    def _get_listed(owners: Mapping[str, Iterable[type[BaseLaw]]]) -> str:
         """Return the components of every law kind or class as one list."""
         classes: dict[str, list[str]] = {}
         for owner, kinds in owners.items():
             for kind in kinds:
-                classes.setdefault(getattr(kind, '__name__', f'{kind}'), []).append(owner)
+                classes.setdefault(kind._get_name(), []).append(owner)
         return '; '.join(f'{kind}: {", ".join(sorted(set(paths)))}' for kind, paths in sorted(classes.items()))
 
     @staticmethod
     def _get_mixed_issue(
         path: str,
-        declared: Mapping[str, set[type]],
-        lowered: Mapping[str, set[type]],
+        declared: Mapping[str, set[type[BaseLaw]]],
+        lowered: Mapping[str, set[type[BaseLaw]]],
         solvers: list[type],
     ) -> IssueSpec:
         """Return the issue of a system whose own laws fit no solver or form.
@@ -71,7 +88,7 @@ class PlanPass(BasePass):
         return IssueSpec('laws-mixed', path, message, fix, error=IncompatibleLawsError)
 
     @staticmethod
-    def _get_unregistered_issues(kinds: Mapping[str, set[type]]) -> list[IssueSpec]:
+    def _get_unregistered_issues(kinds: Mapping[str, set[type[BaseLaw]]]) -> list[IssueSpec]:
         """Return the issues of the law classes that no form takes and that need one.
 
         Args:
@@ -88,23 +105,27 @@ class PlanPass(BasePass):
             IssueSpec(
                 'law-unregistered',
                 owner,
-                f'The law class {kind.__name__} has no form the engine knows.',
+                f'The law class {kind._get_name()} has no form the engine knows.',
                 fix,
                 error=UnregisteredLawError,
             )
             for owner, classes in sorted(kinds.items())
-            for kind in sorted(classes, key=lambda kind: kind.__name__)
+            for kind in sorted(classes, key=lambda kind: kind._get_name())
             if kind not in registered and not issubclass(kind, FORMLESS_LAWS)
         ]
 
     @staticmethod
-    def _fits(owners: _OwnersSpec, declared: dict[str, set[type]], lowered: dict[str, set[type]]) -> bool:
+    def _fits(
+        owners: _OwnersSpec,
+        declared: dict[str, set[type[BaseLaw]]],
+        lowered: dict[str, set[type[BaseLaw]]],
+    ) -> bool:
         """Check whether laws compile to one form and one solver of the owners runs them."""
         kinds = set().union(*declared.values())
         return PlanPass._fits_form(lowered.values()) and PlanPass._get_solved(kinds, owners.solvers)
 
     @staticmethod
-    def _fits_form(owners: Iterable[set[type]]) -> bool:
+    def _fits_form(owners: Iterable[set[type[BaseLaw]]]) -> bool:
         """Check whether the law classes of components compile to one form.
 
         Args:
@@ -118,7 +139,7 @@ class PlanPass(BasePass):
         return FormPass._get_form_kinds(owners) in FORMS
 
     @staticmethod
-    def _get_solved(kinds: set[type], solvers: list[type]) -> bool:
+    def _get_solved(kinds: set[type[BaseLaw]], solvers: list[type]) -> bool:
         """Check whether the solver of a single form passed runs every law kind of a set.
 
         It is also true when none is passed. Co-simulation is left out, since it runs partitions that each need a solver
@@ -129,7 +150,7 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _get_planned(
-        system: CompositeSystem,
+        system: _CompositeSystem,
         owners: _OwnersSpec,
         scope: str = '',
     ) -> tuple[list['_PlannedPartitionSpec'], list[IssueSpec]]:
@@ -155,17 +176,17 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _plan_partitions(
-        census: CensusSpec,
-        kinds: Mapping[str, set[type]],
+        census: _CensusSpec,
+        kinds: Mapping[str, set[type[BaseLaw]]],
         solvers: Iterable[type] | None = None,
     ) -> '_PlanSpec':
         """Return the partitions of a system.
 
         They are the subsystems whose laws compile to one form that one solver runs.
         """
-        declared: dict[str, set[type]] = {}
+        declared: dict[str, set[type[BaseLaw]]] = {}
         for record in census.records:
-            declared.setdefault(record.owner, set()).add(type(record.law))
+            declared.setdefault(record.owner, set()).add(KernelsPass._get_kind_of(record.law))
         unregistered = PlanPass._get_unregistered_issues(kinds)
         if unregistered:
             return _PlanSpec((), tuple(unregistered))

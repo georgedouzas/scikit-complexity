@@ -9,12 +9,14 @@ The diffusivity spreads a state of a field as the heat kernel.
 from collections.abc import Callable
 from types import SimpleNamespace
 
-from .....core.components.interactions import RateInteraction
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
 from .....core.components.laws.utils import laplacian
 from .....core.errors import ValidationError
+from .....core.types import Role
 
 
-class DiffusivityInteraction(RateInteraction):
+class DiffusivityInteraction(Interaction):
     """Diffusion `du/dt = D laplacian(u)` of a state `u` of a field by a diffusivity `D`.
 
     Physics names the coefficient a diffusivity, as the thermal diffusivity of heat conduction or the kinematic
@@ -24,7 +26,7 @@ class DiffusivityInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field whose state diffuses.
@@ -40,22 +42,15 @@ class DiffusivityInteraction(RateInteraction):
             The state is not a name, or the coefficient is neither callable nor a number.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.physics.common.fields import DiffusivityInteraction
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.u = u
         >>> space = LatticeSpace((40,), spacing=0.1, boundary='periodic')
-        >>> field = FieldElement('rod', element=CellElement, space=space, values={'u': np.eye(40)[20]})
+        >>> rod = Element('rod', values={'u': np.eye(40)[20]}, space=space)
         >>> heat = DiffusivityInteraction('heat', target='rod', state='u', coefficient=0.1)
-        >>> trajectory = simulate(CompositeSystem(elements=[field], interactions=[heat]), until=1.0, dt=0.01)
+        >>> trajectory = System(elements=[rod], interactions=[heat]).prepare().simulate(until=1.0, dt=0.01)
         >>> round(float(trajectory.get_values('rod.u')[-1].sum()), 6)
         1.0
     """
@@ -64,30 +59,38 @@ class DiffusivityInteraction(RateInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str = 'u',
         coefficient: Callable[[SimpleNamespace], object] | float = 1.0,
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.coefficient = coefficient
 
-    def _check_functions(self) -> None:
-        """Raise an error for a state that is not a name, or a coefficient that is not a function or a number."""
-        super()._check_functions()
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
+
+        Raises:
+            ValidationError:
+                The state is not a name, or the coefficient is neither callable nor a number.
+        """
+        super()._check_arguments()
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = f'{type(self).__name__} {self.label!r} diffuses the state {self.state!r}, which is no name.'
+            raise ValidationError(error_msg)
         if not (callable(self.coefficient) or isinstance(self.coefficient, int | float)):
             error_msg = f'The coefficient of {self.label!r} is {self.coefficient!r}. Give a function or a number.'
             raise ValidationError(error_msg)
 
-    def _get_rate(self, namespace: SimpleNamespace) -> object:
-        """Return the rate `D laplacian(u)` of the state.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate `D laplacian(u)` of the state.
 
         Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespace of the field.
-
-        Returns:
-            rate:
-                The rate of the state.
+            context:
+                The namespace of the field, the time `t`, and the parameters.
         """
-        state = getattr(self._get_member(namespace, 'target'), self.state)
-        return self._evaluate(self.coefficient, namespace) * laplacian(state)
+        super()._prepare(context)
+        u = getattr(context.target, self.state)
+        coefficient = self.coefficient(context) if callable(self.coefficient) else self.coefficient
+        self.laws_ = [RateLaw(u, coefficient * laplacian(u))]

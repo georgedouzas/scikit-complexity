@@ -7,24 +7,27 @@ The light is sensed with a delay or a prediction.
 # License: MIT
 
 import math
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, Period, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
-class LightEmittingRobotView(AgentView):
+class LightEmittingRobotView(AgentViewProtocol, Protocol):
     """View of a light-emitting robot, with its states as attributes."""
 
     phi: float
@@ -41,9 +44,6 @@ class LightEmittingRobotElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         phi:
             The initial direction of motion.
 
@@ -53,33 +53,38 @@ class LightEmittingRobotElement(Element):
         speed:
             The speed the robot moves at.
 
+        values:
+            Further values by name, such as the position `x` and `y` of every robot.
+
+        size:
+            The number of robots, or `None` for one.
+
+        space:
+            The arena, a continuous space whose axes `x` and `y` place the robots, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import LightEmittingRobotElement
         >>> LightEmittingRobotElement('robot', phi=1.0).phi
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'light'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'light'}),
         *,
-        phi: Annotated[float, StateSpec(role='direction')] = 0.0,
-        light: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        phi: Annotated[object, Period(2 * math.pi)] = 0.0,
+        light: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.phi = phi
         self.light = light
         self.speed = speed
-
-    @classmethod
-    def _get_view(cls) -> type[LightEmittingRobotView]:
-        """Return the view of the robots.
-
-        It types their states.
-        """
-        return LightEmittingRobotView
 
 
 class SensoryDelayInteraction(Interaction):
@@ -131,13 +136,13 @@ class SensoryDelayInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         I0: float = 5.0,
         r0: float = 1.0,
         V0: float = 1.0,
@@ -158,25 +163,22 @@ class SensoryDelayInteraction(Interaction):
         self.step = step
         self.side = side
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the motion of the robots.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the motion of the robots, once per step for the whole arena.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the motion.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self._move)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._move)]
 
     def _move(self, system: SystemView) -> None:
         """Measure the light of the others, set the speeds, and move the robots.
 
         The speeds follow the delayed or predicted light.
         """
-        robots = system.get_agents('target', LightEmittingRobotView)
+        robots = cast(list[LightEmittingRobotView], system.get_agents('target'))
         positions = np.array([np.asarray(robot.location, dtype=float) for robot in robots])
         light = self._get_light(positions)
         history = cast('list[Array]', system.storage.setdefault('light', []))
@@ -266,6 +268,12 @@ class LightEmittingRobotsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import LightEmittingRobotsSystem
         >>> LightEmittingRobotsSystem(5).prepare().system_.elements[0].size
@@ -291,8 +299,10 @@ class LightEmittingRobotsSystem(BaseSystem):
         step: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_robots = n_robots
         self.delay = delay
         self.side = side
@@ -304,16 +314,19 @@ class LightEmittingRobotsSystem(BaseSystem):
         self.step = step
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.0, self.side, (self.n_robots, 2))
-        robots = GroupElement(
+        arena = ContinuousSpace(extent=(self.side, self.side), boundary='periodic')
+        robots = LightEmittingRobotElement(
             'robots',
-            element=LightEmittingRobotElement,
+            phi=rng.uniform(0.0, 2 * np.pi, self.n_robots),
+            speed=self.V0,
+            values={'x': positions[:, 0], 'y': positions[:, 1]},
             size=self.n_robots,
-            values={'phi': rng.uniform(0.0, 2 * np.pi, self.n_robots), 'speed': self.V0},
-            location=[tuple(map(float, point)) for point in positions],
+            space=arena,
         )
         motion = SensoryDelayInteraction(
             'motion',
@@ -327,9 +340,9 @@ class LightEmittingRobotsSystem(BaseSystem):
             step=self.step,
             side=self.side,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[robots],
             interactions=[motion],
-            space=ContinuousSpace(extent=(self.side, self.side), boundary='periodic'),
+            space=arena,
         )

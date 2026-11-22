@@ -7,45 +7,49 @@ The squirmers are coupled through the flows they stir in a Stokes fluid.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, identity_matrix, matrix, oo
 from sage.matrix.matrix0 import Matrix
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.particles import StokesianMobilityInteraction
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
 
 class SquirmerElement(Element):
-    """Spherical squirmer.
-
-    The microswimmer at the position `x` swims along the unit orientation `p`.
+    """Spherical squirmers at the positions `x` that swim along the unit orientations `p`.
 
     The slip of its surface sets how it swims and stirs the fluid, and `SquirmerSlipInteraction` turns the slip of
     every squirmer into the motion of all of them.
 
     Args:
         label:
-            The label of the squirmer or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the squirmers.
 
         x:
-            The initial position.
+            The initial positions, one row per squirmer or shared.
 
         p:
-            The initial orientation, a unit vector.
+            The initial orientations, unit vectors, one row per squirmer or shared.
+
+        size:
+            The number of squirmers, or `None` for one.
+
+        space:
+            The continuous space of the squirmers, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import SquirmerElement
@@ -53,15 +57,18 @@ class SquirmerElement(Element):
         [0.0, 0.0, 1.0]
     """
 
+    visual = POINTS
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = POINTS,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        x: object = (0.0, 0.0, 0.0),
+        p: object = (0.0, 0.0, 1.0),
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.p = p
 
@@ -111,12 +118,12 @@ class SquirmerSlipInteraction(StokesianMobilityInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        B1: Annotated[float, ParameterSpec()] = 1.0,
-        B2: Annotated[float, ParameterSpec()] = 0.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        viscosity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        B1: float = 1.0,
+        B2: float = 0.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        viscosity: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(
             label,
@@ -196,6 +203,12 @@ class SquirmersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import SquirmersSystem
         >>> SquirmersSystem(8, beta=2.0).prepare().system_.interactions[0].B2
@@ -224,8 +237,10 @@ class SquirmersSystem(BaseSystem):
         spacing: float = 5.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_squirmers = n_squirmers
         self.B1 = B1
         self.beta = beta
@@ -234,23 +249,21 @@ class SquirmersSystem(BaseSystem):
         self.spacing = spacing
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return spherical squirmers that swim at `2 B1 / 3`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of spherical squirmers that swim at `2 B1 / 3`.
 
-        The squirmers stir each other as pushers or pullers.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         side = math.ceil(self.n_squirmers ** (1 / 3) - 1e-9)
         grid = np.stack(np.meshgrid(*[np.arange(side)] * 3, indexing='ij'), axis=-1).reshape(-1, 3)[: self.n_squirmers]
         positions = self.spacing * grid + rng.uniform(-0.1, 0.1, size=(self.n_squirmers, 3)) * self.spacing
         orientations = rng.standard_normal((self.n_squirmers, 3))
         orientations /= np.linalg.norm(orientations, axis=1, keepdims=True)
-        group = GroupElement(
-            'squirmers',
-            element=SquirmerElement,
-            size=self.n_squirmers,
-            values={'x': positions, 'p': orientations},
-        )
+        squirmers = SquirmerElement('squirmers', x=positions, p=orientations, size=self.n_squirmers)
         slip = SquirmerSlipInteraction(
             'slip',
             target='squirmers',
@@ -259,4 +272,4 @@ class SquirmersSystem(BaseSystem):
             radius=self.radius,
             viscosity=self.viscosity,
         )
-        return CompositeSystem(self.label, elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
+        self.system_ = System(self.label, elements=[squirmers], interactions=[slip], space=ContinuousSpace(n_dim=3))

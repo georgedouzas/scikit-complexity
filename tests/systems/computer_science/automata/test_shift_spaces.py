@@ -5,13 +5,11 @@ import re
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import (
     AddingMachineSystem,
     ContextFreeSubshiftSystem,
     GapSubshiftSystem,
-    MorseElement,
     MorseSubshiftSystem,
 )
 
@@ -77,7 +75,7 @@ def test_context_free_subshift_stays_admissible_and_moves():
 
 def test_morse_subshift_builds_the_thue_morse_prefixes():
     """Test that generation `n` is `T(0) ... T(2^n - 1)`, the parity of the ones of every binary expansion."""
-    trajectory = simulate(MorseSubshiftSystem(), until=8)
+    trajectory = MorseSubshiftSystem().prepare().simulate(until=8)
     assert trajectory.get_values('morse.size').tolist() == [2.0**n for n in range(9)]
     word = ''.join(str(code) for code in trajectory.get_structure('morse', 8).codes)
     assert word == ''.join(str(bin(k).count('1') % 2) for k in range(256))
@@ -91,8 +89,3 @@ def test_adding_machine_counts_through_every_residue():
         np.testing.assert_array_equal(numbers, np.arange(base**digits + 1) % base**digits)
     with pytest.raises(ParameterError, match='at least 2'):
         AddingMachineSystem(base=1).prepare()
-
-
-def test_morse_element_doubles_every_letter():
-    """Test that the Morse substitution sends 0 to 01 and 1 to 10."""
-    assert [law.successor for law in MorseElement('morse', axiom='0')._get_laws(None)] == ['01', '10']

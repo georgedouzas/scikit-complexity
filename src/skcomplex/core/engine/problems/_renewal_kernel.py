@@ -8,14 +8,17 @@ from collections.abc import Callable, Mapping
 import numpy as np
 import numpy.typing as npt
 
+from ...components.laws import DrawSpec
 from ...errors import SolverError, ValidationError
-from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
 from ...types import Array, Indices
-from ..types import Drawn, ReadKind
+from ..enums import ReadKind
+from ..types import Drawn
 from ._base import BaseKernel
 from ._draw_kernel import DrawKernel
 from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
+from ._renewal_record_spec import RenewalRecordSpec
+from ._run_state_spec import RunStateSpec
 
 READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 
@@ -28,11 +31,14 @@ type Sampler = tuple[DrawSpec, MemberFunction]
 
 
 class RenewalKernel(BaseKernel):
-    """A kernel of a renewal law, with its draws, resets, and waiting times.
+    """A kernel of a renewal law: every member renews itself after a random wait.
 
-    Every member of its component has them. `run(state)` keeps in `values_` the next renewal time of every member, drawn
-    from the state at its time, and the solver that keeps the renewal times renews the members that are due, at their
-    own times.
+    Every member of a group waits a random time, drawn from a distribution that may read its values, then renews, such
+    as a sample observed again or a neuron that fires and resets, and draws its next waiting time. The kernel gives the
+    next renewal time of every member, and the solver renews the members that are due, each at its own time. It renews
+    the observations of a sample, the firings of neurons, and the repairs of machines.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         label:
@@ -75,6 +81,15 @@ class RenewalKernel(BaseKernel):
     Attributes:
         values_:
             The next renewal time of every member of the last run.
+
+    See Also:
+        EventKernel: Changes the state when a condition crosses zero.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import ExponentialGrowthAtRandomTimesSystem
+        >>> kernel = ExponentialGrowthAtRandomTimesSystem().prepare().simulate(until=0).problem.renewals[0]
+        >>> kernel.label, kernel.members
+        ('observations', 2000)
     """
 
     values_: Array

@@ -1,4 +1,4 @@
-"""Read delayed states through hidden parameters and take events aside."""
+"""Read delayed states through hidden parameters and set the events aside."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,16 +10,17 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components import EntrySpec
+from ....components.laws import BaseLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....errors import PipelineError, ValidationError
-from ....specs import EntrySpec
 from ..._utils import symbol, vector
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._layout import LayoutPass
@@ -30,9 +31,23 @@ DELAYED_READS = frozenset({ReadKind.SINGLE, ReadKind.MEMBER, ReadKind.OTHER, Rea
 
 
 class DelaysPass(BasePass):
-    """A pass that reads delayed states through hidden parameters.
+    """A pass that reads states at a past time through hidden parameters.
 
-    It takes the events of the laws aside.
+    A law may read a state some time ago, such as the blood cells of Mackey and Glass a maturation delay back. The pass
+    replaces every such read by a hidden parameter that the solver fills from the history of the run at every step. It
+    also sets the events of the laws aside, for the solver to locate.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        OrdersPass: Rewrites derivatives and past values of maps.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassSystem
+        >>> compilation = PassCompiler().prepare(MackeyGlassSystem()).compilation_
+        >>> compilation.layout.parameters[-1].name
+        '__delayed_0'
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -182,7 +197,7 @@ class DelaysPass(BasePass):
             raise PipelineError(error_msg)
         result: list[BaseLaw] = []
         for law in laws:
-            if isinstance(law, CrossingLaw):
+            if isinstance(law, EventLaw):
                 guard = (
                     law.guard
                     if BaseLaw._is_function(law.guard)
@@ -197,13 +212,13 @@ class DelaysPass(BasePass):
                     for target, value in (law.reset or {}).items()
                 }
                 events.append(
-                    (spec, CrossingLaw(guard, reset, law.direction, law.terminal, label=law.label)),
+                    (spec, EventLaw(guard, reset, law.direction, law.terminal, label=law.label)),
                 )
             elif isinstance(law, JumpLaw):
                 result.append(
                     JumpLaw(DelaysPass._substitute_delays(law.rate, spec, compilation, references), law.changes),
                 )
-            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+            elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
                 result.append(
                     BasePass._get_replaced(
                         law,

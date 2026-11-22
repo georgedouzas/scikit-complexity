@@ -13,14 +13,13 @@ open and the potential shoots up to about +40 mV, then the potassium channels op
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.neuroscience import HodgkinHuxleySystem
 
 SYSTEM = 'hodgkin_huxley'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(HodgkinHuxleySystem(I=10.0), observers=[observer])
+trajectory = HodgkinHuxleySystem(I=10.0).prepare().simulate(observers=[observer])
 
 # %%
 # Gates and the firing rate

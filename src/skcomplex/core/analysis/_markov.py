@@ -13,11 +13,12 @@ from scipy import linalg
 from scipy.sparse import csgraph
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path
-from .types import Source
+from .types import DataSource
 
 MATRIX_DIMENSIONS = 2
 MIN_CONNECTED_STATES = 2
@@ -40,7 +41,12 @@ TAGS = AnalysisTags(DataKind.PATH)
 class MarkovResult:
     """A result of `markov`, a Markov chain of paths or of a matrix.
 
-    It comes with the quantities of one kind.
+    It holds the paths or the matrix it read and what the kind measures: the chances of moving from every state to
+    every state, the share of time spent in each state, how fast the chain forgets its start, or the sets of states
+    it lingers in, such as the shares 1/3 and 2/3 of a chain that leaves its second state less often. It reports the
+    chain of weather states, credit ratings, and the shapes of a folding protein.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         path:
@@ -74,6 +80,14 @@ class MarkovResult:
 
         metastable_sets:
             The states of every metastable set, empty without a number of sets, of `'state-system'`.
+
+    See Also:
+        markov: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import markov
+        >>> markov([[0.5, 0.5], [0.25, 0.75]], kind='stationary', matrix='transition').stationary.round(3).tolist()
+        [0.333, 0.667]
     """
 
     path: npt.NDArray[np.int64] | None = None
@@ -89,7 +103,7 @@ class MarkovResult:
 
 
 def markov(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'transition-matrix',
     variables: Sequence[str] | None = None,
@@ -104,20 +118,12 @@ def markov(
 ) -> MarkovResult:
     """Return the Markov chain of the paths of a source, or of a matrix.
 
-    It comes with the quantities of one kind.
+    A Markov chain moves between states with chances that depend only on the current state, so it is the matrix of
+    the chances of every move, such as the row `[0.5, 0.5]` of a state that the path `[0, 1, 0, 1, 1]` leaves for
+    either state alike. The kinds read the integer states of one path, or one row per path, or a matrix with `matrix`.
+    It estimates the chain of weather states, credit ratings, and the shapes of a folding protein from their paths.
 
-    The kinds read the integer states of one path, or one row per path, or a matrix with `matrix`:
-
-    - `'transition-matrix'`: the transitions after `lag` steps counted along the paths and normalized by row.
-    - `'stationary'`: the stationary law `pi` of the matrix, `pi P = pi` or `pi Q = 0` for rates.
-    - `'spectral-gap'`: the gap `1 - |lambda_2|`, or `-Re lambda_2` for rates, and the relaxation time of every mode.
-    - `'state-system'`: the maximum-likelihood Markov state model of the largest connected set, with its metastable
-      sets found by PCCA+.
-    - `'timescales'`: the slowest implied timescales of Markov state models at every lag of `lags`, which do not
-      depend on the lag for a Markovian discretization.
-
-    It appears in many fields. It estimates the chain of weather states, of credit ratings, and of the shapes of a
-    folding protein from their paths.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -125,7 +131,13 @@ def markov(
             row per path, or a transition or rate matrix with `matrix`.
 
         kind:
-            The quantity to compute, one of the kinds above.
+            What to return. `'transition-matrix'` gives the transitions after `lag` steps counted along the paths and
+            normalized by row. `'stationary'` gives the stationary law `pi` of the matrix, `pi P = pi` or `pi Q = 0`
+            for rates. `'spectral-gap'` gives the gap `1 - |lambda_2|`, or `-Re lambda_2` for rates, and the
+            relaxation time of every mode. `'state-system'` gives the maximum likelihood Markov state model of the
+            largest connected set, with its metastable sets found by PCCA+. `'timescales'` gives the slowest implied
+            timescales of Markov state models at every lag of `lags`, which do not depend on the lag when the states
+            make a Markov chain.
 
         variables:
             The discrete state of a trajectory to read, or `None` for the first one.
@@ -163,16 +175,14 @@ def markov(
         AnalysisError:
             A choice is unknown, a setting the kind does not read is changed, or a setting is out of range.
 
+    See Also:
+        passage: Measures the times a path takes to reach a level or a set of states.
+        irreversibility: Measures how far a process is from its reverse in time.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import markov
         >>> markov([0, 1, 0, 1, 1]).transition_matrix.tolist()
         [[0.0, 1.0], [0.5, 0.5]]
-        >>> markov([[0.5, 0.5], [0.25, 0.75]], kind='stationary', matrix='transition').stationary.round(3).tolist()
-        [0.333, 0.667]
-        >>> path = np.random.default_rng(0).integers(0, 2, 10_000)
-        >>> markov(path, kind='state-system').transition_matrix.round(1).tolist()
-        [[0.5, 0.5], [0.5, 0.5]]
     """
     _check_choice('markov', 'kind', kind, KINDS)
     if matrix is not None:

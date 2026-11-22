@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.innovation import InteractingUrnsNetworkSystem
 
@@ -25,11 +24,14 @@ STEPS = 150
 
 graph = nx.karate_club_graph()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(
-    InteractingUrnsNetworkSystem(graph=graph, rho=6, nu=3),
-    until=STEPS,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    InteractingUrnsNetworkSystem(graph=graph, rho=6, nu=3)
+    .prepare()
+    .simulate(
+        until=STEPS,
+        observers=[observer],
+        random_state=0,
+    )
 )
 
 # %%

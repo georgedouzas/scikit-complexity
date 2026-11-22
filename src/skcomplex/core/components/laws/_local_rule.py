@@ -4,43 +4,42 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import KW_ONLY, dataclass
 from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs import BaseSpec, LinearRuleSpec, OuterTotalisticSpec, RequirementSpec, TableSpec, TotalisticSpec
 from ...types import IntArray
-from ..spaces import (
-    BaseNeighborhood,
-    BaseSpace,
-    CayleySpace,
-    DiscreteTime,
-    LatticeNeighborhood,
-    LatticeSpace,
-    MemoryNeighborhood,
-    NetworkSpace,
-    StateTranslationNeighborhood,
-)
+from ..spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace, NetworkSpace
+from ..spaces._discrete_time import _DiscreteTime
 from ._base import BaseLaw
+from ._linear_rule_spec import LinearRuleSpec
+from ._outer_totalistic_spec import OuterTotalisticSpec
+from ._requirement_spec import RequirementSpec
+from ._table_spec import TableSpec
+from ._totalistic_spec import TotalisticSpec
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
-IDENTITY = '1'
 TABLE_AXES = 2
 
 
-class LocalRuleLaw(BaseLaw):
+@dataclass(frozen=True)
+class _LocalRuleLaw(BaseLaw):
     """A law that sets the next value of cells from their ordered neighbourhoods.
 
     A function rule receives one array per neighbour of every read state, in neighbourhood order, with one value per
-    site. It also receives the parameters of the element it names, `random`, a uniform number per site, when the rule is
-    stochastic, and `degree`, the number of neighbours of every site, when it names it. It returns the next values of
-    the target, or one array per target. A table or a totalistic rule may stand in place of the function.
+    site. It also receives the keywords of every rule of an `UpdateLaw`: the parameters of the element, `time`, the
+    time at the start of the step, `space`, `degree`, the number of neighbours of every site, and `random`, a uniform
+    number per site when the rule is stochastic and `None` otherwise. It takes `**kwargs` for those it ignores. It
+    returns the next values of the target, or one array per target. A table or a totalistic rule may stand in place of
+    the function.
 
     A run computes one synchronous step. Its input holds `space`, the space of the sites, the values of every read state
-    by the name of its symbol, and the arguments a function rule names. Sites outside a lattice with fixed edges read
+    by the name of its symbol, and the keywords a function rule receives. Sites outside a lattice with fixed edges read
     the fill value of the space.
 
     Unlike `UpdateLaw`, which gives the next value by an expression of one member, it reads the ordered neighbourhood of
@@ -55,8 +54,8 @@ class LocalRuleLaw(BaseLaw):
 
         over:
             The neighbourhood whose values the rule reads: a lattice neighbourhood of offsets, an adjacency on a
-            network, a memory of group elements on a group space, or a memory translated by the group element that
-            the first read state holds at every site, `StateTranslationNeighborhood`.
+            network, or a neighbourhood of a space outside the core, such as a memory of group elements on a group
+            space, which may move with the group element that the first read state holds at every site.
 
         rule:
             A function, a `TableSpec`, a `TotalisticSpec` rule, an `OuterTotalisticSpec` rule, a `LinearRuleSpec`, or an
@@ -72,7 +71,7 @@ class LocalRuleLaw(BaseLaw):
             classes of a proper coloring of the neighbour graph in turn.
 
         stochastic:
-            Whether a function rule receives the uniform random array `random`.
+            Whether a function rule draws numbers, so that it receives the uniform random array `random`.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -80,45 +79,23 @@ class LocalRuleLaw(BaseLaw):
     Raises:
         ValidationError:
             The schedule or the rule spec is invalid, or a run lacks the space or a read state.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import LocalRuleLaw
-        >>> from skcomplex.core.specs import LinearRuleSpec, TotalisticSpec
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> cell = var('cell')
-        >>> box = BallNeighborhood(n_dim=1, center='inline')
-        >>> LocalRuleLaw(cell, box, TotalisticSpec({2: 1})).prepare().targets_
-        (cell,)
-        >>> parity = LocalRuleLaw(cell, box, TotalisticSpec(lambda total: total % 2)).prepare()
-        >>> parity.run({'space': LatticeSpace(5), 'cell': [0, 0, 1, 0, 0]}).value_.tolist()
-        [0, 1, 1, 1, 0]
-        >>> around = LatticeNeighborhood(((-1,), (1,)))
-        >>> rule90 = LocalRuleLaw(cell, around, LinearRuleSpec((1, 1), 'GF(2)')).prepare()
-        >>> rule90.run({'space': LatticeSpace(6), 'cell': [0, 0, 1, 0, 0, 0]}).value_.tolist()
-        [0, 1, 0, 1, 0, 0]
     """
 
     law_tag: ClassVar[str] = 'update'
 
-    def __init__(
-        self,
-        targets: Expression | tuple[Expression, ...],
-        over: BaseNeighborhood,
-        rule: object,
-        *,
-        reads: tuple[Expression, ...] | None = None,
-        schedule: str = 'synchronous',
-        stochastic: bool = False,
-        label: str = '',
-    ) -> None:
-        super().__init__(label)
-        self.targets = targets
-        self.over = over
-        self.rule = rule
-        self.reads = reads
-        self.schedule = schedule
-        self.stochastic = stochastic
+    targets: Expression | tuple[Expression, ...]
+    over: BaseNeighborhood
+    rule: object
+    _: KW_ONLY
+    reads: tuple[Expression, ...] | None = None
+    schedule: str = 'synchronous'
+    stochastic: bool = False
+    label: str = ''
+
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return 'UpdateLaw'
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the lattice states the rule updates."""
@@ -128,18 +105,13 @@ class LocalRuleLaw(BaseLaw):
     def _get_requirements(cls) -> RequirementSpec:
         """Return what the rule requires of a system.
 
-        It requires discrete time on a lattice, a network, or a Cayley graph.
+        It requires discrete time on a space of sites, such as a lattice, a network, or a Cayley graph.
         """
-        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
+        return RequirementSpec(time=(_DiscreteTime,), space=(LatticeSpace, NetworkSpace), sites=True)
 
-    def _prepare(self, context: str | None = None) -> None:
-        """Raise an error for an unknown schedule or an invalid rule spec.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
+    def _check(self) -> None:
+        """Raise an error for an unknown schedule or an invalid rule spec."""
+        super()._check()
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
@@ -154,20 +126,26 @@ class LocalRuleLaw(BaseLaw):
         convert = getattr(self.rule, 'get_table', None)
         return convert() if not callable(self.rule) and callable(convert) else self.rule
 
-    def _get_neighborhood(self) -> BaseNeighborhood:
-        """Return the neighbourhood the rule reads.
+    def _get_neighborhood(self, space: BaseSpace) -> BaseNeighborhood:
+        """Return the neighbourhood the rule reads on a prepared space.
 
-        For an outer totalistic rule, the site itself comes first.
+        A neighbourhood with lattice offsets becomes the list of its offsets on the space. For an outer totalistic
+        rule, the site itself comes first, where the neighbourhood puts it or else as the zero offset.
         """
-        if not isinstance(self._get_rule(), OuterTotalisticSpec):
-            return self.over
-        if isinstance(self.over, MemoryNeighborhood):
-            return MemoryNeighborhood((IDENTITY, *self.over.elements))
-        if not isinstance(self.over, LatticeNeighborhood):
-            error_msg = f'A run reads an outer totalistic rule on offsets or a memory set, not on {self.over!r}.'
+        outer = isinstance(self._get_rule(), OuterTotalisticSpec)
+        centered = self.over._get_centered() if outer else None
+        if centered is not None:
+            return centered
+        offsets = self.over._get_offsets(space.n_dim_)
+        if offsets is None and outer:
+            error_msg = (
+                f'An outer totalistic rule reads a cell and its neighbours at fixed places, but {self.over!r} gives no '
+                'fixed places. Give a neighbourhood of a lattice, such as RadiusNeighborhood(1).'
+            )
             raise ValidationError(error_msg)
-        offsets = self.over.prepare().offsets_
-        return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets))
+        if offsets is None:
+            return self.over
+        return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets) if outer else offsets)
 
     def _get_table(self, space: BaseSpace, values: npt.NDArray[np.generic]) -> IntArray:
         """Return the neighbour table.
@@ -185,8 +163,8 @@ class LocalRuleLaw(BaseLaw):
             table:
                 One row per site and one column per neighbour, with leading axes of the configurations when translated.
         """
-        neighborhood = self._get_neighborhood()
-        if not isinstance(neighborhood, StateTranslationNeighborhood):
+        neighborhood = self._get_neighborhood(space)
+        if not neighborhood._is_translated():
             return space._get_index_table(neighborhood)
         translations = space._get_translation_table(neighborhood)
         size = translations.shape[0]
@@ -195,7 +173,7 @@ class LocalRuleLaw(BaseLaw):
         table = translations[np.arange(size), np.where(named, elements, 0).astype(np.intp)]
         return np.where(named[..., None], table, size)
 
-    def _get_linear_values(self, *columns: npt.ArrayLike) -> npt.NDArray[np.generic]:
+    def _get_linear_values(self, *columns: npt.ArrayLike, **kwargs: object) -> npt.NDArray[np.generic]:
         """Return the linear combination of one column of values per neighbour.
 
         It is reduced modulo the field size.
@@ -260,22 +238,26 @@ class LocalRuleLaw(BaseLaw):
         cells = np.broadcast_to(np.asarray(values, dtype=float), (size,)).reshape(shape)
         return cells.astype(np.int64) if np.all(cells == np.rint(cells)) else cells
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the next values of the cells.
+    def _get_value(self, inputs: object) -> object:
+        """Return the next values of the cells.
 
-        A law of several targets sets a tuple of them.
+        A law of several targets returns a tuple of them.
 
         Args:
             inputs:
-                A mapping with `space`, the values of every read state by the name of its symbol, and the keyword
-                arguments a function rule names.
+                A mapping with `space`, the values of every read state by the name of its symbol, and the keywords a
+                function rule receives.
+
+        Returns:
+            values:
+                The next values of the cells, a tuple of them for several targets.
         """
         keywords = dict(inputs) if isinstance(inputs, Mapping) else {}
         space = keywords.pop('space', None)
         names = [str(symbol) for symbol in (self.reads or self._get_targets())]
         missing = [name for name in names if name not in keywords]
         if not isinstance(space, BaseSpace) or missing:
-            error_msg = f'A local rule runs on a mapping with `space` and its states {names}, but got {inputs!r}.'
+            error_msg = f'A local rule reads a mapping with `space` and its values {names}, but got {inputs!r}.'
             raise ValidationError(error_msg)
         if not hasattr(space, 'size_'):
             space.prepare()
@@ -298,7 +280,7 @@ class LocalRuleLaw(BaseLaw):
         else:
             rows, inverse = np.unique(patterns.astype(np.int64), axis=0, return_inverse=True)
             result = np.asarray(self._get_next_values(rows))[inverse.ravel()]
-        self.value_ = (
+        return (
             tuple(self._get_cells(item, shape) for item in result)
             if isinstance(result, tuple)
             else self._get_cells(result, shape)

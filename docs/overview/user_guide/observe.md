@@ -10,11 +10,10 @@ matplotlib. It follows the hare and lynx model of the tutorial [Build a custom s
 with the rates of Carpenter (2018). It starts from the pelt records of 1900, 30.0 thousand hares and 4.0 thousand lynx.
 
 ```python
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-simulate(system, until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
+system.prepare().simulate(until=20, dt=1.0).get_values('prey.x').round(1)[:6].tolist()
 ```
 
 The hares rise from 30.0 to 81.2 thousand in 1903 and fall to 18.6 thousand in 1905, as in the build tutorial.
@@ -22,7 +21,7 @@ The hares rise from 30.0 to 81.2 thousand in 1903 and fall to 18.6 thousand in 1
 ## Observables
 
 An observable is a quantity that a run computes at every frame from the states, such as the total of two populations.
-An [`ObservableSpec`][skcomplex.core.specs.ObservableSpec] pairs a label with an expression, a function of the
+An [`Observable`][skcomplex.core.components.Observable] pairs a label with an expression, a function of the
 namespace `s` of the system that returns a symbolic expression. `simulate` takes the observables in `observables`,
 records them in the trajectory under their labels, and logs them to Rerun when an observer runs.
 
@@ -33,7 +32,7 @@ The Lotka and Volterra model conserves a quantity along every cycle,
 import numpy as np
 from sage.all__sagemath_symbolics import log
 
-from skcomplex.core.specs import ObservableSpec
+from skcomplex.core.components import Observable
 
 
 def total(s):
@@ -44,8 +43,8 @@ def conserved(s):
     return 0.024 * s.prey.x - 0.80 * log(s.prey.x) + 0.028 * s.predators.x - 0.55 * log(s.predators.x)
 
 
-observables = [ObservableSpec('total', total), ObservableSpec('V', conserved)]
-observed = simulate(system, until=20, dt=1.0, observables=observables)
+observables = [Observable('total', total), Observable('V', conserved)]
+observed = system.prepare().simulate(until=20, dt=1.0, observables=observables)
 observed.get_values('total').round(1)[:4].tolist(), np.ptp(observed.get_values('V')) < 1e-4
 ```
 
@@ -59,7 +58,7 @@ An observable must pickle with its system, so its functions are module-level fun
 from skcomplex.core.errors import ValidationError
 
 try:
-    simulate(system, until=1, observables=[ObservableSpec('total', lambda s: s.prey.x + s.predators.x)])
+    system.prepare().simulate(until=1, observables=[Observable('total', lambda s: s.prey.x + s.predators.x)])
 except ValidationError as error:
     message = str(error)
 message.splitlines()[1][:80]
@@ -67,6 +66,24 @@ message.splitlines()[1][:80]
 
 The message says that the expression of the observable `'total'` cannot be pickled, and asks for a module-level
 function or a symbolic expression instead of a lambda or a local function.
+
+An observable reads the derivatives of a state as a law does, with `x.diff(s.t)`. The oscillator of
+`LqrOscillatorSystem` moves by `x'' = -x + force`, so its speed `x'` is a state the observable can read.
+
+```python continuation
+from skcomplex.systems.engineering.control import LqrOscillatorSystem
+
+
+def speed(s):
+    return s.oscillator.x.diff(s.t)
+
+
+regulated = LqrOscillatorSystem().prepare().simulate(observables=[Observable('speed', speed)])
+np.allclose(regulated.get_values('speed'), regulated.get_values("oscillator.x'"))
+```
+
+The observable equals the recorded derivative `oscillator.x'` at every frame. A derivative that no law reads, such as
+the third derivative of `x` here, raises an error that names it.
 
 ### Observables of a group
 
@@ -77,32 +94,18 @@ parameter, its modulus, is an expression that reads the earlier observable by it
 near 1 means the phases sit together, and near 0 that they spread around the circle.
 
 ```python
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import I, exp, pi
+from sage.all__sagemath_symbolics import I, exp
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class OscillatorElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
-    ):
-        super().__init__(label)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s):
-        return [RateLaw(s.theta, s.omega)]
+def turn(s):
+    return [RateLaw(s.target.theta, s.target.omega)]
 
 
 def phase_vector(member):
@@ -114,9 +117,12 @@ def order_parameter(s):
 
 
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
-oscillators = CompositeSystem(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
-observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
-order = simulate(oscillators, until=50, dt=1.0, observables=observables).get_values('order')
+oscillators = System(
+    elements=[Element('phases', values=values, size=100)],
+    interactions=[Interaction('turn', roles={'target': 'phases'}, laws=turn)],
+).prepare()
+observables = [Observable('z', phase_vector, group='phases'), Observable('order', order_parameter)]
+order = oscillators.simulate(until=50, dt=1.0, observables=observables).get_values('order')
 round(float(order[0]), 3), round(float(order[-1]), 3)
 ```
 
@@ -127,33 +133,27 @@ from 0.958 to 0.12.
 
 A law may react to a quantity of the whole system, such as the mean field of all oscillators. It reads an observable
 through a role bound to the label of the observable, as `s.<role>.value`. The interaction below pulls every oscillator
-towards the mean phase, with the means `X` of `cos theta` and `Y` of `sin theta` as its roles.
+towards the mean phase, with the means `X` of `cos theta` and `Y` of `sin theta` as its roles. The laws need the
+observables when they are compiled, so `prepare(observables)` takes them before `simulate` records them.
 
 ```python continuation
 from sage.all__sagemath_symbolics import cos, sin
 
-from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.specs import RoleSpec
+from skcomplex.core.types import Role
 
 
-class MeanFieldInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        X: Annotated[str, RoleSpec()],
-        Y: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
-    ):
+class MeanField(Interaction):
+    def __init__(self, label, *, target: Role, X: Role, Y: Role, K=1.0):
         super().__init__(label)
         self.target = target
         self.X = X
         self.Y = Y
         self.K = K
 
-    def _get_laws(self, s):
-        return [RateLaw(s.target.theta, s.K * (s.Y.value * cos(s.target.theta) - s.X.value * sin(s.target.theta)))]
+    def _prepare(self, s):
+        super()._prepare(s)
+        theta = s.target.theta
+        self.laws_ = [RateLaw(theta, s.K * (s.Y.value * cos(theta) - s.X.value * sin(theta)))]
 
 
 def cosine(member):
@@ -165,12 +165,15 @@ def sine(member):
 
 
 values = {'theta': np.linspace(0, 6, 100), 'omega': np.linspace(0.9, 1.1, 100)}
-coupled = CompositeSystem(
-    elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)],
-    interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
+coupled = System(
+    elements=[Element('phases', values=values, size=100)],
+    interactions=[
+        Interaction('turn', roles={'target': 'phases'}, laws=turn),
+        MeanField('coupling', target='phases', X='X', Y='Y', K=2.0),
+    ],
 )
-observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
-synchronised = simulate(coupled, until=20, dt=1.0, observables=observables)
+observables = [Observable('X', cosine, group='phases'), Observable('Y', sine, group='phases')]
+synchronised = coupled.prepare(observables).simulate(until=20, dt=1.0, observables=observables)
 X, Y = synchronised.get_values('X'), synchronised.get_values('Y')
 round(float(np.hypot(X[0], Y[0])), 2), round(float(np.hypot(X[-1], Y[-1])), 2)
 ```
@@ -198,14 +201,13 @@ save to a temporary file, so they run without a viewer.
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
 folder = Path(tempfile.mkdtemp())
 observer = RerunObserver('pelts', save_path=folder / 'pelts.rrd', interval=5)
-simulate(system, until=20, dt=0.1, observers=[observer])
+system.prepare().simulate(until=20, dt=0.1, observers=[observer])
 (folder / 'pelts.rrd').exists(), observer.logged_frames_
 ```
 
@@ -227,7 +229,7 @@ holds the visual of every element in `visuals_`.
 
 Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one at `predators`. The visuals of
 [`skcomplex.core.engine.viz`][skcomplex.core.engine.viz] are named by a kind, which a
-[`VisualSpec`][skcomplex.core.specs.VisualSpec] gives:
+[`VisualSpec`][skcomplex.core.components.elements.VisualSpec] gives:
 
 | Kind | Visual | What it draws |
 | --- | --- | --- |
@@ -237,7 +239,6 @@ Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one 
 | `'histograms'` | `HistogramVisual` | histograms of agents or of groups without a space |
 | `'image'` | `ImageVisual` | every state of a lattice group as an image coloured by value |
 | `'sites'` | `SiteVisual` | every state of a non-square lattice group as coloured sites |
-| `'cayley'` | `CayleyVisual` | every state of a lattice group on a group space as a graph |
 | `'mesh'` | `MeshVisual` | every state of a finite element field as a triangle mesh |
 | `'cell'` | `CellVisual` | a state on the edges or faces of a complex |
 | `'phase_ring'` | `PhaseRingVisual` | the wrapped phases of oscillators against their position |
@@ -245,8 +246,11 @@ Both populations are drawn by a `ScalarsVisual`, one at the path `prey` and one 
 | `'bodies'` | `BodiesVisual` | bodies at positions computed from the states of an element |
 | `'matrix'` | `MatrixVisual` | a matrix-valued state or parameter as an image |
 | `'expectations'` | `ExpectationVisual` | the local expectations of operator elements and groups |
-| `'geometry'` | `GeometryVisual` | the structure of a rewritten element |
 | `'linear_program'` | `LinearProgramVisual` | the linear program of an element |
+
+A visual of a system package has no kind and is named by its class, as `VisualSpec(CayleyVisual)` does. `CayleyVisual`
+of [`skcomplex.systems.computer_science.common.automata`][skcomplex.systems.computer_science.common.automata] draws
+every state of a lattice group on the Cayley graph of a group, and a group on such a space takes it by default.
 
 The default visuals follow the kind of element:
 
@@ -262,48 +266,37 @@ The default visuals follow the kind of element:
   coloured over the range, and its phase under `<path>/<state>/phase`, coloured by a cyclic palette over `(-π, π]`. A
   complex scalar appears as the series `<path>/<state>/real` and `<path>/<state>/imag`.
 
-An element or a group sets its own visual with its argument `visual`. Below, two atoms joined by a spring move in
-three dimensions, and the second atom asks for points coloured by its velocity `x_d1` with
-`VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})`.
+An element class gives its default drawing in its class attribute `visual`, such as
+`visual = VisualSpec('points', {'position': 'x'})`. The observer draws chosen elements otherwise with `visuals`, a
+mapping from the path of an element to its drawing. Below, two atoms joined by a spring move in three dimensions, and
+the observer draws the second atom as points coloured by its velocity `x'` with
+`visuals={'b': VisualSpec('points', {'position': 'x', 'color_by': "x'"})}`.
 
 ```python continuation
-from typing import Annotated
-
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.components.elements import VisualSpec
+from skcomplex.core.systems import System
 
 
-class AtomElement(Element):
-    def __init__(
-        self,
-        label,
-        visual=None,
-        *,
-        x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
-        x_d1: object = 0.0,
-    ):
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
+def spring(s):
+    pull = 4.0 * (s.b.x - s.a.x)
+    return [RateLaw(s.a.x.diff(s.t, 2), pull), RateLaw(s.b.x.diff(s.t, 2), -pull)]
 
 
-speed = VisualSpec('points', {'position': 'x', 'color_by': 'x_d1'})
-molecule = CompositeSystem(
+speed = VisualSpec('points', {'position': 'x', 'color_by': "x'"})
+molecule = System(
     elements=[
-        AtomElement('a', x=[0.0, 0.0, 0.0]),
-        AtomElement('b', visual=speed, x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0]),
+        Element('a', values={'x': [0.0, 0.0, 0.0]}),
+        Element('b', values={'x': [1.5, 0.0, 0.0], "x'": [0.0, 0.5, 0.0]}),
     ],
-    interactions=[
-        RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
-        RateInteraction('push', target='b', sources=['a'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
-    ],
+    interactions=[Interaction('spring', roles={'a': 'a', 'b': 'b'}, laws=spring)],
     space=ContinuousSpace(n_dim=3),
 )
-atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd')
-simulate(molecule, until=5, dt=0.02, observers=[atoms])
+atoms = RerunObserver('molecule', save_path=folder / 'molecule.rrd', visuals={'b': speed})
+molecule.prepare().simulate(until=5, dt=0.02, observers=[atoms])
 [type(visual).__name__ for visual in atoms.visuals_], type(atoms.views_[0]).__name__
 ```
 
@@ -321,7 +314,7 @@ A Rerun blueprint arranges the views of the viewer. Every visual declares the vi
 an observer on a compiled problem builds the blueprint without sending it anywhere, so it can be inspected first.
 
 ```python continuation
-problem = simulate(system, until=0).problem
+problem = system.prepare().simulate(until=0).problem
 layout = RerunObserver(blueprint='default').prepare(problem)
 [type(view).__name__ for view in layout.views_], [str(view.origin) for view in layout.views_]
 ```
@@ -351,7 +344,7 @@ import rerun.blueprint as rrb
 
 hares_only = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey', name='hares'), collapse_panels=True)
 custom = RerunObserver('pelts', save_path=folder / 'hares.rrd', blueprint=hares_only)
-simulate(system, until=20, observers=[custom])
+system.prepare().simulate(until=20, observers=[custom])
 sorted(file.name for file in folder.glob('hares.*'))
 ```
 
@@ -376,7 +369,6 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 years = np.arange(1900, 1921)
@@ -389,7 +381,7 @@ lynx = np.array(
     + [8.0, 12.3, 19.5, 45.7, 51.1, 29.7, 15.8, 9.7, 10.1, 8.6]
 )
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-trajectory = simulate(system, until=20, dt=0.1)
+trajectory = system.prepare().simulate(until=20, dt=0.1)
 times = 1900 + np.asarray(trajectory.times)
 
 figure, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

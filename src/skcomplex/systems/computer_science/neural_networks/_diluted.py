@@ -7,6 +7,7 @@ Its updates are parallel and stochastic.
 # License: MIT
 
 import functools
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,10 +16,12 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction
 
 
@@ -34,9 +37,6 @@ class DilutedNeuronElement(Element):
         label:
             The label of the neuron or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         spin:
             The initial value, -1 or 1.
 
@@ -45,6 +45,9 @@ class DilutedNeuronElement(Element):
 
         beta:
             The inverse temperature `β`.
+
+        size:
+            The number of neurons, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import DilutedNeuronElement
@@ -55,13 +58,13 @@ class DilutedNeuronElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        pattern: Annotated[float, ParameterSpec()] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
+        spin: Annotated[object, ZZ] = 1.0,
+        pattern: object = 1.0,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.06,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.spin = spin
         self.pattern = pattern
         self.beta = beta
@@ -104,9 +107,15 @@ class DilutedHopfieldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import DilutedHopfieldSystem
-        >>> DilutedHopfieldSystem(200, connectivity=10).prepare().system_.elements[0].prepare().size_
+        >>> DilutedHopfieldSystem(200, connectivity=10).prepare().system_.elements[0].size
         200
     """
 
@@ -115,7 +124,7 @@ class DilutedHopfieldSystem(BaseSystem):
     references = ('Derrida, Gardner, and Zippelius 1987', 'Bertin 2021')
     until = 20
     dt = 1
-    observables = (ObservableSpec('overlap', _get_overlap, group='neurons'),)
+    observables = (Observable('overlap', _get_overlap, group='neurons'),)
 
     def __init__(
         self,
@@ -127,8 +136,10 @@ class DilutedHopfieldSystem(BaseSystem):
         overlap: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_neurons = n_neurons
         self.connectivity = connectivity
         self.load = load
@@ -157,24 +168,19 @@ class DilutedHopfieldSystem(BaseSystem):
         """
         return s.target.beta * option * total(s.target.spin, weights=couplings)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the asymmetric diluted Hopfield network.
-
-        It recalls a stored pattern below its memory capacity.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         n_patterns = max(1, round(self.load * self.connectivity))
         patterns = rng.choice([-1.0, 1.0], size=(n_patterns, self.n_neurons))
         spins = np.where(rng.random(self.n_neurons) < (1 + self.overlap) / 2, patterns[0], -patterns[0])
-        neurons = GroupElement(
+        neurons = DilutedNeuronElement(
             'neurons',
-            element=DilutedNeuronElement,
+            spin=spins,
+            pattern=patterns[0],
+            beta=self.temperature_scale / self.connectivity,
             size=self.n_neurons,
-            values={
-                'spin': spins,
-                'pattern': patterns[0],
-                'beta': self.temperature_scale / self.connectivity,
-            },
         )
         glauber = ChoiceInteraction(
             'glauber',
@@ -186,4 +192,4 @@ class DilutedHopfieldSystem(BaseSystem):
                 couplings=self._get_couplings(patterns, self.connectivity, rng),
             ),
         )
-        return CompositeSystem(self.label, elements=[neurons], interactions=[glauber])
+        self.system_ = System(self.label, elements=[neurons], interactions=[glauber])

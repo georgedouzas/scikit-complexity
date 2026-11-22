@@ -341,11 +341,11 @@ a function undefined at zero, and SHALL compile to the same values as the equiva
 
 #### Scenario: Share of a group total
 - **WHEN** an interaction bound to a group of 4 members with `x = 1, 2, 3, 4` declares
-  `Rate(s.cells.x, s.cells.x / count(over=s.cells))`
+  `RateLaw(s.cells.x, s.cells.x / count(over=s.cells))`
 - **THEN** the system compiles, and the rate of member `i` is `x_i / 4`
 
 #### Scenario: Weighted reduction in a denominator
-- **WHEN** an interaction bound to a group declares `Rate(s.cells.x, s.cells.x / total(s.cells.x, weights=W))` with a
+- **WHEN** an interaction bound to a group declares `RateLaw(s.cells.x, s.cells.x / total(s.cells.x, weights=W))` with a
   matrix `W` of positive entries
 - **THEN** the system compiles on the NumPy and the Numba backends, and both drifts equal `x_i / sum_j W_ij x_j`
 
@@ -368,7 +368,7 @@ the interaction, the role, the reference, and the group size.
 
 #### Scenario: Hub reads one site
 - **WHEN** an interaction binds its plain role `site` to `sites[3]` of a group with `x = 0, 1, 2, 3, 4` and declares
-  `Rate(s.hub.y, s.site.x)`
+  `RateLaw(s.hub.y, s.site.x)`
 - **THEN** the rate of `hub.y` is 3, the same as with a variadic role bound to `['sites[3]']`
 
 #### Scenario: Member past the end
@@ -429,20 +429,6 @@ interactions, subsystems, groups, fields, or agents.
 #### Scenario: A system with interactions
 - **WHEN** a system with an interaction is replicated
 - **THEN** a named error says that only systems of plain elements replicate
-
-### Requirement: A system is components, interactions, space, and time
-A system SHALL be defined by its label, its components, its interactions, its space, and its time, and by nothing
-else. A system SHALL accept no argument about how it runs: no solver, backend, form, noise convention, delay history,
-activation schedule outside its time, or observables.
-
-#### Scenario: Four-part system
-- **WHEN** a user builds `CompositeSystem('ecology', components=[rabbits, foxes], interactions=[predation],
-  space=None, time=ContinuousTime())`
-- **THEN** the system compiles and runs, and its parameters list only the parameters of its components and interactions
-
-#### Scenario: Execution arguments are rejected
-- **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `CompositeSystem`
-- **THEN** a `TypeError` is raised as for any unknown argument
 
 ### Requirement: Groups have a fixed or variable size and live on parts of the space
 A group SHALL hold identical members of one element type as arrays. With `variable=True`, laws SHALL add and remove
@@ -587,28 +573,24 @@ It SHALL be recorded in trajectories like a state, and it SHALL remain settable 
 - **THEN** the parameter changes in the trajectory only at steps where the expression exceeds the target
 
 ### Requirement: Core packages mirror the system definition
-The modelling packages of `skcomplex.core.components` SHALL be `system`, `components`, `interactions`, `space`, which holds space
-and time, and `laws`, each exporting the general primitives of its part of a system. A primitive that belongs to one
-formalism SHALL live in that formalism's package under `skcomplex.formalisms`, never in a modelling package.
+The modelling packages of `skcomplex.core.components` SHALL be `systems`, `elements`, `interactions`, `spaces`, which
+holds space and time, and `laws`, each exporting the general components of one kind of building block of a system. A
+recipe that serves some fields only SHALL live under `skcomplex.systems`, never in a modelling package.
 
-#### Scenario: Primitives by part
-- **WHEN** a user imports `CompositeSystem`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and `Rate`
-- **THEN** they come from `core.system`, `core.components`, `core.interactions`, `core.space`, `core.space`, and
-  `core.laws`
-
-#### Scenario: Formalism primitives by formalism
-- **WHEN** a user imports `Particle`, `PairPotential`, `Rule`, and `Field`
-- **THEN** they come from `formalisms.particles`, `formalisms.particles`, `formalisms.agents`, and
-  `formalisms.fields`
+#### Scenario: Components by kind
+- **WHEN** a user imports `CompositeSystem`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and
+  `ArrayUpdateLaw`
+- **THEN** they come from `core.components.systems`, `core.components.elements`, `core.components.interactions`,
+  `core.components.spaces`, `core.components.spaces`, and `core.components.laws`
 
 ### Requirement: Backends live by their reach
-Every general backend SHALL live in `skcomplex.core.engine.backends`, a backend that serves one formalism SHALL live in that
-formalism, and `compile` and `solvers` SHALL hold no backend.
+Every backend SHALL live in `skcomplex.core.engine.backends`, an external simulator SHALL be a solver of
+`skcomplex.core.engine.solvers`, and `compile` and `solvers` SHALL hold no backend.
 
 #### Scenario: Backends in one package
-- **WHEN** the test suite lists the registered backends
-- **THEN** NumPy and Numba are defined in `skcomplex.core.engine.backends`, Mesa in `skcomplex.formalisms.agents`, and
-  LAMMPS in `skcomplex.formalisms.particles`
+- **WHEN** the test suite lists the backends and the external solvers
+- **THEN** `NumpyBackend`, `NumbaBackend`, and `JaxBackend` are defined in `skcomplex.core.engine.backends`, and
+  `MesaSolver` and `LammpsSolver` in `skcomplex.core.engine.solvers`
 
 ### Requirement: Noise laws name the Wiener process they share
 A noise law SHALL accept an optional process. A law with no process SHALL drive every component and member with its
@@ -653,30 +635,13 @@ names.
 - **WHEN** a user clones a group of 100 members with per-member values
 - **THEN** the clone has the same label, size, and values, and compiles to the same problem
 
-### Requirement: Systems hold nested systems
-A system SHALL hold nested systems among its parts without being a component, so systems nest to any depth, and an
-interaction SHALL refer to a component of a nested system by a slash path relative to the system that holds the
-interaction. Two direct children of a system with the same label SHALL be reported by validation.
-
-#### Scenario: Interaction across nested systems
-- **WHEN** a parent system holds a predation interaction between `forest/foxes` and `meadow/rabbits`
-- **THEN** the compiled system couples the fox count of the forest system to the rabbit count of the meadow system
-
-#### Scenario: Duplicate labels
-- **WHEN** two direct children of a system share a label
-- **THEN** validation reports one issue whose path is the system and whose message names the duplicated label
-
-#### Scenario: System is not a component
-- **WHEN** a user checks whether a `CompositeSystem` instance is an instance of `BaseComponent`
-- **THEN** the check is false, and the instance is an instance of `BaseSystem`
-
 ### Requirement: Noise processes are not elements
-`WienerProcess` SHALL derive from no component base, and an interaction SHALL bind it through a role that takes noise
-processes.
+`WienerProcessSpec` SHALL derive from no component base, and an interaction SHALL bind it through a role that takes
+noise processes.
 
 #### Scenario: Correlated noise
-- **WHEN** an interaction binds a `WienerProcess` with covariance `C` and two noise laws draw its processes
-- **THEN** the increments over a step `h` have the covariance `h C`, and `WienerProcess` is not a subclass of
+- **WHEN** an interaction binds a `WienerProcessSpec` with covariance `C` and two noise laws draw its processes
+- **THEN** the increments over a step `h` have the covariance `h C`, and `WienerProcessSpec` is not a subclass of
   `BaseComponent`
 
 ### Requirement: Every element derives from one base
@@ -688,17 +653,17 @@ returns laws. A modeller SHALL define a type of element by subclassing `Element`
 - **THEN** each is a subclass of `BaseElement`, and `CompositeSystem` and `BaseInteraction` are not
 
 ### Requirement: A system is defined by elements, interactions, and laws
-A system SHALL be defined by its elements, its interactions, and the laws they return, and SHALL declare no other
-kind of part. A value that only names an expression SHALL be written in the laws, and what a run records or checks
-SHALL be an argument of the run.
+A system SHALL be defined by its elements and its interactions, which are components, and by the laws its
+interactions hold, which are values, and SHALL declare no other kind of component. A value that only names an expression SHALL be written in the laws, and what a run records or
+checks SHALL be an argument of the run.
 
 #### Scenario: Auxiliary as an expression
 - **WHEN** a law computes `leverage = s.debt / s.equity` and uses it in a rate, and the run records an observable of
   the same expression
-- **THEN** the trajectory holds `leverage`, and the system has no quantity among its parts
+- **THEN** the trajectory holds `leverage`, and the system has no quantity among its components
 
 ### Requirement: Runs check invariants
-`simulate(system, invariants={name: tolerance})` SHALL check, at every frame, that each named observable stays within its
+`system.simulate(invariants={name: tolerance})` on a prepared system SHALL check, at every frame, that each named observable stays within its
 tolerance of its first value, and SHALL raise `ConservationError` naming the observable and the first frame that
 breaks it.
 
@@ -706,20 +671,19 @@ breaks it.
 - **WHEN** a law creates wealth from nothing in a system whose run declares the observable `total_wealth` invariant
 - **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
 
-### Requirement: Parts share two main public methods
-Elements, interactions, laws, and systems SHALL derive from `BasePart`, which defines `label`,
-`prepare(namespace)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from
-`prepare`, and their laws from `run(s)`; a system SHALL return the laws of its children. A law SHALL return a prepared
-copy, and SHALL evaluate its contribution from `run(values)`.
+### Requirement: Components share two main public methods
+Elements, interactions, spaces, times, and systems SHALL derive from `BaseComponent`, which defines `label`,
+`prepare(context)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from `prepare`, and
+their laws from `run(s)`, and a system SHALL return the laws of its children. A law SHALL be a frozen value deriving
+from `BaseLaw`, with its fields and no `prepare`, component label, or cloning.
 
 #### Scenario: System yields laws
 - **WHEN** a system of a population element and a growth interaction is prepared and run with a namespace
 - **THEN** it returns the laws of the element and of the interaction, in order
 
-#### Scenario: Law run alone
-- **WHEN** a user prepares `RateLaw(s.n, r * s.n)` against a namespace with `n` and `r`, and runs it at `n=10`,
-  `r=0.5`
-- **THEN** the result is `5.0`, its `targets_` holds `n`, and its `reads_` holds `n` and `r`
+#### Scenario: A law is a value
+- **WHEN** a user builds `RateLaw(n, r * n)` twice
+- **THEN** the two laws are equal, neither is an instance of `BaseComponent`, and neither has `prepare`
 
 ### Requirement: Hamiltonian interactions generate rate laws
 `HamiltonianInteraction` SHALL derive Hamilton's equations symbolically from a function of canonical coordinates and
@@ -798,3 +762,34 @@ SHALL key on a core primitive, never on a class of `skcomplex.systems`.
 - **WHEN** a system needs the zones of a flock or the row scores of a sequence walk
 - **THEN** it subclasses the core `CouplingInteraction` or `SamplingInteraction` in its field, and the core classes take
   no argument for either strategy
+
+### Requirement: Systems nest as components
+A system SHALL hold nested systems among its components, and a nested system SHALL itself be a component, so systems
+nest to any depth. An interaction SHALL refer to a component of a nested system by a slash path relative to the system
+that holds the interaction. Two direct children of a system with the same label SHALL be reported by validation.
+
+#### Scenario: Interaction across nested systems
+- **WHEN** a parent system holds a predation interaction between `forest/foxes` and `meadow/rabbits`
+- **THEN** the compiled system couples the fox count of the forest system to the rabbit count of the meadow system
+
+#### Scenario: Duplicate labels
+- **WHEN** two direct children of a system share a label
+- **THEN** validation reports one issue whose path is the system and whose message names the duplicated label
+
+#### Scenario: A system is a component
+- **WHEN** a user checks whether a `CompositeSystem` instance is an instance of `BaseComponent`
+- **THEN** the check is true, the instance is an instance of `BaseSystem`, and it is not an instance of `BaseElement`
+
+### Requirement: A system is elements, interactions, space, and time
+A system SHALL be defined by its label, its elements, its interactions, its nested systems, its space, and its time,
+and by nothing else. A system SHALL accept no argument about how it runs: no solver, backend, form, noise convention,
+delay history, activation schedule outside its time, or observables.
+
+#### Scenario: Four-component system
+- **WHEN** a user builds `CompositeSystem('ecology', elements=[rabbits, foxes], interactions=[predation],
+  space=None, time=ContinuousTime())`
+- **THEN** the system compiles and runs, and its parameters list only the parameters of its elements and interactions
+
+#### Scenario: Execution arguments are rejected
+- **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `CompositeSystem`
+- **THEN** a `TypeError` is raised as for any unknown argument

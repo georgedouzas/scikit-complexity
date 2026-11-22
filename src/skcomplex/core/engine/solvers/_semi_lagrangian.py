@@ -9,11 +9,13 @@ import numpy as np
 import scipy.fft
 from scipy.ndimage import map_coordinates
 
-from ...components.laws import FluxLaw, RateLaw
-from ...components.spaces import ContinuousTime, LatticeSpace, PhaseSpace
+from ...components.laws import RateLaw
+from ...components.spaces import LatticeSpace, PhaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
 from ..problems._steps import step_count
@@ -24,16 +26,16 @@ SPLINE_MODES = {'zero-flux': 'nearest', 'fixed': 'constant'}
 
 
 class SemiLagrangianSolver(Solver):
-    """A solver of kinetic equations by the directional splitting of Cheng and Knorr.
+    """A solver of kinetic equations by the axis by axis shifts of Cheng and Knorr.
 
-    It shifts every slice of a field along each axis in turn. Every flux of the field must be a linear drift `a u`, with
-    `a` free of the state and constant along its own axis. A shift along a periodic axis multiplies the Fourier modes of
-    the slices through `scipy.fft`, which conserves the total, and a shift along an interval evaluates a cubic spline
-    through `scipy.ndimage.map_coordinates`. The solver is stable at any Courant number. Rate laws advance by one
-    midpoint step between two half transport steps.
+    It shifts every slice of a field along each axis in turn, such as the density of a gas along its positions and then
+    its velocities. Every flux must be a drift `a u` whose speed `a` does not depend on the state. A shift along a
+    periodic axis multiplies the Fourier modes of the slices, which keeps the total, and a shift along an interval reads
+    a cubic spline, so a step may be longer than a cell takes to cross. Rate laws take one midpoint step between two
+    half shifts. Choose it for transport in phase space, such as the electrons of a plasma, the bacteria of a swarm, and
+    the stars of a galaxy.
 
-    Choose it for transport in phase space, such as the Vlasov equation. It appears in plasma physics and in kinetic
-    models of bacteria.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
@@ -45,44 +47,25 @@ class SemiLagrangianSolver(Solver):
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
+    See Also:
+        StrangSplittingSolver: Splits transport and collisions.
+
     Examples:
-        >>> import numpy as np
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element, FieldElement
-        >>> from skcomplex.core.specs import StateSpec
-        >>> class AmountElement(Element):
-        ...     def __init__(self, label, visual=None, *, x: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label, visual=visual)
-        ...         self.x = x
-        >>> from skcomplex.core.components.interactions import ConservationInteraction
-        >>> from skcomplex.core.components.laws.utils import coordinate
-        >>> from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
         >>> from skcomplex.core.engine.solvers import SemiLagrangianSolver
-        >>> from skcomplex.core.specs import AxisSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
-        >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
-        >>> gas = FieldElement(
-        ...     'gas', element=AmountElement, space=space, values={'x': start}, discretization='finite-volume'
-        ... )
-        >>> stream = ConservationInteraction(
-        ...     's', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0]
-        ... )
-        >>> system = CompositeSystem(elements=[gas], interactions=[stream])
-        >>> solver = SemiLagrangianSolver(dt=1.0)
-        >>> final = simulate(system, until=2.0, solver=solver).get_values('gas.x')[-1]
-        >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
-        True
+        >>> from skcomplex.systems.physics.fluids import VlasovEquationSystem
+        >>> system = VlasovEquationSystem(positions=16, velocities=8, solver=SemiLagrangianSolver(dt=0.5)).prepare()
+        >>> f = system.simulate(until=1, dt=1).get_values('gas.x')
+        >>> round(float(f[-1].sum() / f[0].sum()), 4)
+        1.0
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={PhaseSpace, LatticeSpace},
-            laws={FluxLaw, RateLaw},
+            laws={RateLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

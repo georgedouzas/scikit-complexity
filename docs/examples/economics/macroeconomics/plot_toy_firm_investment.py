@@ -18,9 +18,8 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import distribution, fit_law
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.economics.macroeconomics import ToyFirmInvestmentSystem
 
 SYSTEM = 'toy_firm_investment'
@@ -33,8 +32,8 @@ def top_share(capital):
 
 
 system = ToyFirmInvestmentSystem(n_firms=N_FIRMS, random_state=0)
-top = ObservableSpec('top_share', group='firms', variable='K', reduce=top_share)
-observables = [*system.get_run_settings()['observables'], top]
+top = Observable('top_share', group='firms', variable='K', reduce=top_share)
+observables = [*system.prepare().observables_, top]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -47,7 +46,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(system, until=STEPS, observables=observables, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Firm sizes and concentration

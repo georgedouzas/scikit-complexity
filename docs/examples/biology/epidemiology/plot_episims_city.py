@@ -13,14 +13,13 @@ an outbreak to a few households.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import EpisimsCitySystem
 
 SYSTEM = 'episims_city'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(EpisimsCitySystem(), observers=[observer], random_state=0)
+trajectory = EpisimsCitySystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Closing workplaces
@@ -34,7 +33,7 @@ def compartments(trajectory):
     return [(health == state).mean(axis=1) for state in (0, 1, 2)]
 
 
-closed = simulate(EpisimsCitySystem(closed=True), random_state=0)
+closed = EpisimsCitySystem(closed=True).prepare().simulate(random_state=0)
 fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
 for ax, run, title in ((axes[0], trajectory, 'workplaces open'), (axes[1], closed, 'closed')):
     for share, name in zip(compartments(run), ('susceptible', 'infected', 'recovered'), strict=True):

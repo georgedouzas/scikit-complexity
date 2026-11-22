@@ -18,18 +18,27 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction
-from ....core.components.laws.utils import count, total, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import count, hyperedges, total, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.agents import ImitationInteraction
 from ._contributor import ContributorElement
 
 PAIR = 2
 CLIQUE = 5
-PHASES = ('play', 'imitate')
+
+
+class PlayerElement(ContributorElement):
+    """Contributor of the hypergraph public goods game, drawn by its strategy."""
+
+    visual = VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0})
 
 
 class DilemmaElement(Element):
@@ -43,9 +52,6 @@ class DilemmaElement(Element):
         label:
             The label of the player or the group.
 
-        visual:
-            How the player is drawn, or `None` for `default_visual_`.
-
         strategy:
             The initial strategy, 1 or 0.
 
@@ -55,32 +61,37 @@ class DilemmaElement(Element):
         triangles:
             The number of triangles of the network that hold the player.
 
+        space:
+            The space with one member per site, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import DilemmaElement
         >>> DilemmaElement('player').triangles
         1.0
     """
 
+    visual = VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        payoff: Annotated[float, StateSpec()] = 0.0,
-        triangles: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        strategy: Annotated[object, FiniteEnumeratedSet([0, 1])] = 1.0,
+        payoff: object = 0.0,
+        triangles: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.strategy = strategy
         self.payoff = payoff
         self.triangles = triangles
 
 
-class HyperedgeGoodsInteraction(CouplingInteraction):
+class HyperedgeGoodsInteraction(Interaction):
     """Play of the public goods game in every hyperedge around a player.
 
-    The play sets the payoffs. It is a `CouplingInteraction` over the hyperedges of a network in the map form, a
-    cooperator at 1 and a defector at 0. In every hyperedge of `m` members a cooperator pays 1, and the pot multiplied
+    The play sets the payoffs, summed over the hyperedges of the network around every player, a cooperator at 1 and a
+    defector at 0. In every hyperedge of `m` members a cooperator pays 1, and the pot multiplied
     by `synergy` is shared by the `m` members, so the payoff of a player is the sum over its hyperedges of its share
     minus its contribution. The synergy is a parameter of the players.
 
@@ -96,35 +107,36 @@ class HyperedgeGoodsInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import HyperedgeGoodsInteraction
-        >>> HyperedgeGoodsInteraction('play', target='players').write
-        'payoff'
+        >>> HyperedgeGoodsInteraction('play', target='players', phase='play').phase
+        'play'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
-        super().__init__(
-            label,
-            target=target,
-            mode='hyperedges',
-            form='map',
-            write='payoff',
-            function=self._get_share,
-            phase=phase,
-        )
+    law_classes = (UpdateLaw,)
 
-    def _get_share(self, hyperedge: SimpleNamespace) -> Expression:
-        """Return the share of the pot of a hyperedge for its member.
+    def __init__(self, label: str, *, target: Role, phase: str | None = None) -> None:
+        super().__init__(label)
+        self.target = target
+        self.phase = phase
 
-        The contribution of the member is subtracted.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the payoff, the shares of the pots of the hyperedges of a player minus its contributions, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        pot = hyperedge.member.synergy * total(hyperedge.members.strategy, over=hyperedge.members)
-        return pot / count(over=hyperedge.members) - hyperedge.member.strategy
+        super()._prepare(context)
+        member = context.target
+        pot = member.synergy * total(member.members.strategy, over=member.members)
+        share = pot / count(over=member.members) - member.strategy
+        self.laws_: list[BaseLaw] = [UpdateLaw(member.payoff, hyperedges(share), phase=self.phase)]
 
 
-class SimplicialDilemmaInteraction(CouplingInteraction):
+class SimplicialDilemmaInteraction(Interaction):
     """Play of two-player games along the links of the triangles of a complex.
 
-    The complex is simplicial. The play sets the payoffs. It is a `CouplingInteraction` over the hyperedges of a network
-    in the map form, a cooperator at 1 and a defector at 0. Every game pays 1 for mutual cooperation, 0 for mutual
+    The complex is simplicial. The play sets the payoffs, summed over the hyperedges of the network around every player,
+    a cooperator at 1 and a defector at 0. Every game pays 1 for mutual cooperation, 0 for mutual
     defection, and the sucker's payoff `S` and the temptation `T` when the strategies differ. A triangle of three links
     is three hyperedges of two members, along which the players play game 1 of `S1` and `T1`. A triangle filled as a
     2-simplex is one hyperedge of three members, where a player plays each other member while the third looks on: game 2
@@ -170,62 +182,54 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        sucker: Annotated[float, ParameterSpec()] = -0.2,
-        temptation: Annotated[float, ParameterSpec()] = 1.2,
-        sucker_allied: Annotated[float, ParameterSpec()] = 0.5,
-        temptation_allied: Annotated[float, ParameterSpec()] = 0.8,
-        sucker_opposed: Annotated[float, ParameterSpec()] = -0.2,
-        temptation_opposed: Annotated[float, ParameterSpec()] = 1.2,
+        target: Role,
+        sucker: float = -0.2,
+        temptation: float = 1.2,
+        sucker_allied: float = 0.5,
+        temptation_allied: float = 0.8,
+        sucker_opposed: float = -0.2,
+        temptation_opposed: float = 1.2,
         phase: str | None = None,
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            mode='hyperedges',
-            form='map',
-            write='payoff',
-            function=self._get_games,
-            combine=self._get_mean,
-            phase=phase,
-        )
+        super().__init__(label)
+        self.target = target
         self.sucker = sucker
         self.temptation = temptation
         self.sucker_allied = sucker_allied
         self.temptation_allied = temptation_allied
         self.sucker_opposed = sucker_opposed
         self.temptation_opposed = temptation_opposed
+        self.phase = phase
 
-    def _get_games(self, hyperedge: SimpleNamespace) -> Expression:
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the payoff, the games over the triangles of a player divided by twice their number, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        member = context.target
+        games = hyperedges(self._get_games(context, member))
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(member.payoff, games / (PAIR * member.triangles), phase=self.phase),
+        ]
+
+    @staticmethod
+    def _get_games(s: SimpleNamespace, member: SimpleNamespace) -> Expression:
         """Return the payoff of a member from the games along its links in one hyperedge.
 
         The hyperedge has two or three members. In a link a cooperator earns 1 or `S1` and a defector `T1` or 0 against
         a cooperator or a defector. In a 2-simplex with `c` cooperating others a cooperator earns 2, `1 + S2`, or `2
         S3`, and a defector `2 T3`, `T2`, or 0, for `c` of 2, 1, or 0.
         """
-        own = hyperedge.member.strategy
-        others = total(hyperedge.members.strategy, over=hyperedge.members) - own
-        link = own * (others + (1 - others) * hyperedge.sucker) + (1 - own) * others * hyperedge.temptation
-        cooperator = where(
-            others == PAIR,
-            PAIR,
-            where(others == 1, 1 + hyperedge.sucker_allied, PAIR * hyperedge.sucker_opposed),
-        )
-        defector = where(
-            others == PAIR,
-            PAIR * hyperedge.temptation_opposed,
-            where(others == 1, hyperedge.temptation_allied, 0),
-        )
+        own = member.strategy
+        others = total(member.members.strategy, over=member.members) - own
+        link = own * (others + (1 - others) * s.sucker) + (1 - own) * others * s.temptation
+        cooperator = where(others == PAIR, PAIR, where(others == 1, 1 + s.sucker_allied, PAIR * s.sucker_opposed))
+        defector = where(others == PAIR, PAIR * s.temptation_opposed, where(others == 1, s.temptation_allied, 0))
         simplex = own * cooperator + (1 - own) * defector
-        return where(count(over=hyperedge.members) == PAIR, link, simplex)
-
-    @staticmethod
-    def _get_mean(player: SimpleNamespace, games: Expression) -> Expression:
-        """Return the payoffs of the games of a player over its triangles.
-
-        They are divided by twice its number of triangles.
-        """
-        return games / (PAIR * player.member.triangles)
+        return where(count(over=member.members) == PAIR, link, simplex)
 
 
 class HypergraphPublicGoodsSystem(BaseSystem):
@@ -265,9 +269,15 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import HypergraphPublicGoodsSystem
-        >>> HypergraphPublicGoodsSystem(30).prepare().system_.elements[0].prepare().size_
+        >>> HypergraphPublicGoodsSystem(30).prepare().system_.elements[0].strategy.size
         30
     """
 
@@ -288,8 +298,10 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         share: float = 0.5,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.sizes = sizes
         self.hyperdegree = hyperdegree
@@ -316,34 +328,33 @@ class HypergraphPublicGoodsSystem(BaseSystem):
             hypergraph.add_edges_from(rng.choice(n_nodes, size, replace=False).tolist() for _ in range(number))
         return hypergraph
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         hypergraph = self._get_hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
-        players = GroupElement(
+        players = PlayerElement(
             'players',
-            element=ContributorElement,
+            strategy=strategies,
+            synergy=self.synergy,
+            noise=self.noise,
             space=NetworkSpace(graph, hyperedges=hypergraph),
-            values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
-            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
-            on='sites',
         )
         imitation = ImitationInteraction(
             'imitation',
             target='players',
             state='strategy',
             rule='fermi',
-            form='probability',
+            probability=1.0,
             intensity=1 / self.noise,
             phase='imitate',
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[players],
             interactions=[HyperedgeGoodsInteraction('play', target='players', phase='play'), imitation],
-            time=DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES))),
         )
 
 
@@ -401,9 +412,15 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.cooperation import SimplicialSocialDilemmasSystem
-        >>> SimplicialSocialDilemmasSystem(30).prepare().system_.elements[0].prepare().size_
+        >>> SimplicialSocialDilemmasSystem(30).prepare().system_.elements[0].strategy.size
         30
     """
 
@@ -428,8 +445,10 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         share: float = 0.5,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.simplices = simplices
         self.sucker = sucker
@@ -458,8 +477,9 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             triangles.append((min(first, second), max(first, second), node))
         return graph, triangles
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         graph, triangles = self._get_triangle_attachment(self.n_nodes, rng)
         filled = rng.random(len(triangles)) < self.simplices
@@ -467,13 +487,11 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         for triangle, simplex in zip(triangles, filled, strict=True):
             hyperedges.extend([triangle] if simplex else itertools.combinations(triangle, PAIR))
         held = np.bincount(np.asarray(triangles).ravel(), minlength=self.n_nodes).astype(float)
-        players = GroupElement(
+        players = DilemmaElement(
             'players',
-            element=DilemmaElement,
+            strategy=(rng.random(self.n_nodes) < self.share).astype(float),
+            triangles=held,
             space=NetworkSpace(graph, hyperedges=hyperedges),
-            values={'strategy': (rng.random(self.n_nodes) < self.share).astype(float), 'triangles': held},
-            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
-            on='sites',
         )
         play = SimplicialDilemmaInteraction(
             'play',
@@ -491,9 +509,8 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
             target='players',
             state='strategy',
             rule='fermi',
-            form='probability',
+            probability=1.0,
             intensity=1 / self.noise,
             phase='imitate',
         )
-        time = DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES)))
-        return CompositeSystem(self.label, elements=[players], interactions=[play, imitation], time=time)
+        self.system_ = System(self.label, elements=[players], interactions=[play, imitation])

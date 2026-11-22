@@ -11,21 +11,14 @@ from functools import partial
 import networkx as nx
 import numpy as np
 
-from ..components.systems import CompositeSystem
+from ..engine.problems import NetworkSnapshotSpec
+from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.runtime import Trajectory
-from ..specs import NetworkSnapshotSpec
-from ..types import DataKind
+from ..enums import DataKind
 from ._alignment import alignment
 from ._autocatalytic import autocatalytic_sets
 from ._automata import automaton
-from ._base import (
-    SERIES_DIMENSIONS,
-    _composite,
-    _get_analysis_tags,
-    _get_data_kinds,
-    _get_source_tags,
-    bind_analysis,
-)
+from ._base import SERIES_DIMENSIONS, _composite, _get_analysis_tags, _get_data_kinds, _get_source_tags, bind_analysis
 from ._cell_complex import cell_complex
 from ._clusters import clusters
 from ._coarse_grain import coarse_grain
@@ -58,7 +51,6 @@ from ._mode_decomposition import mode_decomposition
 from ._motifs import motifs
 from ._neighbors import neighbors
 from ._networks import network_measures
-from ._operator import operator_measures
 from ._partial_information import partial_information
 from ._passage import passage
 from ._recurrence import recurrence
@@ -74,7 +66,7 @@ from ._spectrum import spectrum
 from ._stability import stability
 from ._surrogates import surrogate_test
 from ._symbolic import symbolic
-from .types import Source
+from .types import DataSource
 
 ANALYSES = (
     alignment,
@@ -113,7 +105,6 @@ ANALYSES = (
     motifs,
     neighbors,
     network_measures,
-    operator_measures,
     partial_information,
     passage,
     recurrence,
@@ -133,7 +124,13 @@ ANALYSES = (
 
 @dataclass(frozen=True)
 class ApplicableAnalysesResult:
-    """A result of `applicable_analyses`, the analyses by kind of data.
+    """A result of `applicable_analyses`, the analyses that fit a source, by kind.
+
+    It holds the kinds of data the source holds, such as `['field', 'series']` for a 2D array, what each kind reads from
+    it, and the analyses that apply under each kind, ready to call. It answers which measures fit a run of an epidemic,
+    a grid of a forest, or a table of prices.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         kinds:
@@ -145,6 +142,15 @@ class ApplicableAnalysesResult:
         analyses:
             The analyses that apply to the source by data kind, each bound to its kind for a family, so calling one on
             the source gives its result.
+
+    See Also:
+        applicable_analyses: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import applicable_analyses
+        >>> applicable_analyses(np.zeros((16, 16))).kinds
+        ['field', 'series']
     """
 
     kinds: list[str]
@@ -152,17 +158,15 @@ class ApplicableAnalysesResult:
     analyses: dict[str, list[partial[object]]]
 
 
-def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
+def applicable_analyses(source: DataSource) -> ApplicableAnalysesResult:
     """Return the analyses that apply to a trajectory, a system, or an array.
 
-    They are listed under the kind of data they read. The kinds of data the source holds are read first. Every analysis
-    of the library that takes no required setting is bound once per kind of a family, and those whose data kind the
-    source holds are kept, as the tags the module of every analysis declares give it. When the source is a system, or a
-    trajectory of one, an analysis whose capability tags the system lacks, such as `lyapunov` of a stochastic system, is
-    left out. A one-dimensional array is one series, and an array of more dimensions is one field and a set of series,
-    one per column.
+    It reads the kinds of data the source holds, such as a field and a set of series for a 2D array, and keeps every
+    analysis of the library that reads one of them and needs no setting, bound once per kind. A system or a trajectory
+    of one also drops the analyses whose tags the system lacks, such as `lyapunov` of a random system. It answers which
+    measures fit a run of an epidemic, a grid of a forest, or a table of prices.
 
-    It appears in every study that starts from a run or a data set and asks which measures fit it.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -172,20 +176,19 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
         result:
             The data kinds of the source, how they are read, and the analyses of every kind.
 
+    See Also:
+        AnalysisTags: Names what an analysis needs of its data.
+        bind_analysis: Fixes the settings of an analysis.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import applicable_analyses
-        >>> found = applicable_analyses(np.zeros((16, 16)))
-        >>> found.kinds
-        ['field', 'series']
-        >>> found.readings['series']
+        >>> applicable_analyses(np.zeros((16, 16))).readings['series']
         'every column of the array as a series'
-        >>> any(item.func.__name__ == 'entropy' for item in found.analyses['series'])
-        True
     """
     source = _composite(source)
     kinds = [str(kind) for kind in _get_data_kinds(source)]
-    if isinstance(source, Trajectory | CompositeSystem | nx.Graph | NetworkSnapshotSpec):
+    if isinstance(source, Trajectory | _CompositeSystem | nx.Graph | NetworkSnapshotSpec):
         readings = {kind: DataKind(kind).reading for kind in kinds}
     else:
         readings = {kind: _get_array_reading(DataKind(kind), np.ndim(source)) for kind in kinds}

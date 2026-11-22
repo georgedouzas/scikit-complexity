@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import EventsResult, FitLawResult, distribution, events, fit_law
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
 
@@ -62,7 +61,7 @@ def test_avalanche_sizes():
 
 def test_events_of_a_trajectory_use_its_times():
     """Test that the events of a trajectory start at its times."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=50.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(50.0, random_state=0)
     events = _events('detect', trajectory, variables=['counters.count'])
     assert set(events.starts) <= set(trajectory.times)
 
@@ -149,3 +148,22 @@ def test_excursions_and_branching_reject_sources():
         _events('excursions', np.ones((5, 2)))
     with pytest.raises(AnalysisError, match='Use positive values'):
         events([0, 1, 0, 1], kind='branching', max_step=0)
+
+
+def test_counts_laminar_durations_and_excursions_of_short_series():
+    """Test the counts in windows, the laminar phases, and the excursions of short series."""
+    assert _events('counts', [0.1, 0.2, 1.5, 2.2], window=1.0, end=3.0).counts.tolist() == [2.0, 1.0, 1.0]
+    assert _events('laminar-durations', [1, 0, 0, 1, 0, 1], threshold=0.5).durations.tolist() == [2.0, 1.0]
+    excursions = _events('excursions', [0, 1, 2, 1, 0, 3, 0])
+    assert excursions.sizes.tolist() == [4.0, 3.0]
+    assert excursions.durations.tolist() == [3.0, 1.0]
+
+
+def test_branching_ratio_of_a_driven_poisson_series():
+    """Test that a Poisson series driven by 0.9 of its last value has the branching ratio 0.9."""
+    rng = np.random.default_rng(0)
+    activity = np.zeros(20_000)
+    activity[0] = 100
+    for t in range(1, activity.size):
+        activity[t] = rng.poisson(0.9 * activity[t - 1] + 10)
+    assert round(_events('branching', activity).branching_ratio, 1) == 0.9

@@ -11,11 +11,12 @@ import numpy.typing as npt
 from scipy import sparse, stats
 from scipy.spatial import cKDTree
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 PAIR_SAMPLE = 200_000
 TAGS = AnalysisTags(DataKind.SERIES)
@@ -24,6 +25,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 @dataclass(frozen=True)
 class RecurrenceResult:
     """A result of `recurrence`, the recurrence matrix and its statistics.
+
+    It holds the points, the matrix that marks every pair of times whose points lie within the radius, and the
+    statistics of its lines, such as a determinism near 1 for a sine wave. It tells regular rhythms of a heart, regime
+    changes of the climate, and periodic orbits of an oscillator apart from noise.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -58,6 +65,14 @@ class RecurrenceResult:
 
         entropy:
             The Shannon entropy in nats of the distribution of those diagonal line lengths.
+
+    See Also:
+        recurrence: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import recurrence
+        >>> recurrence([0.0, 0.1, 5.0, 5.1], radius=0.5).matrix.toarray().astype(int).tolist()
+        [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]
     """
 
     values: Array
@@ -74,7 +89,7 @@ class RecurrenceResult:
 
 
 def recurrence(
-    source: Source,
+    source: DataSource,
     *,
     variables: Sequence[str] | None = None,
     radius: float | None = None,
@@ -86,12 +101,12 @@ def recurrence(
     """Return which states of a run come close to each other, with statistics.
 
     A run recurs when it returns close to a state it visited before. Every row of the series is a point, such as an
-    embedded series or the states of a trajectory. The recurrence matrix marks every pair of times whose points lie
+    embedded series or the states of a trajectory, and the recurrence matrix marks every pair of times whose points lie
     within `radius` of each other. The statistics of its diagonal and vertical lines tell periodic, chaotic, and random
-    runs apart.
+    runs apart, such as a determinism near 1 for a sine wave. It finds regular rhythms in heart rate records, regime
+    changes in climate series, and periodic orbits in simulated oscillators.
 
-    It appears in many fields. It finds regular rhythms in heart-rate records, regime changes in climate series, and
-    periodic orbits in simulated oscillators.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -124,14 +139,16 @@ def recurrence(
         AnalysisError:
             A setting is out of range, or no pair of points recurs outside the Theiler window.
 
+    See Also:
+        embedding: Gives the points made of delayed copies of one series.
+        passage: Measures the times between the returns of a series to a level.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import embedding, recurrence
         >>> sine = embedding(np.sin(np.arange(2000) * 0.1), delay=15, dimension=2)
         >>> bool(recurrence(sine.points).determinism > 0.95)
         True
-        >>> recurrence([0.0, 0.1, 5.0, 5.1], radius=0.5).matrix.toarray().astype(int).tolist()
-        [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]
     """
     if (radius is not None and radius <= 0) or not 0 < rate < 1:
         error_msg = (

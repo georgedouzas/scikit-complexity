@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.macroeconomics import CreditNetworksSystem
 
@@ -35,8 +34,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system_system = CreditNetworksSystem(random_state=0)
-trajectory = simulate(system_system, observers=[observer], random_state=0)
+system = CreditNetworksSystem(random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Switching intensity and concentration
@@ -49,8 +48,8 @@ trajectory = simulate(system_system, observers=[observer], random_state=0)
 intensities = np.array([0.0, 0.5, 2.0, 5.0, 20.0])
 herfindahl, spread = [], []
 for intensity in intensities:
-    system_system = CreditNetworksSystem(intensity=intensity, random_state=0)
-    trajectory = simulate(system_system, random_state=0)
+    system = CreditNetworksSystem(intensity=intensity, random_state=0)
+    trajectory = system.prepare().simulate(random_state=0)
     herfindahl.append(trajectory.get_values('herfindahl')[50:].mean())
     spread.append(np.nanmean(trajectory.get_values('credit.spread')[50:]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

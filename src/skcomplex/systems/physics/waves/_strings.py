@@ -7,64 +7,265 @@ The module covers chains of masses on springs, guitar strings, and standing wave
 # License: MIT
 
 import math
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
+from sage.all__sagemath_symbolics import SR, Expression, oo, sin, sqrt, vector
+from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import VelocityVerletSolver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
+from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, VelocityVerletSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ...general.gradients import GradientInteraction
+from ..common.particles import MassPointElement
 
 
 class WaveStringElement(Element):
-    """Site of a string, with the transverse displacement `u` and the wave speed `c`.
-
-    The displacement has order 2.
+    """Sites of a string, with the transverse displacement `u`.
 
     Args:
         label:
-            The label of the site.
-
-        visual:
-            How the site is drawn, or `None` for none.
+            The label of the string.
 
         u:
-            The initial displacement.
+            The initial displacement, one value or one per site.
 
-        u_d1:
-            The initial transverse velocity.
+        space:
+            The lattice of the sites, or `None` for one site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import WaveStringElement
+        >>> WaveStringElement('site', u=0.5).u
+        0.5
+    """
+
+    def __init__(self, label: str, *, u: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
+        self.u = u
+
+
+class WaveTensionInteraction(Interaction):
+    """Tension of a string, which accelerates its displacement as the wave equation `u'' = c^2 laplacian(u)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the string.
 
         c:
             The wave speed.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import WaveStringElement
-        >>> WaveStringElement('site', c=2.0).c
+        >>> from skcomplex.systems.physics.waves import WaveTensionInteraction
+        >>> WaveTensionInteraction('tension', target='string', c=2.0).c
+        2.0
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        c: Annotated[float, RealSet.open(0, oo)] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.c = c
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the displacement of the target.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        u = context.target.u
+        self.laws_ = [RateLaw(u.diff(context.t, 2), context.c**2 * laplacian(u))]
+
+
+class PotentialEnergyInteraction(GradientInteraction):
+    """Potential energy of the positions of particles.
+
+    Its force on every particle changes its velocity.
+
+    The force `-dU/dx` on every particle, divided by its mass `m`, gives the second derivative of its position,
+    `x'' = -dU/dx / m`. A subclass binds one role per particle and returns the energy from `_get_potential`, or a user
+    passes the energy as `potential`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle or particle group.
+
+        potential:
+            A function of the namespace that returns the energy, or `None` for a subclass that returns it.
+
+        states:
+            The name of the vector state that holds the position of every particle.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.waves import PotentialEnergyInteraction
+        >>> ball = Element('ball', values={'x': np.array([1.0]), 'm': 2.0})
+        >>> trap = PotentialEnergyInteraction('trap', target='ball', potential=lambda s: s.target.x[0] ** 2)
+        >>> system = System(elements=[ball], interactions=[trap]).prepare()
+        >>> round(float(system.simulate(until=np.pi, dt=np.pi).get_values('ball.x')[-1][0]), 3)
+        -1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        potential: Callable[[SimpleNamespace], object] | None = None,
+        states: str | tuple[str, ...] = 'x',
+    ) -> None:
+        super().__init__(label, target=target, states=states, potential=potential, inertia=True)
+
+
+class HarmonicPotentialInteraction(PotentialEnergyInteraction):
+    """Harmonic potential that pulls a particle towards a center.
+
+    The energy is `k * |x - center|**2 / 2`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle.
+
+        k:
+            The stiffness.
+
+        center:
+            The center. A number applies to every component.
+
+        states:
+            The name of the vector state that holds the position of the particle.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import HarmonicPotentialInteraction
+        >>> HarmonicPotentialInteraction('trap', target='ball', k=2.0).k
         2.0
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        u: Annotated[float, StateSpec(order=2)] = 0.0,
-        u_d1: float = 0.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        center: npt.ArrayLike = 0.0,
+        states: str = 'x',
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.u_d1 = u_d1
-        self.c = c
+        super().__init__(label, target=target, states=states)
+        self.k = k
+        self.center = center
+
+    def _get_center(self, s: SimpleNamespace) -> object:
+        """Return the center, the hook a subclass overrides to move it."""
+        return s.center
+
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return `k * |x - center|**2 / 2`.
+
+        Args:
+            s:
+                The namespace of the symbols the energy can use.
+
+        Returns:
+            energy:
+                The potential energy as a symbolic expression.
+        """
+        position, center = getattr(s.target, self._get_names()[0]), self._get_center(s)
+        if not isinstance(center, FreeModuleElement):
+            center = vector(SR, [center] * len(position))
+        displacement = position - center
+        return s.k * displacement.dot_product(displacement) / 2
+
+
+class SpringInteraction(PotentialEnergyInteraction):
+    """Spring between two particles.
+
+    The energy is `k * (|x_first - x_second| - length)**2 / 2`, and its gradient moves both particles.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first particle.
+
+        second:
+            The path of the second particle.
+
+        k:
+            The stiffness.
+
+        length:
+            The rest length.
+
+        states:
+            The name of the vector state that holds the positions of the particles.
+
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import SpringInteraction
+        >>> SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0).length
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Role,
+        second: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        length: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        states: str = 'x',
+    ) -> None:
+        super().__init__(label, target=first, states=states)
+        self.first = first
+        self.second = second
+        self.k = k
+        self.length = length
+
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return `k * (|x_first - x_second| - length)**2 / 2`.
+
+        Args:
+            s:
+                The namespace of the symbols the energy can use.
+
+        Returns:
+            energy:
+                The potential energy as a symbolic expression.
+        """
+        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
+        return s.k * (sqrt(gap.dot_product(gap)) - s.length) ** 2 / 2
 
 
 class DrivenAnchorInteraction(HarmonicPotentialInteraction):
@@ -103,11 +304,11 @@ class DrivenAnchorInteraction(HarmonicPotentialInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        amplitude: Annotated[float, ParameterSpec()] = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        center: npt.ArrayLike = 0.0,
+        amplitude: float = 0.0,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label, target=target, k=k, center=center)
         self.amplitude = amplitude
@@ -158,6 +359,12 @@ class SpringChainSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for velocity Verlet with the step 0.01.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.waves import SpringChainSystem
         >>> len(SpringChainSystem(4).prepare().system_.interactions)
@@ -169,7 +376,6 @@ class SpringChainSystem(BaseSystem):
     references = ('Argun et al. 2021',)
     until = 20.0
     dt = 0.05
-    solver = VelocityVerletSolver(dt=0.01)
 
     def __init__(
         self,
@@ -183,8 +389,10 @@ class SpringChainSystem(BaseSystem):
         amplitude: float = 0.0,
         omega: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_masses = n_masses
         self.length = length
         self.k = k
@@ -203,11 +411,14 @@ class SpringChainSystem(BaseSystem):
         peak = at * length
         return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return masses joined in a row by zero rest length springs between two anchors.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to masses joined in a row by springs of zero rest length between two anchors.
 
-        The chain is a discrete string.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / (self.n_masses + 1)
         positions = spacing * np.arange(1, self.n_masses + 1)
         heights = (
@@ -217,7 +428,6 @@ class SpringChainSystem(BaseSystem):
             MassPointElement(
                 f'mass_{index}',
                 x=[float(positions[index]), float(heights[index])],
-                x_d1=[0.0, 0.0],
                 m=self.mass,
             )
             for index in range(self.n_masses)
@@ -242,11 +452,12 @@ class SpringChainSystem(BaseSystem):
                 center=[self.length, 0.0],
             ),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=masses,
             interactions=[*anchors, *springs],
             space=ContinuousSpace(n_dim=2),
+            solver=VelocityVerletSolver(dt=0.01),
         )
 
 
@@ -255,10 +466,10 @@ class StandingWavesSystem(BaseSystem):
 
     The string vibrates as a standing wave.
 
-    The displacement follows the wave equation `u'' = c² u_xx`, written as `u' = v` and `v' = c² laplacian(u)` on a
-    lattice whose edges hold the string at zero. The string starts at rest in the mode `amplitude sin(mode pi (x +
+    The displacement follows the wave equation `u'' = c² laplacian(u)` on a lattice whose edges hold the string at
+    zero. The string starts at rest in the mode `amplitude sin(mode pi (x +
     length / 2) / length)`, which oscillates in place with the period `2 length / (mode c)`, up to the discretization.
-    The system has the displacement `string.u` and the velocity `string.v`.
+    The system has the displacement `string.u` and the velocity `string.u'`.
 
     Args:
         n_sites:
@@ -279,10 +490,17 @@ class StandingWavesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.waves import StandingWavesSystem
-        >>> StandingWavesSystem(9).prepare().system_.elements[0].prepare().size_
-        9
+        >>> trajectory = StandingWavesSystem(9).prepare().simulate(until=0.1)
+        >>> trajectory.get_lattice('string.u').shape
+        (3, 9)
     """
 
     field = 'physics/waves'
@@ -300,35 +518,30 @@ class StandingWavesSystem(BaseSystem):
         mode: int = 1,
         amplitude: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.c = c
         self.mode = mode
         self.amplitude = amplitude
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a string with fixed ends on `[-length / 2, length / 2]`.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a string with fixed ends that vibrates as a standing wave.
 
-        The string vibrates as a standing wave.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / (self.n_sites + 1)
         positions = spacing * np.arange(1, self.n_sites + 1)
         shape = self.amplitude * np.sin(self.mode * math.pi * positions / self.length)
-        space = LatticeSpace(self.n_sites, spacing=spacing)
-        edges = ('fixed', 0.0)
-        string = FieldElement(
-            'string',
-            element=WaveStringElement,
-            space=space,
-            boundary={'u': edges},
-            values={'u': shape, 'c': self.c},
+        space = LatticeSpace(self.n_sites, spacing=spacing, boundary='fixed', fill=0.0)
+        self.system_ = System(
+            self.label,
+            elements=[WaveStringElement('string', u=shape, space=space)],
+            interactions=[WaveTensionInteraction('tension', target='string', c=self.c)],
         )
-        tension = RateInteraction(
-            'tension',
-            target='string',
-            state='u',
-            rate=lambda s: s.target.c**2 * laplacian(s.target.u),
-        )
-        return CompositeSystem(self.label, elements=[string], interactions=[tension])

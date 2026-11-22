@@ -6,6 +6,7 @@ Triadic closure and node turnover at a fixed size give high clustering.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import networkx as nx
@@ -13,12 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
@@ -32,11 +36,11 @@ class ClosingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The number of edges of the node.
+
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import ClosingNodeElement
@@ -44,14 +48,16 @@ class ClosingNodeElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.degree = degree
 
 
@@ -85,10 +91,15 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import DavidsenEbelBornholdtSystem
-        >>> trajectory = simulate(DavidsenEbelBornholdtSystem(50), until=20, random_state=0)
+        >>> trajectory = DavidsenEbelBornholdtSystem(50).prepare().simulate(until=20, random_state=0)
         >>> len(trajectory.get_network(-1).nodes)
         50
     """
@@ -106,50 +117,41 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         links: int | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.turnover = turnover
         self.links = links
         self.random_state = random_state
 
-    @staticmethod
-    def _build_network(
-        label: str,
-        capacity: int,
-        space: NetworkSpace,
-        links: int,
-        changes: list[TopologyInteraction],
-    ) -> CompositeSystem:
-        """Return the network of variable groups on its nodes and links.
-
-        The network has its changes and the map of the degrees.
-        """
-        nodes = GroupElement('nodes', element=ClosingNodeElement, on='sites', variable=True, capacity=capacity)
-        edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
-        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-        return CompositeSystem(
-            label,
-            elements=[nodes, edges],
-            interactions=[*changes, degree],
-            space=space,
-            time=DiscreteTime(),
-        )
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the Davidsen-Ebel-Bornholdt network.
-
-        Its triadic closure and node turnover give high clustering.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the Davidsen-Ebel-Bornholdt network, whose closure and turnover give high clustering."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnm_random_graph(self.n_nodes, self.n_nodes if self.links is None else self.links, seed=rng)
-        closure = TopologyInteraction('closure', target='nodes', action='close-triangle', one=True)
-        replacement = TopologyInteraction(
-            'turnover',
-            target='nodes',
-            action='replace-node',
-            one=True,
-            probability=self.turnover,
+        closure = Interaction(
+            'closure',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('close-triangle', one=True), 1)],
         )
-        capacity = graph.number_of_edges() + int(2 * self.n_nodes * (1 + 1 / self.turnover))
-        return self._build_network(self.label, self.n_nodes, NetworkSpace(graph), capacity, [closure, replacement])
+        replacement = Interaction(
+            'turnover',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('replace-node', one=True), self.turnover)],
+        )
+        space = NetworkSpace(graph)
+        nodes = ClosingNodeElement('nodes', space=space)
+        edges = Element('links', space=space, on='edges')
+        degree = Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
+        self.system_ = System(
+            self.label,
+            elements=[nodes, edges],
+            interactions=[closure, replacement, degree],
+            space=space,
+        )

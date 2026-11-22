@@ -8,30 +8,30 @@ from ._split import SplitSolver
 
 
 class IMEXEulerSolver(SplitSolver):
-    """A solver of first order that steps stiff parts implicitly, the rest explicitly.
+    """A solver of order 1 that steps stiff parts implicitly and the rest explicitly.
 
-    The linear part is implicit and the nonlinear remainder explicit. Every step solves `(I - h L) x_{n+1} = x_n + h
-    N(x_n)`, with sparse solves for finite differences and finite elements and division per Fourier mode for spectral
-    fields.
+    Every step solves `(I - h L) x_{n+1} = x_n + h N(x_n)` for the linear part `L`, such as diffusion, and the rest `N`,
+    such as a reaction, so a large step stays stable where an explicit step would blow up. It solves sparse systems for
+    finite differences and finite elements and divides per Fourier mode for spectral fields. Choose it as a stable first
+    try on a stiff field, in models of heat flow, patterns, and the spread of a species.
 
-    Choose it for a stable first try on a stiff field. It appears in models of pattern formation and of heat flow with
-    sources.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The fixed internal step.
 
+    See Also:
+        IMEX2Solver: The same split with order 2.
+        CrankNicolsonSolver: Steps the linear part by the trapezoidal rule.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
         >>> from skcomplex.core.engine.solvers import IMEXEulerSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> problem = simulate(HeatDiffusionSystem((16, 16)), until=0).problem
-        >>> stepper = IMEXEulerSolver(dt=1.0, random_state=0).prepare(problem)
-        >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 10.0)).state_
-        >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))
-        True
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> system = HeatDiffusionSystem((16, 16), solver=IMEXEulerSolver(dt=0.5)).prepare()
+        >>> u = system.simulate(until=2).get_values('plate.u')
+        >>> round(float(u[0].sum()), 6), round(float(u[-1].sum()), 6)
+        (16.0, 16.0)
     """
 
     def _step(self, t: float, x: Array, p: Array, h: float) -> Array:

@@ -14,7 +14,6 @@ time series show both observables during the run.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import MattisSpinGlassSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'mattis_spin_glass'
 
 system = MattisSpinGlassSystem(size=48, temperature=1.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(system, until=400, observers=[observer], random_state=0)
+simulation = system.prepare().simulate(until=400, observers=[observer], random_state=0)
 
 # %%
 # Hidden order and the gauge transformation
@@ -33,12 +32,19 @@ simulation = simulate(system, until=400, observers=[observer], random_state=0)
 # the spins look disordered and the gauge variables form one domain.
 
 lattice = simulation.get_lattice('spins.spin')[-1]
-pattern = system.prepare().system_.elements[0].values['pattern'].reshape(lattice.shape)
+pattern = system.prepare().system_.elements[0].pattern.reshape(lattice.shape)
 temperatures = np.linspace(1.0, 3.5, 11)
 overlaps, magnetizations = [], []
 for temperature in temperatures:
-    system_system = MattisSpinGlassSystem(size=32, temperature=temperature)
-    trajectory = simulate(system_system, until=1000, dt=10, random_state=0)
+    trajectory = (
+        MattisSpinGlassSystem(size=32, temperature=temperature)
+        .prepare()
+        .simulate(
+            until=1000,
+            dt=10,
+            random_state=0,
+        )
+    )
     overlaps.append(np.abs(trajectory.get_values('overlap')[-30:]).mean())
     magnetizations.append(np.abs(trajectory.get_values('magnetization')[-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))

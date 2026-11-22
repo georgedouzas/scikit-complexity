@@ -12,7 +12,8 @@ member at a time. Agents move, choose, trade, and die, which equations of averag
 ## Algebraic state
 
 An algebraic state has no derivative of its own, because the equations of its system fix its value at every time. It
-takes an equation or a linear program, never a rate. See [EquationLaw](core_components/laws.md#equationlaw).
+takes a `ConstraintLaw`, such as `0 = g(x)`, or a linear program, never a rate. See
+[ConstraintLaw](core_components/laws.md#constraintlaw).
 
 ## Approximate Bayesian computation
 
@@ -49,15 +50,23 @@ path cannot be predicted. A positive Lyapunov exponent is its signature. See
 
 ## Co-simulation
 
-Co-simulation runs the partitions of one system, each with its own solver, and exchanges their values at
-synchronisation points. It joins parts that no single solver runs, such as agents beside a differential equation. See
+Co-simulation runs the partitions of one system, each with its own solver, and exchanges their values at synchronisation
+points. It joins components that no single solver runs, such as agents beside a differential equation. See
 [Simulate](simulate.md#co-simulation).
 
 ## Compiler
 
 The compiler reads the laws of a prepared system and builds one problem of a mathematical form, such as a system of
 ordinary differential equations. A solver then advances that problem. See
-[How the parts fit](core_components/index.md#a-run).
+[How the components fit](core_components/index.md#a-run).
+
+## Component
+
+A component is a building block of a system: an element, an interaction, a space, a neighbourhood, or a nested
+system. Every component derives from `BaseComponent`, has a label, parameters, and capability tags, and has the method
+`prepare`. The laws are what interactions set, see [Law](#law).
+A component of a vector or a connected component of a network keeps its usual meaning. See
+[How the components fit](core_components/index.md#the-components).
 
 ## Credible interval
 
@@ -77,7 +86,7 @@ zero up. A role names the domains it accepts, and a state of another domain does
 
 ## Dotted name
 
-A dotted name joins the label of a part and the name of one of its values, such as `prey.x` or `predation.a`. A
+A dotted name joins the label of a component and the name of one of its values, such as `prey.x` or `predation.a`. A
 trajectory, a schedule, and an experiment name states and parameters this way. See
 [Simulate](simulate.md#the-trajectory).
 
@@ -93,8 +102,9 @@ what chance alone can do. See [Run experiments](run_experiments.md#ensembles).
 
 ## Field realization
 
-A field realization is a subclass of a core part that names it in the words of one field and fixes its arguments, such
-as a compartment of an epidemic written as a `DeclaredElement`. The catalog writes its systems this way. See
+A field realization is a subclass of a core component that names it in the words of one field and fixes its arguments,
+such as a compartment of an epidemic written as an `Element` with one value. The catalog writes its systems this way.
+See
 [System classes](system_classes.md#field-realizations).
 
 ## Fixed point
@@ -114,8 +124,9 @@ total rate and picks the event in proportion to its rate. See [Simulate](simulat
 
 ## Group
 
-A group holds many members of one element class, one per site of a lattice, node of a network, or point in space. A
-variable group lets members appear and disappear. See [GroupElement](core_components/elements.md#groupelement).
+A group holds many members of one element class, such as `Element('walkers', values={'x': 0.0}, size=1000)`, or one
+per site of a lattice or node of a network with `space=`. Rules may add and remove members as the run goes. See
+[Element](core_components/elements.md#element).
 
 ## Identifiability
 
@@ -124,8 +135,8 @@ refitting noisy copies or by profiling the likelihood. See [Evaluate](evaluate.m
 
 ## Interaction
 
-An interaction reads states through its roles and returns laws that change them, such as hunting that lowers the prey
-and feeds the predators. See [Interactions](core_components/interactions.md).
+An interaction reads values through its roles and sets in `laws_` the laws that change them, such as hunting that
+lowers the prey and feeds the predators. See [Interactions](core_components/interactions.md).
 
 ## Invariant
 
@@ -153,22 +164,23 @@ ensemble of runs. An analysis reads its kind from a trajectory or from measured 
 
 The kind of an element says how many members it holds and where they sit, such as `element`, `group`, or
 `site-group`. A role accepts some kinds and rejects the others. See
-[Check a system](check.md#what-an-element-carries).
+[Check a system](check.md#what-an-interaction-needs).
 
 ## Label
 
-A label is the name of a part, unique among the parts of its system. Roles bind elements by label, and dotted names
-start with it. See [Check a system](check.md#two-parts-with-one-label).
+A label is the name of a component, unique among the components of its system. Roles bind elements by label, and dotted
+names start with it. See [Check a system](check.md#two-components-with-one-label).
 
 ## Law
 
-A law is one equation or rule for one state, such as a rate, the next value at a step, or a random jump. Elements and
-interactions return laws, and the compiler joins them into a problem. See [Laws](core_components/laws.md).
+A law is one piece of mathematics for one state, of one of seven kinds: a rate, a noise, a jump, an update, a
+constraint, an event, or an objective, such as `RateLaw(x.diff(t, 2), -g)` for a falling ball. Interactions set laws,
+and `prepare` joins them into a problem. See [Laws](core_components/laws.md).
 
 ## Law kind
 
-The law kind of a part is the kind of law it returns, such as `rate`, `update`, or `jump`. The law kinds of a system
-decide its mathematical form and its default solver. See [Check a system](check.md#tags).
+The law kind of an interaction is the kind of law it sets, such as `rate`, `update`, or `jump`. The law kinds of a
+system decide its mathematical form and its default solver. See [Check a system](check.md#tags).
 
 ## Likelihood
 
@@ -188,8 +200,9 @@ means chaos, a negative one contraction, and zero a direction along which paths 
 
 ## Main public methods
 
-The main public methods of a part are `prepare`, which checks it against what it works on, and `run`, which sets what
-it contributes. Both return the part itself. See [How the parts fit](core_components/index.md#the-main-public-methods).
+The main public method of a component is `prepare`, which checks it against what it works on and returns the component
+itself. A system has a second one, `simulate`, which returns a trajectory. See [How the components
+fit](core_components/index.md#the-main-public-methods).
 
 ## Markov chain Monte Carlo
 
@@ -206,23 +219,23 @@ Epidemiology calls the same assumption homogeneous mixing. See
 ## Member
 
 A member is one instance of the element class of a group, such as one cell of a lattice or one agent of a flock. Each
-member holds its own copy of the states of the class. See [GroupElement](core_components/elements.md#groupelement).
+member holds its own copy of the values of the class. See [Element](core_components/elements.md#element).
 
 ## Model parameter
 
 A model parameter is an argument of a system class, such as the growth rate `r`, set with `set_params`. Changing it
-builds new parts, while a dotted name changes a value of the built parts. See
+builds new components, while a dotted name changes a value of the built components. See
 [Change it](change_it.md#model-parameters).
 
 ## Neighbourhood
 
 A neighbourhood says which members of a space count as neighbours of each member, such as the four nearest sites of a
 lattice or every point within a radius. Interactions over neighbours read it. See
-[Spaces, neighbourhoods, and times](core_components/spaces.md).
+[Spaces and neighbourhoods](core_components/spaces.md).
 
 ## Nested system
 
-A nested system is a system held inside another as one of its parts. Its elements are reached by paths such as
+A nested system is a system held inside another as one of its components. Its elements are reached by paths such as
 `village/farmers`, and it becomes a partition when its laws fit one form. See [Simulate](simulate.md#co-simulation).
 
 ## Observable
@@ -248,7 +261,7 @@ a steady state, a few a periodic cycle, and many a cycle that does not repeat. S
 
 ## Partition
 
-A partition is a part of a system that runs with its own solver during co-simulation. Each nested system whose laws
+A partition is a group of the components of a system that runs with its own solver during co-simulation. Each nested system whose laws
 fit one form becomes one. See [Simulate](simulate.md#co-simulation).
 
 ## Phase space
@@ -335,18 +348,19 @@ Gillespie algorithm for jumps. The tags of a system choose the default solver. S
 ## Space
 
 A space places the members of a group and says who neighbours whom, such as a lattice, a network, or continuous space.
-See [Spaces, neighbourhoods, and times](core_components/spaces.md).
+See [Spaces and neighbourhoods](core_components/spaces.md).
 
 ## Spec
 
-A spec is a small frozen record that describes a value, such as a `StateSpec` that gives the domain and the order of a
-state. Parts read specs for their declarations and settings. See
-[How the parts fit](core_components/index.md#the-elements).
+A spec is a small frozen record that describes a value, such as a `VisualSpec` that gives the drawing of an element.
+Components read specs for their settings. See
+[How the components fit](core_components/index.md#the-elements).
 
 ## State
 
-A state is a number that changes as a system runs, such as the size of a population. Its initial value is the
-default of its argument. See [How the parts fit](core_components/index.md#the-parts).
+A state is a value that some law changes as a system runs, such as the height of a falling ball. A value that no law
+changes is a parameter. The starting value of a state is the value its element holds, such as `10.0` in
+`Element('ball', values={'x': 10.0})`. See [How the components fit](core_components/index.md#the-components).
 
 ## Steady state
 
@@ -381,23 +395,26 @@ A sweep runs a system once per row of a design of parameter values and collects 
 
 ## System
 
-A system composes elements, interactions, a space, and a time into one model that `simulate` runs. A system class
-builds its parts from model parameters. See [Systems](core_components/systems.md).
+A system composes elements, interactions, nested systems, and a space into one model, which `prepare` compiles and
+`simulate` runs. A system class
+builds its components from model parameters. See [Systems](core_components/systems.md).
 
 ## System class
 
-A system class is a subclass of `BaseSystem` that builds its parts from model parameters and tunes its run settings.
-The catalog holds ready-made system classes. See [System classes](system_classes.md).
+A system class is a subclass of `BaseSystem` that builds its components from model parameters and tunes its run
+settings. The catalog holds ready-made system classes. See [System classes](system_classes.md).
 
 ## Tag
 
-A tag records a capability of a part, such as its time, its law kinds, the domains of its states, or its randomness.
-The tags of a system join those of its parts and choose its solver. See [Check a system](check.md#tags).
+A tag records a capability of a component, such as the time its laws imply, its law kinds, the domains of its states, or its
+randomness. The tags of a system join those of its components and choose its solver. See [Check a
+system](check.md#tags).
 
 ## Time
 
 The time of a system says whether it flows continuously, steps in discrete increments, or is solved once without time.
-See [ContinuousTime](core_components/spaces.md#continuoustime).
+It follows from the kinds of the laws: rates flow, updates step, and objectives and constraints alone are static. See
+[Check a system](check.md#what-an-interaction-needs).
 
 ## Trajectory
 

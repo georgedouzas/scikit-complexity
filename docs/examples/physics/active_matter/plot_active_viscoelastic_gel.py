@@ -14,14 +14,13 @@ peaks. The gel has no inertia, so its velocity solves a force balance at every s
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import ActiveViscoelasticGelSystem
 
 SYSTEM = 'active_viscoelastic_gel'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ActiveViscoelasticGelSystem(), observers=[observer], random_state=0)
+trajectory = ActiveViscoelasticGelSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Concentration and force balance

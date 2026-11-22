@@ -13,12 +13,15 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, SR, Expression
 
+from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, JumpLaw
+from ....core.components.laws import JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.elements import NonnegativeElement
 from ...general.reactions import ReactionInteraction
 
@@ -58,9 +61,6 @@ class LogicalVariableElement(Element):
         label:
             The label of the variable.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         level:
             The initial level.
 
@@ -73,11 +73,10 @@ class LogicalVariableElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        level: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        level: Annotated[float, NN] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.level = level
 
 
@@ -122,8 +121,8 @@ class LogicalRegulationInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        regulators: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
+        target: Role,
+        regulators: tuple[Role, ...] = (),
         thresholds: Sequence[int] = (),
         parameters: Mapping[tuple[bool, ...], int] | None = None,
     ) -> None:
@@ -133,20 +132,18 @@ class LogicalRegulationInteraction(Interaction):
         self.thresholds = thresholds
         self.parameters = parameters
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the steps of the target up and down towards its focal level.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the steps of the target up and down towards its focal level.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         level = s.target.level
         focal = self._get_focal(s.regulators)
-        return [
+        self.laws_ = [
             JumpLaw(where(focal > level, 1, 0), {level: 1}),
             JumpLaw(where(focal < level, 1, 0), {level: -1}),
         ]
@@ -191,6 +188,12 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import GeneralizedLogicalNetworkSystem
         >>> [element.label for element in GeneralizedLogicalNetworkSystem().prepare().system_.elements]
@@ -209,23 +212,31 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
         levels: Mapping[str, int] | None = None,
         *,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.regulations = regulations
         self.levels = levels
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a generalised logical network of Thomas."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a generalised logical network of Thomas.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         network = NEGATIVE_CIRCUIT if self.regulations is None else self.regulations
         start = self.levels or {}
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[LogicalVariableElement(name, level=float(start.get(name, 0))) for name in network],
             interactions=[
                 LogicalRegulationInteraction(
                     f'{name}_regulation',
                     target=name,
-                    regulators=list(regulators),
+                    regulators=tuple(regulators),
                     thresholds=tuple(thresholds),
                     parameters=dict(parameters),
                 )
@@ -259,6 +270,12 @@ class PetriNetSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import PetriNetSystem
         >>> [element.label for element in PetriNetSystem().prepare().system_.elements]
@@ -278,18 +295,26 @@ class PetriNetSystem(BaseSystem):
         *,
         stochastic: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.places = places
         self.transitions = transitions
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a Petri net."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a Petri net.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         marking = GENE_EXPRESSION_PLACES if self.places is None else self.places
         arcs = GENE_EXPRESSION_TRANSITIONS if self.transitions is None else self.transitions
         mode = 'jump' if self.stochastic else 'rate'
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[NonnegativeElement(name, x=float(tokens)) for name, tokens in marking.items()],
             interactions=[

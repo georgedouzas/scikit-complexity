@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import HuygensClocksSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = HuygensClocksSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=8)
-trajectory = simulate(system, until=100, observers=[observer])
+trajectory = system.prepare().simulate(until=100, observers=[observer])
 
 # %%
 # Antiphase synchronization

@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import AdaptiveResponseCostsSystem
 
@@ -37,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=10)
-trajectory = simulate(AdaptiveResponseCostsSystem(strategy='adaptive'), observers=[observer])
+trajectory = AdaptiveResponseCostsSystem(strategy='adaptive').prepare().simulate(observers=[observer])
 
 # %%
 # The costs of the three levels of adaptivity
@@ -49,7 +48,7 @@ trajectory = simulate(AdaptiveResponseCostsSystem(strategy='adaptive'), observer
 
 totals = {}
 for strategy in STRATEGIES:
-    trajectory = simulate(AdaptiveResponseCostsSystem(strategy=strategy))
+    trajectory = AdaptiveResponseCostsSystem(strategy=strategy).prepare().simulate()
     totals[strategy] = [trajectory.get_values(f'organism.{kind}_cost')[-1] for kind in COSTS]
 fig, (bars, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 bottom = np.zeros(len(STRATEGIES))

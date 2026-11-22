@@ -13,12 +13,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import clip, series
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import StockFlowSystem
 from ...general.dynamics.types import FlowTable
 
@@ -41,9 +43,6 @@ class FisheryElement(Element):
     Args:
         label:
             The label of the fishery.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         resource:
             The initial resource stock.
@@ -78,18 +77,17 @@ class FisheryElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        resource: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='fish')] = 1000.0,
-        capital: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capital')] = 5.0,
-        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        growth_goal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        resource: Annotated[float, RealSet.closed_open(0, oo), Quantity('fish')] = 1000.0,
+        capital: Annotated[float, RealSet.closed_open(0, oo), Quantity('capital')] = 5.0,
+        cost: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        growth_goal: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        lifetime: Annotated[float, RealSet.open(0, oo)] = 20.0,
         yield_table: Sequence[float] = FISH_YIELD,
         regeneration_table: Sequence[float] = REGENERATION,
         price_table: Sequence[float] = PRICE_BY_YIELD,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.resource = resource
         self.capital = capital
         self.cost = cost
@@ -132,9 +130,15 @@ class OilEconomySystem(StockFlowSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import OilEconomySystem
-        >>> OilEconomySystem(resource=2000.0).prepare().system_.elements[0].get_value('resource')
+        >>> OilEconomySystem(resource=2000.0).prepare().system_.elements[0].values['resource']
         2000.0
     """
 
@@ -176,8 +180,10 @@ class OilEconomySystem(StockFlowSystem):
         lifetime: float = 20.0,
         price_table: Sequence[float] | None = None,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.resource = resource
         self.capital = capital
         self.price = price
@@ -199,32 +205,54 @@ class OilEconomySystem(StockFlowSystem):
         """Return the label of the element that holds the stocks."""
         return 'oil'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the stocks and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_stocks(self) -> dict[str, object]:
+        """Return the initial value of every stock by name."""
         return {
-            'resource': DeclaredVariableSpec(self.resource, StateSpec(domain=nonnegative, quantity='oil')),
-            'capital': DeclaredVariableSpec(self.capital, StateSpec(domain=nonnegative, quantity='capital')),
-            'price': DeclaredVariableSpec(self.price, ParameterSpec(domain=RealSet.open(0, oo))),
-            'cost': DeclaredVariableSpec(self.cost, ParameterSpec(domain=nonnegative)),
-            'growth_goal': DeclaredVariableSpec(self.growth_goal, ParameterSpec(domain=nonnegative)),
-            'lifetime': DeclaredVariableSpec(self.lifetime, ParameterSpec(domain=RealSet.open(0, oo))),
+            'resource': self.resource,
+            'capital': self.capital,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the stocks and parameters that have them, by name."""
+        return {
+            'resource': RealSet.closed_open(0, oo),
+            'capital': RealSet.closed_open(0, oo),
+            'price': RealSet.open(0, oo),
+            'cost': RealSet.closed_open(0, oo),
+            'growth_goal': RealSet.closed_open(0, oo),
+            'lifetime': RealSet.open(0, oo),
+        }
+
+    def _get_quantities(self) -> dict[str, str]:
+        """Return the quantity every stock holds, by name."""
+        return {
+            'resource': 'oil',
+            'capital': 'capital',
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'price': self.price,
+            'cost': self.cost,
+            'growth_goal': self.growth_goal,
+            'lifetime': self.lifetime,
         }
 
     def _get_flows(self) -> FlowTable:
         """Return the extraction of the resource, the investment in capital, and its depreciation."""
         prices = None if self.price_table is None else tuple(float(value) for value in self.price_table)
         return {
-            'extraction': ('resource', Sink('market'), lambda s: OilEconomySystem._harvest(s.source, OIL_YIELD)),
+            'extraction': ('resource', None, lambda s: OilEconomySystem._harvest(s.target, OIL_YIELD)),
             'investment': (
-                Source('investors'),
+                None,
                 'capital',
                 lambda s: OilEconomySystem._get_investment(
-                    s.source,
-                    self._get_oil_price(s.source, OIL_YIELD, prices) * OilEconomySystem._harvest(s.source, OIL_YIELD),
+                    s.target,
+                    self._get_oil_price(s.target, OIL_YIELD, prices) * OilEconomySystem._harvest(s.target, OIL_YIELD),
                 ),
             ),
-            'depreciation': ('capital', Sink('scrap'), lambda s: s.source.capital / s.source.lifetime),
+            'depreciation': ('capital', None, lambda s: s.target.capital / s.target.lifetime),
         }
 
 
@@ -258,6 +286,12 @@ class FisheryCapitalSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import FisheryCapitalSystem
         >>> FisheryCapitalSystem(lifetime=10.0).prepare().system_.elements[0].lifetime
@@ -270,22 +304,6 @@ class FisheryCapitalSystem(BaseSystem):
     until = 100.0
     dt = 1.0
 
-    @staticmethod
-    def _get_capital(label: str, holder: str) -> TransferInteraction:
-        """Return the depreciation of the capital of a holder.
-
-        It is reported as `<holder>.depreciation`.
-        """
-        return TransferInteraction(
-            label,
-            source=holder,
-            target=holder,
-            state='capital',
-            into=Sink('scrap'),
-            amount=lambda s: s.source.capital / s.source.lifetime,
-            flow='depreciation',
-        )
-
     def __init__(
         self,
         resource: float = 1000.0,
@@ -296,8 +314,10 @@ class FisheryCapitalSystem(BaseSystem):
         lifetime: float = 20.0,
         yield_table: Sequence[float] = FISH_YIELD,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.resource = resource
         self.capital = capital
         self.cost = cost
@@ -314,8 +334,9 @@ class FisheryCapitalSystem(BaseSystem):
             prices,
         ) * OilEconomySystem._harvest(holder, yields)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         fishery = FisheryElement(
             'fishery',
             resource=self.resource,
@@ -326,30 +347,38 @@ class FisheryCapitalSystem(BaseSystem):
             yield_table=tuple(float(value) for value in self.yield_table),
         )
         yields, regenerations, prices = fishery.yield_table, fishery.regeneration_table, fishery.price_table
-        fish = TransferInteraction(
+        fish = Interaction(
             'fish',
-            source='fishery',
-            target='fishery',
-            state=Source('spawning'),
-            into='resource',
-            amount=lambda s: s.source.resource * series(s.source.resource, RESOURCE_LEVELS, regenerations),
-            flow='regeneration',
-            legs=[('resource', Sink('market'), lambda s: OilEconomySystem._harvest(s.source, yields), 'harvest')],
+            roles={'target': 'fishery'},
+            laws=lambda s: [
+                RateLaw(
+                    {s.target.resource: +1},
+                    s.target.resource * series(s.target.resource, RESOURCE_LEVELS, regenerations),
+                    label='regeneration',
+                ),
+                RateLaw({s.target.resource: -1}, OilEconomySystem._harvest(s.target, yields), label='harvest'),
+            ],
         )
-        investment = TransferInteraction(
+        investment = Interaction(
             'investment',
-            source='fishery',
-            target='fishery',
-            state=Source('investors'),
-            into='capital',
-            amount=lambda s: OilEconomySystem._get_investment(
-                s.source,
-                self._get_fish_revenue(s.source, yields, prices),
-            ),
-            flow='investment',
+            roles={'target': 'fishery'},
+            laws=lambda s: [
+                RateLaw(
+                    {s.target.capital: +1},
+                    OilEconomySystem._get_investment(s.target, self._get_fish_revenue(s.target, yields, prices)),
+                    label='investment',
+                ),
+            ],
         )
-        return CompositeSystem(
+        depreciation = Interaction(
+            'depreciation',
+            roles={'target': 'fishery'},
+            laws=lambda s: [
+                RateLaw({s.target.capital: -1}, s.target.capital / s.target.lifetime, label='depreciation'),
+            ],
+        )
+        self.system_ = System(
             self.label,
             elements=[fishery],
-            interactions=[fish, investment, FisheryCapitalSystem._get_capital('depreciation', 'fishery')],
+            interactions=[fish, investment, depreciation],
         )

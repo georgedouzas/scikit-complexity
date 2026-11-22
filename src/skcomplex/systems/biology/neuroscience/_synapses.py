@@ -5,11 +5,11 @@
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.components.laws.utils import mod, where
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -50,9 +50,15 @@ class AdaptrodeSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import AdaptrodeSystem
-        >>> AdaptrodeSystem(stop=50.0).prepare().system_.elements[0].get_value('stop')
+        >>> AdaptrodeSystem(stop=50.0).prepare().system_.elements[0].values['stop']
         50.0
     """
 
@@ -74,8 +80,10 @@ class AdaptrodeSystem(DynamicalSystem):
         period: float = 10.0,
         stop: float = 150.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.alpha0 = alpha0
         self.alpha1 = alpha1
         self.alpha2 = alpha2
@@ -107,24 +115,28 @@ class AdaptrodeSystem(DynamicalSystem):
         """Return the discrete time of the map."""
         return 'discrete'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the three weights and the parameters with their specs."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'w0': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'w1': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'w2': DeclaredVariableSpec(0.0, StateSpec(domain=nonnegative)),
-            'w_max': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'alpha0': DeclaredVariableSpec(self.alpha0, ParameterSpec(domain=nonnegative)),
-            'alpha1': DeclaredVariableSpec(self.alpha1, ParameterSpec(domain=nonnegative)),
-            'alpha2': DeclaredVariableSpec(self.alpha2, ParameterSpec(domain=nonnegative)),
-            'delta0': DeclaredVariableSpec(self.delta0, ParameterSpec(domain=nonnegative)),
-            'delta1': DeclaredVariableSpec(self.delta1, ParameterSpec(domain=nonnegative)),
-            'delta2': DeclaredVariableSpec(self.delta2, ParameterSpec(domain=nonnegative)),
-            'amplitude': DeclaredVariableSpec(1.0, ParameterSpec(domain=nonnegative)),
-            'period': DeclaredVariableSpec(self.period, ParameterSpec(domain=RealSet.open(0, oo))),
-            'width': DeclaredVariableSpec(3.0, ParameterSpec(domain=nonnegative)),
-            'stop': DeclaredVariableSpec(self.stop, ParameterSpec()),
+            'w0': 0.0,
+            'w1': 0.0,
+            'w2': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'w_max': 1.0,
+            'alpha0': self.alpha0,
+            'alpha1': self.alpha1,
+            'alpha2': self.alpha2,
+            'delta0': self.delta0,
+            'delta1': self.delta1,
+            'delta2': self.delta2,
+            'amplitude': 1.0,
+            'period': self.period,
+            'width': 3.0,
+            'stop': self.stop,
         }
 
     def _get_equations(self) -> Equations:

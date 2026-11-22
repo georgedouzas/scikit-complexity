@@ -13,19 +13,22 @@ from sage.all__sagemath_symbolics import SR, Expression
 from scipy.special import logsumexp
 
 from ...errors import ValidationError
-from ...specs import ReadSpec, RunStateSpec
 from ...types import Array, Indices
 from .._utils import symbols_of
-from ..types import ReadKind, Sparse
+from ..enums import ReadKind
+from ..types import Sparse
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._law_kernel import LawKernel
+from ._neighborhood_kernel import NeighborhoodKernel
 from ._output_spec import OutputSpec
 from ._partials_spec import PartialsSpec
+from ._read_spec import _ReadSpec
 from ._reduction_kernel import ReductionKernel
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
+from ._run_state_spec import RunStateSpec
 from ._symmetry_spec import SymmetrySpec
 from ._too_dense import _TooDenseError
 
@@ -33,19 +36,14 @@ PATTERN_LIMIT = 4_000_000
 
 
 class JacobianKernel(BaseKernel):
-    """A kernel of the Jacobian of the drift of a problem, with its sparsity.
+    """A kernel of the Jacobian of the rates of a system, exact and sparse.
 
-    It is derived from the symbolic laws of the problem. `pattern` states every entry the laws can make nonzero: member
-    and shared reads, the neighbour tables of fields, the sparse matrices of finite element operators, the
-    reconstruction stencils of finite volumes, the rank-one blocks of reductions, and dense blocks where couplings are
-    known only at run time, such as pairs, spectral operators, and callables. `prepare(problem)` checks that every law
-    has a symbolic form and compiles its derivatives, and `run(state)` evaluates the Jacobian exactly into `values_` by
-    differentiating the laws, with the chain rule through neighbour reads, finite element operators, and reductions.
+    The Jacobian holds how the rate of every state changes with every other state, `dF_i/dx_j`, which implicit solvers
+    and stability analyses need. The kernel derives it from the symbolic laws, with the chain rule through neighbours,
+    finite element operators, and reductions such as a mean over a group, and knows ahead which entries can be nonzero,
+    so solvers store only those. It serves stiff chemistry, the stability of an ecosystem, and the control of a grid.
 
-    Every reading member depends on every member a reduction reads, so the Jacobian has the rank-one block
-    `dF_i/dR dR/dx_j` of every reduction `R`, with `dR/dx_j` the derivative of the reduced member's argument, divided by
-    the count for a mean, weighted by `W_ij` with weights, at the first extreme member for a maximum or a minimum, by
-    the softmax of the arguments for a log-sum-exp, and 0 for a count.
+    Read more in the user guide, under Solvers.
 
     Args:
         kernels:
@@ -72,6 +70,16 @@ class JacobianKernel(BaseKernel):
     Attributes:
         values_:
             The Jacobian of the drift at the state of the last run, the sparse matrix of `dF_i/dx_j`.
+
+    See Also:
+        LawKernel: The kernels whose rates it differentiates.
+        PartialsSpec: The partial derivatives it compiles.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> kernel = LogisticGrowthSystem().prepare().simulate(until=0).problem.jacobian
+        >>> type(kernel).__name__, kernel.size
+        ('JacobianKernel', 1)
     """
 
     values_: Sparse
@@ -349,8 +357,8 @@ class JacobianKernel(BaseKernel):
         Returns:
             pattern:
                 A boolean sparse matrix that holds every entry the Jacobian can make nonzero and the diagonal of free
-                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries or the
-                laws reduce over neighbourhoods, whose neighbours can change.
+                rows, with fixed rows empty, or `None` when the dense blocks exceed `PATTERN_LIMIT` entries. A reduction
+                over neighbourhoods, whose neighbours can change, reads the dense block of its group.
         """
         return self._pattern
 
@@ -371,11 +379,12 @@ class JacobianKernel(BaseKernel):
         It raises `_TooDenseError` above the size limit.
         """
         self._dense = 0
-        if self.reductions.neighbourhoods:
-            raise _TooDenseError
         supports: dict[Expression, Sparse] = {}
-        for reduction in self.reductions.reductions:
-            supports[reduction.symbol] = self._get_reduction_support(reduction, supports)
+        for reduction in self.reductions.steps:
+            if isinstance(reduction, NeighborhoodKernel):
+                supports[reduction.symbol] = self._get_neighborhood_support(reduction, supports)
+            else:
+                supports[reduction.symbol] = self._get_reduction_support(reduction, supports)
         blocks = [scipy.sparse.eye_array(self.size, format='csr')]
         for kernel in self.kernels:
             blocks.extend(self._get_kernel_pattern(kernel, supports))
@@ -525,6 +534,22 @@ class JacobianKernel(BaseKernel):
                     blocks.append(scatter @ support)
         return blocks
 
+    def _get_neighborhood_support(self, reduction: NeighborhoodKernel, supports: dict[Expression, Sparse]) -> Sparse:
+        """Return the states a reduction over neighbours may depend on, for any member.
+
+        The neighbours can change as the members move, so every member may read every state the reduction reads of any
+        member, the dense block of its group.
+        """
+        support = scipy.sparse.csr_array((1, self.size), dtype=bool)
+        for item in reduction.symbols:
+            read = reduction.reads[item].read
+            if item in supports:
+                support = support + scipy.sparse.csr_array(supports[item].sum(axis=0).reshape(1, -1) != 0)
+            elif read.is_state:
+                columns = np.unique(np.asarray(read.index, dtype=np.intp))
+                support = support + (self._get_selection(np.zeros_like(columns), columns, 1.0, self.size, 1) != 0)
+        return support
+
     def _get_reduction_support(self, reduction: ReductionKernel, supports: dict[Expression, Sparse]) -> Sparse:
         """Return the states a reduction depends on.
 
@@ -545,7 +570,7 @@ class JacobianKernel(BaseKernel):
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
             weights = reduction.weights
-            pattern = np.ones(weights.shape) if isinstance(weights, ReadSpec) else weights
+            pattern = np.ones(weights.shape) if isinstance(weights, _ReadSpec) else weights
             return scipy.sparse.csr_array((abs(pattern) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
 

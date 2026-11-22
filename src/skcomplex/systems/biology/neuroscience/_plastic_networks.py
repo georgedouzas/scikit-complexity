@@ -6,23 +6,28 @@ The synapses adapt to the activity of the neurons they join.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
+from collections.abc import Sequence
 from itertools import permutations
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import cos, oo, pi, sin, tanh
+from sage.all__sagemath_symbolics import cos, oo, sin, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import Interaction, NeighborInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.laws.utils import clip, delayed, where
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.excitable import ThetaNeuronElement
+from ....core.components.laws.utils import clip, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
+from ..common.excitable import ThetaNeuronElement, ThetaNeuronInteraction
 
 
 class AxonElement(Element):
@@ -31,9 +36,6 @@ class AxonElement(Element):
     Args:
         label:
             The label of the axon or of the group on the edges.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         tau:
             The initial conduction delay.
@@ -50,29 +52,21 @@ class AxonElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        tau: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        tau0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        tau: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        tau0: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.tau = tau
         self.tau0 = tau0
 
 
 class PhaseUnitElement(Element):
-    """Neural unit reduced to a phase.
-
-    The phase turns at its natural frequency, `theta' = omega`.
-
-    Couplings to other units add to the rate of the phase.
+    """Neural unit reduced to a phase `theta` that wraps around, with its natural frequency `omega`.
 
     Args:
         label:
             The label of the unit or of the group of units.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         theta:
             The initial phase.
@@ -86,32 +80,51 @@ class PhaseUnitElement(Element):
         1.5
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 1.0,
+        theta: Annotated[float, Period(2 * math.pi)] = 0.0,
+        omega: float = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.theta = theta
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rotation of the phase.
+
+class RotationInteraction(Interaction):
+    """Rotation of the phase of a unit at its natural frequency, `theta' = omega`.
+
+    Couplings to other units add to the rate of the phase.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the unit, whose values are `theta` and `omega`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import RotationInteraction
+        >>> RotationInteraction('rotation', target='unit_0').target
+        'unit_0'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rotation of the phase of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RateLaw(s.theta, s.omega)]
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.target.theta, context.target.omega)]
 
 
 class SynapseElement(Element):
@@ -121,11 +134,14 @@ class SynapseElement(Element):
         label:
             The label of the synapse or of the group on the edges.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         kappa:
             The initial efficacy.
+
+        space:
+            The network whose edges hold one synapse each, or `None` for one synapse.
+
+        on:
+            `'edges'` for one synapse per edge of the network, or `None` for one synapse.
 
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import SynapseElement
@@ -136,30 +152,21 @@ class SynapseElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        kappa: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        kappa: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.kappa = kappa
 
 
 class TracedThetaNeuronElement(ThetaNeuronElement):
-    """Theta neuron that keeps traces of its own spikes.
-
-    Spike-timing-dependent plasticity reads the traces.
-
-    A spike is the smooth pulse `P(theta) = (1 - cos theta)^2 * 2 / 3`, of unit mean over the phase, which peaks as the
-    phase passes π. The presynaptic trace `a` and the postsynaptic trace `b` rise with every pulse and decay with the
-    times `tau_plus` and `tau_minus`, `da/dt = P(theta) - a / tau_plus` and `db/dt = P(theta) - b / tau_minus`, so
-    they hold the recent spikes weighted by the exponential windows of the plasticity.
+    """Theta neurons with a presynaptic trace `a` and a postsynaptic trace `b` of their own spikes.
 
     Args:
         label:
             The label of the neuron or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         theta:
             The initial phase.
@@ -179,46 +186,72 @@ class TracedThetaNeuronElement(ThetaNeuronElement):
         tau_minus:
             The time of the depression window.
 
+        space:
+            The network whose nodes hold one neuron each, or `None` for one neuron.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import TracedThetaNeuronElement
         >>> TracedThetaNeuronElement('neuron').tau_plus
         2.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        a: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        eta: Annotated[float, ParameterSpec()] = 1.0,
-        tau_plus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        tau_minus: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        theta: Annotated[float | Array, Period(2 * math.pi)] = 0.0,
+        a: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        b: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        eta: float | Array = 1.0,
+        tau_plus: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        tau_minus: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, theta=theta, eta=eta)
+        super().__init__(label, theta=theta, eta=eta, space=space)
         self.a = a
         self.b = b
         self.tau_plus = tau_plus
         self.tau_minus = tau_minus
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the phase dynamics and the traces of the spikes.
+
+class SpikeTraceInteraction(Interaction):
+    """Traces of the spikes of theta neurons, which spike-timing-dependent plasticity reads.
+
+    A spike is the smooth pulse `P(theta) = (1 - cos theta)^2 * 2 / 3`, of unit mean over the phase, which peaks as the
+    phase passes π. The presynaptic trace `a` and the postsynaptic trace `b` rise with every pulse and decay with the
+    times `tau_plus` and `tau_minus`, `da/dt = P(theta) - a / tau_plus` and `db/dt = P(theta) - b / tau_minus`, so
+    they hold the recent spikes weighted by the exponential windows of the plasticity.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the neurons, whose values are `theta`, `a`, `b`, `tau_plus`, and `tau_minus`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import SpikeTraceInteraction
+        >>> SpikeTraceInteraction('traces', target='neurons').target
+        'neurons'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the traces of the spikes of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context.target
         pulse = 2 * (1 - cos(s.theta)) ** 2 / 3
-        return [
-            *super()._get_laws(s),
+        self.laws_ = [
             RateLaw(s.a, pulse - s.a / s.tau_plus),
             RateLaw(s.b, pulse - s.b / s.tau_minus),
         ]
@@ -275,13 +308,13 @@ class DelayAdaptationInteraction(Interaction):
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        axon: Annotated[str, RoleSpec()],
-        kappa: Annotated[float, ParameterSpec()] = 0.1,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        rho: Annotated[float, ParameterSpec()] = 1.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        source: Role,
+        target: Role,
+        axon: Role,
+        kappa: float = 0.1,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        rho: float = 1.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 0.05,
         shortest: float = 0.1,
     ) -> None:
         super().__init__(label)
@@ -294,26 +327,24 @@ class DelayAdaptationInteraction(Interaction):
         self.width = width
         self.shortest = shortest
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed coupling of the target and the adaptation of the delay.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the delayed coupling of the target and the adaptation of the delay.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the units and the axon.
         """
+        super()._prepare(context)
+        s, t = context, context.t
         source, target, tau = s.source.theta, s.target.theta, s.axon.tau
         step = (1 + tanh(tau / s.width)) / 2
-        return [
-            RateLaw(target, s.kappa * sin(delayed(source, clip(tau, low=self.shortest), self.shortest) - target)),
-            RateLaw(tau, s.epsilon * step * (-(tau - s.axon.tau0) + s.rho * sin(source - target))),
+        self.laws_ = [
+            RateLaw(target.diff(t), s.kappa * sin(source(t=t - clip(tau, low=self.shortest)) - target)),
+            RateLaw(tau.diff(t), s.epsilon * step * (-(tau - s.axon.tau0) + s.rho * sin(source - target))),
         ]
 
 
-class SpikeTimingPlasticityInteraction(NeighborInteraction):
+class SpikeTimingPlasticityInteraction(Interaction):
     """Pulse coupling along plastic synapses.
 
     The efficacy of a synapse follows the timing of the spikes at both ends.
@@ -330,11 +361,9 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         label:
             The label of the interaction.
 
-        neurons:
-            The path of the group of traced theta neurons on the nodes.
-
-        synapses:
-            The path of the group of synapses on the edges.
+        among:
+            The path of the group of traced theta neurons on the nodes. The efficacies `kappa` are values of the group
+            of synapses on the edges.
 
         k:
             The mean in-degree that normalizes the coupling.
@@ -351,9 +380,12 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         kappa_max:
             The largest efficacy.
 
+        along:
+            The edges the laws run on, `True` for the edges of the network the neurons live on.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import SpikeTimingPlasticityInteraction
-        >>> SpikeTimingPlasticityInteraction('stdp', neurons='neurons', synapses='synapses').A_minus
+        >>> SpikeTimingPlasticityInteraction('stdp', among='neurons').A_minus
         1.05
     """
 
@@ -363,42 +395,37 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        neurons: Annotated[str, RoleSpec()],
-        synapses: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        A_plus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        A_minus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.05,
-        kappa_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        among: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        A_plus: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        A_minus: Annotated[float, RealSet.closed_open(0, oo)] = 1.05,
+        kappa_max: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        along: bool | str = True,
     ) -> None:
-        super().__init__(label)
-        self.neurons = neurons
-        self.synapses = synapses
+        super().__init__(label, among=among, along=along)
         self.k = k
         self.epsilon = epsilon
         self.A_plus = A_plus
         self.A_minus = A_minus
         self.kappa_max = kappa_max
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pulse current and the plasticity of the efficacy.
-
-        The current flows into the postsynaptic neuron.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the pulse current into the postsynaptic neuron and the plasticity of the efficacy.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of a synapse, with its ends `context.source` and `context.target` and its member
+                `context.edge` of the group on the edges.
         """
+        super()._prepare(context)
+        s = context
         pre, post, kappa = s.source, s.target, s.edge.kappa
         pre_pulse = 2 * (1 - cos(pre.theta)) ** 2 / 3
         post_pulse = 2 * (1 - cos(post.theta)) ** 2 / 3
         change = s.epsilon * (s.A_plus * pre.a * post_pulse - s.A_minus * post.b * pre_pulse)
         bounded = where(change > 0, change * (s.kappa_max - kappa), change * kappa)
-        return [
+        self.laws_: list[BaseLaw] = [
             RateLaw(post.theta, (1 + cos(post.theta)) * kappa * pre_pulse / s.k),
             RateLaw(kappa, bounded / s.kappa_max),
         ]
@@ -450,10 +477,16 @@ class STDPNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import STDPNetworkSystem
-        >>> STDPNetworkSystem(10).prepare().system_.elements[0].prepare().size_
-        10
+        >>> STDPNetworkSystem(10).prepare().system_.elements[0].theta.shape
+        (10,)
     """
 
     field = 'biology/neuroscience'
@@ -476,8 +509,10 @@ class STDPNetworkSystem(BaseSystem):
         kappa: float = 0.5,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_neurons = n_neurons
         self.p = p
         self.eta = eta
@@ -489,40 +524,41 @@ class STDPNetworkSystem(BaseSystem):
         self.kappa = kappa
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of theta neurons on a random directed network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of theta neurons on a random directed network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
-        neurons = GroupElement(
+        neurons = TracedThetaNeuronElement(
             'neurons',
-            element=TracedThetaNeuronElement,
+            theta=rng.uniform(0, 2 * np.pi, self.n_neurons),
+            eta=self.eta + rng.uniform(-self.spread, self.spread, self.n_neurons),
+            tau_plus=self.tau,
+            tau_minus=self.tau,
             space=space,
-            values={
-                'theta': rng.uniform(0, 2 * np.pi, self.n_neurons),
-                'eta': self.eta + rng.uniform(-self.spread, self.spread, self.n_neurons),
-                'tau_plus': self.tau,
-                'tau_minus': self.tau,
-            },
-            on='sites',
         )
-        synapses = GroupElement(
-            'synapses',
-            element=SynapseElement,
-            space=space,
-            on='edges',
-            values={'kappa': self.kappa},
-        )
+        synapses = SynapseElement('synapses', kappa=self.kappa, space=space, on='edges')
         plasticity = SpikeTimingPlasticityInteraction(
             'stdp',
-            neurons='neurons',
-            synapses='synapses',
+            among='neurons',
             k=max(self.p * (self.n_neurons - 1), 1.0),
             epsilon=self.epsilon,
             A_plus=self.A_plus,
             A_minus=self.A_minus,
         )
-        return CompositeSystem(self.label, elements=[neurons, synapses], interactions=[plasticity])
+        phases = ThetaNeuronInteraction('phases', target='neurons')
+        traces = SpikeTraceInteraction('traces', target='neurons')
+        self.system_ = System(
+            self.label,
+            elements=[neurons, synapses],
+            interactions=[phases, traces, plasticity],
+        )
 
 
 class AdaptiveDelayNetworkSystem(BaseSystem):
@@ -564,10 +600,16 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import AdaptiveDelayNetworkSystem
         >>> len(AdaptiveDelayNetworkSystem(4).prepare().system_.interactions)
-        12
+        16
     """
 
     field = 'biology/neuroscience'
@@ -588,8 +630,10 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         tau0: float = 3.0,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_units = n_units
         self.omega = omega
         self.spread = spread
@@ -599,11 +643,14 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.tau0 = tau0
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of phase units coupled all to all through adaptive delays.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of phase units coupled all to all through adaptive delays.
 
-        The conduction delays adapt to the activity of the units.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         phases, frequencies = rng.uniform(0, 2 * np.pi, self.n_units), rng.normal(self.omega, self.spread, self.n_units)
         units = [
@@ -624,4 +671,5 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
             )
             for source, target in pairs
         ]
-        return CompositeSystem(self.label, elements=[*units, *axons], interactions=adaptations)
+        rotations = [RotationInteraction(f'rotation_{index}', target=f'unit_{index}') for index in range(self.n_units)]
+        self.system_ = System(self.label, elements=[*units, *axons], interactions=[*rotations, *adaptations])

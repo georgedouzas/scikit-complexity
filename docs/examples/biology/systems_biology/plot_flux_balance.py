@@ -13,7 +13,6 @@ two parallel routes, so the optimum fixes the growth and leaves the split betwee
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.common.metabolism import flux_variability
@@ -23,7 +22,7 @@ SYSTEM = 'flux_balance'
 
 system = FluxBalanceSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(system, observers=[observer], until=0.0)
+trajectory = system.prepare().simulate(observers=[observer], until=0.0)
 
 # %%
 # The ranges of the fluxes at the optimum
@@ -32,7 +31,7 @@ trajectory = simulate(system, observers=[observer], until=0.0)
 # over the range from 0 to 600, the two routes from `A` to `B`. The parsimonious solution should sit inside every range.
 
 ranges = flux_variability(system).ranges
-parsimonious = simulate(FluxBalanceSystem(parsimonious=True))
+parsimonious = FluxBalanceSystem(parsimonious=True).prepare().simulate()
 fluxes = [float(parsimonious.get_values(f'cell.v_{name}')[0]) for name in ranges.index]
 fig, ax = plt.subplots(figsize=(9, 4))
 positions = np.arange(len(ranges))
@@ -62,7 +61,7 @@ result = sweep(
     outputs=['cell.objective_0'],
 )
 rows = result.rows
-growth_rates = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
+growth_rates = [-float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.plot(oxygen, growth_rates, 'o-')
 ax.set_xlabel('largest oxygen uptake (mmol/gDW/h)')

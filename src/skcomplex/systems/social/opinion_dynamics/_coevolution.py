@@ -6,6 +6,7 @@ The discordant edges rewire to like-minded nodes.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,12 +15,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors, uniform, where
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
 SMALLEST_DEGREE = 1e-9
@@ -38,9 +43,6 @@ class CoevolvingVoterElement(Element):
         label:
             The label of the voter or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, 0 or 1.
 
@@ -53,23 +55,28 @@ class CoevolvingVoterElement(Element):
         rewiring:
             The probability that an active voter with a discordant neighbour rewires instead of copying.
 
+        space:
+            The network whose nodes hold the voters, or `None` for one voter.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterElement
         >>> CoevolvingVoterElement('voters', rewiring=0.3).rewiring
         0.3
     """
 
+    visual = OPINION_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = OPINION_VISUAL,
         *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        opinion: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        activity: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        rewiring: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.opinion = opinion
         self.degree = degree
         self.activity = activity
@@ -87,9 +94,6 @@ class ClubMemberElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             1 for a member of the club and 0 for an outsider.
@@ -112,26 +116,31 @@ class ClubMemberElement(Element):
         rewiring:
             The probability that a reconsidered acquaintance across the club boundary dissolves and reforms.
 
+        space:
+            The network whose nodes hold one agent each, or `None` for one agent.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import ClubMemberElement
         >>> ClubMemberElement('agents', beta=2.0).beta
         2.0
     """
 
+    visual = OPINION_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = OPINION_VISUAL,
         *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        appeal: Annotated[float, ParameterSpec()] = 0.0,
-        deciding: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        opinion: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        beta: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        appeal: object = 0.0,
+        deciding: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        activity: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        rewiring: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.opinion = opinion
         self.degree = degree
         self.beta = beta
@@ -141,20 +150,20 @@ class ClubMemberElement(Element):
         self.rewiring = rewiring
 
 
-class SeparationInteraction(TopologyInteraction):
+class SeparationInteraction(Interaction):
     """Rewiring of discordant edges by one end.
 
-    It keeps the edge and moves its other end to a like-minded node. It is a `TopologyInteraction` that rewires the
-    edges of the voters. The end `keep` acts on an edge with probability `activity / degree` per step, and when it holds
-    the opinion `opinion` and the other end does not, it rewires the edge with probability `rewiring`, drawing a new end
-    among the voters of the opinion `opinion`.
+    It keeps the edge and moves its other end to a like-minded node, a request to rewire the edges of the voters. The
+    end `keep` acts on an edge with probability `activity / degree` per step, and when it holds the opinion `opinion`
+    and the other end does not, it rewires the edge with probability `rewiring`, drawing a new end among the voters of
+    the opinion `opinion`.
 
     Args:
         label:
             The label of the interaction.
 
-        voters:
-            The path of the voters on the nodes.
+        among:
+            The path of the voters on the nodes, whose edges the laws run on.
 
         keep:
             The end of an edge that acts and keeps the edge, `'source'` or `'target'`.
@@ -162,31 +171,40 @@ class SeparationInteraction(TopologyInteraction):
         opinion:
             The opinion of the end that acts, 0 or 1.
 
+        along:
+            The edges the laws run on, `True` for the edges of the network of the voters.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import SeparationInteraction
-        >>> SeparationInteraction('separation', voters='voters', keep='target', opinion=0).action
-        'rewire'
+        >>> SeparationInteraction('separation', among='voters', keep='target', opinion=0).keep
+        'target'
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        voters: Annotated[str, RoleSpec()],
+        among: Role,
         keep: str = 'source',
         opinion: float = 1.0,
+        along: bool | str = True,
     ) -> None:
-        super().__init__(
-            label,
-            target=voters,
-            action='rewire',
-            probability=self._get_chance,
-            toward=self._get_weight,
-            keep=keep,
-        )
-        self.voters = voters
+        super().__init__(label, among=among, along=along)
         self.keep = keep
         self.opinion = opinion
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the request to rewire an edge, with the probability of its acting end, as the law.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        request = TopologyRequestSpec('rewire', toward=self._get_weight, keep=self.keep)
+        self.laws_: list[BaseLaw] = [UpdateLaw(request, self._get_chance(context))]
 
     def _get_weight(self, node: SimpleNamespace) -> object:
         """Return the weight of a candidate node as a new end.
@@ -235,10 +253,15 @@ class CoevolvingVoterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
-        >>> trajectory = simulate(CoevolvingVoterSystem(30), until=5, random_state=0)
+        >>> trajectory = CoevolvingVoterSystem(30).prepare().simulate(until=5, random_state=0)
         >>> int(trajectory.get_network(-1).sources.size) == int(trajectory.get_network(0).sources.size)
         True
     """
@@ -256,42 +279,32 @@ class CoevolvingVoterSystem(BaseSystem):
     @staticmethod
     def _get_coevolving(
         label: str,
-        element: type[Element],
+        element: type[CoevolvingVoterElement | ClubMemberElement],
         space: NetworkSpace,
         opinions: np.ndarray,
-        choice: MapInteraction,
+        choice: Interaction,
         **values: object,
-    ) -> CompositeSystem:
+    ) -> System:
         """Return a coevolving network of agents with opinions and its variable ties.
 
         The ties are rewired by separation.
         """
-        agents = GroupElement(
-            'voters',
-            element=element,
-            on='sites',
-            variable=True,
-            capacity=space.prepare().size_,
-            values={'opinion': opinions, **values},
-            visual=OPINION_VISUAL,
-        )
-        ties = GroupElement('ties', element=Element, on='edges', variable=True)
+        agents = element('voters', opinion=opinions, space=space, **values)
+        ties = Element('ties', space=space, on='edges')
         interactions = [
-            MapInteraction('degree', target='voters', state='degree', function=CoevolvingVoterSystem._count_neighbors),
+            Interaction(
+                'degree',
+                roles={'target': 'voters'},
+                laws=lambda s: [UpdateLaw(s.target.degree, CoevolvingVoterSystem._count_neighbors(s))],
+            ),
             choice,
             *(
-                SeparationInteraction(f'separation_{keep}_{int(opinion)}', voters='voters', keep=keep, opinion=opinion)
+                SeparationInteraction(f'separation_{keep}_{int(opinion)}', among='voters', keep=keep, opinion=opinion)
                 for keep in ('source', 'target')
                 for opinion in (1.0, 0.0)
             ),
         ]
-        return CompositeSystem(
-            label,
-            elements=[agents, ties],
-            interactions=interactions,
-            space=space,
-            time=DiscreteTime(),
-        )
+        return System(label, elements=[agents, ties], interactions=interactions, space=space)
 
     def __init__(
         self,
@@ -302,8 +315,10 @@ class CoevolvingVoterSystem(BaseSystem):
         activity: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_voters = n_voters
         self.mean_degree = mean_degree
         self.rewiring = rewiring
@@ -321,13 +336,18 @@ class CoevolvingVoterSystem(BaseSystem):
         copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
         return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
         opinions = (rng.random(self.n_voters) < FIRST_OPINION_SHARE).astype(float)
-        copying = MapInteraction('copying', target='voters', state='opinion', function=self._copy_discordant)
-        return CoevolvingVoterSystem._get_coevolving(
+        copying = Interaction(
+            'copying',
+            roles={'target': 'voters'},
+            laws=lambda s: [UpdateLaw(s.target.opinion, self._copy_discordant(s))],
+        )
+        self.system_ = CoevolvingVoterSystem._get_coevolving(
             self.label,
             CoevolvingVoterElement,
             space,
@@ -370,9 +390,15 @@ class JoinAClubSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import JoinAClubSystem
-        >>> JoinAClubSystem(30).prepare().system_.elements[0].element.__name__
+        >>> type(JoinAClubSystem(30).prepare().system_.elements[0]).__name__
         'ClubMemberElement'
     """
 
@@ -391,8 +417,10 @@ class JoinAClubSystem(BaseSystem):
         rewiring: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.mean_degree = mean_degree
         self.beta = beta
@@ -412,13 +440,18 @@ class JoinAClubSystem(BaseSystem):
         choice = where(uniform('u') < joining, 1, 0)
         return where(uniform('d') < agent.deciding, choice, agent.opinion)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))
         opinions = (rng.random(self.n_agents) < FIRST_OPINION_SHARE).astype(float)
-        choice = MapInteraction('choice', target='voters', state='opinion', function=self._choose_club)
-        return CoevolvingVoterSystem._get_coevolving(
+        choice = Interaction(
+            'choice',
+            roles={'target': 'voters'},
+            laws=lambda s: [UpdateLaw(s.target.opinion, self._choose_club(s))],
+        )
+        self.system_ = CoevolvingVoterSystem._get_coevolving(
             self.label,
             ClubMemberElement,
             space,

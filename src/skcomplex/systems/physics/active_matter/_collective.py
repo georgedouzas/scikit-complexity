@@ -12,47 +12,77 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import PairInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
-from ....core.components.laws.utils import advection, divergence, gradient, laplacian
-from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws.utils import advection, divergence, gradient, laplacian, neighbors
+from ....core.components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.elements import PointElement
-from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
+from ..common.particles import ActiveDiffusionInteraction, ActiveParticleElement, SelfPropulsionInteraction
 
 
 class PolarFluidElement(Element):
-    """Site of the Toner-Tu polar active fluid.
+    """Sites of a polar active fluid with the density `rho` and the velocity `(vx, vy)`.
 
-    The site has a density `rho` and a velocity `(vx, vy)`.
+    Args:
+        label:
+            The label of the fluid.
+
+        rho:
+            The initial density, one per site or shared.
+
+        vx:
+            The initial velocity along the first axis, one per site or shared.
+
+        vy:
+            The initial velocity along the second axis, one per site or shared.
+
+        space:
+            The lattice of the sites, or `None` for one site.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import PolarFluidElement
+        >>> PolarFluidElement('site', rho=2.0).rho
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        rho: object = 1.0,
+        vx: object = 0.0,
+        vy: object = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.rho = rho
+        self.vx = vx
+        self.vy = vy
+
+
+class TonerTuInteraction(Interaction):
+    """Toner-Tu hydrodynamics of a polar active fluid.
 
     The density is conserved, `drho/dt + div(rho v) = 0`, and the velocity follows
     `dv/dt + lam (v . grad) v = a (rho - rho_c) v - beta |v|^2 v - sigma grad(rho) + D laplacian(v)` with additive
     noise of intensity `noise`. Above the critical density the fluid moves with the speed
-    `sqrt(a (rho - rho_c) / beta)`.
+    `sqrt(a (rho - rho_c) / beta)`. It is a flock of birds, a school of fish, or a swarm of bacteria seen from afar.
 
     Args:
         label:
-            The label of the site or the field.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        rho:
-            The initial density.
-
-        vx:
-            The initial velocity along the first axis.
-
-        vy:
-            The initial velocity along the second axis.
+        target:
+            The path of the fluid, with the density `rho` and the velocity `(vx, vy)`.
 
         a:
             The rate of the ordering instability per unit density.
@@ -76,36 +106,28 @@ class PolarFluidElement(Element):
             The intensity of the velocity noise.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import PolarFluidElement
-        >>> PolarFluidElement('site').rho_c
+        >>> from skcomplex.systems.physics.active_matter import TonerTuInteraction
+        >>> TonerTuInteraction('flow', target='flock').rho_c
         0.5
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        vx: Annotated[float, StateSpec()] = 0.0,
-        vy: Annotated[float, StateSpec()] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        rho_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        lam: Annotated[float, ParameterSpec()] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        rho_c: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        beta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        lam: float = 1.0,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        noise: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.rho = rho
-        self.vx = vx
-        self.vy = vy
+        super().__init__(label)
+        self.target = target
         self.a = a
         self.rho_c = rho_c
         self.beta = beta
@@ -114,125 +136,112 @@ class PolarFluidElement(Element):
         self.D = D
         self.noise = noise
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the continuity equation and a Toner-Tu equation per velocity component.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the continuity equation and a Toner-Tu equation per velocity component of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        velocity = [s.vx, s.vy]
-        pressure = gradient(s.sigma * s.rho, 2)
-        speed_squared = s.vx**2 + s.vy**2
-        laws: list[BaseLaw] = [RateLaw(s.rho, -divergence([s.rho * s.vx, s.rho * s.vy]))]
+        super()._prepare(context)
+        s = context
+        rho, vx, vy = s.target.rho, s.target.vx, s.target.vy
+        velocity = [vx, vy]
+        pressure = gradient(s.sigma * rho, 2)
+        speed_squared = vx**2 + vy**2
+        laws: list[BaseLaw] = [RateLaw(rho.diff(s.t), -divergence([rho * vx, rho * vy]))]
         for axis, component in enumerate(velocity):
             transport = advection(component, [s.lam * item for item in velocity])
-            growth = (s.a * (s.rho - s.rho_c) - s.beta * speed_squared) * component
+            growth = (s.a * (rho - s.rho_c) - s.beta * speed_squared) * component
             laws += [
-                RateLaw(component, -transport + growth - pressure[axis] + s.D * laplacian(component)),
+                RateLaw(component.diff(s.t), -transport + growth - pressure[axis] + s.D * laplacian(component)),
                 NoiseLaw(component, sqrt(2 * s.noise)),
             ]
-        return laws
+        self.laws_ = laws
 
 
-class SoftSphereInteraction(PairInteraction):
+class SoftSphereInteraction(Interaction):
     """Soft repulsion between overlapping spheres.
 
-    The energy is `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
+    The energy is `k (cutoff - r)^2 / 2` closer than the cutoff, so every member is pushed by `k (cutoff - r)` along the
+    line of centres from each member that overlaps it, `x_i' += sum_j k (cutoff - r_ij) (x_i - x_j) / r_ij`. In a
+    periodic box the separations are minimum images. The push moves an overdamped sphere, and with `inertia` it moves
+    the acceleration instead, `RateLaw(x.diff(t, 2), push / m)`, divided by the mass `m` of a sphere that has one. It is
+    the contact of disks in a granular layer, of cells in a tissue, or of swimmers that bump into each other.
 
     Args:
         label:
             The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
+        target:
+            The path of the group of spheres.
 
         cutoff:
             The contact distance, the sum of the two radii.
 
-        position:
-            The name of the vector state that holds the positions of the members.
-
-        write:
-            The name of the state whose rate the force changes, the position of order 2 by default.
-
-        divisor:
-            The name of the parameter that holds the masses of the members, or `None` for unit masses.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
-
         k:
             The stiffness.
 
+        inertia:
+            Whether the push moves the acceleration of a sphere, divided by its mass `m` when it has one.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
-        >>> SoftSphereInteraction('contact', first='gas', second='gas', cutoff=0.1, k=50.0).k
+        >>> SoftSphereInteraction('contact', target='gas', cutoff=0.1, k=50.0).k
         50.0
     """
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        write: str = 'x',
-        divisor: str | None = None,
-        period: float | None = None,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        target: Role,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        k: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        inertia: bool = False,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=write,
-            potential=self._get_soft_sphere_energy,
-            divisor=divisor,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.k = k
+        self.inertia = inertia
 
-    @staticmethod
-    def _get_soft_sphere_energy(s: SimpleNamespace, r: Expression) -> Expression:
-        """Return `k * (cutoff - r) ** 2 / 2`."""
-        return s.k * (s.cutoff - r) ** 2 / 2
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the push of the overlapping neighbours on every sphere.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s, x = context, context.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        distance = SR.var('r', domain='positive')
+        slope = (s.k * (s.cutoff - distance) ** 2 / 2).diff(distance).subs({distance: r})
+        push = neighbors(-slope * separation / r, RadiusNeighborhood(self.cutoff))
+        if self.inertia:
+            mass = getattr(s.target, 'm', None)
+            self.laws_ = [RateLaw(x.diff(s.t, 2), push if mass is None else push / mass)]
+        else:
+            self.laws_ = [RateLaw(x.diff(s.t), push)]
 
 
-class CuckerSmaleAlignmentInteraction(PairInteraction):
-    """Cucker-Smale alignment.
+class CuckerSmaleAlignmentInteraction(Interaction):
+    """Cucker-Smale alignment, `x_i'' += K / N sum_j psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
 
-    The law is `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
-
-    Every pair of members within the cutoff pulls their velocities, the first derivatives of their positions of order
-    2, towards each other with a weight that decays with their distance.
+    Every member pulls its velocity `x'` towards those of the members within the cutoff, with a weight that decays with
+    their distance. It is a flock of birds, a school of fish, or a fleet of drones that agree on a heading.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
+        target:
+            The path of the group of agents.
 
         cutoff:
             The distance beyond which pairs do not align, large for the all-to-all system.
-
-        position:
-            The name of the vector state of order 2 that holds the positions of the members.
 
         K:
             The strength of the alignment.
@@ -240,79 +249,61 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
         beta:
             The decay exponent of the weight.
 
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
-
         n_agents:
             The number of agents `N` that normalizes the alignment.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import CuckerSmaleAlignmentInteraction
-        >>> CuckerSmaleAlignmentInteraction('align', first='birds', second='birds', beta=0.25).beta
+        >>> CuckerSmaleAlignmentInteraction('align', target='birds', beta=0.25).beta
         0.25
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        period: float | None = None,
+        target: Role,
+        cutoff: float = 1.0,
+        K: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
         n_agents: int = 1,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=position,
-            function=self._align,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
+        self.cutoff = cutoff
         self.K = K
         self.beta = beta
         self.n_agents = n_agents
 
-    def _align(self, namespace: SimpleNamespace) -> Expression:
-        """Return the pull of the velocity of the first member towards the second.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the pull of the velocity of every agent towards those of the others.
 
-        The pull is `K / N psi(r) (x_j' - x_i')`.
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        first, second = namespace.first, namespace.second
-        separation = getattr(first, self.position) - getattr(second, self.position)
-        velocity = f'{self.position}_d1'
-        weight = namespace.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-namespace.beta)
-        return weight * (getattr(second, velocity) - getattr(first, velocity))
+        super()._prepare(context)
+        s, t = context.target, context.t
+        separation = s.x - s.other.x
+        weight = (1 + separation.dot_product(separation)) ** (-context.beta)
+        pull = neighbors(weight * (s.other.x.diff(t) - s.x.diff(t)), over=RadiusNeighborhood(self.cutoff))
+        self.laws_ = [RateLaw(s.x.diff(t, 2), context.K / self.n_agents * pull)]
 
 
-class PhoreticAttractionInteraction(PairInteraction):
-    """Phoretic attraction between active colloids.
+class PhoreticAttractionInteraction(Interaction):
+    """Phoretic attraction between active colloids, the pair potential `-v0 R^2 / r`.
 
-    The attraction is the pair potential `-v0 R^2 / r` of an overdamped position.
-
-    Every member of a pair drifts towards the other at the speed `v0 R^2 / r^2`.
+    Every member of a pair closer than the cutoff drifts towards the other at the speed `v0 R^2 / r^2`. It is a
+    light-activated colloid that gathers others by the chemicals it releases.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction.
 
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The distance beyond which the attraction is neglected.
-
-        position:
-            The name of the vector state that holds the positions of the members.
+        target:
+            The path of the colloids, with the positions `x`.
 
         v0:
             The drift speed at the distance `R`.
@@ -320,44 +311,46 @@ class PhoreticAttractionInteraction(PairInteraction):
         R:
             The particle radius.
 
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
+        cutoff:
+            The distance beyond which the attraction is neglected.
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import PhoreticAttractionInteraction
-        >>> PhoreticAttractionInteraction('phoresis', first='colloids', second='colloids', v0=20.0).v0
+        >>> PhoreticAttractionInteraction('phoresis', target='colloids', v0=20.0).v0
         20.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        first: str,
-        second: str,
-        cutoff: float = 1.0,
-        position: str = 'x',
         *,
-        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        period: float | None = None,
+        target: Role,
+        v0: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        R: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        cutoff: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(
-            label,
-            first,
-            second,
-            cutoff=cutoff,
-            position=position,
-            write=position,
-            potential=self._get_attraction,
-            period=period,
-        )
+        super().__init__(label)
+        self.target = target
         self.v0 = v0
         self.R = R
+        self.cutoff = cutoff
 
-    @staticmethod
-    def _get_attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
-        """Return the potential `-v0 R^2 / r` of a pair at the distance `r`."""
-        return -namespace.v0 * namespace.R**2 / r
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the drift of every colloid of the target towards its neighbours within the cutoff.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        s = context
+        x = s.target.x
+        separation = x - s.target.other.x
+        r = sqrt(separation.dot_product(separation))
+        drift = -s.v0 * s.R**2 / r**2 * separation / r
+        self.laws_ = [RateLaw(x, neighbors(drift, RadiusNeighborhood(self.cutoff)))]
 
 
 class MotilityInducedPhaseSeparationSystem(BaseSystem):
@@ -391,9 +384,15 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import MotilityInducedPhaseSeparationSystem
-        >>> MotilityInducedPhaseSeparationSystem(16).prepare().system_.interactions[1].k
+        >>> MotilityInducedPhaseSeparationSystem(16).prepare().system_.interactions[2].k
         50.0
     """
 
@@ -402,7 +401,6 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
     references = ('Cates and Tailleur 2015', 'Bechinger et al. 2016', 'Fily and Marchetti 2012')
     until = 20.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.005)
 
     @staticmethod
     def _get_disks(
@@ -425,21 +423,21 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         speed: float,
         D_r: float,
         random_state: int | np.random.Generator | None,
-    ) -> CompositeSystem:
-        """Return active Brownian disks in a periodic box, without pair interactions."""
+    ) -> tuple[ActiveParticleElement, list[BaseInteraction]]:
+        """Return active Brownian disks in a periodic box, and their diffusion and propulsion."""
         positions, angles = MotilityInducedPhaseSeparationSystem._get_disks(n_particles, size, random_state)
-        group = GroupElement(
+        swimmers = ActiveParticleElement(
             'swimmers',
-            element=ActiveParticleElement,
+            x=positions,
+            theta=angles,
             size=n_particles,
-            values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
-        )
-        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
-        return CompositeSystem(
-            elements=[group],
-            interactions=[propulsion],
             space=ContinuousSpace(extent=(size, size), boundary='periodic'),
         )
+        interactions: list[BaseInteraction] = [
+            ActiveDiffusionInteraction('diffusion', target='swimmers', D_t=0.0, D_r=D_r),
+            SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed),
+        ]
+        return swimmers, interactions
 
     def __init__(
         self,
@@ -451,8 +449,10 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         k: float = 50.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.packing_fraction = packing_fraction
         self.speed = speed
@@ -460,32 +460,28 @@ class MotilityInducedPhaseSeparationSystem(BaseSystem):
         self.k = k
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return repulsive active Brownian disks of unit diameter.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of repulsive active Brownian disks of unit diameter.
 
-        The disks phase separate into clusters at high speed.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         size = math.sqrt(self.n_particles * math.pi / 4 / self.packing_fraction)
-        system = MotilityInducedPhaseSeparationSystem._get_active_disks(
+        swimmers, interactions = MotilityInducedPhaseSeparationSystem._get_active_disks(
             self.n_particles,
             size,
             self.speed,
             self.D_r,
             self.random_state,
         )
-        repulsion = SoftSphereInteraction(
-            'contact',
-            first='swimmers',
-            second='swimmers',
-            cutoff=1.0,
-            period=size,
-            k=self.k,
-        )
-        return CompositeSystem(
+        repulsion = SoftSphereInteraction('contact', target='swimmers', cutoff=1.0, k=self.k)
+        self.system_ = System(
             self.label,
-            elements=system.elements,
-            interactions=[*system.interactions, repulsion],
-            space=system.space,
+            elements=[swimmers],
+            interactions=[*interactions, repulsion],
+            solver=EulerMaruyamaSolver(dt=0.005),
         )
 
 
@@ -526,9 +522,15 @@ class LivingCrystalsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import LivingCrystalsSystem
-        >>> LivingCrystalsSystem(16).prepare().system_.interactions[2].v0
+        >>> LivingCrystalsSystem(16).prepare().system_.interactions[3].v0
         20.0
     """
 
@@ -537,7 +539,6 @@ class LivingCrystalsSystem(BaseSystem):
     references = ('Argun et al. 2021', 'Palacci et al. 2013')
     until = 20.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.002)
 
     def __init__(
         self,
@@ -551,8 +552,10 @@ class LivingCrystalsSystem(BaseSystem):
         k: float = 200.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.size = size
         self.speed = speed
@@ -562,34 +565,47 @@ class LivingCrystalsSystem(BaseSystem):
         self.k = k
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        system = MotilityInducedPhaseSeparationSystem._get_active_disks(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of active colloids with phoretic attraction.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        swimmers, interactions = MotilityInducedPhaseSeparationSystem._get_active_disks(
             self.n_particles,
             self.size,
             self.speed,
             self.D_r,
             self.random_state,
         )
-        repulsion = SoftSphereInteraction(
-            'contact',
-            first='swimmers',
-            second='swimmers',
-            cutoff=2.0,
-            period=self.size,
-            k=self.k,
-        )
+        repulsion = SoftSphereInteraction('contact', target='swimmers', cutoff=2.0, k=self.k)
         attraction = PhoreticAttractionInteraction(
             'phoresis',
-            first='swimmers',
-            second='swimmers',
-            cutoff=self.cutoff,
-            period=self.size,
+            target='swimmers',
             v0=self.v0,
             R=1.0,
+            cutoff=self.cutoff,
         )
-        interactions = [*system.interactions, repulsion, attraction]
-        return CompositeSystem(self.label, elements=system.elements, interactions=interactions, space=system.space)
+        self.system_ = System(
+            self.label,
+            elements=[swimmers],
+            interactions=[*interactions, repulsion, attraction],
+            solver=EulerMaruyamaSolver(dt=0.002),
+        )
+
+
+class BirdElement(PointElement):
+    """Point drawn at its position and coloured by its velocity.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import BirdElement
+        >>> BirdElement('bird', x=[0.0, 1.0]).x
+        [0.0, 1.0]
+    """
+
+    visual = VisualSpec('points', {'position': 'x', 'color_by': "x'", 'states': ()})
 
 
 class CuckerSmaleFlockingSystem(BaseSystem):
@@ -598,7 +614,7 @@ class CuckerSmaleFlockingSystem(BaseSystem):
     Every agent aligns its velocity with all others, weighted by distance.
 
     The mean velocity is conserved, and for `beta <= 1/2` the velocities converge to it from any start. The system has
-    the positions `birds.x` and velocities `birds.x_d1`.
+    the positions `birds.x` and velocities `birds.x'`.
 
     Args:
         n_agents:
@@ -619,6 +635,12 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for Runge-Kutta 4 with the step 0.05.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import CuckerSmaleFlockingSystem
         >>> CuckerSmaleFlockingSystem(5).prepare().system_.interactions[0].n_agents
@@ -630,7 +652,6 @@ class CuckerSmaleFlockingSystem(BaseSystem):
     references = ('Cucker and Smale 2007', 'Vicsek and Zafeiris 2012', 'Bellomo et al. 2017')
     until = 20.0
     dt = 0.5
-    solver = RK4Solver(dt=0.05)
 
     def __init__(
         self,
@@ -641,40 +662,48 @@ class CuckerSmaleFlockingSystem(BaseSystem):
         size: float = 10.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.K = K
         self.beta = beta
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Cucker-Smale flocking.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to agents at random places and velocities that align with all others.
 
-        Every agent aligns its velocity with all others, weighted by distance.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        birds = GroupElement(
+        plane = ContinuousSpace(n_dim=2)
+        birds = BirdElement(
             'birds',
-            element=PointElement,
+            x=rng.uniform(0.0, self.size, (self.n_agents, 2)),
+            values={"x'": rng.normal(0.0, 1.0, (self.n_agents, 2))},
             size=self.n_agents,
-            values={
-                'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
-                'x_d1': rng.normal(0.0, 1.0, (self.n_agents, 2)),
-            },
-            visual=VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()}),
+            space=plane,
         )
         alignment = CuckerSmaleAlignmentInteraction(
             'align',
-            first='birds',
-            second='birds',
+            target='birds',
             cutoff=1e6,
             K=self.K,
             beta=self.beta,
             n_agents=self.n_agents,
         )
-        return CompositeSystem(self.label, elements=[birds], interactions=[alignment], space=ContinuousSpace(n_dim=2))
+        self.system_ = System(
+            self.label,
+            elements=[birds],
+            interactions=[alignment],
+            space=plane,
+            solver=RK4Solver(dt=0.05),
+        )
 
 
 class TonerTuSystem(BaseSystem):
@@ -719,10 +748,16 @@ class TonerTuSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import TonerTuSystem
-        >>> TonerTuSystem((8, 8)).prepare().system_.elements[0].prepare().size_
-        64
+        >>> TonerTuSystem((8, 8)).prepare().simulate(until=1.0).get_values('flock.rho').shape
+        (3, 64)
     """
 
     field = 'physics/active_matter'
@@ -730,7 +765,6 @@ class TonerTuSystem(BaseSystem):
     references = ('Toner and Tu 1995', 'Marchetti et al. 2013')
     until = 20.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.02)
 
     def __init__(
         self,
@@ -746,8 +780,10 @@ class TonerTuSystem(BaseSystem):
         spacing: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.rho0 = rho0
         self.rho_c = rho_c
@@ -759,25 +795,31 @@ class TonerTuSystem(BaseSystem):
         self.spacing = spacing
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Toner-Tu hydrodynamics of a polar flock on a periodic lattice.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         rng = np.random.default_rng(self.random_state)
-        values = {
-            'rho': np.full(shape, self.rho0),
-            'vx': rng.normal(0.0, 0.1, shape),
-            'vy': rng.normal(0.0, 0.1, shape) + 0.05,
-        }
-        parameters = {
-            'a': self.a,
-            'rho_c': self.rho_c,
-            'beta': self.beta,
-            'lam': self.lam,
-            'sigma': self.sigma,
-            'D': self.D,
-        }
-        space = LatticeSpace(shape, spacing=self.spacing)
-        return CompositeSystem(
-            self.label,
-            elements=[FieldElement('flock', element=PolarFluidElement, space=space, values={**values, **parameters})],
+        flock = PolarFluidElement(
+            'flock',
+            rho=np.full(shape, self.rho0).ravel(),
+            vx=rng.normal(0.0, 0.1, shape).ravel(),
+            vy=(rng.normal(0.0, 0.1, shape) + 0.05).ravel(),
+            space=LatticeSpace(shape, spacing=self.spacing),
         )
+        flow = TonerTuInteraction(
+            'flow',
+            target='flock',
+            a=self.a,
+            rho_c=self.rho_c,
+            beta=self.beta,
+            lam=self.lam,
+            sigma=self.sigma,
+            D=self.D,
+        )
+        self.system_ = System(self.label, elements=[flock], interactions=[flow], solver=EulerMaruyamaSolver(dt=0.02))

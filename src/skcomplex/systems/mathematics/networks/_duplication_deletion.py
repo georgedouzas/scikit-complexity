@@ -6,6 +6,7 @@ Nodes die and duplicate, and the connectance settles at a steady value.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import networkx as nx
@@ -13,12 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
@@ -32,11 +36,11 @@ class DuplicatingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The number of edges of the node.
+
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import DuplicatingNodeElement
@@ -44,14 +48,16 @@ class DuplicatingNodeElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.degree = degree
 
 
@@ -67,7 +73,7 @@ class DuplicationDeletionSystem(BaseSystem):
     8.5.1). With `kill = 1` the network keeps `N` nodes, and its connectance converges to
     `C = (new (N - 2) + parent) / (N - 1 + (new - inherit) (N - 2))`, Eq. 8.84. Accurate duplication, with `inherit`
     near 1 and `new` near 0, turns the binomial degrees of noisy duplication into a cut-off power law. With `kill < 1`
-    the network grows by `1 - kill` nodes per step on average, up to twice its initial size.
+    the network grows by `1 - kill` nodes per step on average.
 
     The system has the groups `nodes` and `links`, the deletion `death`, and the duplication `birth`.
 
@@ -96,10 +102,15 @@ class DuplicationDeletionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import DuplicationDeletionSystem
-        >>> trajectory = simulate(DuplicationDeletionSystem(30), until=20, random_state=0)
+        >>> trajectory = DuplicationDeletionSystem(30).prepare().simulate(until=20, random_state=0)
         >>> len(trajectory.get_network(-1).nodes)
         30
     """
@@ -120,8 +131,10 @@ class DuplicationDeletionSystem(BaseSystem):
         density: float = 0.05,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.kill = kill
         self.inherit = inherit
@@ -130,42 +143,35 @@ class DuplicationDeletionSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    @staticmethod
-    def _build_network(
-        label: str,
-        capacity: int,
-        space: NetworkSpace,
-        links: int,
-        changes: list[TopologyInteraction],
-    ) -> CompositeSystem:
-        """Return the network of variable groups on its nodes and links.
-
-        The network has its changes and the map of the degrees.
-        """
-        nodes = GroupElement('nodes', element=DuplicatingNodeElement, on='sites', variable=True, capacity=capacity)
-        edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
-        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-        return CompositeSystem(
-            label,
-            elements=[nodes, edges],
-            interactions=[*changes, degree],
-            space=space,
-            time=DiscreteTime(),
-        )
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the steady-state duplication-deletion network of Jensen."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the steady-state duplication-deletion network of Jensen."""
+        super()._prepare(context)
         graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=np.random.default_rng(self.random_state))
-        death = TopologyInteraction('death', target='nodes', action='remove-node', one=True, probability=self.kill)
-        birth = TopologyInteraction(
-            'birth',
-            target='nodes',
-            action='duplicate-node',
+        death = Interaction(
+            'death',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('remove-node', one=True), self.kill)],
+        )
+        duplication = TopologyRequestSpec(
+            'duplicate-node',
             one=True,
             inherit=self.inherit,
             parent=self.parent,
             independent=True,
             toward=lambda node: self.new,
         )
-        capacity = self.n_nodes * (2 * self.n_nodes - 1)
-        return self._build_network(self.label, 2 * self.n_nodes, NetworkSpace(graph), capacity, [death, birth])
+        birth = Interaction('birth', roles={'target': 'nodes'}, laws=lambda s: [UpdateLaw(duplication, 1)])
+        space = NetworkSpace(graph)
+        nodes = DuplicatingNodeElement('nodes', space=space)
+        edges = Element('links', space=space, on='edges')
+        degree = Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
+        self.system_ = System(
+            self.label,
+            elements=[nodes, edges],
+            interactions=[death, birth, degree],
+            space=space,
+        )

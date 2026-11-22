@@ -7,68 +7,50 @@ from __future__ import annotations
 
 import inspect
 import numbers
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Collection, Mapping
-from dataclasses import replace
-from types import SimpleNamespace
-from typing import ClassVar
+from dataclasses import dataclass, fields
+from typing import Any, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 
+from ...base import BaseSpec
 from ...errors import ValidationError
-from ...specs import CallSpec, RequirementSpec, Tags
-from ..base import BasePart
+from ._call_spec import CallSpec
+from ._requirement_spec import RequirementSpec
 
 
-class BaseLaw(BasePart[str, object]):
-    """An abstract law, one equation or rule by which states change.
+@dataclass(frozen=True)
+class BaseLaw(BaseSpec, ABC):
+    """An abstract law, one equation or rule that changes the values of elements.
 
-    An element, an interaction, or a system returns laws from its `_get_laws`, and the compiler lowers them to a problem
-    that a solver runs. A law takes the states it changes and the expressions it reads as arguments of its `__init__`,
-    which stores each under the same name, as a scikit-learn estimator does. A subclass returns the states it changes
-    from `_get_targets`, what it needs of a system, such as continuous or discrete time, from `_get_requirements`, and
-    its value for given values of the symbols it reads from `_run`, which sets it as `value_`.
+    A law says how a value changes, such as `RateLaw(s.ball.x.diff(s.t, 2), -s.g)` inside the interaction of a falling
+    ball, which gives the height `x` the acceleration `-g`. It is a frozen value, equal to any law of its class with the
+    same fields, and it is not added to a system on its own. An interaction returns its laws in `laws_` when it is
+    prepared, and the compiler checks them and turns them into a problem that a solver runs. A subclass says which
+    values it changes, whether it needs continuous or discrete time, and its value at given values of the symbols it
+    reads. Its subclasses give the spread of an epidemic, the next generation of a cellular automaton, a chemical
+    reaction one molecule at a time, and the currents of a circuit.
 
-    Unlike `BasePart`, it belongs to another part and is not added to a system on its own. Choose it when a new kind of
-    dynamics needs a lowering of its own, and choose an existing law, such as `RateLaw` or `UpdateLaw`, otherwise.
+    Read more in the user guide, under Laws.
 
-    It appears in every field through its subclasses, such as the rate of an epidemic, the next value of a cellular
-    automaton, a chemical reaction as a random jump, and Kirchhoff's laws as equations.
-
-    Args:
-        label:
-            The name of the law, or the empty string for a law without one.
-
-    Attributes:
-        targets_:
-            The states the law changes.
-
-        reads_:
-            The symbols the law reads.
-
-        owner_:
-            The path of the element or interaction that returns the law, or `None`.
-
-        value_:
-            The value of the law at the values of the symbols of its last run.
+    See Also:
+        RateLaw: Adds a rate to a derivative of a value.
+        UpdateLaw: Gives the next value after one step of discrete time.
+        Interaction: Returns the laws of the elements its roles bind.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> x, k = var('x'), var('k')
-        >>> law = RateLaw(x, -k * x).prepare('decay')
-        >>> law.targets_, sorted(map(str, law.reads_)), law.owner_
-        ((x,), ['k', 'x'], 'decay')
-        >>> law.run({'x': 2.0, 'k': 0.5}).value_
-        -1.0
+        >>> from skcomplex.core.components.laws import BaseLaw, RateLaw
+        >>> n, r = var('n r')
+        >>> isinstance(RateLaw(n, r * n), BaseLaw), RateLaw(n, r * n) == RateLaw(n, r * n)
+        (True, True)
     """
 
     law_tag: ClassVar[str] = ''
-
-    value_: object
 
     @abstractmethod
     def _get_targets(self) -> tuple[object, ...]:
@@ -82,20 +64,17 @@ class BaseLaw(BasePart[str, object]):
         An example is continuous or discrete time.
         """
 
+    @classmethod
+    def _get_name(cls) -> str:
+        """Return the name of the law in messages, the class users write it with."""
+        return cls.__name__
+
     def _get_law_requirements(self) -> RequirementSpec:
         """Return what this law requires of a system.
 
         Its arguments may narrow it.
         """
         return self._get_requirements()
-
-    def _get_tags(self) -> Tags:
-        """Return the tags of the law.
-
-        They are its kind, its randomness, and the times its arguments let it run in.
-        """
-        times = frozenset(getattr(time, 'time_tag', '') for time in self._get_law_requirements().time) - {''}
-        return replace(self._get_law_tags([type(self)]), time=times)
 
     @classmethod
     def get_requirements(cls) -> RequirementSpec:
@@ -104,17 +83,17 @@ class BaseLaw(BasePart[str, object]):
         Returns:
             requirements:
                 The classes of time and of space the laws run in, where an empty field accepts any class. A law whose
-                arguments narrow them, such as `ArrayUpdateLaw`, returns the widest it can run in.
+                arguments narrow them, such as an `UpdateLaw` of a whole array, returns the widest it can run in.
 
         Examples:
-            >>> from skcomplex.core.components.laws import RuleLaw
-            >>> RuleLaw.get_requirements().time[0].__name__
-            'DiscreteTime'
+            >>> from skcomplex.core.components.laws import UpdateLaw
+            >>> UpdateLaw.get_requirements().space
+            ()
         """
         return cls._get_requirements()
 
-    def _run(self, inputs: object) -> None:
-        """Set `value_` to the values of the arguments of the law at given symbol values.
+    def _get_value(self, inputs: object) -> object:
+        """Return the values of the arguments of the law at given symbol values.
 
         The values are those of the symbols the law reads. A law with a value of its own, such as the rate of a
         `RateLaw`, overrides this hook.
@@ -122,12 +101,16 @@ class BaseLaw(BasePart[str, object]):
         Args:
             inputs:
                 A mapping from the name of every symbol the law reads to its value.
-        """
-        self.value_ = self._evaluate(self._get_values(), inputs)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the law itself, the one law it contributes, whatever the namespace."""
-        return [self]
+        Returns:
+            values:
+                The values of the arguments of the law.
+        """
+        return self._evaluate(self._get_values(), inputs)
+
+    def _get_fields(self) -> dict[str, Any]:
+        """Return the value of every field of the law by name, shared, not copied."""
+        return {item.name: getattr(self, item.name) for item in fields(self)}
 
     def _get_values(self, include: Collection[str] | None = None, exclude: Collection[str] = ()) -> list[object]:
         """Return the values of the arguments of the law besides its label.
@@ -197,7 +180,7 @@ class BaseLaw(BasePart[str, object]):
         """
         if isinstance(getattr(self, name), np.ndarray):
             error_msg = (
-                f'The {name} of {type(self).__name__} is a NumPy array, which NumPy builds when a NumPy scalar '
+                f'The {name} of {self._get_name()} is a NumPy array, which NumPy builds when a NumPy scalar '
                 'multiplies a symbolic vector. Convert the NumPy scalar with `float(...)` first.'
             )
             raise ValidationError(error_msg)
@@ -212,51 +195,13 @@ class BaseLaw(BasePart[str, object]):
         widths = {len(row) for row in rows}
         if not rows or len(widths) != 1 or 0 in widths:
             error_msg = (
-                f'The {name} of {type(self).__name__} must be a nonempty sequence of rows of equal length, but got '
+                f'The {name} of {self._get_name()} must be a nonempty sequence of rows of equal length, but got '
                 f'{matrix!r}.'
             )
             raise ValidationError(error_msg)
 
-    def _check_table(self, name: str, dimensions: tuple[int, ...]) -> None:
-        """Raise an error for an argument that is not an array of numbers or expressions.
-
-        The array must have one of some dimensions.
-        """
-        table = np.asarray(getattr(self, name), dtype=object)
-        if table.ndim not in dimensions:
-            expected = ' or '.join(str(item) for item in dimensions)
-            error_msg = (
-                f'The {name} of {type(self).__name__} must be an array of {expected} dimensions, but got shape '
-                f'{table.shape}.'
-            )
-            raise ValidationError(error_msg)
-
-    def _check_outcomes(self, rate_name: str, name: str) -> None:
-        """Raise an error for an outcome table whose leading shape is not the rate table's.
-
-        Its first two dimensions must be the shape of the rate table.
-        """
-        rate, outcomes = np.asarray(getattr(self, rate_name), dtype=object), getattr(self, name)
-        if outcomes is None or rate.ndim == 0 or rate.shape == np.shape(outcomes)[:2]:
-            return
-        error_msg = (
-            f'The {rate_name} of {type(self).__name__} has the shape {rate.shape}, but its {name} have '
-            f'{np.shape(outcomes)[:2]} candidate and field classes.'
-        )
-        raise ValidationError(error_msg)
-
-    def _prepare(self, context: str | None = None) -> None:
-        """Set `targets_`, `reads_`, and `owner_`.
-
-        They are the states the law changes, the symbols it reads, and its owner.
-
-        Args:
-            context:
-                The path of the element or interaction that returns the law, or `None`.
-        """
-        super()._prepare(context)
-        self.targets_ = self._get_targets()
-        self.reads_ = frozenset(
+    def _get_reads(self) -> frozenset[Expression]:
+        """Return the symbols the law reads, those of its expressions at any depth."""
+        return frozenset(
             item for value in self._get_values() if isinstance(value, Expression) for item in value.variables()
         )
-        self.owner_ = context

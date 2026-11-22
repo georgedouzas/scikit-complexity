@@ -6,25 +6,40 @@ They cover quenched mean field, adaptive rewiring, and activity-driven temporal 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TopologyInteraction, TransitionInteraction
-from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
+from ....core.components.laws.utils import neighbors, uniform, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.dynamics import NetworkDynamicalSystem
 from ...general.dynamics.types import Equations
 from ..common.networks import HostElement, SpreadingInteraction
 
-HIDDEN = VisualSpec('sites', {'states': []})
+
+class AdaptiveHostElement(HostElement):
+    """Host of an adaptive network, drawn by whether it is infected."""
+
+    visual = VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1})
+
+
+class ContactEdgeElement(Element):
+    """Contact between two hosts, hidden from the drawing."""
+
+    visual = VisualSpec('sites', {'states': []})
 
 
 class ActiveHostElement(Element):
@@ -32,16 +47,13 @@ class ActiveHostElement(Element):
 
     The node is susceptible at `i = 0` and infected at `i = 1`.
 
-    A `TransitionInteraction` recovers an infected node with probability `mu` in a step, and another infects a
-    susceptible node with probability `lam` by every infected neighbour along the edges of the previous step. A
-    `TopologyInteraction` joins the node to other nodes with the probability `a`, its activity.
+    One interaction recovers an infected node with probability `mu` in a step, and another infects a susceptible node
+    with probability `lam` by every infected neighbour along the edges of the previous step. A third joins the node to
+    other nodes with the probability `a`, its activity.
 
     Args:
         label:
             The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         i:
             Whether the node is infected.
@@ -55,23 +67,28 @@ class ActiveHostElement(Element):
         mu:
             The probability of recovery at a step.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ActiveHostElement
         >>> ActiveHostElement('node').mu
         0.1
     """
 
+    visual = VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        i: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        a: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        lam: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.3,
+        mu: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.i = i
         self.a = a
         self.lam = lam
@@ -109,11 +126,17 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.systems.biology.epidemiology import QuenchedMeanFieldSISSystem
-        >>> QuenchedMeanFieldSISSystem(nx.cycle_graph(10)).prepare().system_.elements[0].prepare().size_
-        10
+        >>> QuenchedMeanFieldSISSystem(nx.cycle_graph(10)).prepare().simulate(until=0.0).get_values('nodes.p').shape
+        (1, 10)
     """
 
     field = 'biology/epidemiology'
@@ -132,8 +155,10 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         p: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.graph = graph
         self.n = n
         self.m = m
@@ -149,12 +174,16 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         """Return the label of the field of the nodes."""
         return 'nodes'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the infection probability and the spreading rate."""
-        nonnegative = RealSet.closed_open(0, oo)
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'p': DeclaredVariableSpec(self.p, StateSpec(domain=nonnegative)),
-            'lam': DeclaredVariableSpec(self.lam, ParameterSpec(domain=nonnegative)),
+            'p': self.p,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'lam': self.lam,
         }
 
     def _get_equations(self) -> Equations:
@@ -195,6 +224,12 @@ class AdaptiveSISSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import AdaptiveSISSystem
         >>> [component.label for component in AdaptiveSISSystem(n=20).prepare().system_.elements]
@@ -218,8 +253,10 @@ class AdaptiveSISSystem(BaseSystem):
         infected: float = 0.2,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k = k
         self.beta = beta
@@ -236,58 +273,40 @@ class AdaptiveSISSystem(BaseSystem):
         """
         return 1 - node.i
 
-    def _get_rewiring(self, keep: str) -> TopologyInteraction:
+    def _get_rewiring(self, keep: str) -> Interaction:
         """Return the rewiring of edges from a susceptible end `keep` to an infected end."""
         other = 'target' if keep == 'source' else 'source'
 
-        def rate(edge: SimpleNamespace) -> object:
-            """Return the rate at which the susceptible end rewires the edge.
+        def rewire(edge: SimpleNamespace) -> list[BaseLaw]:
+            """Return the rewiring of the edge at the rate of its susceptible end.
 
             The susceptible end rewires the edge away from the infected end.
             """
             kept, left = getattr(edge, keep), getattr(edge, other)
-            return kept.w * (1 - kept.i) * left.i
+            request = TopologyRequestSpec('rewire', toward=self._get_susceptible, keep=keep)
+            return [JumpLaw(kept.w * (1 - kept.i) * left.i, {request: 1})]
 
-        return TopologyInteraction(
-            f'rewiring_{keep}',
-            target='hosts',
-            action='rewire',
-            rate=rate,
-            toward=self._get_susceptible,
-            keep=keep,
-        )
+        return Interaction(f'rewiring_{keep}', roles={'nodes': 'hosts'}, laws=rewire, along=True)
 
     @staticmethod
     def _get_random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
         """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
         return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIS epidemic on a network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIS epidemic on a network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         space = self._get_random_network(self.n, self.k, self.seed)
         initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
-        hosts = GroupElement(
-            'hosts',
-            element=HostElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=self.n,
-            values={'i': initial, 'w': self.w},
-            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
-        )
-        edges = space.graph.number_of_edges()
-        contacts = GroupElement(
-            'contacts',
-            element=Element,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=edges,
-            visual=HIDDEN,
-        )
+        hosts = AdaptiveHostElement('hosts', i=initial, w=self.w, space=space)
+        contacts = ContactEdgeElement('contacts', space=space, on='edges')
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[hosts, contacts],
             interactions=[spreading, self._get_rewiring('source'), self._get_rewiring('target')],
@@ -332,9 +351,15 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ActivityDrivenEpidemicsSystem
-        >>> float(ActivityDrivenEpidemicsSystem(n=10, seed=0).prepare().system_.elements[0].values['a'].min()) >= 0.01
+        >>> float(ActivityDrivenEpidemicsSystem(n=10, seed=0).prepare().system_.elements[0].a.min()) >= 0.01
         True
     """
 
@@ -356,8 +381,10 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         infected: float = 0.05,
         seed: int | None = 1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.m = m
         self.exponent = exponent
@@ -367,82 +394,51 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         self.infected = infected
         self.seed = seed
 
-    @staticmethod
-    def _get_activity(node: SimpleNamespace) -> object:
-        """Return the probability that a node fires at a step, its activity."""
-        return node.source.a
+    def _get_firing(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the new edges of a node that fires at a step with the probability of its activity."""
+        return [UpdateLaw(TopologyRequestSpec('add-edge', self.m), s.source.a)]
 
     @staticmethod
-    def _get_infection(s: SimpleNamespace) -> Expression:
-        """Return the probability that at least one infected neighbour infects a node.
+    def _get_expiry(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the removal of every edge at the next step."""
+        return [UpdateLaw(TopologyRequestSpec('remove-edge'), 1)]
 
-        The neighbours infect the node along its edges.
+    @staticmethod
+    def _get_infection(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the infection of a node by at least one infected neighbour along its edges."""
+        i = s.target.i
+        probability = 1 - (1 - s.target.lam) ** neighbors(s.target.other.i)
+        moves = uniform('transition_infection') < probability
+        return [UpdateLaw(i, where(i == 0, where(moves, 1, 0), i), source=0)]
+
+    @staticmethod
+    def _get_recovery(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the recovery of an infected node with probability `mu` in a step."""
+        i = s.target.i
+        moves = uniform('transition_recovery') < s.target.mu
+        return [UpdateLaw(i, where(i == 1, where(moves, 0, 1), i), source=1)]
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of SIS spreading on an activity-driven temporal network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        probability: Expression = 1 - (1 - s.target.lam) ** neighbors(s.target.other.i)
-        return probability
-
-    @staticmethod
-    def _get_recovery(s: SimpleNamespace) -> Expression:
-        """Return the probability that an infected node recovers in a step."""
-        probability: Expression = s.target.mu
-        return probability
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of SIS spreading on an activity-driven temporal network.
-
-        The edges of the network last one step.
-        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         activities = np.minimum(self.least * (1 - rng.random(self.n)) ** (-1 / (self.exponent - 1)), 1.0)
         initial = (rng.random(self.n) < self.infected).astype(float)
         space = NetworkSpace(nx.empty_graph(self.n))
-        hosts = GroupElement(
-            'hosts',
-            element=ActiveHostElement,
-            space=space,
-            on='sites',
-            variable=True,
-            capacity=self.n,
-            values={'i': initial, 'a': activities, 'lam': self.lam, 'mu': self.mu},
-            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
-        )
-        contacts = GroupElement(
-            'contacts',
-            element=Element,
-            space=space,
-            on='edges',
-            variable=True,
-            capacity=2 * self.m * self.n,
-            visual=HIDDEN,
-        )
-        return CompositeSystem(
+        hosts = ActiveHostElement('hosts', i=initial, a=activities, lam=self.lam, mu=self.mu, space=space)
+        contacts = ContactEdgeElement('contacts', space=space, on='edges')
+        self.system_ = System(
             self.label,
             elements=[hosts, contacts],
             interactions=[
-                TopologyInteraction(
-                    'firing',
-                    target='hosts',
-                    action='add-edge',
-                    probability=self._get_activity,
-                    edges=self.m,
-                ),
-                TopologyInteraction('expiry', target='hosts', action='remove-edge'),
-                TransitionInteraction(
-                    'infection',
-                    target='hosts',
-                    state='i',
-                    source=0,
-                    destination=1,
-                    probability=self._get_infection,
-                ),
-                TransitionInteraction(
-                    'recovery',
-                    target='hosts',
-                    state='i',
-                    source=1,
-                    destination=0,
-                    probability=self._get_recovery,
-                ),
+                Interaction('firing', roles={'nodes': 'hosts'}, laws=self._get_firing, along=True),
+                Interaction('expiry', roles={'nodes': 'hosts'}, laws=self._get_expiry, along=True),
+                Interaction('infection', roles={'target': 'hosts'}, laws=self._get_infection),
+                Interaction('recovery', roles={'target': 'hosts'}, laws=self._get_recovery),
             ],
-            time=DiscreteTime(),
         )

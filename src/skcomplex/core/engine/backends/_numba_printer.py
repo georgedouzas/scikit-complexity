@@ -1,4 +1,4 @@
-"""Print the kernels and reductions of a problem as the source of Numba functions."""
+"""Print the kernels and sums of a problem as the source of Numba functions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,10 +12,11 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
+from ...components import EntrySpec
 from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...errors import BackendError, ValidationError
-from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of
+from ..enums import ReadKind
 from ..problems import BasePrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
@@ -25,11 +26,11 @@ from ..problems._metric_search import MetricSearch
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._output_spec import OutputSpec
 from ..problems._pair_search import PairSearch
+from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._static_search import StaticSearch
-from ..types import ReadKind
 from ._base import AUTO_MEMBERS
 from ._numba_components import GIANT, LABEL, LARGEST, SIZE
 
@@ -43,13 +44,15 @@ COMPONENT_KINDS = {
 
 
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
-    """A printer that writes the kernels and reductions of a problem as Numba source.
+    """A printer that writes the kernels and sums of a problem as Numba source.
 
-    `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
-    `None`, and `run(parts)` prints the kernels of every law kind into the source lines of `code_`. A part is the label
-    of the entry function, its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the
-    reductions. After a run, `functions_` holds the compiled functions the source calls by name, and `layout(entries)`
-    returns the array of the starts and rows of the entries it reads.
+    It turns the compiled laws of a problem into lines of Python that Numba compiles, which `NumbaBackend` then runs.
+    `prepare(reductions)` starts an empty source and prints the function of the sums over members, or none for `None`,
+    and `run(blocks)` adds one entry function per kind of law to `code_`. A block is the label of the entry function,
+    its mode, `'add'`, `'assign'`, or `'concatenate'`, the kernels, and whether they read the sums. It writes the forces
+    of a swarm, the updates of a cellular automaton, and the rates of a reaction network alike.
+
+    Read more in the user guide, under Backends.
 
     Args:
         parallel:
@@ -71,6 +74,14 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
         orders_:
             The orders drawn at every step that gather tables read through, by the name of their data.
+
+    See Also:
+        NumbaBackend: Compiles and runs the source it prints.
+
+    Examples:
+        >>> from skcomplex.core.engine.backends._numba_printer import NumbaPrinter
+        >>> NumbaPrinter().prepare(None).code_
+        []
     """
 
     code_: list[str]
@@ -92,17 +103,17 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             self._reduce_function(context, self.parallel)
 
     def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> None:
-        """Print the kernels of every part into the source lines.
+        """Print the kernels of every block into the source lines.
 
-        Each part comes with its entry function.
+        Each block comes with its entry function.
 
         Args:
             inputs:
-                The parts: the label of the entry function, its mode, the kernels, and whether they read reductions.
+                The blocks: the label of the entry function, its mode, the kernels, and whether they read reductions.
 
         Raises:
             ValidationError:
-                No parts are passed.
+                No blocks are passed.
         """
         if inputs is None:
             error_msg = 'The Numba printer runs on the parts of a problem. Pass them to `run`.'
@@ -671,11 +682,14 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         pairs = self._get_pair_search_of(kernel)
         same = pairs.first == pairs.second
         columns = pairs.first.columns
-        cutoff = ReferenceSpec(pairs.cutoff, is_state=False, column=0)
+        if isinstance(pairs.cutoff, float):
+            read = repr(pairs.cutoff)
+        else:
+            read = f'p[{self._get_index(ReferenceSpec(pairs.cutoff, is_state=False, column=0), None)}]'
         lines = [
             f'@njit(cache=CACHE, parallel={parallel})',
             f'def {name}(t, x, p, L, out, offset):',
-            f'{INDENT}_cutoff_ = p[{self._get_index(cutoff, None)}]',
+            f'{INDENT}_cutoff_ = {read}',
             f'{INDENT}_box_ = (np.full({columns}, PERIOD), PERIODIC)',
         ]
         for label, entry in (('a', pairs.first), ('b', pairs.second)) if not same else (('a', pairs.first),):
@@ -772,7 +786,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines.append(f'{INDENT}return out')
         self.code_ += ['', '', *lines]
 
-    def _get_reduction_read(self, name: str, read: ReadSpec, index: int) -> str:
+    def _get_reduction_read(self, name: str, read: _ReadSpec, index: int) -> str:
         """Return the line that reads one symbol of a reduction.
 
         It reads it for the member `_m_`, or once for a shared value.
@@ -823,7 +837,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _get_shaped_weights_lines(
         self,
         reduction: ReductionKernel,
-        weights: ReadSpec,
+        weights: _ReadSpec,
         index: int,
         count: str,
     ) -> list[str]:
@@ -881,7 +895,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines += [f'{INDENT}{acc} = 0.0', f'{INDENT}{cnt} = 0.0']
         sums = [f'{acc} += _a_ if _c_ else 0.0', f'{cnt} += 1.0 if _c_ else 0.0']
         mean = f'({acc} / {cnt} if {cnt} > 0.0 else 0.0)'
-        if isinstance(reduction.weights, ReadSpec):
+        if isinstance(reduction.weights, _ReadSpec):
             return lines + self._get_shaped_weights_lines(reduction, reduction.weights, index, sums[1])
         if reduction.weights is not None:
             weights = scipy.sparse.csr_array(reduction.weights)
@@ -947,15 +961,18 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             )
             return [f'{INDENT}_ip{index}_, _ix{index}_, _ie{index}_ = {call}']
         assert isinstance(search, MetricSearch)
-        entry = search.positions
-        start, columns = f'_L{2 * self._get_slot(entry)}_', entry.columns
+        placed = search.positions if isinstance(search.positions, tuple) else (search.positions,)
+        columns = sum(entry.columns for entry in placed)
         periods = search.periods if search.periods is not None else (1.0,) * columns
         periodic = search.periods is not None
+        views = [
+            f'x[_L{2 * self._get_slot(entry)}_ : _L{2 * self._get_slot(entry)}_ + {reduction.size} * {entry.columns}]'
+            f'.reshape(({reduction.size}, {entry.columns}))'
+            for entry in placed
+        ]
+        positions = views[0] if len(views) == 1 else f'np.hstack(({", ".join(views)}))'
         lines = [
-            (
-                f'{INDENT}_pos{index}_ = x[{start} : {start} + {reduction.size} * {columns}]'
-                f'.reshape(({reduction.size}, {columns}))'
-            ),
+            f'{INDENT}_pos{index}_ = {positions}',
             f'{INDENT}_per{index}_ = np.array([{", ".join(repr(float(item)) for item in periods)}])',
         ]
         neighbourhood = search.neighbourhood
@@ -972,17 +989,18 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         direction = search.direction
         assert direction is not None
         first = f'_L{2 * self._get_slot(direction.entry)}_'
+        held = 'x' if direction.is_state else 'p'
         if direction.angle:
             lines += [
                 f'{INDENT}_dr{index}_ = np.empty(({reduction.size}, 2))',
                 f'{INDENT}for _i_ in range({reduction.size}):',
-                f'{INDENT * 2}_dr{index}_[_i_, 0] = math.cos(x[{first} + _i_])',
-                f'{INDENT * 2}_dr{index}_[_i_, 1] = math.sin(x[{first} + _i_])',
+                f'{INDENT * 2}_dr{index}_[_i_, 0] = math.cos({held}[{first} + _i_])',
+                f'{INDENT * 2}_dr{index}_[_i_, 1] = math.sin({held}[{first} + _i_])',
             ]
         else:
             lines.append(
-                f'{INDENT}_dr{index}_ = x[{first} : {first} + {reduction.size} * {columns}].reshape(({reduction.size}, '
-                f'{columns}))',
+                f'{INDENT}_dr{index}_ = {held}[{first} : {first} + {reduction.size} * {columns}].reshape('
+                f'({reduction.size}, {columns}))',
             )
         cosine = repr(float(np.cos(neighbourhood.angle)))
         call = (
@@ -1015,7 +1033,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         search = reduction.search
         assert isinstance(search, MetricSearch)
         assert search.periods is not None
-        period = repr(float(search.periods[read.column]))
+        period = repr(float(search.periods[read.column if pair.axis is None else pair.axis]))
         own = f'{vector}[{start} + _i_ * {read.stride} + {read.column}]'
         del index
         return f'{own} - (({own} - {value}) - {period} * np.rint(({own} - {value}) / {period}))'

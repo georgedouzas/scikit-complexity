@@ -10,12 +10,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs._accelerated_spec import AcceleratedSpec
-from ...specs._base_spec import BaseSpec
-from ...specs._jump_channels_spec import _JumpChannelsSpec
-from ...specs._wiener_block_spec import WienerBlockSpec
+from ...base import BaseSpec
 from ...types import Array, VectorFunction
+from ._accelerated_spec import _AcceleratedSpec
 from ._draw_kernel import DrawKernel
+from ._jump_channels_spec import _JumpChannelsSpec
+from ._wiener_block_spec import _WienerBlockSpec
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,7 @@ class _ProblemFunctionsSpec(BaseSpec):
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     n_processes: int = 0
-    noise_blocks: tuple[WienerBlockSpec, ...] = ()
+    noise_blocks: tuple[_WienerBlockSpec, ...] = ()
     propensities: VectorFunction | None = None
     jumps: tuple[_JumpChannelsSpec, ...] = ()
     update: Callable[..., Array] | None = None
@@ -105,4 +105,4 @@ class _ProblemFunctionsSpec(BaseSpec):
     draws: DrawKernel | None = None
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
-    accelerated: AcceleratedSpec | None = None
+    accelerated: _AcceleratedSpec | None = None

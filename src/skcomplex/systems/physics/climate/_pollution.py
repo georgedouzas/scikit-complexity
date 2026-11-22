@@ -11,8 +11,10 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.laws.utils import series
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -94,9 +96,15 @@ class PopulationPollutionSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.climate import PopulationPollutionSystem
-        >>> PopulationPollutionSystem(pollution_normal=0.5).prepare().system_.elements[0].get_value('pollution_normal')
+        >>> PopulationPollutionSystem(pollution_normal=0.5).prepare().system_.elements[0].values['pollution_normal']
         0.5
     """
 
@@ -106,8 +114,8 @@ class PopulationPollutionSystem(DynamicalSystem):
     until = 50.0
     dt = 0.25
     observables = (
-        ObservableSpec('food_per_capita', _get_food_per_capita, element='region'),
-        ObservableSpec('quality_of_life', _get_quality_of_life, element='region'),
+        Observable('food_per_capita', _get_food_per_capita, element='region'),
+        Observable('quality_of_life', _get_quality_of_life, element='region'),
     )
 
     def __init__(
@@ -120,8 +128,10 @@ class PopulationPollutionSystem(DynamicalSystem):
         birth_normal: float = 0.04,
         death_normal: float = 0.028,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.population = population
         self.pollution = pollution
         self.pollution_normal = pollution_normal
@@ -133,24 +143,37 @@ class PopulationPollutionSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'region'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'population': DeclaredVariableSpec(self.population, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'pollution': DeclaredVariableSpec(self.pollution, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'pollution_normal': DeclaredVariableSpec(
-                self.pollution_normal,
-                ParameterSpec(domain=RealSet.closed_open(0, oo)),
-            ),
-            'pollution_standard': DeclaredVariableSpec(
-                self.pollution_standard,
-                ParameterSpec(domain=RealSet.open(0, oo)),
-            ),
-            'birth_normal': DeclaredVariableSpec(self.birth_normal, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'death_normal': DeclaredVariableSpec(self.death_normal, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'subsistence_food': DeclaredVariableSpec(180.0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'cultivated_land': DeclaredVariableSpec(7.4e6, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'crop_yield': DeclaredVariableSpec(2200.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'population': self.population,
+            'pollution': self.pollution,
+        }
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the states and parameters that have them, by name."""
+        return {
+            'population': RealSet.closed_open(0, oo),
+            'pollution': RealSet.closed_open(0, oo),
+            'pollution_normal': RealSet.closed_open(0, oo),
+            'pollution_standard': RealSet.open(0, oo),
+            'birth_normal': RealSet.closed_open(0, oo),
+            'death_normal': RealSet.closed_open(0, oo),
+            'subsistence_food': RealSet.open(0, oo),
+            'cultivated_land': RealSet.closed_open(0, oo),
+            'crop_yield': RealSet.closed_open(0, oo),
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'pollution_normal': self.pollution_normal,
+            'pollution_standard': self.pollution_standard,
+            'birth_normal': self.birth_normal,
+            'death_normal': self.death_normal,
+            'subsistence_food': 180.0,
+            'cultivated_land': 7.4e6,
+            'crop_yield': 2200.0,
         }
 
     def _get_equations(self) -> Equations:

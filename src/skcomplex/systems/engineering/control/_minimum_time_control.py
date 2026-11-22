@@ -6,18 +6,23 @@ A sampled bang-bang control steers it.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, abs_symbolic, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.signals import PulseInteraction
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
@@ -25,38 +30,66 @@ CIRCLES_END = 2
 
 
 class BangBangPlantElement(Element):
-    """Second-order linear plant under a bang-bang control.
+    """Second-order linear plant at the position `x` with the held control `u`.
 
-    The control is held between samples, and it steers the plant to the origin. The plant follows `x' = y` and
-    `y' = a x + u` with the control `u` of size 1, `a = 0` for a free particle, `a = -1` for a harmonic oscillator, and
-    `a = 1` for a saddle. The control stays constant between samples, and at every sample takes `-1` above the switching
-    curve `y = g(x)` of the plant and `1` below it. The curve is made of the two trajectories of the plant under `u = 1`
-    and `u = -1` that reach the origin: `g(x) = -sign(x) sqrt(2 |x|)` for the free particle, the half circles
-    `g(x) = sqrt(1 - (x + 1)^2)` on `[-2, 0]` and `-sqrt(1 - (x - 1)^2)` on `[0, 2]`, and 0 outside, for the harmonic
-    oscillator, and `g(x) = sqrt(x^2 - 2 x)` for `x <= 0` and `-sqrt(x^2 + 2 x)` for `x >= 0` for the saddle.
+    Its velocity is the derivative `x'`, and `BangBangPlantInteraction` moves it.
 
     Args:
         label:
             The label of the plant.
 
-        visual:
-            How the plant is drawn, or `None` for `default_visual_`.
-
         x:
             The initial position.
 
-        y:
-            The initial velocity.
-
         u:
             The initial control, -1 or 1.
+
+        values:
+            Further values by name, such as the initial velocity `"x'"`.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.control import BangBangPlantElement
+        >>> BangBangPlantElement('plant', u=-1.0).u
+        -1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: float = 0.0,
+        u: Annotated[float, FiniteEnumeratedSet([-1, 1])] = 1.0,
+        values: Mapping[str, object] | None = None,
+    ) -> None:
+        super().__init__(label, values=values)
+        self.x = x
+        self.u = u
+
+
+class BangBangPlantInteraction(Interaction):
+    """Motion of a second-order linear plant under a bang-bang control.
+
+    The control is held between samples, and it steers the plant to the origin. The plant follows `x'' = a x + u` with
+    the control `u` of size 1, `a = 0` for a free particle, `a = -1` for a harmonic oscillator, and `a = 1` for a
+    saddle. The control stays constant between samples, and at every sample takes `-1` above the switching curve
+    `x' = g(x)` of the plant and `1` below it. The curve is made of the two trajectories of the plant under `u = 1` and
+    `u = -1` that reach the origin: `g(x) = -sign(x) sqrt(2 |x|)` for the free particle, the half circles
+    `g(x) = sqrt(1 - (x + 1)^2)` on `[-2, 0]` and `-sqrt(1 - (x - 1)^2)` on `[0, 2]`, and 0 outside, for the harmonic
+    oscillator, and `g(x) = sqrt(x^2 - 2 x)` for `x <= 0` and `-sqrt(x^2 + 2 x)` for `x >= 0` for the saddle.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the plant.
 
         a:
             The coefficient of the position in the acceleration, 0, -1, or 1.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import BangBangPlantElement
-        >>> BangBangPlantElement('plant', a=-1.0).a
+        >>> from skcomplex.systems.engineering.control import BangBangPlantInteraction
+        >>> BangBangPlantInteraction('motion', target='plant', a=-1.0).a
         -1.0
     """
 
@@ -65,31 +98,24 @@ class BangBangPlantElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        u: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1.0,
-        a: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([-1, 0, 1]))] = 0.0,
+        target: Role,
+        a: Annotated[float, FiniteEnumeratedSet([-1, 0, 1])] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.u = u
+        super().__init__(label)
+        self.target = target
         self.a = a
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion of the plant under the held control.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the motion of the plant under the held control.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the plant, the time `t`, and the parameters.
         """
-        return [RateLaw(s.x, s.y), RateLaw(s.y, s.a * s.x + s.u), RateLaw(s.u, 0)]
+        super()._prepare(context)
+        plant, t = context.target, context.t
+        self.laws_: list[BaseLaw] = [RateLaw(plant.x.diff(t, 2), context.a * plant.x + plant.u)]
 
     @staticmethod
     def _get_switching_curve(plant: str, x: Expression) -> Expression:
@@ -143,7 +169,7 @@ class BangBangPlantElement(Element):
             control:
                 The control.
         """
-        control: Expression = where(y > BangBangPlantElement._get_switching_curve(plant, x), -1, 1)
+        control: Expression = where(y > BangBangPlantInteraction._get_switching_curve(plant, x), -1, 1)
         return control
 
 
@@ -160,8 +186,8 @@ class MinimumTimeControlSystem(BaseSystem):
     the defaults. Only the states between the lines `y = -(x + 1)` and `y = -(x - 1)` of the saddle are controllable,
     and from the others the plant escapes to infinity.
 
-    The system has the position `plant.x`, the velocity `plant.y`, and the control `plant.u`, which the samples `sample`
-    set.
+    The system has the position `plant.x`, the velocity `plant.x'`, and the control `plant.u`, which the samples
+    `sample` set.
 
     Args:
         x:
@@ -178,6 +204,12 @@ class MinimumTimeControlSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ParameterError:
@@ -203,27 +235,31 @@ class MinimumTimeControlSystem(BaseSystem):
         plant: str = 'free_particle',
         interval: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.plant = plant
         self.interval = interval
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.plant not in PLANTS:
             error_msg = f'Unknown plant {self.plant!r}. Use one of {", ".join(PLANTS)}.'
             raise ParameterError(error_msg)
         if not self.interval > 0:
             error_msg = f'The interval of the samples is {self.interval!r}. Give a positive number.'
             raise ParameterError(error_msg)
-        start = float(BangBangPlantElement._get_control(self.plant, self.x, self.v))
-        sample = {'u': lambda s: BangBangPlantElement._get_control(self.plant, s.target.x, s.target.y)}
-        return CompositeSystem(
+        start = float(BangBangPlantInteraction._get_control(self.plant, self.x, self.v))
+        sample = {'u': lambda s: BangBangPlantInteraction._get_control(self.plant, s.target.x, s.target.x.diff(s.t))}
+        self.system_ = System(
             self.label,
-            elements=[BangBangPlantElement('plant', x=self.x, y=self.v, u=start, a=PLANTS[self.plant])],
+            elements=[BangBangPlantElement('plant', x=self.x, u=start, values={"x'": self.v})],
             interactions=[
+                BangBangPlantInteraction('motion', target='plant', a=PLANTS[self.plant]),
                 PulseInteraction('sample', target='plant', reset=sample, period=self.interval, start=self.interval),
             ],
         )

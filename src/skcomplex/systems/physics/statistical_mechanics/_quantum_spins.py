@@ -6,21 +6,26 @@ The module holds the quantum Heisenberg XXZ chain with a field and dephasing.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import qutip
 from sage.all__sagemath_symbolics import CC, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, Interaction, NeighborInteraction
-from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import BaseLaw
 from ....core.components.laws.utils import local_operator
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.quantum import DissipatorLaw, GeneratorLaw, HilbertSpec
 
 MIN_SPIN_DIMENSION = 2
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
@@ -52,26 +57,27 @@ SPIN_HALF = _get_spin_space(0.5)
 
 
 class SpinElement(Element):
-    """Spin of the Hilbert space it takes.
+    """Spins of the Hilbert space they take.
 
-    The spin has the spin components `x`, `y`, `z` and the ladder operators.
+    Every spin has the spin components `x`, `y`, `z` and the ladder operators.
 
-    The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index. Its laws read
-    the operators of its state `psi`, such as `local_operator(namespace.psi, 'z')`.
+    The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index. Laws read the
+    operators of the state `psi` of a spin, such as `local_operator(s.target.psi, 'z')`. With `space`, there is one spin
+    at every site of the space, as along a chain.
 
     Args:
         label:
-            The label of the spin.
+            The label of the spin or of the spins.
 
         psi:
-            The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
+            The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector, or one state per spin.
 
         hilbert:
-            The Hilbert space of the spin, with the spin components `x`, `y`, `z` and the ladder operators `plus` and
+            The Hilbert space of a spin, with the spin components `x`, `y`, `z` and the ladder operators `plus` and
             `minus` as its operators, by default that of a spin one half.
 
-        visual:
-            How the spin is drawn.
+        space:
+            The lattice of the spins, or `None` for one spin.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement
@@ -79,15 +85,17 @@ class SpinElement(Element):
         2
     """
 
+    visual = VisualSpec('expectations')
+
     def __init__(
         self,
         label: str,
-        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        psi: Annotated[object, CC] = 'up',
         *,
         hilbert: HilbertSpec = SPIN_HALF,
-        visual: VisualSpec | None = VisualSpec('expectations'),
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.psi = psi
         self.hilbert = hilbert
 
@@ -117,38 +125,36 @@ class DephasingInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Role,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return one dissipator per spin.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set one dissipator per spin.
 
         Args:
-            s:
-                The namespace of the interaction.
-
-        Returns:
-            laws:
-                The dissipators.
+            context:
+                The namespace of the spins of the target, the time `t`, and the parameters.
         """
-        return [DissipatorLaw(local_operator(member.psi, 'z'), s.gamma) for member in s.target]
+        super()._prepare(context)
+        self.laws_ = [DissipatorLaw(local_operator(member.psi, 'z'), context.gamma) for member in context.target]
 
 
-class XXZExchangeInteraction(NeighborInteraction):
+class XXZExchangeInteraction(Interaction):
     """Exchange between neighbouring spins.
 
-    The exchange is `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)`.
+    The exchange is `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` on every pair of neighbours of the space of the
+    spins.
 
     Args:
         label:
             The label of the interaction.
 
-        target:
-            The path of the spin chain.
+        among:
+            The path of the spins.
 
         J:
             The exchange coupling, antiferromagnetic when positive.
@@ -156,45 +162,45 @@ class XXZExchangeInteraction(NeighborInteraction):
         delta:
             The anisotropy `Δ`, 1 for the isotropic chain and 0 for the XX chain.
 
+        along:
+            The pairs the exchange couples, `True` for the neighbours of the space of the spins.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import XXZExchangeInteraction
-        >>> XXZExchangeInteraction('exchange', target='chain', delta=0.5).delta
+        >>> XXZExchangeInteraction('exchange', among='chain', delta=0.5).delta
         0.5
     """
 
-    law_classes = (GeneratorLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GeneratorLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        delta: Annotated[float, ParameterSpec()] = 1.0,
+        among: Role,
+        J: float = 1.0,
+        delta: float = 1.0,
+        along: bool | str = True,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, among=among, along=along)
         self.J = J
         self.delta = delta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the exchange Hamiltonian of one bond.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the exchange Hamiltonian of one pair of neighbours.
 
         Args:
-            s:
-                The namespace of the bond, with `s.source` and `s.target`.
-
-        Returns:
-            laws:
-                The Hamiltonian of the bond.
+            context:
+                The namespace of the pair, with `source` and `target`, the time `t`, and the parameters.
         """
-        first, second = s.source.psi, s.target.psi
+        super()._prepare(context)
+        first, second = context.source.psi, context.target.psi
         exchange = (
             local_operator(first, 'x') * local_operator(second, 'x')
             + local_operator(first, 'y') * local_operator(second, 'y')
-            + s.delta * local_operator(first, 'z') * local_operator(second, 'z')
+            + context.delta * local_operator(first, 'z') * local_operator(second, 'z')
         )
-        return [GeneratorLaw(s.J * exchange)]
+        self.laws_ = [GeneratorLaw(context.J * exchange)]
 
 
 class ZeemanFieldInteraction(Interaction):
@@ -216,31 +222,22 @@ class ZeemanFieldInteraction(Interaction):
         0.2
     """
 
-    law_classes = (GeneratorLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GeneratorLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        h: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, h: float = 0.0) -> None:
         super().__init__(label)
         self.target = target
         self.h = h
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Hamiltonian of the field.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the Hamiltonian of the field.
 
         Args:
-            s:
-                The namespace of the interaction.
-
-        Returns:
-            laws:
-                The field Hamiltonian.
+            context:
+                The namespace of the spins of the target, the time `t`, and the parameters.
         """
-        return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
+        super()._prepare(context)
+        self.laws_ = [GeneratorLaw(-context.h * sum(local_operator(member.psi, 'z') for member in context.target))]
 
 
 def local_magnetization(member: SimpleNamespace) -> Expression:
@@ -309,10 +306,16 @@ class QuantumHeisenbergSystem(BaseSystem):
         initial:
             `'flip'` for one flipped spin at site `n_sites // 2`, `'neel'` for alternating spins, `'domain_wall'` for
             the left half up and the right half down, or `'ground'` for the ground state, which the tuned run settings
-            give as `initial_state={'<label>.state': 'ground'}`.
+            start from as `initial_state={'<label>.state': 'ground'}`.
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Raises:
         ValidationError:
@@ -320,7 +323,7 @@ class QuantumHeisenbergSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem
-        >>> QuantumHeisenbergSystem(6).prepare().system_.elements[0].prepare().size_
+        >>> len(QuantumHeisenbergSystem(6).prepare().system_.elements[0].psi)
         6
     """
 
@@ -330,8 +333,8 @@ class QuantumHeisenbergSystem(BaseSystem):
     until = 8.0
     dt = 0.05
     observables = (
-        ObservableSpec('sz', local_magnetization, group='chain', reduce=_get_sites),
-        ObservableSpec('magnetization', total_magnetization),
+        Observable('sz', local_magnetization, group='chain', reduce=_get_sites),
+        Observable('magnetization', total_magnetization),
     )
 
     def __init__(
@@ -345,8 +348,10 @@ class QuantumHeisenbergSystem(BaseSystem):
         boundary: str = 'periodic',
         initial: str = 'flip',
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.J = J
         self.delta = delta
@@ -364,21 +369,18 @@ class QuantumHeisenbergSystem(BaseSystem):
             return ['down' if site == n_sites // 2 else 'up' for site in range(n_sites)]
         return ['up' if site < n_sites // 2 else 'down' for site in range(n_sites)]
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the chain of spins with the exchange, the field, and the dephasing.
 
-        The initial state `'ground'` starts from the ground state.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The boundary or the initial state is unknown.
         """
-        settings = super().get_run_settings()
-        if self.initial == 'ground':
-            settings['initial_state'] = {f'{self.label}.state': 'ground'}
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a chain of spins one half with the XXZ Hamiltonian.
-
-        The chain has a field and optional dephasing.
-        """
+        super()._prepare(context)
         if self.boundary not in BOUNDARIES or self.initial not in INITIAL_STATES:
             error_msg = (
                 f'Unknown boundary {self.boundary!r} or initial state {self.initial!r}. Use a boundary of '
@@ -387,11 +389,13 @@ class QuantumHeisenbergSystem(BaseSystem):
             raise ValidationError(error_msg)
         space = LatticeSpace(self.n_sites, boundary=BOUNDARIES[self.boundary])
         labels = self._get_initial_labels(self.n_sites, self.initial)
-        chain = GroupElement('chain', element=SpinElement, space=space, values={'psi': labels}, on='sites')
+        chain = SpinElement('chain', psi=labels, space=space)
         interactions: list[BaseInteraction] = [
-            XXZExchangeInteraction('exchange', target='chain', J=self.J, delta=self.delta),
+            XXZExchangeInteraction('exchange', among='chain', J=self.J, delta=self.delta),
             ZeemanFieldInteraction('field', target='chain', h=self.h),
         ]
         if self.gamma > 0:
             interactions.append(DephasingInteraction('dephasing', target='chain', gamma=self.gamma))
-        return CompositeSystem(self.label, elements=[chain], interactions=interactions)
+        self.system_ = System(self.label, elements=[chain], interactions=interactions)
+        if self.initial == 'ground':
+            self.initial_state_ = {f'{self.label}.state': 'ground'}

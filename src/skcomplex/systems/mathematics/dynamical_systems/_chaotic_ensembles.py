@@ -6,187 +6,187 @@ The module covers ensembles of chaotic maps, their invariant densities, and chao
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, floor, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, floor
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 DOUBLING_DENOMINATOR = 1125899906840747.0
 
 
 class CubicWalkElement(Element):
-    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`.
-
-    The walker steps by `2 x - 1`.
+    """Walkers driven by a chaotic map, each with the value `u` of its map and its position `x`.
 
     Args:
         label:
-            The label of the element.
+            The label of the walkers.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+        u:
+            The initial value of the map, between 0 and 1, one per walker or shared.
 
         x:
-            The initial value of the map, between 0 and 1.
+            The initial position, one per walker or shared.
 
-        y:
-            The initial position of the walker.
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The line the walkers live on, whose axis `x` makes `x` their position, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CubicWalkElement
+        >>> CubicWalkElement('walker', u=0.4).u
+        0.4
+    """
+
+    visual = VisualSpec('points', {'position': 'x', 'states': ()})
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        u: object = 0.3,
+        x: object = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.u = u
+        self.x = x
+
+
+class CubicWalkInteraction(Interaction):
+    """Bertin's cubic chaotic map `u' = lam u (u - 1/2)(u - 1) + u` and the step `x' = x + 2 u - 1` it drives.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The walkers whose values `u` and positions `x` the map moves.
 
         lam:
             The nonlinearity of the map.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import CubicWalkElement
-        >>> CubicWalkElement('walker', lam=8.0).lam
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CubicWalkInteraction
+        >>> CubicWalkInteraction('walk', lam=8.0).lam
         8.0
     """
 
     law_classes = (UpdateLaw,)
 
-    visual = VisualSpec('points', {'position': 'y', 'states': ()})
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.3,
-        y: Annotated[object, StateSpec(role='position')] = 0.0,
-        lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
+    def __init__(self, label: str, *, target: Role = 'walkers', lam: float = 15.0) -> None:
+        super().__init__(label)
+        self.target = target
         self.lam = lam
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value of the map and the next position.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value of the map and the next position as the laws.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [
-            UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
-            UpdateLaw(s.y, s.y + 2 * s.x - 1),
+        super()._prepare(context)
+        u, x = context.target.u, context.target.x
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(u, context.lam * u * (u - 1 / 2) * (u - 1) + u),
+            UpdateLaw(x, x + 2 * u - 1),
         ]
 
 
-class DoublingMapElement(Element):
-    """Doubling map `x' = 2 x (mod 1)` on the grid of the fractions of denominator `q`.
+class DoublingMapInteraction(Interaction):
+    """The doubling map `x' = 2 x (mod 1)` on the grid of the fractions of denominator `q`.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value, between 0 and 1.
+        target:
+            The element whose values `x` the map moves.
 
         q:
             The denominator of the grid.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapElement
-        >>> DoublingMapElement('point', q=1024.0).q
+        >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapInteraction
+        >>> DoublingMapInteraction('doubling', target='points', q=1024.0).q
         1024.0
     """
 
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.4,
-        q: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = DOUBLING_DENOMINATOR,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+    def __init__(self, label: str, *, target: Role = 'points', q: float = DOUBLING_DENOMINATOR) -> None:
+        super().__init__(label)
+        self.target = target
         self.q = q
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value, rounded to the grid.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value, rounded to the grid, as the law.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)]
+        super()._prepare(context)
+        x, q = context.target.x, context.q
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, mod(2 * floor(q * x + 1 / 2), q) / q)]
 
 
-class SkewTentMapElement(Element):
-    """Skew tent map `x' = x / a` below the peak `a` and `(1 - x) / (1 - a)` above it.
+class SkewTentMapInteraction(Interaction):
+    """The skew tent map `x' = x / a` below the peak `a` and `(1 - x) / (1 - a)` above it.
 
     Args:
         label:
-            The label of the element.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value, between 0 and 1.
+        target:
+            The element whose values `x` the map moves.
 
         a:
             The position of the peak, between 0 and 1.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapElement
-        >>> SkewTentMapElement('point', a=0.5).a
+        >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapInteraction
+        >>> SkewTentMapInteraction('tent', target='points', a=0.5).a
         0.5
     """
 
     law_classes = (UpdateLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.4,
-        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+    def __init__(self, label: str, *, target: Role = 'points', a: float = 0.3) -> None:
+        super().__init__(label)
+        self.target = target
         self.a = a
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next value as the law.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))]
+        super()._prepare(context)
+        x, a = context.target.x, context.a
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, where(x < a, x / a, (1 - x) / (1 - a)))]
 
 
 def _get_square_displacement(member: SimpleNamespace) -> Expression:
     """Return the squared position of a walker."""
-    return member.y**2
+    return member.x**2
 
 
 class CubicChaoticMapSystem(BaseSystem):
@@ -194,11 +194,11 @@ class CubicChaoticMapSystem(BaseSystem):
 
     The walk spreads like a random walk.
 
-    Every walker follows the map `x' = λ x (x - 1/2)(x - 1) + x` on the unit interval and moves by the step `y' = y + 2x
-    - 1`. The fixed point `x = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is chaotic at `λ =
-    15`. The walkers start at `y = 0` with values of `x` spread regularly over the unit interval, so the mean position
-    stays near 0 while the mean square position grows linearly in time, and the invariant density of `x` is not uniform.
-    The system has the states `walkers.x` and `walkers.y` and the observables `displacement`, the mean position, and
+    Every walker follows the map `u' = λ u (u - 1/2)(u - 1) + u` on the unit interval and moves by the step `x' = x + 2u
+    - 1`. The fixed point `u = 1/2` is stable for `λ < 8`, a period-two cycle follows, and the map is chaotic at `λ =
+    15`. The walkers start at `x = 0` with values of `u` spread regularly over the unit interval, so the mean position
+    stays near 0 while the mean square position grows linearly in time, and the invariant density of `u` is not uniform.
+    The system has the states `walkers.u` and `walkers.x` and the observables `displacement`, the mean position, and
     `square_displacement`, the mean square position.
 
     Args:
@@ -211,9 +211,15 @@ class CubicChaoticMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import CubicChaoticMapSystem
-        >>> CubicChaoticMapSystem(4, lam=10.0).prepare().system_.elements[0].prepare().size_
+        >>> CubicChaoticMapSystem(4, lam=10.0).prepare().system_.elements[0].size
         4
     """
 
@@ -223,8 +229,8 @@ class CubicChaoticMapSystem(BaseSystem):
     until = 200
     dt = 1
     observables = (
-        ObservableSpec('displacement', group='walkers', variable='y'),
-        ObservableSpec('square_displacement', _get_square_displacement, group='walkers'),
+        Observable('displacement', group='walkers', variable='x'),
+        Observable('square_displacement', _get_square_displacement, group='walkers'),
     )
 
     def __init__(
@@ -233,26 +239,22 @@ class CubicChaoticMapSystem(BaseSystem):
         *,
         lam: float = 15.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.lam = lam
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Bertin's cubic chaotic map and the chaotic walk it drives.
-
-        The walk spreads like a random walk.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the walkers on a line and the map that drives them."""
+        super()._prepare(context)
         start = (np.arange(self.n_walkers) + 1 / 4) / self.n_walkers
-        walkers = GroupElement(
-            'walkers',
-            element=CubicWalkElement,
-            size=self.n_walkers,
-            values={'x': start, 'y': 0.0, 'lam': self.lam},
-        )
-        return CompositeSystem(
+        walkers = CubicWalkElement('walkers', u=start, size=self.n_walkers, space=ContinuousSpace(n_dim=1))
+        self.system_ = System(
             self.label,
             elements=[walkers],
+            interactions=[CubicWalkInteraction('walk', target='walkers', lam=self.lam)],
         )
 
 
@@ -286,9 +288,15 @@ class SkewTentMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import SkewTentMapSystem
-        >>> SkewTentMapSystem(10, a=0.7).prepare().system_.elements[0].values['a']
+        >>> SkewTentMapSystem(10, a=0.7).prepare().system_.interactions[0].a
         0.7
     """
 
@@ -317,27 +325,24 @@ class SkewTentMapSystem(BaseSystem):
         spread: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_points = n_points
         self.a = a
         self.x = x
         self.spread = spread
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points and their map."""
+        super()._prepare(context)
         start = SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state)
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'points',
-                    element=SkewTentMapElement,
-                    size=self.n_points,
-                    values={'x': start, 'a': self.a},
-                ),
-            ],
+            elements=[Element('points', values={'x': start}, size=self.n_points)],
+            interactions=[SkewTentMapInteraction('tent', target='points', a=self.a)],
         )
 
 
@@ -372,6 +377,12 @@ class DoublingMapSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import DoublingMapSystem
         >>> float(DoublingMapSystem(10, q=101.0).prepare().system_.elements[0].values['x'][0] * 101)
@@ -393,30 +404,27 @@ class DoublingMapSystem(BaseSystem):
         q: float = DOUBLING_DENOMINATOR,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_points = n_points
         self.x = x
         self.spread = spread
         self.q = q
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the points and their map."""
+        super()._prepare(context)
         start = (
             np.floor(
                 self.q * SkewTentMapSystem._draw_cloud(self.n_points, self.x, self.spread, self.random_state) + 1 / 2,
             )
             / self.q
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'points',
-                    element=DoublingMapElement,
-                    size=self.n_points,
-                    values={'x': start, 'q': self.q},
-                ),
-            ],
+            elements=[Element('points', values={'x': start}, size=self.n_points)],
+            interactions=[DoublingMapInteraction('doubling', target='points', q=self.q)],
         )

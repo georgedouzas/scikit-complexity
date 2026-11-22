@@ -12,27 +12,26 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
 
 
 class LinkElement(Element):
     """Edge of a network with a weight `w`.
 
-    Couplings along the edge read the weight.
+    Couplings along the edge read the weight, as the strength of a power line or of a synapse.
 
     Args:
         label:
             The label of the edge or the group on the edges.
 
-        visual:
-            How the edge is drawn, or `None` for `default_visual_`.
-
         w:
-            The weight of the edge.
+            The weight of the edge, or one weight per edge.
 
-    Attributes:
-        default_visual_:
-            The visual of the edge when it sets none.
+        space:
+            The network of the edges, or `None` for one edge.
+
+        on:
+            `'edges'` for one member on every edge of the network, `'hyperedges'` for one on every hyperedge, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.common.oscillators import LinkElement
@@ -43,9 +42,10 @@ class LinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        w: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.w = w

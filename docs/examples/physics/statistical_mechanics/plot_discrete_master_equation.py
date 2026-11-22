@@ -15,7 +15,6 @@ top.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import DiscreteMasterEquationSystem
 
@@ -23,7 +22,7 @@ SYSTEM = 'discrete_master_equation'
 
 system = DiscreteMasterEquationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=250, dt=1, observers=[observer])
+trajectory = system.prepare().simulate(until=250, dt=1, observers=[observer])
 
 # %%
 # Relaxation to the Boltzmann distribution
@@ -35,7 +34,7 @@ trajectory = simulate(system, until=250, dt=1, observers=[observer])
 
 def divergence(beta):
     """Return the Kullback-Leibler divergence from the Boltzmann distribution at every step."""
-    run = simulate(DiscreteMasterEquationSystem(beta=beta), until=2000, dt=1)
+    run = DiscreteMasterEquationSystem(beta=beta).prepare().simulate(until=2000, dt=1)
     probabilities = np.clip(run.get_values('states.P'), 1e-300, None)
     boltzmann = np.exp(-beta * run.get_values('states.U')[0])
     boltzmann /= boltzmann.sum()

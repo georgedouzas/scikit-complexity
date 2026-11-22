@@ -6,26 +6,34 @@
 import numpy as np
 from scipy.optimize import root
 
-from ...components.laws import EquationLaw, LinearProgramLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, StaticTime
+from ...components.laws import ConstraintLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._static_time import _StaticTime
+from ...enums import FormKind, OrderKind
 from ...errors import SolverError
-from ...specs import RunStateSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
-from ..problems import ProblemSpec
+from ...types import Array
+from ..backends import SupportSpec
+from ..problems import ProblemSpec, RunStateSpec
 from ..problems._jacobian_kernel import JacobianKernel
 from ._solver import Solver
 
 
 class RootSolver(Solver):
-    """A solver of the equations of a static system.
+    """A solver of the equations of a static system, solved once.
 
-    It solves them once for the one frame of the run. The compiled solution gives the states when Sage finds a unique
-    explicit one. Otherwise `scipy.optimize.root` solves the residuals of the equations with their exact Jacobian, from
-    the initial state as the guess. A system without equations solves to its initial state.
+    It solves the constraint laws once for the one frame of the run, such as the outputs 3.33 and 2.33 at which two
+    firms of a market both make their best reply. It takes the exact solution when Sage finds a unique one, and
+    otherwise solves the equations with `scipy.optimize.root` and their exact Jacobian from the starting values. A
+    system without equations keeps its starting values. It finds the equilibria of markets, the balance of forces in a
+    truss, and the steady state of a reaction.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         method:
-            The method of `scipy.optimize.root`.
+            The method of `scipy.optimize.root`, or `'auto'` for `'hybr'` with a second try by `'lm'` from the same
+            starting values when it does not converge, as an exponential diode from zero volts needs.
 
         tolerance:
             The largest residual of a solution.
@@ -40,32 +48,20 @@ class RootSolver(Solver):
         initial_state_:
             The solved state vector, the one frame of the run.
 
+    See Also:
+        MinimizeSolver: Finds the minimum of an objective.
+
     Examples:
-        >>> from sage.all__sagemath_symbolics import cos
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import EquationLaw
-        >>> from skcomplex.core.components.spaces import StaticTime
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class FixedPointElement(Element):
-        ...     def __init__(self, label, x: Annotated[float, StateSpec()] = 1.0):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
-        >>> system = CompositeSystem(elements=[FixedPointElement('a')], time=StaticTime())
-        >>> trajectory = simulate(system, until=1.0)
-        >>> round(float(trajectory.get_values('a.x')[0]), 7)
-        0.7390851
+        >>> from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
+        >>> trajectory = OligopolyEquilibriaSystem().prepare().simulate()
+        >>> [round(float(trajectory.get_values(name)[0]), 4) for name in ('cournot.q_i', 'cournot.q_j')]
+        [3.3333, 2.3333]
     """
 
     def __init__(
         self,
         *,
-        method: str = 'hybr',
+        method: str = 'auto',
         tolerance: float = 1e-9,
         random_state: int | np.random.Generator | None = None,
         until: float = np.inf,
@@ -78,9 +74,9 @@ class RootSolver(Solver):
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={LinearProgramLaw, EquationLaw},
+            time={_StaticTime},
+            space={None, BaseSpace},
+            laws={_LinearProgramLaw, ConstraintLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -124,16 +120,20 @@ class RootSolver(Solver):
         if not indices.size:
             return np.asarray(problem.update(0.0, x, p), dtype=float) if problem.update is not None else x
         self._get_kernel().prepare(problem)
-        result = root(
-            self._get_residuals,
-            x[indices],
-            args=(x, p),
-            jac=self._get_jacobian,
-            method=self.method,
-            tol=self.tolerance,
-        )
-        residual = float(np.max(np.abs(self._get_residuals(result.x, x, p))))
-        if not result.success or not residual <= self.tolerance:
+        methods = ('hybr', 'lm') if self.method == 'auto' else (self.method,)
+        for method in methods:
+            result = root(
+                self._get_residuals,
+                x[indices],
+                args=(x, p),
+                jac=self._get_jacobian,
+                method=method,
+                tol=self.tolerance,
+            )
+            residual = float(np.max(np.abs(self._get_residuals(result.x, x, p))))
+            if result.success and residual <= self.tolerance:
+                break
+        else:
             equations = ', '.join(f'{name}: {value} == 0' for name, value in problem.equations.items() if value != 0)
             error_msg = (
                 f'The numerical solve of the equations {equations} did not converge: the largest residual is '

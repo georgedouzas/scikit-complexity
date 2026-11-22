@@ -14,14 +14,13 @@ of infection and recovery exceeds a threshold set by the activities, not by the 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import ActivityDrivenEpidemicsSystem
 
 SYSTEM = 'activity_driven_epidemics'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ActivityDrivenEpidemicsSystem(), observers=[observer], random_state=1)
+trajectory = ActivityDrivenEpidemicsSystem().prepare().simulate(observers=[observer], random_state=1)
 
 # %%
 # Prevalence across the threshold
@@ -30,11 +29,11 @@ trajectory = simulate(ActivityDrivenEpidemicsSystem(), observers=[observer], ran
 # small probabilities and rise beyond a threshold. The edges of every step number about `2 m <a> n`.
 
 edges = np.mean([trajectory.get_network(frame).sources.size for frame in range(1, len(trajectory.times))])
-activity = ActivityDrivenEpidemicsSystem().prepare().system_.elements[0].values['a']
+activity = ActivityDrivenEpidemicsSystem().prepare().system_.elements[0].a
 probabilities = np.linspace(0.05, 0.9, 8)
 prevalence = []
 for lam in probabilities:
-    run = simulate(ActivityDrivenEpidemicsSystem(lam=lam), dt=10.0, random_state=1)
+    run = ActivityDrivenEpidemicsSystem(lam=lam).prepare().simulate(dt=10.0, random_state=1)
     prevalence.append(np.nanmean(run.get_values('hosts.i')[-5:]))
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(probabilities / 0.1, prevalence, 'o-')

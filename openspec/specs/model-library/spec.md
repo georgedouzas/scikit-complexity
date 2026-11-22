@@ -279,7 +279,7 @@ every pair.
 ### Requirement: Systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -630,18 +630,18 @@ the Sierpiński triangle and carpet as polygon substitutions, as system classes 
 simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
 
 #### Scenario: Koch curve
-- **WHEN** `simulate(KochCurveSystem(), until=5)` is called
+- **WHEN** `KochCurveSystem().prepare().simulate(until=5)` is called
 - **THEN** the word at the last frame has 1024 symbols `F`, the curve's total length is `(4/3)^5` within 1e-12, and
   the box-counting dimension of its raster at resolution 2048, over boxes of 16 to 256 cells, is
   `log 4 / log 3 ≈ 1.262` within 0.05
 
 #### Scenario: Cantor set
-- **WHEN** `simulate(CantorSetSystem(), until=8)` is called
+- **WHEN** `CantorSetSystem().prepare().simulate(until=8)` is called
 - **THEN** `trajectory['cantor.size']` is `2^n` at generation `n`, and the total length is `(2/3)^n` within 1e-12 at
   every frame
 
 #### Scenario: Sierpiński carpet
-- **WHEN** `simulate(SierpinskiSubstitutionSystem(shape='carpet'), until=4)` is called
+- **WHEN** `SierpinskiSubstitutionSystem(shape='carpet').prepare().simulate(until=4)` is called
 - **THEN** the patch holds 4096 squares and their area is `(8/9)^4` of the unit square within 1e-12
 
 #### Scenario: Gallery analysis
@@ -652,7 +652,7 @@ simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
 ### Requirement: Rewriting systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -941,7 +941,7 @@ spatial prisoner's dilemma rather than registering it again.
 ### Requirement: Agent economy systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -988,7 +988,7 @@ diffusion, the beer game, and a stock-flow consistent monetary economy as system
 ### Requirement: Stock-flow systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1150,7 +1150,7 @@ with a given correlation, as a system class.
 ### Requirement: Correlated noise systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1174,7 +1174,7 @@ Lorenz as system classes with the order as an argument.
 ### Requirement: Fractional dynamics systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1253,7 +1253,7 @@ transition tables in their system packages and their standard moments declared b
 ### Requirement: Kinetic systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1294,7 +1294,7 @@ the core holds no controller.
 ### Requirement: Optimal control systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1337,7 +1337,7 @@ which shows an analysis plot from its run.
 ### Requirement: Group cellular automaton systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1399,7 +1399,7 @@ networks, coupled logistic maps, Vicsek flocking, and DebtRank interbank contagi
 ### Requirement: Adaptive network systems are recorded in the system inventory
 Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
-system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+system that the library already implements SHALL be rebuilt on the new components under the same name, not registered
 twice.
 
 #### Scenario: Inventory systems registered
@@ -1528,7 +1528,7 @@ system class under discrete time in epochs. It SHALL nest the discrete map
 `TrainingInteraction` on the squared error of predicting the next input, by default on Elman's temporal XOR stream.
 
 #### Scenario: Temporal XOR
-- **WHEN** `simulate(ElmanNetworkSystem(), until=200, random_state=0)` trains 4 hidden units with Adam on a
+- **WHEN** `ElmanNetworkSystem().prepare().simulate(until=200, random_state=0)` trains 4 hidden units with Adam on a
   stream of 3000 bits
 - **THEN** after 200 epochs the metric `xor_error`, the mean squared error of the predictions of every third bit, is
   below 0.05, the metric `random_error` of the predictions of the other bits stays above 0.2, and
@@ -3179,9 +3179,9 @@ in `biology.collective_behaviour`, and the region and holonomy scores in their s
 
 ### Requirement: Ready-made systems use the general system of their shape
 A ready-made system whose structure is that of a general system SHALL subclass it, imported from
-`skcomplex.systems.general`, unless its element class is a part that other systems or users compose, such as an element
-of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move into the
-hooks of the system.
+`skcomplex.systems.general`, unless its element class is a component that other systems or users compose, such as an
+element of a field `common` package. Its own element class SHALL then leave the catalog, and its equations SHALL move
+into the hooks of the system.
 
 #### Scenario: Map of one field
 - **WHEN** a contributor reads `HenonMapSystem` of `mathematics/dynamical_systems`

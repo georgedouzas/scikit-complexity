@@ -3,8 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
+import inspect
 import math
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Self, cast
 
 import numpy as np
@@ -14,19 +16,31 @@ from sage.sets.real_set import RealSet
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...components.systems import CompositeSystem
-from ...errors import ParameterError, SimulationError, ValidationError
-from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, StepSpec, StructureStateSpec
-from ...types import Array, FormKind
+from ...components import EntrySpec, Observable
+from ...components.laws import JumpLaw, NoiseLaw, ObjectiveLaw, RateLaw, UpdateLaw
+from ...enums import FormKind
+from ...errors import CapacityError, ParameterError, SimulationError, SolverError, ValidationError
+from ...types import Array
+from .. import solvers
 from ..backends import BaseBackend
 from ..compile import BaseCompiler
 from ..compile._observables import ObservableEvaluator
 from ..compile._pass_compiler import PassCompiler
-from ..compile._rewriting_compiler import RewritingCompiler
-from ..compile.passes._operator_compiler import OperatorCompiler
-from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
+from ..problems import BaseProblemSpec, FrameSpec, LayoutSpec, ProblemSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._draw_recorder import DrawRecorder
-from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver
+from ..problems._group_element import _GroupElement
+from ..solvers import (
+    BaseSolver,
+    CollocationSolver,
+    CoSimulationSolver,
+    FractionalEulerMaruyamaSolver,
+    MinimizeSolver,
+    RootSolver,
+    StepSpec,
+    StructureStateSpec,
+)
+from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
@@ -35,6 +49,18 @@ from ._recorder import RecorderObserver
 from ._trajectories import Trajectory
 
 DEFAULT_DT = 0.01
+PROBLEMS = (
+    (UpdateLaw, 'a discrete map'),
+    (JumpLaw, 'a jump process'),
+    (NoiseLaw, 'stochastic differential equations'),
+    (ObjectiveLaw, 'a static or optimal control problem'),
+    (RateLaw, 'ordinary differential equations'),
+)
+SOLVERS = tuple(
+    item
+    for item in vars(solvers).values()
+    if isinstance(item, type) and issubclass(item, BaseSolver) and not inspect.isabstract(item)
+)
 MAX_FRAMES = 1000
 FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
@@ -46,14 +72,13 @@ STEPWISE_FORMS = frozenset(
 class Simulation(BaseConfig[None, float]):
     """A simulation of a system with the solver of its form, run frame by frame.
 
-    Each frame advances simulated time by `dt` and is handed to every observer. Parameters change between frames
-    only through the schedule, whose values are checked against the domains of their parameters, and `extend`
-    continues a run from its last frame.
+    `prepare()` checks the system, compiles it, and chooses the solver, and `run(until)` runs from time 0 until a time,
+    such as the frames of times 0, 1, and 2 of a run until 2 with `dt=1.0`. Each frame moves time on by `dt` and is
+    handed to every observer, and parameters change between frames only through the schedule. `extend` goes on from the
+    last frame. `System.simulate` builds one for every run, so it runs the growth of a population, the spread of a fire,
+    and the trades of a market alike.
 
-    A simulation composes the pipeline of the engine and follows its common API: `prepare()` validates the system,
-    compiles it and chooses the solver, and `run(until)` prepares and runs from time 0 until a time. A run
-    prepares the solver for its end time and every observer on the problem before the first frame, runs every observer
-    at every frame, and runs it with `final=True` at the end.
+    Read more in the user guide, under Simulate.
 
     Args:
         system:
@@ -62,9 +87,9 @@ class Simulation(BaseConfig[None, float]):
 
         compiler:
             The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for the
-            compiler of the library's form that the system holds: the operator compiler for a system of operator
-            elements, the rewriting compiler for a system of words or patches, and the pass compiler otherwise. A
-            system package can bring the compiler of a form of its own, which names the solver of its problems.
+            compiler an element of the system names, such as the compiler of the words of a rewriting package, else
+            the operator compiler for a system of operator elements, and the pass compiler otherwise. A system package
+            can bring the compiler of a form of its own, which names the solver of its problems.
 
         solver:
             The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
@@ -149,22 +174,22 @@ class Simulation(BaseConfig[None, float]):
         draw_recorder_:
             The recorder of the draws of a run that records or replays them, or `None`.
 
+    See Also:
+        System: Builds a simulation for every call of `simulate`.
+        run_problem: Runs a system from a problem compiled once.
+
     Examples:
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.runtime._simulations import Simulation
-        >>> system = CompositeSystem(
-        ...     elements=[PopulationElement('rabbits', x=10)],
-        ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-        ... )
-        >>> simulation = Simulation(system, dt=1.0).prepare().run(until=20)
-        >>> round(simulation.trajectory_.get_values('rabbits.x')[-1])
-        100
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> simulation = Simulation(problem, dt=1.0).prepare().run(2.0)
+        >>> simulation.trajectory_.times.tolist()
+        [0.0, 1.0, 2.0]
     """
 
     def __init__(
         self,
-        system: CompositeSystem | BaseProblemSpec,
+        system: _CompositeSystem | BaseProblemSpec,
         *,
         compiler: BaseCompiler | None = None,
         solver: BaseSolver | None = None,
@@ -176,7 +201,7 @@ class Simulation(BaseConfig[None, float]):
         random_state: int | np.random.Generator | None = None,
         checked: bool = False,
         schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
         invariants: Mapping[str, float] | None = None,
         initial_state: Mapping[str, object] | None = None,
         until: float | None = None,
@@ -244,20 +269,19 @@ class Simulation(BaseConfig[None, float]):
                 The system is not a system or a compiled problem, such as a system name, or it cannot be compiled or
                 run, with every problem found.
         """
-        if not isinstance(self.system, CompositeSystem | BaseProblemSpec):
+        if not isinstance(self.system, _CompositeSystem | BaseProblemSpec):
             error_msg = (
                 f'A simulation takes a system or a compiled problem, not {self.system!r}. Create a system of the '
                 'library from its class, such as `SIRSystem()`.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(self.system, BaseProblemSpec):
-            self._get_compiler().prepare(self.system).report_._check()
-        initial = dict(self.initial_state or {})
+        initial = {LayoutSpec._get_internal_name(name): value for name, value in (self.initial_state or {}).items()}
         named: object = None
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._copy_with_initial_state(self.system, initial)
         else:
             compiler = self._get_compiler().prepare(self.system)
+            self._check_report(compiler)
             self.problem_ = compiler.run(initial).problem_
             named = compiler.solver_
         if named is not None and not isinstance(named, BaseSolver):
@@ -289,6 +313,7 @@ class Simulation(BaseConfig[None, float]):
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
+        self._grown: set[str] = set()
         self._frame_parameters: npt.NDArray[np.float64] | None = None
         for observer in self.observers_:
             observer.prepare(self.problem_)
@@ -334,7 +359,7 @@ class Simulation(BaseConfig[None, float]):
         The events since the previous frame go with it.
         """
         external = self.stepper_.snapshot_
-        agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
+        agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentStateSpec) else ({}, {})
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
         reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()
@@ -377,7 +402,7 @@ class Simulation(BaseConfig[None, float]):
                 step = StepSpec(self.time_, self.state_, self.parameters_, target)
                 if self.draw_recorder_ is not None:
                     self.draw_recorder_.run(self._step)
-                self.state_ = self.stepper_.run(step, final=released).state_
+                self.state_ = self._run_stepper(step, released)
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at
@@ -395,10 +420,93 @@ class Simulation(BaseConfig[None, float]):
             for observer in self.observers_:
                 observer.run(final=True)
 
+    def _run_stepper(self, step: StepSpec, final: bool) -> Array:
+        """Run the stepper for one frame and return the state it reaches.
+
+        A group without a `capacity` that fills during the frame grows as a Python list does: the run goes back to the
+        start of the frame, lays its state, parameters, and random stream out again with twice the rows for the group,
+        and runs the frame again from there, so the frames already emitted stay as they are.
+        """
+        if self.problem_.topology is None:
+            return self.stepper_.run(step, final=final).state_
+        parameters, stream = self.parameters_.copy(), self.stepper_.rng_.bit_generator.state
+        try:
+            return self.stepper_.run(step, final=final).state_
+        except CapacityError as error:
+            self.parameters_ = parameters
+            self._grow(error, stream)
+        return self._run_stepper(StepSpec(self.time_, self.state_, self.parameters_, step.until), final)
+
+    def _grow(self, error: CapacityError, stream: Mapping[str, object]) -> None:
+        """Compile the system with twice the rows of a full group and carry the run on.
+
+        The state and parameters of the current time move to the new layout, with the new rows free as unused rows
+        are, and the stepper continues from the same random stream.
+
+        Args:
+            error:
+                The error of the full group, with its path and number of rows.
+
+            stream:
+                The state of the random stream the run continues from.
+
+        Raises:
+            CapacityError:
+                The group has a capacity of its own, so it does not grow.
+        """
+        system = self.problem_.system
+        tree = None if system is None else self._get_grown(PassCompiler()._get_declared_system(system), error)
+        if tree is None:
+            raise error
+        observables = self.observables or tuple(item for path, item in self.problem_.observables if not path)
+        attached = {item.label for item in getattr(tree, 'observables', ())}
+        observables = tuple(item for item in observables if item.label not in attached)
+        compiler = self._get_compiler().set_params(observables=observables).prepare(tree)
+        problem = compiler.run({}).problem_
+        self.state_ = problem.states.get_relaid(self.state_, self.problem_.states, problem.initial_state)
+        self.parameters_ = problem.parameters.get_relaid(
+            self.parameters_,
+            self.problem_.parameters,
+            problem.initial_parameters,
+        )
+        self.problem_ = problem
+        self._adaptive = problem.adaptive_parameters
+        self._frame_parameters = None
+        self.observables_ = ObservableEvaluator(problem).prepare()
+        self.stepper_.prepare(problem)
+        self.stepper_.rng_.bit_generator.state = stream
+        self.stepper_.draw_recorder_ = self.draw_recorder_
+
+    def _get_grown(self, system: _CompositeSystem, error: CapacityError, scope: str = '') -> _CompositeSystem | None:
+        """Return a copy of a system tree whose full group has twice its rows, or `None`.
+
+        A group the user gave a `capacity` keeps it, so the result is `None`, as it is for a group not in the tree.
+        """
+        grown = self._grown
+        for element in system.elements:
+            if f'{scope}{element.label}' != error.path:
+                continue
+            if not isinstance(element, _GroupElement) or (element.capacity is not None and error.path not in grown):
+                return None
+            grown.add(error.path)
+            larger = copy.copy(element).set_params(capacity=max(2 * error.rows, 1))
+            elements = [larger if item is element else item for item in system.elements]
+            return copy.copy(system).set_params(elements=elements)
+        for nested in system.systems:
+            within = f'{scope}{nested.label}/'
+            if isinstance(nested, _CompositeSystem) and error.path.startswith(within):
+                larger_system = self._get_grown(nested, error, within)
+                if larger_system is None:
+                    return None
+                systems = [larger_system if item is nested else item for item in system.systems]
+                return copy.copy(system).set_params(systems=systems)
+        return None
+
     def _apply_schedule(self) -> None:
         """Set every scheduled and adaptive parameter to its value at the current time.
 
-        The value is that of its function.
+        The value is that of its function. A scheduled value of agents, such as `savers.rate`, is set on every agent of
+        its group.
 
         Raises:
             ParameterError:
@@ -415,6 +523,8 @@ class Simulation(BaseConfig[None, float]):
                 self.state_[indices] = self._check_value(name, entry, function(self.time_))
                 continue
             layout = self.problem_.parameters
+            if not layout.has(name) and self.stepper_._set_agent_values(name, function(self.time_)):
+                continue
             try:
                 entry, indices = layout.locate(name)
             except KeyError as error:
@@ -422,7 +532,6 @@ class Simulation(BaseConfig[None, float]):
                 error_msg = f'No parameter named {name!r} to schedule. Available names are: {names}.'
                 raise ParameterError(error_msg) from error
             changes.append((name, indices, self._check_value(name, entry, function(self.time_))))
-        self._check_matrices(changes)
         for _, indices, value in changes:
             self.parameters_[indices] = value
 
@@ -442,39 +551,20 @@ class Simulation(BaseConfig[None, float]):
 
         Its domain and shape are checked first.
         """
-        error_msg = (
+        if entry.contains(value):
+            try:
+                return entry.encode(value)
+            except ValueError as error:
+                raise ValidationError(self._get_value_error(name, entry, value)) from error
+        raise ValidationError(self._get_value_error(name, entry, value))
+
+    def _get_value_error(self, name: str, entry: EntrySpec, value: float | npt.ArrayLike) -> str:
+        """Return the message of a scheduled value that does not fit its entry."""
+        return (
             f'At t = {self.time_}, the schedule sets {name} = {value!r}, which is not a value of shape {entry.shape}, '
             f'or of a shape that broadcasts to it, in the domain {entry.domain}. The given value has shape '
             f'{np.shape(value)}.'
         )
-        if not entry.contains(value):
-            raise ValidationError(error_msg)
-        try:
-            return entry.encode(value)
-        except ValueError as error:
-            raise ValidationError(error_msg) from error
-
-    def _check_matrices(self, changes: list[tuple[str, slice, Array]]) -> None:
-        """Raise an error for scheduled values that break a transition or emission matrix."""
-        problems = (self.problem_, *self._partition_problems(self.problem_))
-        matrices = [matrix for problem in problems for matrix in problem.matrices]
-        if not matrices:
-            return
-        candidate = self.parameters_.copy()
-        positions = np.arange(candidate.size)
-        changed: dict[int, str] = {}
-        for name, indices, value in changes:
-            candidate[indices] = value
-            changed.update(dict.fromkeys(positions[indices].tolist(), name))
-        for matrix in matrices:
-            names = sorted({changed[index] for index in matrix.reads if index in changed})
-            violation = matrix.run(RunStateSpec(self.time_, self.state_, candidate)).values_ if names else None
-            if violation is not None:
-                error_msg = (
-                    f'At t = {self.time_}, the schedule sets {", ".join(names)}, which would make {violation}. '
-                    'Schedule values that keep every entry nonnegative and every row summing to 1.'
-                )
-                raise ParameterError(error_msg)
 
     def _check_prepared(self) -> None:
         """Raise an error when the simulation has not been run."""
@@ -489,14 +579,14 @@ class Simulation(BaseConfig[None, float]):
         """
         if self.compiler is not None:
             compiler = clone(self.compiler)
-        elif isinstance(self.system, CompositeSystem):
+        elif isinstance(self.system, _CompositeSystem):
             compiler = self._get_default_compiler(self.system) or PassCompiler()
         else:
             compiler = PassCompiler()
         return compiler.set_params(backend=self.backend, solver=self.solver, observables=self.observables)
 
     @staticmethod
-    def _get_default_compiler(system: CompositeSystem) -> BaseCompiler | None:
+    def _get_default_compiler(system: _CompositeSystem) -> BaseCompiler | None:
         """Return the compiler of the library's form that a system holds.
 
         It returns `None` for the pass compiler.
@@ -507,21 +597,74 @@ class Simulation(BaseConfig[None, float]):
 
         Returns:
             compiler:
-                The operator compiler for a system of operator elements, the rewriting compiler for a system of words
-                or patches, or `None` for any other system.
+                The compiler an element of the system names, or `None` for any other system.
+
+        Raises:
+            ValidationError:
+                An element names something that is not a compiler.
         """
-        if OperatorCompiler._contains_operator(system):
-            return OperatorCompiler()
-        if RewritingCompiler._is_rewriting(system):
-            return RewritingCompiler()
+        named = Simulation._get_named_compiler(system)
+        if named is not None:
+            if not isinstance(named, BaseCompiler):
+                error_msg = f'An element of {system.label} names {named!r} as its compiler, which is not a compiler.'
+                raise ValidationError(error_msg)
+            return named
         return None
+
+    @staticmethod
+    def _get_named_compiler(system: _CompositeSystem) -> object:
+        """Return the compiler the first element of a system tree names, or `None`.
+
+        The children of a system with elements of its own are not searched, so a nested system of words beside them is
+        compiled by the pass compiler as a partition of its own.
+        """
+        for element in system.elements:
+            named = element._get_compiler()
+            if named is not None:
+                return named
+        for child in [] if system.elements else system.systems:
+            if isinstance(child, _CompositeSystem):
+                named = Simulation._get_named_compiler(child)
+                if named is not None:
+                    return named
+        return None
+
+    def _check_report(self, compiler: BaseCompiler) -> None:
+        """Raise the issues of the system, naming the solvers that support it."""
+        try:
+            compiler.report_._check()
+        except SolverError as error:
+            advice = self._get_solver_advice(compiler)
+            raise SolverError(f'{error} {advice}'.strip()) from error
+
+    @staticmethod
+    def _supports(solver: type[BaseSolver], needs: Mapping[str, Iterable[object]]) -> bool:
+        """Return whether a solver class supports every need of a system."""
+        try:
+            support = BaseCompiler._support_of(solver)
+        except NotImplementedError:
+            return False
+        return not any(support.get_missing(category, terms) for category, terms in needs.items())
+
+    def _get_solver_advice(self, compiler: BaseCompiler) -> str:
+        """Return the problem the laws of the system make and the solvers that support it."""
+        census = getattr(getattr(compiler, 'compilation_', None), 'census', None)
+        if census is None or not isinstance(self.system, _CompositeSystem):
+            return ''
+        needs = PassCompiler._get_needs(census, self.system)
+        laws = [item for item in needs['laws'] if isinstance(item, type)]
+        problem = next((name for law, name in PROBLEMS if any(issubclass(item, law) for item in laws)), 'a problem')
+        supported = [solver.__name__ for solver in SOLVERS if self._supports(solver, needs)]
+        if not supported:
+            return f'The laws make {problem}, which no solver of the library supports.'
+        return f'The laws make {problem}, which {", ".join(supported)} support.'
 
     def _get_default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
         """Return the default solver of the form of a problem.
 
-        A problem that runs as partitions takes `CoSimulationSolver`, and a stochastic problem driven by fractional
+        A problem that runs as partitions takes `CoSimulationSolver`, a stochastic problem driven by fractional
         noise takes `FractionalEulerMaruyamaSolver`, which draws the correlated increments that the default
-        `EulerMaruyamaSolver` does not.
+        `EulerMaruyamaSolver` does not, and a problem whose objective law steers controls takes `CollocationSolver`.
 
         Args:
             problem:
@@ -536,13 +679,17 @@ class Simulation(BaseConfig[None, float]):
                 The form of the problem has no default solver.
         """
         form = problem.form
-        if not isinstance(form, FormKind):
+        if not isinstance(form, FormKind) or (form not in DEFAULT_SOLVERS and form != FormKind.COUPLED):
             error_msg = f'The {form} form has no default solver. Give a solver, or a compiler that names one.'
             raise ValidationError(error_msg)
         if form == FormKind.COUPLED:
             return CoSimulationSolver()
         if form == FormKind.SDE and isinstance(problem, ProblemSpec) and problem.fractional:
             return FractionalEulerMaruyamaSolver()
+        if form == FormKind.STATIC and isinstance(problem, ProblemSpec) and problem.objective is not None:
+            return MinimizeSolver()
+        if form == FormKind.ODE and isinstance(problem, ProblemSpec) and problem.terminal is not None:
+            return CollocationSolver()
         return DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:
@@ -598,7 +745,8 @@ class Simulation(BaseConfig[None, float]):
         if end is None:
             error_msg = 'A simulation runs until a time. Pass it to `run`, such as `run(until=10)`.'
             raise ValidationError(error_msg)
-        until = 0.0 if self.problem_.form == FormKind.STATIC else float(end)
+        once = self.problem_.form == FormKind.STATIC and isinstance(self.stepper_, MinimizeSolver | RootSolver)
+        until = 0.0 if once else float(end)
         self._start(until)
         self._advance_frames(until)
 
@@ -620,22 +768,6 @@ class Simulation(BaseConfig[None, float]):
         Raises:
             SimulationError:
                 The simulation has not run, ended at a terminal event, or `until` is not later than its time.
-
-        Examples:
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.systems.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-            >>> from skcomplex.core.engine.runtime._simulations import Simulation
-            >>> system = CompositeSystem(
-            ...     elements=[PopulationElement('rabbits', x=10)],
-            ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
-            ... )
-            >>> schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
-            >>> simulation = Simulation(system, dt=1.0, schedule=schedule).prepare().run(until=5)
-            >>> trajectory = simulation.extend(until=10).trajectory_
-            >>> trajectory.times.tolist()
-            [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-            >>> bool(trajectory.get_values('rabbits.x')[5] == trajectory.get_values('rabbits.x')[10])
-            True
         """
         self._check_prepared()
         if not hasattr(self, 'time_'):

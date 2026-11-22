@@ -6,12 +6,73 @@ A finite set of observables makes a quadratic flow with a slow manifold linear.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
 
-from ...general.dynamics import DynamicalSystem
-from ...general.dynamics.types import Equations
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class KoopmanSlowManifoldSystem(DynamicalSystem):
+class KoopmanSlowManifoldInteraction(Interaction):
+    """The laws of the quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The element whose states `x1` and `x2` the flow moves.
+
+        mu:
+            The slow eigenvalue.
+
+        lam:
+            The fast eigenvalue.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import KoopmanSlowManifoldInteraction
+        >>> KoopmanSlowManifoldInteraction('koopman_slow_manifold', target='flow', mu=0.5).mu
+        0.5
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'flow',
+        mu: float = -0.05,
+        lam: float = -1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.mu = mu
+        self.lam = lam
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every state as the laws.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        x1, x2 = context.target.x1, context.target.x2
+        mu, lam = context.mu, context.lam
+        self.laws_: list[BaseLaw] = [
+            RateLaw(x1, mu * x1),
+            RateLaw(x2, lam * (x2 - x1**2)),
+        ]
+
+
+class KoopmanSlowManifoldSystem(BaseSystem):
     """The quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)`.
 
     The flow has a slow manifold and a linear embedding.
@@ -38,9 +99,15 @@ class KoopmanSlowManifoldSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.mathematics.dynamical_systems import KoopmanSlowManifoldSystem
-        >>> KoopmanSlowManifoldSystem(lam=-2.0).prepare().system_.elements[0].get_value('lam')
+        >>> KoopmanSlowManifoldSystem(lam=-2.0).prepare().system_.interactions[0].lam
         -2.0
     """
 
@@ -58,34 +125,22 @@ class KoopmanSlowManifoldSystem(DynamicalSystem):
         mu: float = -0.05,
         lam: float = -1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x1 = x1
         self.x2 = x2
         self.mu = mu
         self.lam = lam
 
-    def _get_element_label(self) -> str:
-        """Return the label of the element that holds the states."""
-        return 'flow'
-
-    def _get_states(self) -> dict[str, object]:
-        """Return the initial value of every state."""
-        return {
-            'x1': self.x1,
-            'x2': self.x2,
-        }
-
-    def _get_parameters(self) -> dict[str, object]:
-        """Return the parameters of the equations."""
-        return {
-            'mu': self.mu,
-            'lam': self.lam,
-        }
-
-    def _get_equations(self) -> Equations:
-        """Return the rates of the slow and the fast coordinate."""
-        return {
-            'x1': lambda s: s.target.mu * s.target.x1,
-            'x2': lambda s: s.target.lam * (s.target.x2 - s.target.x1**2),
-        }
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the flow and its laws."""
+        super()._prepare(context)
+        self.system_ = System(
+            self.label,
+            elements=[Element('flow', values={'x1': self.x1, 'x2': self.x2})],
+            interactions=[
+                KoopmanSlowManifoldInteraction('koopman_slow_manifold', target='flow', mu=self.mu, lam=self.lam),
+            ],
+        )

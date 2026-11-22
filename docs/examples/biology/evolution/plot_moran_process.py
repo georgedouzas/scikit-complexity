@@ -13,19 +13,16 @@ population and fixes, with the probability Moran computed.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import MoranProcessSystem
 
 SYSTEM = 'moran_process'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    MoranProcessSystem(size=50, mutants=10, selection=0.2),
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    until=40,
+trajectory = (
+    MoranProcessSystem(size=50, mutants=10, selection=0.2)
+    .prepare()
+    .simulate(dt=1, observers=[observer], random_state=0, until=40)
 )
 
 # %%
@@ -46,7 +43,9 @@ rng = np.random.default_rng(1)
 size, selection, runs = 20, 0.5, 60
 fixed = 0
 for _ in range(runs):
-    trajectory = simulate(MoranProcessSystem(size=size, selection=selection), until=150, dt=1, random_state=rng)
+    trajectory = (
+        MoranProcessSystem(size=size, selection=selection).prepare().simulate(until=150, dt=1, random_state=rng)
+    )
     fixed += mutants_of(trajectory)[-1] == size
 r = 1 + selection
 fig, (sweep, probability) = plt.subplots(1, 2, figsize=(11, 4))

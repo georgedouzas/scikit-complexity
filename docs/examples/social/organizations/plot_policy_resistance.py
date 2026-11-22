@@ -13,14 +13,13 @@ while the efforts escalate.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.organizations import PolicyResistanceSystem
 
 SYSTEM = 'policy_resistance'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(PolicyResistanceSystem(), observers=[observer])
+trajectory = PolicyResistanceSystem().prepare().simulate(observers=[observer])
 
 # %%
 # A standoff, and what happens when one actor lets up
@@ -29,7 +28,7 @@ trajectory = simulate(PolicyResistanceSystem(), observers=[observer])
 # actors grow without bound in opposite directions. When enforcement lets up, its strength set to zero, the others
 # should drag the stock to 65, the mean of their goals.
 
-let_up = simulate(PolicyResistanceSystem(strengths=(0.1, 0.0, 0.1)))
+let_up = PolicyResistanceSystem(strengths=(0.1, 0.0, 0.1)).prepare().simulate()
 fig, (stock, efforts) = plt.subplots(1, 2, figsize=(10, 4))
 stock.plot(trajectory.times, trajectory.get_values('standoff.stock'), label='all actors pull')
 stock.plot(let_up.times, let_up.get_values('standoff.stock'), label='enforcement lets up')

@@ -4,15 +4,16 @@
 # License: MIT
 
 
+from typing import ClassVar
+
 import numpy as np
 import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ...specs import AgentSnapshotSpec
-from ..problems import BaseProblemSpec
+from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import GRID_RADIUS, NODE_SPACING, UPWARD, BaseVisual
 
 PATH_COLOR = (86, 180, 233)
@@ -23,21 +24,15 @@ THREE_DIMENSIONS = 3
 
 
 class AgentsVisual(BaseVisual):
-    """A visual that logs the agents of a group as one batch per frame.
+    """A visual that draws the agents of a group as coloured points, once per frame.
 
-    The agents are colored by a state. Agents on a grid or in a continuous space of two dimensions are logged as
-    `Points2D` at their cell centres or positions, agents in a continuous space of three dimensions as `Points3D` at
-    their positions, and agents on a network as `GraphNodes` at their nodes, which keep the `pos` attributes of the
-    nodes, or the positions of a seeded spring layout of the network. On a grid the radius is in cells, and on a network
-    a fraction of the spacing of neighbouring nodes. Without a given radius, agents in a continuous space take a share
-    of the side of the space, smaller for larger groups. Agents in a continuous space of two dimensions are logged with
-    their second coordinate negated, so the view, bounded by the space, draws them with the vertical axis up. Every
-    layer of regions of the space is logged once as static `LineStrips2D` under `<path>/regions/<layer>`, under the
-    points of the agents. Every point carries the agent id as a hidden label, so agents keep their identity across
-    frames and removed agents disappear. Agents whose position is a state are logged at that state: positions of one
-    coordinate, such as cars on a road, as one thin series of one color per agent under `<path>/<position>`, so their
-    time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with the
-    vertical axis up.
+    It draws every agent at its cell, position, or network node, coloured by one of its values, such as
+    `AgentsVisual(color_by='opinion')`. Points in a plane are drawn with the vertical axis up, the regions of a map
+    are drawn once beneath them, and every point keeps the id of its agent, so agents keep their identity and removed
+    agents vanish. Agents with one position value, such as cars on a road, are drawn as one line per agent over time.
+    It shows the opinions of voters on a network, the wealth of traders on a grid, and the cars along a road.
+
+    Read more in the user guide, under Observe.
 
     Args:
         color_by:
@@ -65,11 +60,17 @@ class AgentsVisual(BaseVisual):
         span_:
             The range of the colored values logged so far, or `None`.
 
+    See Also:
+        PointsVisual: Draws a group of members with a position value as points.
+        HistogramVisual: Draws the spread of the values of agents as histograms.
+
     Examples:
         >>> from skcomplex.core.engine.viz import AgentsVisual
         >>> AgentsVisual(color_by='opinion').color_by
         'opinion'
     """
+
+    numeric_options: ClassVar[tuple[str, ...]] = ('color_range', 'radius')
 
     def __init__(
         self,
@@ -222,7 +223,11 @@ class AgentsVisual(BaseVisual):
         )
         return rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds)
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the view of the agents.
 
         It is a graph view of the whole network, or a 2D or 3D spatial view for agents in a space, or none without one.
@@ -240,14 +245,13 @@ class AgentsVisual(BaseVisual):
                 position state.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import AgentsVisual
             >>> from skcomplex.systems.social.opinion_dynamics import VoterSystem
-            >>> problem = simulate(VoterSystem(), until=0).problem
+            >>> problem = VoterSystem().prepare().simulate(until=0).problem
             >>> type(AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]).__name__
             'GraphView'
         """
-        if self.position is not None and isinstance(element, CompiledAgentsSpec):
+        if self.position is not None and isinstance(element, _CompiledAgentsSpec):
             if np.ndim(np.asarray(element.values[self.position])) < POSITION_RANK:
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]

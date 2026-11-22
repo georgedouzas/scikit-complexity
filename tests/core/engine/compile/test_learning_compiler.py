@@ -3,16 +3,16 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components import Observable
 from skcomplex.core.components.interactions import TrainingInteraction
-from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.laws import DatasetSpec
 from skcomplex.core.engine.backends import JaxBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._learning_problem_spec import LearningProblemSpec
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import DatasetSpec, ObservableSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
+from skcomplex.systems.computer_science.neural_networks._elman import TRAINED
 
 from ....conftest import CallableGrowthInteraction, HoldingElement
 
@@ -58,16 +58,17 @@ def test_untrained_parameter_path():
     assert 'readout.W' in issues[0].message
 
 
-def test_parameter_not_adaptive():
-    """Test that a trained parameter that is not adaptive asks to declare it adaptive."""
-    issues = _issues(_elman(trained=['inputs.x']))
-    assert [issue.code for issue in issues] == ['learning-not-adaptive']
-    assert 'ParameterSpec(adaptive=True)' in issues[0].fix
+def test_the_named_parameters_are_trained_with_no_marker():
+    """Test that the weights and biases the training names are adaptive states, though nothing declares them so."""
+    compiler = PassCompiler().prepare(_elman())
+    assert compiler.report_.ok
+    assert set(TRAINED) <= set(compiler.learning_.inner_.states.names)
+    assert 'inputs.x' in compiler.learning_.inner_.parameters.names
 
 
 def test_unknown_loss():
     """Test that a loss that reads a variable the nested system does not have names the loss and the variable."""
-    loss = ObservableSpec('error', group='outputs', reduce='sum', expression=_squared)
+    loss = Observable('error', group='outputs', reduce='sum', expression=_squared)
     issues = _issues(_elman(loss=loss))
     assert [issue.code for issue in issues] == ['learning-unknown-observable']
     assert 'error' in issues[0].message
@@ -90,15 +91,15 @@ def test_shape_mismatch(values):
 
 def test_not_differentiable():
     """Test that a nested system holding a law given as a Python callable cannot be differentiated."""
-    net = CompositeSystem(
+    net = System(
         'net',
-        elements=[GroupElement('cells', element=HoldingElement, size=2)],
+        elements=[HoldingElement('cells', size=2)],
         interactions=[CallableGrowthInteraction('growth', target='cells')],
     )
     data = DatasetSpec({'growth.r': np.zeros((2, 3))})
-    loss = ObservableSpec('size', group='cells', reduce='sum', variable='n')
+    loss = Observable('size', group='cells', reduce='sum', variable='n')
     training = TrainingInteraction('training', system='net', trained=['growth.r'], loss=loss, data=data)
-    issues = _issues(CompositeSystem('fit', systems=[net], interactions=[training], time=DiscreteTime()))
+    issues = _issues(System('fit', systems=[net], interactions=[training]))
     assert [issue.code for issue in issues] == ['learning-not-differentiable']
     assert 'discrete map or ordinary differential equations' in issues[0].message
 
@@ -110,11 +111,9 @@ def test_unsupported_solver():
     assert 'GradientDescentSolver' in issues[0].message
 
 
-def test_training_needs_discrete_time():
-    """Test that a system that trains in continuous time is reported."""
-    system = _elman()
-    system.set_params(time=ContinuousTime())
-    assert 'law-time' in _codes(system)
+def test_training_steps_once_per_epoch_without_a_time():
+    """Test that a system that trains and declares no time steps once per epoch, with no issue."""
+    assert _codes(_elman()) == []
 
 
 def test_training_runs_on_the_jax_backend():

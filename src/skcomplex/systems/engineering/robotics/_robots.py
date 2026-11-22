@@ -7,40 +7,39 @@ They react to light and to each other.
 # License: MIT
 
 import math
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, Expression, cos, exp, oo, sin, sqrt
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
-from ....core.components.laws.utils import delayed, where
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, Period, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.components.laws.utils import where
+from ....core.components.spaces import BaseSpace, ContinuousSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 EDGE_FRACTION = 1e-9
 BEACON_MARGIN = 5.0
 
 
 class LightSensitiveRobotElement(Element):
-    """Robot in a Gaussian light field that slows down in light.
+    """Robot at the position `x`, `y` that moves in the direction `phi`.
 
-    It reacts to the light it measured a delay ago. The robot moves at the speed
-    `v = V_inf + (V0 - V_inf) exp(-I(t - delay))` in the direction `phi`, which diffuses with time scale `tau`,
-    `dphi = sqrt(2 / tau) dW`. The light is `I(x, y) = I0 exp(-(x^2 + y^2) / r0^2)`, and a wall at radius `R` reflects
-    the robot back into a circular well.
+    `LightSensitivityInteraction` sets its speed from the light it measures.
 
     Args:
         label:
             The label of the robot or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         x:
             The initial horizontal position.
@@ -50,6 +49,49 @@ class LightSensitiveRobotElement(Element):
 
         phi:
             The initial direction of motion.
+
+        size:
+            The number of robots, or `None` for one.
+
+        space:
+            The plane, a continuous space whose axes `x` and `y` make the position of a robot its place, or `None`.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.robotics import LightSensitiveRobotElement
+        >>> LightSensitiveRobotElement('robot', phi=1.0).phi
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = 0.0,
+        y: object = 0.0,
+        phi: Annotated[object, Period(2 * math.pi)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, size=size, space=space)
+        self.x = x
+        self.y = y
+        self.phi = phi
+
+
+class LightSensitivityInteraction(Interaction):
+    """Motion of a robot in a Gaussian light field that slows down in light.
+
+    It reacts to the light it measured a delay ago. The robot moves at the speed
+    `v = V_inf + (V0 - V_inf) exp(-I(t - delay))` in the direction `phi`, which diffuses with time scale `tau`,
+    `dphi = sqrt(2 / tau) dW`. The light is `I(x, y) = I0 exp(-(x^2 + y^2) / r0^2)`, and a wall at radius `R` reflects
+    the robot back into a circular well.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the robot or the group of robots.
 
         V0:
             The speed in the dark.
@@ -73,33 +115,28 @@ class LightSensitiveRobotElement(Element):
             The sensory delay, 0 for a robot that reacts to the light it measures now.
 
     Examples:
-        >>> from skcomplex.systems.engineering.robotics import LightSensitiveRobotElement
-        >>> LightSensitiveRobotElement('robot', delay=5.0).delay
+        >>> from skcomplex.systems.engineering.robotics import LightSensitivityInteraction
+        >>> LightSensitivityInteraction('light', target='robots', delay=5.0).delay
         5.0
     """
 
-    law_classes = (RateLaw, NoiseLaw, BoundaryLaw)
+    law_classes = (RateLaw, NoiseLaw, UpdateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(role='position')] = 0.0,
-        y: Annotated[float, StateSpec(role='position')] = 0.0,
-        phi: Annotated[float, StateSpec(role='direction')] = 0.0,
-        V0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        V_inf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        I0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        target: Role,
+        V0: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        V_inf: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        I0: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        r0: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        R: Annotated[float, RealSet.open(0, oo)] = 2.0,
         delay: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.phi = phi
+        super().__init__(label)
+        self.target = target
         self.V0 = V0
         self.V_inf = V_inf
         self.I0 = I0
@@ -108,32 +145,29 @@ class LightSensitiveRobotElement(Element):
         self.R = R
         self.delay = delay
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion at the light-dependent speed.
-
-        It includes the rotational noise and the reflecting wall.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the motion at the light-dependent speed, the rotational noise, and the reflecting wall.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the robots, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s, t = context, context.t
+        x, y, phi = s.target.x, s.target.y, s.target.phi
         sensed = (
-            LightSensitiveRobotElement._get_light(s, delayed(s.x, self.delay), delayed(s.y, self.delay))
+            LightSensitivityInteraction._get_light(s, x(t=t - self.delay), y(t=t - self.delay))
             if self.delay
-            else LightSensitiveRobotElement._get_light(s, s.x, s.y)
+            else LightSensitivityInteraction._get_light(s, x, y)
         )
         speed = s.V_inf + (s.V0 - s.V_inf) * exp(-sensed)
-        reach = where(sqrt(s.x**2 + s.y**2) > s.R, sqrt(s.x**2 + s.y**2), s.R)
-        return [
-            RateLaw(s.x, speed * cos(s.phi)),
-            RateLaw(s.y, speed * sin(s.phi)),
-            NoiseLaw(s.phi, sqrt(2 / s.tau)),
-            BoundaryLaw(s.x, s.x * s.R / reach),
-            BoundaryLaw(s.y, s.y * s.R / reach),
+        reach = where(sqrt(x**2 + y**2) > s.R, sqrt(x**2 + y**2), s.R)
+        self.laws_: list[BaseLaw] = [
+            RateLaw(x.diff(t), speed * cos(phi)),
+            RateLaw(y.diff(t), speed * sin(phi)),
+            NoiseLaw(phi, sqrt(2 / s.tau)),
+            UpdateLaw(x, x * s.R / reach),
+            UpdateLaw(y, y * s.R / reach),
         ]
 
     @staticmethod
@@ -142,7 +176,7 @@ class LightSensitiveRobotElement(Element):
         return s.I0 * exp(-(x**2 + y**2) / s.r0**2)
 
 
-class SwarmRobotView(AgentView):
+class SwarmRobotView(AgentViewProtocol, Protocol):
     """View of a robot of the swarmtaxis algorithm.
 
     Its states and parameters are attributes.
@@ -165,20 +199,11 @@ class SwarmRobotView(AgentView):
 class SwarmRobotElement(Element):
     """Robot of the swarmtaxis algorithm.
 
-    It keeps in radio contact with the swarm and avoids its neighbours. Every step the robot counts the robots within
-    its radio range. When it loses a connection and has fewer than `alpha` connections, it turns around to stay with the
-    swarm, and when it gains one it turns at random. A robot closer than its avoidance radius to another turns away from
-    it. A robot is shadowed when another robot lies between it and the beacon, within the radio range and `shadow_angle`
-    of the bearing to the beacon, and it is illuminated otherwise. Illuminated robots avoid at a larger radius than
-    shadowed ones, so they move away from the swarm towards the beacon, and the swarm follows. The robot then moves
-    forward at its speed.
+    It keeps in radio contact with the swarm and avoids its neighbours, by the rule of `SwarmtaxisInteraction`.
 
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         heading:
             The direction of motion.
@@ -216,36 +241,44 @@ class SwarmRobotElement(Element):
         arena:
             The side of the square arena, whose walls stop the robot.
 
+        values:
+            Further values by name, such as the position `x` and `y` of every robot.
+
+        size:
+            The number of robots, or `None` for one.
+
+        space:
+            The arena, a continuous space whose axes `x` and `y` place the robots, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.engineering.robotics import SwarmRobotElement
-        >>> GroupElement('robots', element=SwarmRobotElement, size=2, location=[(1.0, 1.0), (2.0, 1.0)]).size
+        >>> SwarmRobotElement('robots', values={'x': [1.0, 2.0], 'y': 1.0}, size=2).size
         2
     """
 
-    draws = True
-
-    law_classes = (RuleLaw,)
+    visual = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)}),
         *,
-        heading: Annotated[float, StateSpec(role='direction')] = 0.0,
-        connections: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        illuminated: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        radio_range: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        avoid_illuminated: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        avoid_shadowed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        shadow_angle: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        beacon_x: Annotated[float, ParameterSpec()] = 95.0,
-        beacon_y: Annotated[float, ParameterSpec()] = 50.0,
-        arena: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        heading: Annotated[object, Period(2 * math.pi)] = 0.0,
+        connections: Annotated[float, NN] = 0.0,
+        illuminated: Annotated[float, FiniteEnumeratedSet([0, 1])] = 1.0,
+        speed: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        radio_range: Annotated[float, RealSet.open(0, oo)] = 4.0,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
+        avoid_illuminated: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        avoid_shadowed: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        shadow_angle: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        beacon_x: float = 95.0,
+        beacon_y: float = 50.0,
+        arena: Annotated[float, RealSet.open(0, oo)] = 100.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.heading = heading
         self.connections = connections
         self.illuminated = illuminated
@@ -259,23 +292,57 @@ class SwarmRobotElement(Element):
         self.beacon_y = beacon_y
         self.arena = arena
 
-    @classmethod
-    def _get_view(cls) -> type[SwarmRobotView]:
-        """Return the view of the robots.
 
-        It types their states and parameters.
+class SwarmtaxisInteraction(Interaction):
+    """Rule of the swarmtaxis algorithm, which moves a swarm of robots towards a beacon.
+
+    Every step a robot counts the robots within its radio range. When it loses a connection and has fewer than `alpha`
+    connections, it turns around to stay with the swarm, and when it gains one it turns at random. A robot closer than
+    its avoidance radius to another turns away from it. A robot is shadowed when another robot lies between it and the
+    beacon, within the radio range and `shadow_angle` of the bearing to the beacon, and it is illuminated otherwise.
+    Illuminated robots avoid at a larger radius than shadowed ones, so they move away from the swarm towards the beacon,
+    and the swarm follows. The robot then moves forward at its speed.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of robots.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.robotics import SwarmtaxisInteraction
+        >>> SwarmtaxisInteraction('swarmtaxis', target='robots').target
+        'robots'
+    """
+
+    draws = True
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the swarmtaxis rule of every robot.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return SwarmRobotView
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.move)]
 
-    def _is_shadowed(self, agent: SwarmRobotView, neighbors: list[AgentView]) -> bool:
+    def _is_shadowed(self, agent: SwarmRobotView, neighbors: Sequence[AgentViewProtocol]) -> bool:
         """Return whether a neighbour lies in the cone from the robot towards the beacon."""
-        x, y = SwarmRobotElement._get_position(agent)
-        bearing = SwarmRobotElement._get_bearing(agent.beacon_x - x, agent.beacon_y - y)
+        x, y = SwarmtaxisInteraction._get_position(agent)
+        bearing = SwarmtaxisInteraction._get_bearing(agent.beacon_x - x, agent.beacon_y - y)
         return any(
-            SwarmRobotElement._get_angle_between(
-                SwarmRobotElement._get_bearing(
-                    SwarmRobotElement._get_position(other)[0] - x,
-                    SwarmRobotElement._get_position(other)[1] - y,
+            SwarmtaxisInteraction._get_angle_between(
+                SwarmtaxisInteraction._get_bearing(
+                    SwarmtaxisInteraction._get_position(other)[0] - x,
+                    SwarmtaxisInteraction._get_position(other)[1] - y,
                 ),
                 bearing,
             )
@@ -294,38 +361,28 @@ class SwarmRobotElement(Element):
             return float(system.rng.uniform(0.0, 2 * math.pi))
         return agent.heading
 
-    def _avoid(self, agent: SwarmRobotView, neighbors: list[AgentView], heading: float) -> float:
+    def _avoid(self, agent: SwarmRobotView, neighbors: Sequence[AgentViewProtocol], heading: float) -> float:
         """Return the heading away from the nearest neighbour inside the avoidance radius.
 
         Without such a neighbour the heading is unchanged.
         """
-        x, y = SwarmRobotElement._get_position(agent)
+        x, y = SwarmtaxisInteraction._get_position(agent)
         radius = agent.avoid_illuminated if agent.illuminated else agent.avoid_shadowed
         distances = [
-            math.hypot(SwarmRobotElement._get_position(other)[0] - x, SwarmRobotElement._get_position(other)[1] - y)
+            math.hypot(
+                SwarmtaxisInteraction._get_position(other)[0] - x,
+                SwarmtaxisInteraction._get_position(other)[1] - y,
+            )
             for other in neighbors
         ]
         close = [(distance, other) for distance, other in zip(distances, neighbors, strict=True) if distance < radius]
         if not close:
             return heading
         _, nearest = min(close, key=lambda pair: pair[0])
-        return SwarmRobotElement._get_bearing(
-            x - SwarmRobotElement._get_position(nearest)[0],
-            y - SwarmRobotElement._get_position(nearest)[1],
+        return SwarmtaxisInteraction._get_bearing(
+            x - SwarmtaxisInteraction._get_position(nearest)[0],
+            y - SwarmtaxisInteraction._get_position(nearest)[1],
         )
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the swarmtaxis rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.move)]
 
     def move(self, agent: SwarmRobotView, system: SystemView) -> None:
         """Update the connections, the shadow, and the heading, and move forward.
@@ -343,14 +400,14 @@ class SwarmRobotElement(Element):
         heading = self._avoid(agent, neighbors, self._turn(agent, system, count))
         agent.connections = count
         agent.heading = heading % (2 * math.pi)
-        x, y = SwarmRobotElement._get_position(agent)
+        x, y = SwarmtaxisInteraction._get_position(agent)
         edge = agent.arena * (1 - EDGE_FRACTION)
         x = min(max(x + agent.speed * math.cos(heading), 0.0), edge)
         y = min(max(y + agent.speed * math.sin(heading), 0.0), edge)
         agent.move_to((x, y))
 
     @staticmethod
-    def _get_position(agent: AgentView) -> tuple[float, float]:
+    def _get_position(agent: AgentViewProtocol) -> tuple[float, float]:
         """Return the position of an agent in a continuous space."""
         x, y = np.asarray(agent.location, dtype=float)
         return float(x), float(y)
@@ -406,9 +463,15 @@ class LightSeekingRobotsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem
-        >>> LightSeekingRobotsSystem(4).prepare().system_.elements[0].prepare().size_
+        >>> LightSeekingRobotsSystem(4).prepare().system_.elements[0].size
         4
     """
 
@@ -430,8 +493,10 @@ class LightSeekingRobotsSystem(BaseSystem):
         tau: float = 1.0,
         R: float = 2.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_robots = n_robots
         self.delay = delay
         self.V0 = V0
@@ -441,27 +506,30 @@ class LightSeekingRobotsSystem(BaseSystem):
         self.tau = tau
         self.R = R
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         headings = np.linspace(0.0, 2 * np.pi, self.n_robots, endpoint=False)
-        robots = GroupElement(
+        robots = LightSensitiveRobotElement(
             'robots',
-            element=LightSensitiveRobotElement,
+            x=np.zeros(self.n_robots),
+            y=np.zeros(self.n_robots),
+            phi=headings,
             size=self.n_robots,
-            values={
-                'x': np.zeros(self.n_robots),
-                'y': np.zeros(self.n_robots),
-                'phi': headings,
-                'V0': self.V0,
-                'V_inf': self.V_inf,
-                'I0': self.I0,
-                'r0': self.r0,
-                'tau': self.tau,
-                'R': self.R,
-                'delay': self.delay,
-            },
+            space=ContinuousSpace(n_dim=2),
         )
-        return CompositeSystem(self.label, elements=[robots])
+        light = LightSensitivityInteraction(
+            'light',
+            target='robots',
+            V0=self.V0,
+            V_inf=self.V_inf,
+            I0=self.I0,
+            r0=self.r0,
+            tau=self.tau,
+            R=self.R,
+            delay=self.delay,
+        )
+        self.system_ = System(self.label, elements=[robots], interactions=[light])
 
 
 class SwarmtaxisSystem(BaseSystem):
@@ -501,9 +569,15 @@ class SwarmtaxisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.robotics import SwarmtaxisSystem
-        >>> SwarmtaxisSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> SwarmtaxisSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -524,8 +598,10 @@ class SwarmtaxisSystem(BaseSystem):
         avoid_shadowed: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_robots = n_robots
         self.size = size
         self.spread = spread
@@ -535,26 +611,31 @@ class SwarmtaxisSystem(BaseSystem):
         self.avoid_shadowed = avoid_shadowed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         start = np.array([self.size / 5, self.size / 2])
         points = np.clip(start + rng.normal(0.0, self.spread, (self.n_robots, 2)), 0.0, self.size)
-        robots = GroupElement(
+        arena = ContinuousSpace(extent=(self.size, self.size))
+        robots = SwarmRobotElement(
             'robots',
-            element=SwarmRobotElement,
+            heading=rng.uniform(0.0, 2 * np.pi, self.n_robots),
+            speed=self.speed,
+            radio_range=self.radio_range,
+            alpha=float(self.n_robots),
+            avoid_illuminated=self.avoid_illuminated,
+            avoid_shadowed=self.avoid_shadowed,
+            beacon_x=self.size - BEACON_MARGIN,
+            beacon_y=self.size / 2,
+            arena=self.size,
+            values={'x': points[:, 0], 'y': points[:, 1]},
             size=self.n_robots,
-            values={
-                'heading': rng.uniform(0.0, 2 * np.pi, self.n_robots),
-                'speed': self.speed,
-                'radio_range': self.radio_range,
-                'alpha': float(self.n_robots),
-                'avoid_illuminated': self.avoid_illuminated,
-                'avoid_shadowed': self.avoid_shadowed,
-                'beacon_x': self.size - BEACON_MARGIN,
-                'beacon_y': self.size / 2,
-                'arena': self.size,
-            },
-            location=[tuple(map(float, point)) for point in points],
+            space=arena,
         )
-        return CompositeSystem(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))
+        self.system_ = System(
+            self.label,
+            elements=[robots],
+            interactions=[SwarmtaxisInteraction('swarmtaxis', target='robots')],
+            space=arena,
+        )

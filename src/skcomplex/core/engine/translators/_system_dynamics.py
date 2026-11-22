@@ -22,42 +22,35 @@ from pysd.translators.xmile.xmile_file import XmileFile
 
 from ...base import BaseConfig
 from ...components.elements import Element
-from ...components.systems import BaseSystem
 from ...errors import ValidationError
-from ...specs import RunSettingsSpec
 from ._expressions import INTERPOLATED, _ExpressionWriter
 from ._module_writer import _ModuleWriter
-from ._system_parts_spec import _SystemPartsSpec
+from ._run_settings_spec import RunSettingsSpec
+from ._system_variables_spec import _SystemVariablesSpec
 
 VENSIM_SUFFIX = '.mdl'
 XMILE_SUFFIXES = ('.xmile', '.xml', '.stmx')
 MAIN_SECTION = 'main'
 CONTROL_NAMES = ('initial_time', 'final_time', 'time_step', 'saveper')
+SYSTEM_NAMES = ('prepare', 'simulate', 'system_', 'until', 'dt', 'solver', 'backend', 'observables', 'schedule')
 RESERVED_NAMES = frozenset(
-    {'t', 'time', 'member', 'label', 'visual', *CONTROL_NAMES, *dir(Element), *dir(BaseSystem)},
+    {'t', 'time', 'member', 'label', 'visual', *CONTROL_NAMES, *dir(Element), *SYSTEM_NAMES},
 )
 
 
 class SystemDynamicsTranslator(BaseConfig[None, None]):
     """A translator of a Vensim or XMILE file into the source of a system module.
 
-    The module is a system module of the library, with one private function per auxiliary and lookup, the constants
-    `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class named after the element in CamelCase with the suffix
-    `System`. The system class takes the constants as keyword arguments, with the values of the file as defaults, and
-    holds as tuned run settings `until`, the length of the run, `dt`, the saving interval of the file, and
-    `observables`, one per auxiliary and per goal-seeking stock.
+    It reads a stock and flow model saved by Vensim or Stella and writes the Python source of a system module that
+    builds the same model, with the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY` and one system class named after
+    the model, such as `GrowthSystem` for `growth.mdl`. The system class takes the constants of the file as keyword
+    arguments, with the values of the file as defaults. A model whose stocks change only through flows becomes a
+    subclass of `StockFlowSystem`, and any other model becomes an element of the stocks and constants with one
+    interaction per flow and per remaining rate. A model whose stocks all run over one subscript range becomes an
+    element with one member per subscript. It brings population models, supply chains, and epidemic models of other
+    tools into the library.
 
-    A file whose stocks are not subscripted and change only through flow variables becomes a subclass of
-    `StockFlowSystem`, imported in the source from `skcomplex.systems.general.dynamics`, which returns the initial
-    stocks from `_get_stocks`, the constants from `_get_parameters`, and the flows from `_get_flows`. A flow variable of
-    two stocks flows from one to the other, and a flow variable of one stock with the environment.
-
-    Any other file becomes one element class, whose states are the stocks and whose parameters are the constants of
-    the file, and a system class on `BaseSystem` that builds the `CompositeSystem` of its element and its interactions
-    in `_build_system`. A flow variable becomes a `TransferInteraction`, with `Source()` or `Sink()` for the
-    environment, and what remains of the rate of a stock a `RateInteraction`, with the rate `(goal - stock) / time` for
-    a goal-seeking stock. A system whose stocks are all subscripted over one range becomes a `GroupElement` with one
-    member per subscript.
+    Read more in the user guide, under Systems.
 
     Args:
         path:
@@ -68,7 +61,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     Attributes:
         system_:
-            The abstract system PySD reads from the file.
+            The model PySD reads from the file.
 
         source_:
             The Python source of the system module.
@@ -79,30 +72,19 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
     Raises:
         ValidationError:
             The path names no file of a known format, or the name is not an identifier, raised by `prepare`. The file
-            has constructs without a counterpart, or names that clash, all of them listed, raised by `run`.
+            uses features without a counterpart, or names that clash, all of them listed, raised by `run`.
+
+    See Also:
+        RunSettingsSpec: The run settings of the file.
+        StockFlowSystem: The base of the translated stock and flow models.
 
     Examples:
-        >>> import tempfile
-        >>> from pathlib import Path
+        >>> import pathlib, tempfile
         >>> from skcomplex.core.engine.translators import SystemDynamicsTranslator
-        >>> text = '''
-        ... Stock = INTEG(Inflow, 1) ~ ~ |
-        ... Inflow = 2 * Stock ~ ~ |
-        ... INITIAL TIME = 0 ~ ~ |
-        ... FINAL TIME = 4 ~ ~ |
-        ... TIME STEP = 0.25 ~ ~ |
-        ... SAVEPER = 1 ~ ~ |
-        ... '''
-        >>> with tempfile.TemporaryDirectory() as folder:
-        ...     path = Path(folder) / 'growth.mdl'
-        ...     _ = path.write_text(text)
-        ...     translator = SystemDynamicsTranslator(path).prepare().run()
-        >>> translator.settings_.until
-        4.0
-        >>> 'class GrowthSystem(StockFlowSystem):' in translator.source_
+        >>> path = pathlib.Path(tempfile.mkdtemp()) / 'growth.mdl'
+        >>> _ = path.write_text('Stock=INTEG(2*Stock,1)~~|INITIAL TIME=0~~|FINAL TIME=4~~|TIME STEP=1~~|SAVEPER=1~~|')
+        >>> 'class GrowthSystem' in SystemDynamicsTranslator(path).prepare().run().source_
         True
-        >>> 'class GrowthElement(Element):' in translator.source_
-        False
     """
 
     def __init__(self, path: str | Path, *, name: str | None = None) -> None:
@@ -132,7 +114,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             error_msg = f'The file {path} does not exist. Give the path of a system file.'
             raise ValidationError(error_msg)
         if self.name is not None and not self.name.isidentifier():
-            error_msg = f'The name {self.name!r} is not an identifier. Give a snake-case name, or None.'
+            error_msg = (
+                f'The name {self.name!r} is not an identifier. Give a name of lower case letters, digits, and '
+                "underscores, such as 'population', or None."
+            )
             raise ValidationError(error_msg)
         path = Path(self.path)
         reader = VensimFile(path) if path.suffix.lower() == VENSIM_SUFFIX else XmileFile(path)
@@ -199,7 +184,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         elif ast.type != INTERPOLATED:
             problems.append(f'{element.name}: a lookup of the type {ast.type}')
         else:
-            lookups[_SystemPartsSpec.get_name(element.name)] = ast
+            lookups[_SystemVariablesSpec.get_name(element.name)] = ast
 
     @staticmethod
     def _read_stock(element: AbstractElement, stocks: dict[str, IntegStructure], problems: list[str]) -> None:
@@ -207,9 +192,9 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         if len(element.components) > 1:
             problems.append(f'{element.name}: a stock defined apart for every subscript')
         else:
-            stocks[_SystemPartsSpec.get_name(element.name)] = element.components[0].ast
+            stocks[_SystemVariablesSpec.get_name(element.name)] = element.components[0].ast
 
-    def _read_parts(self, problems: list[str]) -> _SystemPartsSpec:
+    def _read_variables(self, problems: list[str]) -> _SystemVariablesSpec:
         """Return the variables of the main section sorted by what they become.
 
         It collects what cannot become any.
@@ -227,7 +212,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         auxiliaries: dict[str, Sequence[AbstractComponent]] = {}
         lookups: dict[str, LookupsStructure] = {}
         for element in elements:
-            name = _SystemPartsSpec.get_name(element.name)
+            name = _SystemVariablesSpec.get_name(element.name)
             constant = self._read_constant(element, members)
             if isinstance(element.components[0], AbstractLookup):
                 self._read_lookup(element, lookups, problems)
@@ -237,10 +222,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 constants[name] = constant
             else:
                 auxiliaries[name] = element.components
-        return _SystemPartsSpec(
-            originals={_SystemPartsSpec.get_name(element.name): element.name for element in elements},
+        return _SystemVariablesSpec(
+            originals={_SystemVariablesSpec.get_name(element.name): element.name for element in elements},
             controls={
-                _SystemPartsSpec.get_name(item.name): item.components[0].ast
+                _SystemVariablesSpec.get_name(item.name): item.components[0].ast
                 for item in main.elements
                 if isinstance(item, AbstractControlElement)
             },
@@ -253,7 +238,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             range_name=range_name,
         )
 
-    def _check_subscripts(self, parts: _SystemPartsSpec, problems: list[str]) -> None:
+    def _check_subscripts(self, variables: _SystemVariablesSpec, problems: list[str]) -> None:
         """Collect the variables subscripted over another range than that of the stocks.
 
         This includes variables subscripted over more than one range.
@@ -264,35 +249,40 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                     subscripts = component.subscripts[0]
                     if len(subscripts) > 1:
                         problems.append(f'{element.name}: a variable subscripted over more than one range')
-                    elif subscripts and parts.get_covered(component) is None:
+                    elif subscripts and variables.get_covered(component) is None:
                         problems.append(f'{element.name}: a variable subscripted over {subscripts[0]}')
 
-    def _check_names(self, parts: _SystemPartsSpec, label: str, problems: list[str]) -> None:
+    def _check_names(self, variables: _SystemVariablesSpec, label: str, problems: list[str]) -> None:
         """Collect the names that collide, clash with the module, or are no identifiers."""
         seen: dict[str, list[str]] = {}
         for section in self.system_.sections:
             for element in section.elements:
                 if not isinstance(element, AbstractControlElement):
-                    seen.setdefault(_SystemPartsSpec.get_name(element.name), []).append(element.name)
+                    seen.setdefault(_SystemVariablesSpec.get_name(element.name), []).append(element.name)
         for name, originals in seen.items():
             if len(originals) > 1:
-                problems.append(f'{" and ".join(originals)}: names that share the snake-case name {name}')
+                problems.append(f'{" and ".join(originals)}: names that both become {name} in Python')
             if name in RESERVED_NAMES or not name.isidentifier() or keyword.iskeyword(name):
                 problems.append(f'{originals[0]}: a name that clashes with the system module as {name}')
-        if label in parts.auxiliaries:
-            problems.append(f'{parts.originals[label]}: a name that clashes with the element. Give `name` to rename it')
+        if label in variables.auxiliaries:
+            original = variables.originals[label]
+            problems.append(f'{original}: a name that clashes with the element. Give `name` to rename it')
         if not label.isidentifier() or keyword.iskeyword(label):
             problems.append(f'{self.path}: a file that names the element {label!r}. Give `name` to rename it')
 
     @staticmethod
-    def _read_settings(parts: _SystemPartsSpec, expressions: _ExpressionWriter, problems: list[str]) -> RunSettingsSpec:
+    def _read_settings(
+        variables: _SystemVariablesSpec,
+        expressions: _ExpressionWriter,
+        problems: list[str],
+    ) -> RunSettingsSpec:
         """Return the run settings of the control section.
 
         Its length runs from its start.
         """
         values = {}
         for name in CONTROL_NAMES:
-            value = expressions.evaluate(parts.controls[name], 0)
+            value = expressions.evaluate(variables.controls[name], 0)
             if value is None:
                 problems.append(f'{name}: a control value not known before a run')
             values[name] = 0.0 if value is None else value
@@ -313,17 +303,20 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 The file has constructs without a counterpart, or names that clash, all of them listed.
         """
         problems: list[str] = []
-        parts = self._read_parts(problems)
+        variables = self._read_variables(problems)
         stem = Path(self.path).stem
-        label = self.name or _SystemPartsSpec.get_name(stem)
-        self._check_subscripts(parts, problems)
-        self._check_names(parts, label, problems)
-        expressions = _ExpressionWriter(parts, problems, set())
-        settings = self._read_settings(parts, expressions, problems)
-        source = _ModuleWriter(parts, settings, label, stem, expressions).write()
+        label = self.name or _SystemVariablesSpec.get_name(stem)
+        self._check_subscripts(variables, problems)
+        self._check_names(variables, label, problems)
+        expressions = _ExpressionWriter(variables, problems, set())
+        settings = self._read_settings(variables, expressions, problems)
+        source = _ModuleWriter(variables, settings, label, stem, expressions).write()
         if problems:
             listed = '\n'.join(f'- {problem}' for problem in dict.fromkeys(problems))
-            error_msg = f'The file {self.path} has constructs that do not translate:\n{listed}'
+            error_msg = (
+                f'The file {self.path} uses features that the library has no counterpart for, so it cannot be '
+                f'translated:\n{listed}'
+            )
             raise ValidationError(error_msg)
         settings._check()
         self.settings_ = settings

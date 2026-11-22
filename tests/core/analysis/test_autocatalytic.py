@@ -6,13 +6,13 @@ import pytest
 
 from skcomplex.core.analysis import autocatalytic_sets
 from skcomplex.core.analysis._autocatalytic import _closure
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.interactions import TopologyInteraction
-from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import TopologyRequestSpec, UpdateLaw
+from skcomplex.core.components.spaces import NetworkSpace
+from skcomplex.core.engine.problems import NetworkSnapshotSpec
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import NetworkSnapshotSpec
+from skcomplex.core.systems import System
 
 REACTIONS = np.array([[0, 1, 2, -1], [2, 0, 3, -1], [3, 1, 2, 4], [5, 6, -1, -1]])
 
@@ -49,20 +49,14 @@ def test_food_set_can_be_given():
 
 def test_reads_the_frames_of_a_trajectory_and_rejects_other_sources():
     """Test that the analysis reads chosen frames of a growing hypergraph, and rejects a graph."""
-    nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=30)
-    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=900)
-    groups = GroupElement('functions', element=Element, on='hyperedges', variable=True, size=0, capacity=30, rank=3)
-    growth = TopologyInteraction(
-        'growth',
-        action='add-node',
-        hyperedge=3,
-        independent=True,
-        direction='both',
-        toward=lambda node: 0.5,
-    )
     space = NetworkSpace(nx.empty_graph(3, create_using=nx.DiGraph))
-    system = CompositeSystem(elements=[nodes, links, groups], interactions=[growth], space=space, time=DiscreteTime())
-    trajectory = simulate(system, until=20, random_state=0)
+    nodes = Element('nodes', space=space)
+    links = Element('links', space=space, on='edges')
+    groups = Element('functions', space=space, on='hyperedges')
+    request = TopologyRequestSpec('add-node', hyperedge=3, independent=True, direction='both', toward=lambda node: 0.5)
+    growth = Interaction('growth', laws=[UpdateLaw(request, 1)])
+    system = System(elements=[nodes, links, groups], interactions=[growth])
+    trajectory = system.prepare().simulate(until=20, random_state=0)
     analysis = autocatalytic_sets(trajectory, frames=[0, -1])
     assert analysis.sizes[0] == 0
     assert analysis.sizes[1] > 10

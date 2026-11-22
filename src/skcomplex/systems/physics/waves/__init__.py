@@ -4,15 +4,31 @@ The package covers strings, chains of springs, quantum wave packets, and abelian
 """
 
 from ..common.fields import WilsonSamplingInteraction
-from ._charged import ChargedSchrodingerSystem, ChargedWaveFunctionElement
-from ._gauge_fields import GaugeLinkElement, LatticeGaugeFieldsSystem, MaxwellLinkElement, StaticChargeElement
+from ._charged import ChargedSchrodingerSystem, ChargedWaveFunctionElement, MinimalCouplingInteraction
+from ._gauge_fields import (
+    GaugeLinkElement,
+    LatticeGaugeFieldsSystem,
+    MaxwellInteraction,
+    MaxwellLinkElement,
+    StaticChargeElement,
+)
 from ._quantum import (
     LatticeHamiltonianInteraction,
     PositionDephasingInteraction,
+    SchrodingerInteraction,
     SchrodingerSystem,
     WaveFunctionElement,
 )
-from ._strings import DrivenAnchorInteraction, SpringChainSystem, StandingWavesSystem, WaveStringElement
+from ._strings import (
+    DrivenAnchorInteraction,
+    HarmonicPotentialInteraction,
+    PotentialEnergyInteraction,
+    SpringChainSystem,
+    SpringInteraction,
+    StandingWavesSystem,
+    WaveStringElement,
+    WaveTensionInteraction,
+)
 from ._yang_mills import (
     ColorLinkElement,
     GaugeObservablesResult,
@@ -28,18 +44,25 @@ __all__: list[str] = [
     'DrivenAnchorInteraction',
     'GaugeLinkElement',
     'GaugeObservablesResult',
+    'HarmonicPotentialInteraction',
     'IsospinLinkElement',
     'LatticeGaugeFieldsSystem',
     'LatticeHamiltonianInteraction',
     'LatticeYangMillsSystem',
+    'MaxwellInteraction',
     'MaxwellLinkElement',
+    'MinimalCouplingInteraction',
     'PositionDephasingInteraction',
+    'PotentialEnergyInteraction',
+    'SchrodingerInteraction',
     'SchrodingerSystem',
     'SpringChainSystem',
+    'SpringInteraction',
     'StandingWavesSystem',
     'StaticChargeElement',
     'WaveFunctionElement',
     'WaveStringElement',
+    'WaveTensionInteraction',
     'WilsonSamplingInteraction',
     'gauge_observables',
 ]

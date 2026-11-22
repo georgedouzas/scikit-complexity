@@ -3,23 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import MapInteraction, RateInteraction, TransferInteraction
-from ....core.components.laws import Source
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw, UpdateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 TRAIL = 'land/ground.V'
@@ -39,9 +42,6 @@ class GroundElement(Element):
         label:
             The label of the ground or the lattice field.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         G:
             The initial ground structure.
 
@@ -57,6 +57,9 @@ class GroundElement(Element):
         tau:
             The relaxation time of the trail potential.
 
+        space:
+            The lattice whose cells hold the ground, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import GroundElement
         >>> GroundElement('ground').T
@@ -66,15 +69,15 @@ class GroundElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        G: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        V: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        T: Annotated[float, RealSet.open(0, oo)] = 200.0,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.G = G
         self.V = V
         self.T = T
@@ -82,10 +85,11 @@ class GroundElement(Element):
         self.tau = tau
 
 
-class WalkerView(AgentView):
+@runtime_checkable
+class WalkerView(AgentViewProtocol, Protocol):
     """View of a walker, with its states and parameters as attributes.
 
-    `WalkerElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `WalkerElement` read them with checked types.
     """
 
     goal_x: float
@@ -115,9 +119,6 @@ class WalkerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         goal_x:
             The column of the goal.
 
@@ -145,29 +146,41 @@ class WalkerElement(Element):
         height:
             The number of rows of the grid.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the walkers, or `None`.
+
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The grid the walkers walk on, whose axes `x` and `y` place them, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.collective_behaviour import WalkerElement
-        >>> GroupElement('walkers', element=WalkerElement, size=4, location=(0, 0)).size
+        >>> WalkerElement('walkers', size=4).size
         4
     """
+
+    visual = VisualSpec('agents', {'color_by': 'goal_x'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'goal_x'}),
         *,
-        goal_x: Annotated[float, StateSpec()] = 0.0,
-        goal_y: Annotated[float, StateSpec()] = 0.0,
-        arrived: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        directedness: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        G_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
-        height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        goal_x: float | Array = 0.0,
+        goal_y: float | Array = 0.0,
+        arrived: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 0.0,
+        directedness: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        attraction: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        intensity: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        G_max: Annotated[float, RealSet.open(0, oo)] = 5.0,
+        width: Annotated[float, RealSet.open(0, oo)] = 30.0,
+        height: Annotated[float, RealSet.open(0, oo)] = 30.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.goal_x = goal_x
         self.goal_y = goal_y
         self.arrived = arrived
@@ -177,11 +190,6 @@ class WalkerElement(Element):
         self.G_max = G_max
         self.width = width
         self.height = height
-
-    @classmethod
-    def _get_view(cls) -> type[WalkerView]:
-        """Return the view of a walker, `WalkerView`."""
-        return WalkerView
 
 
 class ActiveWalkersSystem(BaseSystem):
@@ -212,6 +220,12 @@ class ActiveWalkersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import ActiveWalkersSystem
         >>> [child.label for child in ActiveWalkersSystem().prepare().system_.systems]
@@ -233,8 +247,10 @@ class ActiveWalkersSystem(BaseSystem):
         T: float = 200.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.n_walkers = n_walkers
         self.attraction = attraction
@@ -306,6 +322,11 @@ class ActiveWalkersSystem(BaseSystem):
         """Return whether a walker stands at its goal at the end of its activation."""
         return float(self._has_arrived(walker, system))
 
+    def _arrive(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Mark whether a walker stands at its goal at the end of its activation."""
+        if isinstance(walker, WalkerView):
+            walker.arrived = self._get_arrived(walker, system)
+
     @staticmethod
     def _get_step(walker: AgentViewProtocol, system: SystemViewProtocol) -> object:
         """Return a neighbouring cell drawn with a weight growing with its alignment.
@@ -346,62 +367,64 @@ class ActiveWalkersSystem(BaseSystem):
         """
         if not isinstance(walker, WalkerView):
             return 0.0
-        return walker.intensity * (1 - system.get_field('target.G', cell) / walker.G_max)
+        return walker.intensity * (1 - system.get_field('ground.G', cell) / walker.G_max)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _deposit_footprint(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Leave the footprint of a walker that stepped on the ground of its cell."""
+        cell = walker.location_key
+        if not walker.alive or not self._has_stepped(walker, cell, system):
+            return
+        system.deposit('ground.G', cell, self._get_footprint(walker, cell, system))
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set active walkers who wear a system of trails into a green.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         corners = self._get_corners(self.size, self.size)
         starts = rng.integers(len(corners), size=self.n_walkers)
         goals = [corners[(start + 1 + int(rng.integers(len(corners) - 1))) % len(corners)] for start in starts]
-        walkers = GroupElement(
+        grid = LatticeSpace((self.size, self.size), boundary='fixed')
+        walkers = WalkerElement(
             'walkers',
-            element=WalkerElement,
+            goal_x=np.array([float(goal[0]) for goal in goals]),
+            goal_y=np.array([float(goal[1]) for goal in goals]),
+            attraction=self.attraction,
+            width=float(self.size),
+            height=float(self.size),
+            values={'x': [corners[start][0] for start in starts], 'y': [corners[start][1] for start in starts]},
             size=self.n_walkers,
-            values={
-                'goal_x': np.array([float(goal[0]) for goal in goals]),
-                'goal_y': np.array([float(goal[1]) for goal in goals]),
-                'attraction': self.attraction,
-                'width': float(self.size),
-                'height': float(self.size),
-            },
-            location=[corners[start] for start in starts],
+            space=grid,
         )
-        ground = FieldElement(
-            'ground',
-            element=GroundElement,
-            space=LatticeSpace((self.size, self.size), boundary='reflecting'),
-            values={'T': self.T},
-        )
-        return CompositeSystem(
+        ground = GroundElement('ground', T=self.T, space=LatticeSpace((self.size, self.size), boundary='reflecting'))
+        self.system_ = System(
             self.label,
             systems=[
-                CompositeSystem(
-                    'people',
-                    elements=[walkers],
-                    space=LatticeSpace((self.size, self.size), boundary='fixed'),
-                ),
-                CompositeSystem(
+                System('people', elements=[walkers], space=grid),
+                System(
                     'land',
                     elements=[ground],
                     interactions=[
-                        RateInteraction(
+                        Interaction(
                             'fading',
-                            target='ground',
-                            state='G',
-                            rate=lambda s: -s.target.G / self._get_durability(s),
+                            roles={'target': 'ground'},
+                            laws=lambda s: [RateLaw(s.target.G, -s.target.G / self._get_durability(s))],
                         ),
-                        RateInteraction(
+                        Interaction(
                             'spreading',
-                            target='ground',
-                            state='V',
-                            rate=lambda s: self._get_diffusion(s) * laplacian(s.target.V),
+                            roles={'target': 'ground'},
+                            laws=lambda s: [RateLaw(s.target.V, self._get_diffusion(s) * laplacian(s.target.V))],
                         ),
-                        RateInteraction(
+                        Interaction(
                             'smoothing',
-                            target='ground',
-                            state='V',
-                            rate=lambda s: (self._get_structure(s) - s.target.V) / self._get_relaxation(s),
+                            roles={'target': 'ground'},
+                            laws=lambda s: [
+                                RateLaw(s.target.V, (self._get_structure(s) - s.target.V) / self._get_relaxation(s)),
+                            ],
                         ),
                     ],
                 ),
@@ -414,17 +437,10 @@ class ActiveWalkersSystem(BaseSystem):
                     condition=self._walks,
                     schedule='member',
                 ),
-                TransferInteraction(
+                Interaction(
                     'footprints',
-                    source='people/walkers',
-                    target='land/ground',
-                    state=Source(),
-                    into='G',
-                    amount=self._get_footprint,
-                    pairing='site',
-                    guard=self._has_stepped,
-                    form='agent',
-                    schedule='member',
+                    roles={'target': 'people/walkers', 'ground': 'land/ground'},
+                    laws=lambda s: [UpdateLaw(s.target, self._deposit_footprint)],
                 ),
                 BirthDeathInteraction(
                     'renewal',
@@ -434,13 +450,10 @@ class ActiveWalkersSystem(BaseSystem):
                     values=self._get_goal,
                     schedule='member',
                 ),
-                MapInteraction(
+                Interaction(
                     'arrival',
-                    target='people/walkers',
-                    state='arrived',
-                    function=self._get_arrived,
-                    form='agent',
-                    schedule='member',
+                    roles={'target': 'people/walkers'},
+                    laws=lambda s: [UpdateLaw(s.target, self._arrive)],
                 ),
             ],
         )

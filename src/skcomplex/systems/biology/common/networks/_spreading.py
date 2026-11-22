@@ -11,18 +11,19 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
+from sage.symbolic.expression import Expression
 
-from .....core.components.interactions import TransitionInteraction
+from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, JumpLaw
 from .....core.components.laws.utils import neighbors, where
 from .....core.components.spaces import AdjacencyNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec, Tags
+from .....core.types import Role
 
 FORMS = ('number', 'fraction')
 
 
-class SpreadingInteraction(TransitionInteraction):
+class SpreadingInteraction(Interaction):
     """Spreading of the active value of a discrete state to neighbours.
 
     The neighbours are along the edges of a network or the bonds of a lattice.
@@ -30,11 +31,11 @@ class SpreadingInteraction(TransitionInteraction):
     An inactive member becomes active at the rate `beta` times the number of its active neighbours, or times their
     fraction of its neighbours. An active member recovers at the rate `gamma`, to the inactive value, or to the removed
     value when there is one, and a removed member returns to the inactive value at the rate `omega`. Every move is a
-    transition at a rate, so the state changes by random events in continuous time.
+    jump at a rate, so the state changes by random events in continuous time.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the nodes or sites.
@@ -81,26 +82,24 @@ class SpreadingInteraction(TransitionInteraction):
 
     law_classes = (JumpLaw,)
 
-    def _get_tags(self) -> Tags:
-        """Return the tags of the jumps at a rate, the only laws of the interaction."""
-        return self._get_variant_tags(self.law_classes)
-
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'state',
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         inactive: float = 0.0,
         active: float = 1.0,
         removed: float | None = None,
         form: str = 'number',
         layer: str | None = None,
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.beta = beta
         self.gamma = gamma
         self.omega = omega
@@ -110,13 +109,14 @@ class SpreadingInteraction(TransitionInteraction):
         self.form = form
         self.layer = layer
 
-    def _check_transition(self) -> None:
-        """Raise an error for an unknown form or values of the state that are not distinct.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The form is unknown, or the values of the state are not distinct.
         """
+        super()._check_arguments()
         if self.form not in FORMS:
             error_msg = f'The form of spreading is {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
@@ -127,31 +127,31 @@ class SpreadingInteraction(TransitionInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spreading, the recovery, and the return of every member.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the spreading, the recovery, and the return of every member.
 
         The spreading comes from the active neighbours.
 
         Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target`.
-
-        Returns:
-            laws:
-                The jumps of the state.
+            context:
+                The namespace of the group, with `context.target`.
         """
-        member = self._get_member(namespace, 'target')
+        super()._prepare(context)
+        member = context.target
         value = getattr(member, self.state)
         over = None if self.layer is None else AdjacencyNeighborhood(layer=self.layer)
         reduce = 'mean' if self.form == 'fraction' else 'sum'
         held = neighbors(where(getattr(member.other, self.state) == self.active, 1, 0), over=over, reduce=reduce)
         recovered = self.inactive if self.removed is None else self.removed
         laws: list[BaseLaw] = [
-            self._get_jump(value, self.inactive, self.active, self._get_parameter_symbol('beta', namespace) * held),
-            self._get_jump(value, self.active, recovered, self._get_parameter_symbol('gamma', namespace)),
+            self._get_jump(value, self.inactive, self.active, context.beta * held),
+            self._get_jump(value, self.active, recovered, context.gamma),
         ]
         if self.removed is not None:
-            laws.append(
-                self._get_jump(value, self.removed, self.inactive, self._get_parameter_symbol('omega', namespace)),
-            )
-        return laws
+            laws.append(self._get_jump(value, self.removed, self.inactive, context.omega))
+        self.laws_ = laws
+
+    @staticmethod
+    def _get_jump(value: Expression, source: float, destination: float, rate: Expression) -> JumpLaw:
+        """Return the jump of the state from a source value to the destination at a rate."""
+        return JumpLaw(rate * where(value == source, 1, 0), {value: destination - source})

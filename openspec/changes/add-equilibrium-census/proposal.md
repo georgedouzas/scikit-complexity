@@ -17,7 +17,9 @@ number of unstable directions, counted over many realizations of the quenched di
   annealed count), and the exponential of the mean of `log(1 + n)` (the typical, or quenched, count), with both
   complexities per unit.
 - The census reads the numeric drift and Jacobian of the compiled problem, not the symbolic equations, so it has no
-  member limit and accepts callable laws.
+  member limit and accepts callable laws. For laws with learned functions of `add-learning-foundation` it takes the
+  exact Jacobian by automatic differentiation of their JAX lowering, so systems identified from data are censused like
+  hand-written ones.
 - The numeric fallback of the kind `'fixed-points'` uses the same deflated search, so it no longer misses roots that
   share a basin of the Newton iteration.
 - New system `RandomForceFieldRelaxationSystem` in `physics/statistical_mechanics`: units that relax to zero under a
@@ -38,6 +40,8 @@ number of unstable directions, counted over many realizations of the quenched di
 
 - Code: `src/skcomplex/core/analysis/_stability.py` (new kind, `StabilityResult` fields, deflated root search that
   replaces `_numeric_points`). A new module in `src/skcomplex/systems/physics/statistical_mechanics/`.
+- Depends on `add-learning-foundation` for the census of systems with learned laws. The rest of the change does not
+  need it, and its tasks on learned laws wait for it.
 - No new dependencies. SciPy gives `optimize.root` and `differentiate.jacobian`. NumPy draws the realizations.
 - Docs: the stability section of the analysis guide, a gallery example, and an inventory entry.
 - Not breaking. The kind `'fixed-points'` keeps its results where Sage solves the equations, and its numeric fallback

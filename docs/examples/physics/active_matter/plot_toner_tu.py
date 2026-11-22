@@ -16,7 +16,6 @@ shows the density of a 64 x 64 periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.active_matter import TonerTuSystem
@@ -26,7 +25,9 @@ SYSTEM = 'toner_tu'
 system = TonerTuSystem(shape=(64, 64), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.02)
-trajectory = simulate(system, until=30, solver=solver, dt=0.25, observers=[observer], random_state=0)
+trajectory = (
+    system.set_params(solver=solver).prepare().simulate(until=30, dt=0.25, observers=[observer], random_state=0)
+)
 
 # %%
 # The flocking transition
@@ -39,7 +40,7 @@ densities = np.linspace(0.2, 2.0, 10)
 speeds = []
 for density in densities:
     system_d = TonerTuSystem(shape=(16, 16), rho0=density, random_state=1)
-    run = simulate(system_d, until=60, solver=solver, dt=1.0, random_state=1)
+    run = system_d.set_params(solver=solver).prepare().simulate(until=60, dt=1.0, random_state=1)
     velocity = np.stack([run.get_values('flock.vx')[-10:], run.get_values('flock.vy')[-10:]], axis=-1)
     speeds.append(np.linalg.norm(velocity.mean(axis=1), axis=-1).mean())
 grid = np.linspace(0.2, 2.0, 300)

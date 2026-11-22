@@ -4,9 +4,9 @@ This page evolves a density over position and over classes such as velocity or o
 equation does. Particles stream through position at their velocity, forces push them through velocity, and collisions
 redistribute them over velocity at a fixed position.
 
-A phase space is a lattice whose axes are the position axes followed by the class axes. A
-[`FieldElement`](../core_components/elements.md#fieldelement) holds one value per point of it, and its laws are written
-for one point, like those of any field.
+A phase space is a lattice whose axes are the position axes followed by the class axes. An
+[`Element`](../core_components/elements.md#element) with `space=` holds one value per point of it, and its laws are
+written for one point, like those of any field.
 
 No existing library covers this case. `py-pde` stops at three dimensions and has no class axes, `pylbm` and `lbmpy`
 hold a few discrete velocities, Dedalus is GPL with no wheels, and Struphy is specific to plasmas. No maintained Python
@@ -19,58 +19,53 @@ This section builds a phase space from a position lattice and a velocity axis an
 A [`PhaseSpace`](../core_components/spaces.md#phasespace) takes a position
 [`LatticeSpace`](../core_components/spaces.md#latticespace) and a list of class axes. Each class axis is an `AxisSpec`
 with a name, a number of cells, and the two ends of its interval. The gas starts as a Maxwell distribution in velocity
-with a density that varies as a sine in position, and a
-[`ConservationInteraction`](../core_components/interactions.md#conservationinteraction) moves it along the flux
-`v f` in position.
+with a density that varies as a sine in position. The position lattice uses finite volumes, and the interaction
+`stream` moves the gas along the flux `v f` in position with the rate law `RateLaw(f, -divergence(flux))`.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import ConservationInteraction
-from skcomplex.core.components.laws.utils import coordinate
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import coordinate, divergence
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class DensityElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
+def stream(s):
+    f = s.target.x
+    return [RateLaw(f, -divergence([coordinate('v') * f, 0]))]
 
 
-space = PhaseSpace(LatticeSpace((32,), spacing=2 * np.pi / 32), [AxisSpec('v', 64, -6.0, 6.0)]).prepare()
+position = LatticeSpace((32,), spacing=2 * np.pi / 32, discretization='finite-volume')
+space = PhaseSpace(position, [AxisSpec('v', 64, -6.0, 6.0)]).prepare()
 x, v = np.arange(32) * 2 * np.pi / 32, space.coordinates_['v']
 start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
-gas = FieldElement('gas', element=DensityElement, space=space, values={'x': start}, discretization='finite-volume')
-stream = ConservationInteraction('stream', target='gas', state='x', flux=lambda s: [coordinate('v') * s.target.x, 0])
-system = CompositeSystem(elements=[gas], interactions=[stream])
-final = simulate(system, until=0.5, dt=0.1, solver=RK4Solver(dt=0.01)).get_values('gas.x')[-1]
+gas = Element('gas', values={'x': start}, space=space)
+streaming = Interaction('stream', roles={'target': 'gas'}, laws=stream)
+system = System(elements=[gas], interactions=[streaming], solver=RK4Solver(dt=0.01))
+final = system.prepare().simulate(until=0.5, dt=0.1).get_values('gas.x')[-1]
 abs(final.sum() / start.sum() - 1.0) < 1e-12
 ```
 
 The block returns `True`. The total mass after half a time unit differs from the initial mass by less than one part in
 a trillion, so streaming conserves it to round-off.
 
-The element `DensityElement` is a subclass of [`Element`](../core_components/elements.md#element) with one state `x`,
-and the system is a [`CompositeSystem`](../core_components/systems.md#compositesystem). The parts of the space follow
-these rules.
+The element `gas` is an [`Element`](../core_components/elements.md#element) with one value `x` per point, and the
+system is a [`System`](../core_components/systems.md#system). The parts of the space follow these rules.
 
 - `PhaseSpace(position, axes, limit=2**26)` places the position axes first, and they keep the boundary of the lattice.
 - An interval axis lets no flux through its ends. An axis built with `periodic=True`, such as an angle, joins them.
-- `simulate` rejects a space above its limit with the issue `space-size`, which names the size it would take.
+- `prepare` rejects a space above its limit with the issue `space-size`, which names the size it would take.
 
 The function `coordinate(name)` returns the coordinate, along a named axis, of the point a law updates. Streaming is
 the drift `[coordinate('v'), 0]`, and acceleration by a force `F` is the drift `[0, F]`. A law that reads a coordinate
-of a group whose space lacks that axis fails `simulate` with the issue `law-space`.
+of a group whose space lacks that axis fails `prepare` with the issue `law-space`.
 
-Finite-volume fields stream on a phase space, and so do finite-difference and spectral fields built with
-`riemann=None`. Spectral derivatives need the axis to be periodic.
+Finite-volume, finite-difference, and spectral fields all stream on a phase space. Spectral derivatives need the axis to
+be periodic.
 
 ## Moments and mean fields
 
@@ -90,8 +85,8 @@ def poisson_drift(s):
 poisson_drift.__name__
 ```
 
-The block returns `'poisson_drift'`, a drift that a `ConservationInteraction` takes as its flux in place of the free
-streaming above. The functions it calls follow these rules.
+The block returns `'poisson_drift'`, a drift whose product with the density is the flux of a divergence in place of
+the free streaming above. The functions it calls follow these rules.
 
 - `moment(expression, order, axes=names)` reduces over the named class axes at every position, with the cell widths
   as weights.
@@ -102,9 +97,8 @@ streaming above. The functions it calls follow these rules.
 - A drift can read a moment of its own field, and the operators of a field over position act along the position axes.
 
 Fields over position and fields on a phase space read each other. A flux reads another field over the position lattice
-through the `sources` of a `ConservationInteraction`, broadcast along the class axes. A
-[`RateInteraction`](../core_components/interactions.md#rateinteraction) over the position lattice reads a moment of a
-field on a phase space through its `sources`.
+through a second role of its interaction, broadcast along the class axes. A rate over the position lattice reads a
+moment of a field on a phase space through a role bound to that field.
 
 ## Integrals over class axes
 
@@ -114,38 +108,31 @@ changes at the rate `f(z)` times the integral of `rho(z, u) - rho(u, z)` against
 position and one class axis `z` with 50 cells.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 from sage.all__sagemath_symbolics import tanh
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.spaces import AxisSpec, LatticeSpace, PhaseSpace
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.core.specs import AxisSpec, StateSpec
+from skcomplex.core.systems import System
 
 
-class DensityElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
+def fight(s):
+    f = s.target.x
+    return [RateLaw(f, f * integral_transform(f, gain, ('z',)))]
 
 
 z, u = coordinate('z'), integration_variable('z')
 rho = (1 + tanh(2 * (z - u))) / 2
 gain = rho - rho.subs({z: u, u: z}, hold=False)
 space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)])
-groups = FieldElement('groups', element=DensityElement, space=space, values={'x': np.ones((1, 50))})
-conflict = RateInteraction(
-    'conflict', target='groups', state='x', rate=lambda s: s.target.x * integral_transform(s.target.x, gain, ('z',))
-)
-system = CompositeSystem(elements=[groups], interactions=[conflict])
-trajectory = simulate(system, until=5.0, dt=1.0, solver=RK4Solver(dt=0.05))
-final = trajectory.get_values('groups.x')[-1]
+groups = Element('groups', values={'x': np.ones((1, 50))}, space=space)
+conflict = Interaction('conflict', roles={'target': 'groups'}, laws=fight)
+system = System(elements=[groups], interactions=[conflict], solver=RK4Solver(dt=0.05))
+final = system.prepare().simulate(until=5.0, dt=1.0).get_values('groups.x')[-1]
 round(float(final.sum() / 50), 10), bool(final[-1] > final[0])
 ```
 
@@ -171,44 +158,27 @@ The functions of the block follow these rules.
 ## Simplex domains
 
 This section holds a density over the frequencies of three strategies, which sum to one. A simplex is the set of
-points whose coordinates are nonnegative and sum to at most one. A
-[`SimplexSpace`](../core_components/spaces.md#simplexspace) is a phase space whose class axes are the free frequencies
-of a simplex, each on `[0, 1]` with the same number of cells. A uniform density of two on the 2-simplex, a triangle of
-area one half, has the integral one.
+points whose coordinates are nonnegative and sum to at most one. The space `SimplexSpace` of
+`skcomplex.systems.social.cooperation` is a phase space whose class axes are the free frequencies of a simplex,
+each on `[0, 1]` with the same number of cells. `TrimorphicMultilevelSelectionSystem` holds groups of cooperators,
+defectors, and punishers on such a space, with a uniform density of two on the 2-simplex, a triangle of area one half,
+so the integral is one.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.laws.utils import moment
-from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import AxisSpec, ObservableSpec, StateSpec
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
 
-
-class DensityElement(Element):
-    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.x = x
-
-
-def total(s):
-    return moment(s.x, 0, axes=('x', 'y'))
-
-
-axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
-simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
-groups = FieldElement('groups', element=DensityElement, space=simplex, values={'x': 2.0 * (simplex.volumes_ > 0)})
-observables = [ObservableSpec('total', total, group='groups')]
-trajectory = simulate(CompositeSystem(elements=[groups]), until=0.1, dt=0.1, observables=observables)
-round(float(np.asarray(trajectory.get_values('total'))[-1]), 10)
+system = TrimorphicMultilevelSelectionSystem(cells=20, solver=RK4Solver(dt=0.01)).prepare()
+simplex = system.system_.elements[0].space.prepare()
+trajectory = system.simulate(until=1.0, dt=1.0)
+density = np.asarray(trajectory.get_values('groups.x'))[-1]
+round(float((density * simplex.volumes_.ravel()).sum() / 20**2), 6)
 ```
 
-The observable `total` returns `1.0`, the integral of the density over the triangle. The space weights each cell by
-the part of it that lies inside the simplex.
+The integral of the density over the triangle stays `1.0`. The space weights each cell by the part of it that lies
+inside the simplex.
 
 - `volumes_` holds the fraction of every cell inside the simplex. Cells below the slanted face are whole, cells along
   it are partial, which is half a cell in two dimensions, and cells beyond it are empty. `apertures_` holds the
@@ -219,6 +189,9 @@ the part of it that lies inside the simplex.
 - `simulate` rejects a local operator of a field on a simplex, such as `laplacian` or a finite-difference advection,
   with the issue `law-space`. `SemiLagrangianSolver` refuses partial cells, and `SSPRKSolver` divides its wave speed
   by the smallest cell volume.
+- Any space can cut its cells the same way. The engine asks every space for the fraction of its cells inside the
+  domain, the open fraction of its faces, and the operators it takes, and a plain lattice answers whole cells, open
+  faces, and every operator.
 
 ## Encounters and equilibria
 
@@ -228,22 +201,29 @@ moments equal those of the expression at every position. Newton steps find the c
 it conserves the moments to round-off. This relaxation is the collision term of the BGK equation.
 
 ```python
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import maximum_entropy
 
-relax = RateInteraction('r', target='gas', state='x', rate=lambda s: maximum_entropy(s.target.x, axes=('v',)) - s.target.x)
-relax.state
+
+def bgk(s):
+    f = s.target.x
+    return [RateLaw(f, maximum_entropy(f, axes=('v',)) - f)]
+
+
+relax = Interaction('relax', roles={'target': 'gas'}, laws=bgk)
+relax.roles
 ```
 
-The block returns `'x'`, the state of the gas that the relaxation changes. The encounters of the classes at one
+The block returns `{'target': 'gas'}`, the gas whose density the relaxation changes. The encounters of the classes at one
 position are the recipe [`EncounterInteraction`](../core_components/general.md#encounterinteraction) of the general
-realizations, which writes them as bilinear laws of the core.
+realizations, which writes them as rate laws of the `bilinear` form of the core.
 
 ## Collisions
 
 This section adds binary collisions between particles of different velocities, as in the Boltzmann equation. The
 function `collision_integral(f, kernel)` of `skcomplex.core.components.laws.utils` is the binary collision integral
-over two interval class axes, and a `RateInteraction` adds it to the rate of a density. The general realization
+over two interval class axes, and a `RateLaw` of an interaction adds it to the rate of a density. The general realization
 `EncounterInteraction` with a `cross_section` and a `factor` writes the same rate. The pages of the catalog listed at
 the end build these collisions in full.
 

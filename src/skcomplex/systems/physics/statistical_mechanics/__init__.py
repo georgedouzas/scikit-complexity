@@ -4,7 +4,7 @@ The package covers gases, fluids, spin systems, lattice processes, urns, master 
 """
 
 from ..common.spins import IsingSpinElement
-from ._absorbing_processes import AbsorbingBirthDeathSystem, ReactingParticlesElement
+from ._absorbing_processes import AbsorbingBirthDeathSystem, BranchingAnnihilationInteraction, ReactingParticlesElement
 from ._driven_particles import (
     ASEPSystem,
     DissipativeZeroRangeSystem,
@@ -16,28 +16,43 @@ from ._driven_particles import (
     ZeroRangeHopsInteraction,
     ZeroRangeProcessSystem,
 )
-from ._fully_connected_spins import CurieWeissSystem, FullyConnectedSpinElement, SherringtonKirkpatrickSystem
-from ._gases import IdealGasSystem, LennardJonesFluidSystem
+from ._fully_connected_spins import (
+    CurieWeissSystem,
+    FullyConnectedSpinElement,
+    GlauberFlipInteraction,
+    SherringtonKirkpatrickSystem,
+)
+from ._gases import GasMoleculeElement, IdealGasSystem, LennardJonesFluidSystem
 from ._graph_spins import GraphIsingSystem
 from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
     DiscreteMasterEquationSystem,
+    GlauberMasterInteraction,
+    LandauRelaxationInteraction,
     LandauRelaxationSystem,
     MicrostateElement,
     TwoPhaseZoneExchangeSystem,
     ZoneElement,
+    ZoneExchangeInteraction,
 )
 from ._maxwell_boltzmann import MaxwellBoltzmannResult, maxwell_boltzmann
 from ._percolation import ContinuumPercolationSystem, DiskElement
 from ._processes import (
+    ContactInfectionInteraction,
     ContactProcessSystem,
     ContactSiteElement,
     DiffusionLimitedAggregationSystem,
     ExclusionSiteElement,
+    FireSpreadInteraction,
+    LaneEntryInteraction,
+    LaneExitInteraction,
+    ParallelHopInteraction,
     PercolationSiteElement,
+    Q2RFlipInteraction,
     Q2RSpinElement,
     Q2rSystem,
     SitePercolationSystem,
+    StickingWalkInteraction,
     TASEPSystem,
     WalkerElement,
     WalkerView,
@@ -50,12 +65,7 @@ from ._quantum_spins import (
     local_magnetization,
     total_magnetization,
 )
-from ._random_energy import (
-    BoltzmannAverageElement,
-    BoltzmannSumInteraction,
-    EnergyLevelElement,
-    RandomEnergySystem,
-)
+from ._random_energy import BoltzmannAverageElement, BoltzmannSumInteraction, EnergyLevelElement, RandomEnergySystem
 from ._spin_glasses import (
     BondSamplingInteraction,
     BondSpinElement,
@@ -65,8 +75,8 @@ from ._spin_glasses import (
 )
 from ._spins import IsingSystem, PottsSpinElement, PottsSystem, XYSpinElement, XYSystem
 from ._susceptibility import SusceptibilityResult, susceptibility
-from ._traps import TrapSystem, TrapWalkerElement
-from ._urns import EhrenfestUrnSystem
+from ._traps import TrapEscapeInteraction, TrapSystem, TrapWalkerElement
+from ._urns import EhrenfestMoveInteraction, EhrenfestUrnSystem
 
 __all__: list[str] = [
     'ASEPSystem',
@@ -75,6 +85,8 @@ __all__: list[str] = [
     'BoltzmannSumInteraction',
     'BondSamplingInteraction',
     'BondSpinElement',
+    'BranchingAnnihilationInteraction',
+    'ContactInfectionInteraction',
     'ContactProcessSystem',
     'ContactSiteElement',
     'ContinuumPercolationSystem',
@@ -85,26 +97,36 @@ __all__: list[str] = [
     'DiskElement',
     'DissipativeZeroRangeSystem',
     'EdwardsAndersonSystem',
+    'EhrenfestMoveInteraction',
     'EhrenfestUrnSystem',
     'EnergyLevelElement',
     'ExclusionHopsInteraction',
     'ExclusionSiteElement',
+    'FireSpreadInteraction',
     'FullyConnectedSpinElement',
+    'GasMoleculeElement',
+    'GlauberFlipInteraction',
+    'GlauberMasterInteraction',
     'GraphIsingSystem',
     'IdealGasSystem',
     'IsingSpinElement',
     'IsingSystem',
     'KineticTemperatureResult',
+    'LandauRelaxationInteraction',
     'LandauRelaxationSystem',
+    'LaneEntryInteraction',
+    'LaneExitInteraction',
     'LennardJonesFluidSystem',
     'MattisSpinElement',
     'MattisSpinGlassSystem',
     'MaxwellBoltzmannResult',
     'MicrostateElement',
+    'ParallelHopInteraction',
     'ParticleSiteElement',
     'PercolationSiteElement',
     'PottsSpinElement',
     'PottsSystem',
+    'Q2RFlipInteraction',
     'Q2RSpinElement',
     'Q2rSystem',
     'QuantumHeisenbergSystem',
@@ -113,8 +135,10 @@ __all__: list[str] = [
     'ReservoirInteraction',
     'SherringtonKirkpatrickSystem',
     'SitePercolationSystem',
+    'StickingWalkInteraction',
     'SusceptibilityResult',
     'TASEPSystem',
+    'TrapEscapeInteraction',
     'TrapSystem',
     'TrapWalkerElement',
     'TreeNodeElement',
@@ -129,6 +153,7 @@ __all__: list[str] = [
     'ZeroRangeHopsInteraction',
     'ZeroRangeProcessSystem',
     'ZoneElement',
+    'ZoneExchangeInteraction',
     'kinetic_temperature',
     'local_magnetization',
     'maxwell_boltzmann',

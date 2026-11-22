@@ -11,16 +11,21 @@ import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
-from ...specs import RunStateSpec
 from .._utils import symbol
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
+from ._run_state_spec import RunStateSpec
 
 
 class FieldOperatorKernel(BaseKernel):
-    """A kernel of the value of a global operator applied to an expression.
+    """A kernel of an operator that acts on a whole field at once.
 
-    The operator is a spectral multiplier or a finite element matrix.
+    Some laws of a field read an operator of a whole field, such as the gradient of a potential solved in Fourier space
+    or the Laplacian of a finite element mesh, rather than the values of a few neighbours. The kernel evaluates the
+    expression the operator acts on at every site and applies the Fourier multiplier or the sparse matrix to it. It
+    computes the forces of a charged plasma, the pressure of a fluid, and the potential of a gravitating cloud.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         operand:
@@ -43,12 +48,21 @@ class FieldOperatorKernel(BaseKernel):
             `None` for spectral operators.
 
         displacement:
-            The displacement along every axis of a read at shifted positions, expressions of the operand's symbols
-            that `apply` takes after the operand's values, or `None`.
+            The displacement along every axis of a read at shifted positions, expressions of the operand's symbols that
+            `apply` takes after the operand's values, or `None`.
 
     Attributes:
         values_:
             The operator applied to the operand values at every site of the last run.
+
+    See Also:
+        LinearTermSpec: A fixed linear operator in the rate of a field.
+
+    Examples:
+        >>> from skcomplex.core.engine.problems import BaseKernel
+        >>> from skcomplex.core.engine.problems._field_operator_kernel import FieldOperatorKernel
+        >>> issubclass(FieldOperatorKernel, BaseKernel)
+        True
     """
 
     values_: npt.NDArray[np.float64]

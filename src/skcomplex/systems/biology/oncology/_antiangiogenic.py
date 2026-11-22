@@ -4,18 +4,21 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, log, oo, pi
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import logistic, pulse_train
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 from ...general.reactions import ReactionInteraction
@@ -41,9 +44,6 @@ class AngiogenicTumourElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial tumour volume.
@@ -93,23 +93,22 @@ class AngiogenicTumourElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17347.0,
-        Vb: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 17347.0,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lambda1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.192,
-        lambda2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        xi_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.85,
-        xi_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.00873,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.66,
-        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 17347.0,
+        Vb: Annotated[float, RealSet.open(0, oo)] = 17347.0,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        lambda1: Annotated[float, RealSet.open(0, oo)] = 0.192,
+        lambda2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        xi_s: Annotated[float, RealSet.open(0, oo)] = 5.85,
+        xi_i: Annotated[float, RealSet.open(0, oo)] = 0.00873,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.66,
+        du: Annotated[float, RealSet.open(0, oo)] = 1.3,
+        dose: Annotated[float, RealSet.closed_open(0, oo)] = 20.0,
         period: float = 1.0,
         width: float = 1.0,
         start: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.A = A
         self.Vb = Vb
         self.U = U
@@ -178,6 +177,12 @@ class HahnfeldtSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import HahnfeldtSystem
         >>> HahnfeldtSystem(dose=0.0).prepare().system_.elements[0].dose
@@ -206,8 +211,10 @@ class HahnfeldtSystem(BaseSystem):
         width: float = 1.0,
         start: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.A = A
         self.Vb = Vb
         self.lambda1 = lambda1
@@ -221,8 +228,14 @@ class HahnfeldtSystem(BaseSystem):
         self.width = width
         self.start = start
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Hahnfeldt system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Hahnfeldt system.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         tumour = AngiogenicTumourElement(
             'tumour',
             A=self.A,
@@ -239,11 +252,10 @@ class HahnfeldtSystem(BaseSystem):
             start=self.start,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='tumour',
-                state='A',
-                rate=lambda s: -s.target.lambda1 * s.target.A * log(s.target.A / s.target.Vb),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.A, -s.target.lambda1 * s.target.A * log(s.target.A / s.target.Vb))],
             ),
             ReactionInteraction(
                 'vessel_loss',
@@ -251,7 +263,11 @@ class HahnfeldtSystem(BaseSystem):
                 reactants={'Vb': 1},
                 propensity=lambda s: s.target.lambda2 * s.target.Vb,
             ),
-            RateInteraction('stimulation', target='tumour', state='Vb', rate=lambda s: s.target.xi_s * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.Vb, s.target.xi_s * s.target.A)],
+            ),
             ReactionInteraction(
                 'inhibition',
                 target='tumour',
@@ -280,7 +296,7 @@ class HahnfeldtSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.U,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class VascularCorePeripherySystem(DynamicalSystem):
@@ -324,9 +340,15 @@ class VascularCorePeripherySystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import VascularCorePeripherySystem
-        >>> VascularCorePeripherySystem(dose=0.0).prepare().system_.elements[0].get_value('dose')
+        >>> VascularCorePeripherySystem(dose=0.0).prepare().system_.elements[0].values['dose']
         0.0
     """
 
@@ -335,7 +357,6 @@ class VascularCorePeripherySystem(DynamicalSystem):
     references = (BOOK_REFERENCE, 'Csercsik et al. 2017')
     until = 60.0
     dt = 0.2
-    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 
     def __init__(
         self,
@@ -348,8 +369,10 @@ class VascularCorePeripherySystem(DynamicalSystem):
         width: float = 1.0,
         start: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.Vx = Vx
         self.xi_e = xi_e
         self.du = du
@@ -358,43 +381,52 @@ class VascularCorePeripherySystem(DynamicalSystem):
         self.width = width
         self.start = start
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'tumour'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'Ar': DeclaredVariableSpec(13.0, StateSpec(domain=RealSet.open(0, oo))),
-            'Ac': DeclaredVariableSpec(3.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'Ap': DeclaredVariableSpec(495.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'An': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'Vbc': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'Vbp': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'U': DeclaredVariableSpec(0.0, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'r1': DeclaredVariableSpec(1.2, ParameterSpec(domain=RealSet.open(0, oo))),
-            'r2': DeclaredVariableSpec(12.0, ParameterSpec(domain=RealSet.open(0, oo))),
-            'r3': DeclaredVariableSpec(0.06, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'm': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'a1': DeclaredVariableSpec(1.0, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'p1': DeclaredVariableSpec(1.0, ParameterSpec()),
-            'p2': DeclaredVariableSpec(400000.0, ParameterSpec()),
-            'p3': DeclaredVariableSpec(0.2, ParameterSpec()),
-            'p4': DeclaredVariableSpec(0.45, ParameterSpec()),
-            'p_g': DeclaredVariableSpec(400000.0, ParameterSpec()),
-            'kappa1': DeclaredVariableSpec(0.17, ParameterSpec()),
-            'kappa2': DeclaredVariableSpec(-45000.0, ParameterSpec()),
-            'kappa3': DeclaredVariableSpec(-0.04, ParameterSpec()),
-            'kappa4': DeclaredVariableSpec(-0.06, ParameterSpec()),
-            'kappa_g': DeclaredVariableSpec(55000.0, ParameterSpec()),
-            'theta1': DeclaredVariableSpec(0.3, ParameterSpec(domain=RealSet.open(0, oo))),
-            'theta2': DeclaredVariableSpec(0.3, ParameterSpec(domain=RealSet.open(0, oo))),
-            'beta': DeclaredVariableSpec(1.2, ParameterSpec(domain=RealSet.open(0, oo))),
-            'xi_e': DeclaredVariableSpec(self.xi_e, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'rv_ref': DeclaredVariableSpec(0.005, ParameterSpec(domain=RealSet.open(0, oo))),
-            'Vx': DeclaredVariableSpec(self.Vx, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'du': DeclaredVariableSpec(self.du, ParameterSpec(domain=RealSet.open(0, oo))),
-            'dose': DeclaredVariableSpec(self.dose, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+            'Ar': 13.0,
+            'Ac': 3.0,
+            'Ap': 495.0,
+            'An': 0.0,
+            'Vbc': 0.0,
+            'Vbp': 0.0,
+            'U': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'r1': 1.2,
+            'r2': 12.0,
+            'r3': 0.06,
+            'm': 1.0,
+            'a1': 1.0,
+            'p1': 1.0,
+            'p2': 400000.0,
+            'p3': 0.2,
+            'p4': 0.45,
+            'p_g': 400000.0,
+            'kappa1': 0.17,
+            'kappa2': -45000.0,
+            'kappa3': -0.04,
+            'kappa4': -0.06,
+            'kappa_g': 55000.0,
+            'theta1': 0.3,
+            'theta2': 0.3,
+            'beta': 1.2,
+            'xi_e': self.xi_e,
+            'rv_ref': 0.005,
+            'Vx': self.Vx,
+            'du': self.du,
+            'dose': self.dose,
         }
 
     def _get_equations(self) -> Equations:

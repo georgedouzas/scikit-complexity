@@ -14,9 +14,12 @@ STEP_TOLERANCE = 1e-9
 def step_count(t: float, until: float, dt: float) -> int:
     """Return the number of equal steps from time `t` to time `until`.
 
-    The steps are no longer than `dt`, and there is at least one. A span within `1e-9` steps above a whole number of
-    steps takes that whole number, so rounding in the span does not add a step. The compiled loops of the Numba backend
-    call the same function.
+    The steps are no longer than `dt`, and there is at least one, such as 3 steps of 0.1 from 0.1 to 0.4. A span within
+    `1e-9` steps above a whole number of steps takes that whole number, so rounding does not add a step, and the
+    compiled loops of the Numba backend call the same function. It counts the steps of a population, a pendulum, and a
+    market.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         t:
@@ -31,6 +34,9 @@ def step_count(t: float, until: float, dt: float) -> int:
     Returns:
         count:
             The number of steps.
+
+    See Also:
+        DiffusiveLimitSpec: The largest stable step of diffusion.
 
     Examples:
         >>> from skcomplex.core.engine.problems._steps import step_count

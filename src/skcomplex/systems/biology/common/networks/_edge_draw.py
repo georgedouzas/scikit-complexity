@@ -13,13 +13,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import NeighborInteraction
+from .....core.components.interactions import Interaction
 from .....core.components.laws import BaseLaw, UpdateLaw
 from .....core.components.laws.utils import normal, uniform, where
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.types import Role
 
 
-class EdgeDrawInteraction(NeighborInteraction):
+class EdgeDrawInteraction(Interaction):
     """First draw of the weight of every new edge of a network.
 
     The weights of the other edges drift at random.
@@ -31,11 +31,9 @@ class EdgeDrawInteraction(NeighborInteraction):
         label:
             The label of the interaction.
 
-        target:
-            The path of the group on the nodes of the network.
-
-        edges:
-            The path of the group on its edges, whose members hold the weight and the mark.
+        among:
+            The path of the group on the nodes of the network. The weight and the mark are values of the group on its
+            edges.
 
         noise:
             The standard deviation of the drift of a weight in a step, 0 for none.
@@ -49,14 +47,13 @@ class EdgeDrawInteraction(NeighborInteraction):
         state:
             The name of the state of the edges that holds the weight.
 
+        along:
+            The edges the laws run on, `True` for the edges of the network the group lives on, or the name of a layer.
+
     Examples:
-        >>> from types import SimpleNamespace
-        >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.biology.common.networks import EdgeDrawInteraction
-        >>> edge = SimpleNamespace(w=var('w'), fresh=var('fresh'))
-        >>> draw = EdgeDrawInteraction('draw', target='species', edges='links').prepare()
-        >>> [str(law.value) for law in draw.run(SimpleNamespace(edge=edge, noise=var('noise'))).laws_][1]
-        '0'
+        >>> EdgeDrawInteraction('draw', among='species', noise=0.1).noise
+        0.1
     """
 
     law_classes = (UpdateLaw,)
@@ -65,16 +62,14 @@ class EdgeDrawInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        edges: Annotated[str, RoleSpec()],
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        among: Role,
+        noise: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         low: float = -1.0,
         high: float = 1.0,
         state: str = 'w',
+        along: bool | str = True,
     ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.edges = edges
+        super().__init__(label, among=among, along=along)
         self.noise = noise
         self.low = low
         self.high = high
@@ -84,21 +79,19 @@ class EdgeDrawInteraction(NeighborInteraction):
         """Return the name of a random draw of the interaction."""
         return re.sub(r'\W', '_', f'{draw}_{self.label}')
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draw or the drift of the weight of an edge.
-
-        The removal of the mark of the edge comes with it.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the draw or the drift of the weight of an edge, and the removal of the mark of the edge.
 
         Args:
-            namespace:
-                The namespace of an edge, with the member `namespace.edge` of the group on the edges.
-
-        Returns:
-            laws:
-                The updates of the weight and of the mark.
+            context:
+                The namespace of an edge, with the member `context.edge` of the group on the edges.
         """
-        edge = namespace.edge
+        super()._prepare(context)
+        edge = context.edge
         weight = getattr(edge, self.state)
         drawn = uniform(self._get_name('draw'), self.low, self.high)
-        kept = weight + namespace.noise * normal(self._get_name('drift')) if self.noise else weight
-        return [UpdateLaw(weight, where(edge.fresh > 1 / 2, drawn, kept)), UpdateLaw(edge.fresh, 0)]
+        kept = weight + context.noise * normal(self._get_name('drift')) if self.noise else weight
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(weight, where(edge.fresh > 1 / 2, drawn, kept)),
+            UpdateLaw(edge.fresh, 0),
+        ]

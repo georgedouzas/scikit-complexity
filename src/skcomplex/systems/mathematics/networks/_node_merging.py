@@ -6,6 +6,7 @@ Linked nodes merge and newcomers arrive, which builds hubs at a fixed size.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import networkx as nx
@@ -13,12 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
 from ....core.components.laws.utils import neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
@@ -32,11 +36,11 @@ class MergingNodeElement(Element):
         label:
             The label of the node group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         degree:
             The number of edges of the node.
+
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import MergingNodeElement
@@ -44,14 +48,16 @@ class MergingNodeElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.degree = degree
 
 
@@ -80,10 +86,15 @@ class NodeMergingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.networks import NodeMergingSystem
-        >>> trajectory = simulate(NodeMergingSystem(50), until=20, random_state=0)
+        >>> trajectory = NodeMergingSystem(50).prepare().simulate(until=20, random_state=0)
         >>> network = trajectory.get_network(-1)
         >>> len(network.nodes), len(network.sources)
         (50, 49)
@@ -101,42 +112,35 @@ class NodeMergingSystem(BaseSystem):
         edges: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.edges = edges
         self.random_state = random_state
 
-    @staticmethod
-    def _build_network(
-        label: str,
-        capacity: int,
-        space: NetworkSpace,
-        links: int,
-        changes: list[TopologyInteraction],
-    ) -> CompositeSystem:
-        """Return the network of variable groups on its nodes and links.
-
-        The network has its changes and the map of the degrees.
-        """
-        nodes = GroupElement('nodes', element=MergingNodeElement, on='sites', variable=True, capacity=capacity)
-        edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
-        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-        return CompositeSystem(
-            label,
-            elements=[nodes, edges],
-            interactions=[*changes, degree],
-            space=space,
-            time=DiscreteTime(),
-        )
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the node-merging network of Kim and coauthors.
-
-        Its merging of linked nodes builds hubs without growth.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the node-merging network of Kim and coauthors, whose merging builds hubs."""
+        super()._prepare(context)
         graph = nx.random_labeled_tree(self.n_nodes, seed=np.random.default_rng(self.random_state))
-        merging = TopologyInteraction('merging', target='nodes', action='contract-edge', one=True)
-        arrival = TopologyInteraction('arrival', action='add-node', edges=self.edges)
-        capacity = 4 * self.edges * self.n_nodes
-        return self._build_network(self.label, self.n_nodes, NetworkSpace(graph), capacity, [merging, arrival])
+        merging = Interaction(
+            'merging',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(TopologyRequestSpec('contract-edge', one=True), 1)],
+        )
+        arrival = Interaction('arrival', laws=[UpdateLaw(TopologyRequestSpec('add-node', edges=self.edges), 1)])
+        space = NetworkSpace(graph)
+        nodes = MergingNodeElement('nodes', space=space)
+        edges = Element('links', space=space, on='edges')
+        degree = Interaction(
+            'degree',
+            roles={'target': 'nodes'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
+        self.system_ = System(
+            self.label,
+            elements=[nodes, edges],
+            interactions=[merging, arrival, degree],
+            space=space,
+        )

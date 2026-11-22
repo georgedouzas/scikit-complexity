@@ -17,10 +17,9 @@ vanishes, and returns as a sound wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.physics.fluids import BoltzmannEquationSystem
 
 SYSTEM = 'boltzmann_equation'
@@ -39,10 +38,14 @@ def solver_of(step):
     return StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(step), 0.1)
 
 
-observables = [ObservableSpec('density_wave', function=density_wave)]
+observables = [Observable('density_wave', function=density_wave)]
 system = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=0.02)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-trajectory = simulate(system, until=5.5, solver=solver_of(0.02), observers=[observer], observables=observables)
+trajectory = (
+    system.set_params(solver=solver_of(0.02))
+    .prepare()
+    .simulate(until=5.5, observers=[observer], observables=observables)
+)
 
 # %%
 # From free streaming to sound
@@ -57,7 +60,7 @@ times = np.linspace(0, 5.5, 100)
 fig, axis = plt.subplots(figsize=(7, 4))
 for knudsen, step in ((1000.0, 0.05), (1.0, 0.05), (0.2, 0.05), (0.02, 0.02)):
     gas = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=knudsen)
-    run = simulate(gas, until=5.5, solver=solver_of(step), observables=observables)
+    run = gas.set_params(solver=solver_of(step)).prepare().simulate(until=5.5, observables=observables)
     wave = run.get_values('density_wave')
     axis.plot(run.times, wave / wave[0], label=f'Knudsen {knudsen:g}')
 axis.plot(times, np.exp(-(times**2) / 2), 'k--', label='free streaming')

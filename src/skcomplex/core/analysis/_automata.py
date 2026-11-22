@@ -5,7 +5,7 @@
 
 import functools
 import itertools
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
 
@@ -15,27 +15,32 @@ from sage.all__sagemath_symbolics import QQ, SR, LaurentPolynomialRing, matrix
 from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
+from sklearn.base import clone
 
-from ..components.elements import GroupElement
-from ..components.interactions import LocalRuleInteraction
-from ..components.laws import LocalRuleLaw
-from ..components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
-from ..components.systems import CompositeSystem
-from ..components.types import Reach
+from ..base import BaseSpec
+from ..components import SubshiftSpec
+from ..components.interactions import BaseInteraction, Interaction
+from ..components.laws import BaseLaw, LinearRuleSpec, OuterTotalisticSpec, TableSpec, TotalisticSpec, UpdateLaw
+from ..components.laws._local_rule import _LocalRuleLaw
+from ..components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
+from ..engine.compile._pass_compiler import PassCompiler
+from ..engine.problems._composite_system import _CompositeSystem
+from ..engine.problems._group_element import _GroupElement
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
-from ..specs._composed_rule_spec import _ComposedRuleSpec
-from ..types import DataKind, Indices, IntArray
-from ._base import _check_choice, _check_settings, _composite
+from ..systems import System
+from ..types import Indices, IntArray
+from ._analysis_tags import AnalysisTags
+from ._base import _check_choice, _check_settings, _composite, _get_system
+from ._composed_rule_spec import _ComposedRuleSpec
 from ._utils import load_module
-from .types import Item, Source
+from .types import DataSource
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
 SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 SYNCHRONOUS = 'synchronous'
-IDENTITY = '1'
 TAGS = AnalysisTags(DataKind.SYSTEM)
 KINDS = (
     'injective',
@@ -126,11 +131,15 @@ class _Clauses:
 class AutomatonResult:
     """A result of `automaton`, a decision or a measure of a cellular automaton.
 
-    The cellular automaton is on a finite universe.
+    It holds the answer the kind asks for, such as whether no two grids share their next grid, a grid that no grid leads
+    to, an automaton that undoes another, or the number of allowed grids, and leaves the other fields `None`. It answers
+    whether a model of traffic, of growth, or of a crystal loses information.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         automaton:
-            The system.
+            The `System` of the automaton or of the subshift, the one a ready-made system builds for it.
 
         injective:
             Whether the automaton is injective.
@@ -145,11 +154,13 @@ class AutomatonResult:
             A configuration whose values on the window have no preimage, or `None` when none is found.
 
         inverse:
-            The system of the inverse automaton with a table rule, or `None` when the automaton is not injective or no
-            memory up to the radius determines the cells.
+            The `System` of the inverse automaton, whose interaction sets an update law with a table rule and its
+            neighbourhood, or `None` when the automaton is not injective or no memory up to the radius determines the
+            cells.
 
         composition:
-            The system of the automaton of the composition, with a function rule.
+            The `System` of the automaton of the composition, whose interaction sets an update law with a function rule
+            and its neighbourhood.
 
         differences:
             One row per step, the initial one first, true where the runs differ.
@@ -174,15 +185,24 @@ class AutomatonResult:
 
         sample:
             The admissible configuration.
+
+    See Also:
+        automaton: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import automaton
+        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> automaton(ElementaryAutomatonSystem(rule=170, size=8)).injective
+        True
     """
 
-    automaton: CompositeSystem
+    automaton: System
     injective: bool | None = None
     surjective: bool | None = None
     pre_injective: bool | None = None
     pattern: IntArray | None = None
-    inverse: CompositeSystem | None = None
-    composition: CompositeSystem | None = None
+    inverse: System | None = None
+    composition: System | None = None
     differences: npt.NDArray[np.bool_] | None = None
     entropy: npt.NDArray[np.float64] | None = None
     matrix: Matrix | None = None
@@ -194,15 +214,30 @@ class AutomatonResult:
 
 
 @dataclass(frozen=True)
+class _LocalRuleSpec(BaseSpec):
+    """Local rule read from an interaction.
+
+    It holds the label of the interaction, the path of the group it binds, the state it sets, the states it reads,
+    and its law.
+    """
+
+    label: str
+    target: str
+    state: str | tuple[str, ...]
+    reads: tuple[str, ...] | None
+    law: _LocalRuleLaw
+
+
+@dataclass(frozen=True)
 class _AutomatonSpec(BaseSpec):
     """Automaton read from a system.
 
     It holds its rule, law, state, space, number of sites and of values, and local map.
     """
 
-    system: CompositeSystem
-    rule: LocalRuleInteraction
-    law: LocalRuleLaw
+    system: _CompositeSystem
+    rule: _LocalRuleSpec
+    law: _LocalRuleLaw
     state: str
     space: BaseSpace
     size: int
@@ -211,7 +246,7 @@ class _AutomatonSpec(BaseSpec):
 
 
 def automaton(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'injective',
     method: str = 'auto',
@@ -220,7 +255,7 @@ def automaton(
     tries: int = 200,
     random_state: int | np.random.Generator | None = None,
     max_radius: int = 2,
-    second: CompositeSystem | None = None,
+    second: DataSource | None = None,
     configuration: npt.ArrayLike | None = None,
     site: int = 0,
     steps: int = 1,
@@ -230,51 +265,29 @@ def automaton(
 ) -> AutomatonResult:
     """Return a decision or a measure of a cellular automaton or subshift of a system.
 
-    The function reads a `CompositeSystem`. An automaton is a group of cells with one synchronous and deterministic
-    `LocalRuleInteraction`, and it is linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
-    from the finite domain of the state, or else from the rule. A subshift is a group with a state whose domain is a
-    `SubshiftSpec`.
+    An automaton is a group of cells on a grid with one rule that updates every cell at once from its neighbours, such
+    as `ElementaryAutomatonSystem(rule=170, size=8)`, which shifts every cell left. A subshift is a group whose value
+    lists forbidden patterns. The function decides whether the rule loses information, finds a grid no grid leads to,
+    builds the rule that undoes it, and counts or samples the allowed grids. Small grids are checked one by one and
+    larger ones with a SAT solver. It tells whether a model of traffic, of crystal growth, or of a computer loses
+    information, and reversible rules model physics that keeps energy.
 
-    - `'injective'`, `'surjective'`, and `'pre-injective'`: whether two different configurations never share their
-      image, whether every configuration has a preimage, which on a finite universe holds exactly when it is
-      injective, and whether two configurations that differ only inside a window never share their image. Small
-      universes are decided by enumerating every configuration, and larger ones by a SAT encoding solved by PySAT. A
-      linear automaton is decided from its matrix, all three holding exactly when the matrix is invertible, or on
-      `Z^d` from its Laurent polynomial, injective when it is a monomial and surjective and pre-injective when it is
-      not zero.
-    - `'garden-of-eden'`: a pattern on a window that no configuration maps to. Small universes enumerate the images of
-      every configuration, and larger ones draw random patterns and keep the first one whose preimage constraints a
-      SAT solver finds unsatisfiable.
-    - `'inverse'`: an automaton whose composition with a reversible automaton is the identity, with the smallest
-      memory. The search tries the neighbourhoods of every radius up to `max_radius`, a box of offsets on a lattice or
-      the ball of group elements on a group space, and keeps the first on which the image determines every cell.
-    - `'compose'`: the automaton that applies the automaton and then `second` on the same space, whose neighbourhood
-      holds the composite `t s` of every element `t` read by the second and `s` read by the first.
-    - `'difference'`: where two runs differ when one starts from `configuration` and the other from it with the cell
-      at `site` changed to its next value modulo the number of states.
-    - `'entropy'`: the entropy `log |X_F| / |F|` of the configurations of a subshift, or of the image of an automaton
-      whose rule and neighbourhood are applied on every window. `X_F` is the set of admissible configurations of a
-      window `F`, or the set of images on the sites of `F` whose cells lie inside it. Along a Følner sequence of
-      windows the values approach the topological entropy.
-    - `'matrix'`: the square matrix of a linear automaton over its field, whose row `g` gives the image at `g`.
-    - `'polynomial'`: the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice, its symbol on `Z^d`.
-    - `'admissible'` and `'violations'`: whether no forbidden pattern appears in `configuration`, and the sites at
-      which one appears.
-    - `'count'`: the number of admissible configurations of the space of a subshift, by dynamic programming over its
-      sites. The counts of completions are shared between assignments that agree on the earlier sites that later
-      patterns read, so a window of a one-dimensional subshift costs linear time.
-    - `'sample'`: an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible,
-      from `configuration`, or from every cell at 0.
-
-    It appears in mathematics and computer science, where it decides whether a cellular automaton loses information, and
-    in physics, where reversible automata model conservative dynamics.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The system of the automaton or of the subshift.
 
         kind:
-            The decision or measure, one of the kinds above.
+            What to decide or measure. `'injective'`, `'surjective'`, and `'pre-injective'` ask whether no two grids
+            share their next grid, whether every grid has a grid before it, and whether two grids that differ in a
+            window never share their next grid. `'garden-of-eden'` finds a pattern no grid leads to. `'inverse'` finds
+            the rule that undoes a reversible rule, trying radii up to `max_radius`. `'compose'` applies the rule and
+            then `second`. `'difference'` shows where two runs differ when one cell of `configuration` at `site`
+            changes. `'entropy'` is `log |X_F| / |F|` of the allowed patterns of each window `F`. `'matrix'` and
+            `'polynomial'` give a linear rule as a matrix or a Laurent polynomial. `'admissible'` and `'violations'`
+            check `configuration` against the forbidden patterns. `'count'` counts the allowed grids of a subshift and
+            `'sample'` draws one.
 
         method:
             `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
@@ -326,51 +339,19 @@ def automaton(
             states, a linear automaton has a matrix on a ball or a polynomial without offsets, or the initial
             configuration of a sample is not admissible.
 
+    See Also:
+        symbolic: Turns a series into symbols and measures their patterns.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
         >>> from skcomplex.core.analysis import automaton
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.interactions import LocalRuleInteraction
-        >>> from skcomplex.core.components.spaces import BallNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec, SubshiftSpec, TableSpec, TotalisticSpec
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
-        ...         super().__init__(label)
-        ...         self.alive = alive
-        >>> def build(size, rule, neighborhood):
-        ...     cells = GroupElement('cells', element=CellElement, space=LatticeSpace(size), on='sites')
-        ...     interaction = LocalRuleInteraction(
-        ...         'rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood
-        ...     )
-        ...     return CompositeSystem(elements=[cells], interactions=[interaction])
-        >>> shift = build(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
-        >>> automaton(shift).injective
-        True
-        >>> majority = build(5, TotalisticSpec(lambda total: total >= 2), BallNeighborhood(n_dim=1, center='inline'))
-        >>> automaton(majority, kind='garden-of-eden').pattern.tolist()
-        [0, 0, 1, 0, 1]
-        >>> class GoldenCellElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         alive: Annotated[
-        ...             float, StateSpec(domain=SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),)))
-        ...         ] = 0,
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.alive = alive
-        >>> window = LatticeSpace(6, boundary='fixed')
-        >>> cells = GroupElement('cells', element=GoldenCellElement, space=window, on='sites')
-        >>> golden = CompositeSystem(elements=[cells])
-        >>> automaton(golden, kind='count').count
-        21
-        >>> windows = [LatticeSpace(20, boundary='fixed')]
-        >>> automaton(golden, kind='entropy', windows=windows).entropy.round(3).tolist()
-        [0.706]
+        >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
+        >>> automaton(ElementaryAutomatonSystem(rule=30, size=8), kind='injective').injective
+        False
     """
-    source = _composite(source)
+    system = _get_system(source)
+    source = _get_declared(system)
+    second_system = None if second is None else _get_system(second)
+    second = None if second_system is None else _get_second(second_system)
     _check_choice('automaton', 'kind', kind, KINDS)
     _check_settings(
         automaton,
@@ -409,12 +390,12 @@ def automaton(
         f'automaton of kind {kind!r} reads a system with {" or ".join(sources)}, not {type(source).__name__}. Build '
         'one of them.'
     )
-    if not isinstance(source, CompositeSystem):
+    if not isinstance(system, System) or not isinstance(source, _CompositeSystem):
         raise AnalysisError(error_msg)
     found = _find_subshift(source)
     rule = _find_rule(source)
     if found is not None and SUBSHIFT in sources:
-        return _run_subshift(
+        result = _run_subshift(
             source,
             kind,
             found[1],
@@ -425,23 +406,27 @@ def automaton(
             sweeps=sweeps,
             random_state=random_state,
         )
+        return replace(result, automaton=system)
     if rule is None or _get_rule_source(rule) not in sources:
         raise AnalysisError(error_msg)
     read = _read_automaton(source, rule)
     if kind in {'injective', 'surjective', 'pre-injective'}:
-        return _decide(read, kind, method=method, window=window, infinite=infinite)
-    if kind in {'compose', 'difference'}:
-        return _run_pair(read, kind, second=second, configuration=configuration, site=site, steps=steps)
-    return _measure(
-        read,
-        kind,
-        window=window,
-        tries=tries,
-        random_state=random_state,
-        max_radius=max_radius,
-        windows=windows,
-        base=base,
-    )
+        result = _decide(read, kind, method=method, window=window, infinite=infinite)
+    elif kind in {'compose', 'difference'}:
+        result = _run_pair(read, kind, system, second=second, configuration=configuration, site=site, steps=steps)
+    else:
+        result = _measure(
+            read,
+            kind,
+            system,
+            window=window,
+            tries=tries,
+            random_state=random_state,
+            max_radius=max_radius,
+            windows=windows,
+            base=base,
+        )
+    return replace(result, automaton=system)
 
 
 def _decide(
@@ -473,21 +458,22 @@ def _decide(
 def _run_pair(
     automaton: _AutomatonSpec,
     kind: str,
+    system: System,
     *,
-    second: CompositeSystem | None,
+    second: _CompositeSystem | None,
     configuration: npt.ArrayLike | None,
     site: int,
     steps: int,
 ) -> AutomatonResult:
     """Return the composition with the second automaton, or a difference pattern.
 
-    The difference pattern is that of a changed configuration.
+    The difference pattern is that of a changed configuration. The composition holds the elements of the system.
     """
     if kind == 'compose':
         if second is None:
             error_msg = 'automaton of kind compose needs second. Give it.'
             raise AnalysisError(error_msg)
-        return AutomatonResult(automaton.system, composition=_compose(automaton, second))
+        return AutomatonResult(automaton.system, composition=_compose(automaton, second, system))
     if configuration is None:
         error_msg = 'automaton of kind difference needs configuration. Give it.'
         raise AnalysisError(error_msg)
@@ -497,6 +483,7 @@ def _run_pair(
 def _measure(
     automaton: _AutomatonSpec,
     kind: str,
+    system: System,
     *,
     window: Sequence[int] | None,
     tries: int,
@@ -507,26 +494,26 @@ def _measure(
 ) -> AutomatonResult:
     """Return a Garden of Eden pattern, inverse, matrix, polynomial, or entropy.
 
-    They are those of the automaton.
+    They are those of the automaton, and the inverse holds the elements of the system.
     """
-    system = automaton.system
+    declared = automaton.system
     if kind == 'garden-of-eden':
         return AutomatonResult(
-            system,
+            declared,
             pattern=_garden_of_eden(automaton, window, tries=tries, random_state=random_state),
         )
     if kind == 'inverse':
-        return AutomatonResult(system, inverse=_inverse(automaton, max_radius))
+        return AutomatonResult(declared, inverse=_inverse(automaton, system, max_radius))
     if kind == 'matrix':
-        return AutomatonResult(system, matrix=_get_matrix(automaton))
+        return AutomatonResult(declared, matrix=_get_matrix(automaton))
     if kind == 'polynomial':
-        return AutomatonResult(system, polynomial=_get_polynomial(automaton))
+        return AutomatonResult(declared, polynomial=_get_polynomial(automaton))
     entropies = [_get_window_entropy(automaton, item) for item in windows or ()]
-    return AutomatonResult(system, entropy=np.asarray(entropies) / np.log(base))
+    return AutomatonResult(declared, entropy=np.asarray(entropies) / np.log(base))
 
 
 def _run_subshift(
-    system: CompositeSystem,
+    system: _CompositeSystem,
     kind: str,
     subshift: SubshiftSpec,
     space: BaseSpace,
@@ -557,7 +544,7 @@ def _run_subshift(
     return AutomatonResult(system, admissible=not violations.any())
 
 
-def _get_space(system: CompositeSystem, element: GroupElement) -> BaseSpace:
+def _get_space(system: _CompositeSystem, element: _GroupElement) -> BaseSpace:
     """Return the prepared space of a group of a system.
 
     It is its own space or the space of the system.
@@ -569,12 +556,77 @@ def _get_space(system: CompositeSystem, element: GroupElement) -> BaseSpace:
     return _fitted(space)
 
 
-def _find_rule(system: CompositeSystem) -> LocalRuleInteraction | None:
+def _get_declared(source: DataSource) -> DataSource:
+    """Return the composite of a system with its plain elements declared.
+
+    Any other source is returned as it is.
+    """
+    source = _composite(source)
+    return PassCompiler()._get_declared_system(source) if isinstance(source, _CompositeSystem) else source
+
+
+def _get_second(source: DataSource) -> _CompositeSystem:
+    """Return the declared composite of the second automaton of a composition.
+
+    Args:
+        source:
+            The second automaton of the composition.
+
+    Returns:
+        composite:
+            The declared composite of the automaton.
+
+    Raises:
+        AnalysisError:
+            The second automaton is not a system.
+    """
+    declared = _get_declared(source)
+    if not isinstance(declared, _CompositeSystem):
+        error_msg = f'automaton composes with a system, not {type(source).__name__}. Give a System.'
+        raise AnalysisError(error_msg)
+    return declared
+
+
+def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _LocalRuleSpec | None:
+    """Return the local rule an interaction states, or `None` without one.
+
+    An interaction that sets its laws in `_prepare`, such as one that sets
+    `UpdateLaw(s.target.alive, rule, neighborhood=...)`, is prepared on the states of the elements its roles bind, and
+    its first local rule is returned.
+    """
+    roles = {}
+    for role in interaction.get_requirements().roles:
+        path = interaction._get_binding(role)
+        element = next((item for item in system.elements if item.label == path), None)
+        if element is None or not isinstance(path, str):
+            return None
+        roles[role] = (path, SimpleNamespace(**{name: SR.var(name) for name in element.get_states()}))
+    namespace = SimpleNamespace(**{role: states for role, (_, states) in roles.items()}, t=SR.var('t'))
+    laws = [
+        item._get_local_rule() if isinstance(item, UpdateLaw) and item.neighborhood is not None else item
+        for item in clone(interaction).prepare(namespace).laws_
+    ]
+    law = next((item for item in laws if isinstance(item, _LocalRuleLaw)), None)
+    if law is None:
+        return None
+    path = next(path for path, states in roles.values() if str(law._get_targets()[0]) in vars(states))
+    targets = tuple(map(str, law._get_targets()))
+    return _LocalRuleSpec(
+        interaction.label,
+        target=path,
+        state=targets[0] if len(targets) == 1 else targets,
+        reads=None if law.reads is None else tuple(map(str, law.reads)),
+        law=law,
+    )
+
+
+def _find_rule(system: _CompositeSystem) -> _LocalRuleSpec | None:
     """Return the local rule of a system.
 
     The result is `None` without one, and an error is raised for several.
     """
-    rules = [item for item in system.interactions if isinstance(item, LocalRuleInteraction)]
+    found = [_get_local_rule(item, system) for item in system.interactions]
+    rules = [item for item in found if item is not None]
     if len(rules) > 1:
         names = ', '.join(rule.label for rule in rules)
         error_msg = f'An automaton has one local rule, but the system has {names}. Give it one.'
@@ -582,29 +634,31 @@ def _find_rule(system: CompositeSystem) -> LocalRuleInteraction | None:
     return rules[0] if rules else None
 
 
-def _find_subshift(system: CompositeSystem) -> tuple[GroupElement, SubshiftSpec] | None:
-    """Return the first group of a system with a state whose domain is a subshift.
+def _find_subshift(system: _CompositeSystem) -> tuple[_GroupElement, SubshiftSpec] | None:
+    """Return the first group of a system with a value whose domain is a subshift.
 
-    It comes with its spec, or is `None`.
+    It comes with its spec, or is `None`. The value is a state, or a parameter when no law changes it, as the cells
+    of a window whose words are counted.
     """
     for element in system.elements:
-        if not isinstance(element, GroupElement):
+        if not isinstance(element, _GroupElement):
             continue
-        for spec in element.get_states().values():
-            if isinstance(spec.domain, SubshiftSpec):
-                spec.domain._check()
-                return element, spec.domain
+        for spec in element._get_member_specs().values():
+            domain = getattr(spec, 'domain', None)
+            if isinstance(domain, SubshiftSpec):
+                domain._check()
+                return element, domain
     return None
 
 
-def _get_rule_source(rule: LocalRuleInteraction | None) -> str | None:
+def _get_rule_source(rule: _LocalRuleSpec | None) -> str | None:
     """Return what a local rule makes of its system.
 
     It is a linear automaton or an automaton, or `None` without one.
     """
     if rule is None:
         return None
-    return LINEAR if isinstance(rule.rule, LinearRuleSpec) else AUTOMATON
+    return LINEAR if isinstance(rule.law.rule, LinearRuleSpec) else AUTOMATON
 
 
 def _get_states(domain: object, rule: object) -> int | None:
@@ -627,31 +681,28 @@ def _get_states(domain: object, rule: object) -> int | None:
     return rule.states if isinstance(rule, TotalisticSpec | OuterTotalisticSpec) else None
 
 
-def _read_automaton(system: CompositeSystem, rule: LocalRuleInteraction) -> _AutomatonSpec:
+def _read_automaton(system: _CompositeSystem, rule: _LocalRuleSpec) -> _AutomatonSpec:
     """Return the law, space, size, number of states, and local map of an automaton.
 
     The automaton is that of a system.
     """
-    target = getattr(rule, rule._get_role('target'))
+    target = rule.target
     element = next((item for item in system.elements if item.label == target), None)
-    if not isinstance(element, GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
+    if not isinstance(element, _GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
         error_msg = (
             f'The local rule {rule.label!r} of an automaton sets and reads one state of a group of the system, '
             f'but it binds {target!r} and the states {rule.state!r} and {rule.reads!r}.'
         )
         raise AnalysisError(error_msg)
-    if rule.schedule != SYNCHRONOUS or rule.stochastic:
+    if rule.law.schedule != SYNCHRONOUS or rule.law.stochastic:
         error_msg = (
             f'An automaton maps configurations to configurations, so the local rule {rule.label!r} is synchronous '
-            f'and deterministic, but it has the schedule {rule.schedule!r} and stochastic={rule.stochastic!r}.'
+            f'and deterministic, but it has the schedule {rule.law.schedule!r} and '
+            f'stochastic={rule.law.stochastic!r}.'
         )
         raise AnalysisError(error_msg)
-    namespace = SimpleNamespace(**{rule._get_role('target'): SimpleNamespace(**{rule.state: SR.var(rule.state)})})
-    law = rule.prepare().run(namespace).laws_[0]
-    if not isinstance(law, LocalRuleLaw):
-        error_msg = f'The local rule {rule.label!r} returns {law!r}, not a local rule law.'
-        raise AnalysisError(error_msg)
-    law = law.prepare()
+    law = rule.law
+    law._check()
     space = _get_space(system, element)
     states = _get_states(element.get_states()[rule.state].domain, law._get_rule())
     read = _AutomatonSpec(system, rule, law, rule.state, space, int(space.size_ or 0), states)
@@ -668,8 +719,8 @@ def _get_local_map(automaton: _AutomatonSpec) -> IntArray:
         return np.empty(0, dtype=np.int64)
     if automaton.states is None:
         error_msg = (
-            f'A rule {law.rule!r} on a state without a finite domain has no number of values. Declare the state with '
-            '`StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.'
+            f'A rule {law.rule!r} on a state without a finite domain has no number of values. Give the state its '
+            'allowed values, such as `alive: Annotated[int, {0, 1}]`.'
         )
         raise AnalysisError(error_msg)
     width = _get_table(automaton, automaton.space).shape[1]
@@ -691,7 +742,7 @@ def _get_table(automaton: _AutomatonSpec, space: BaseSpace) -> Indices:
 
     The table includes the sites outside it.
     """
-    return _fitted(space)._get_index_table(automaton.law._get_neighborhood())
+    return _fitted(space)._get_index_table(automaton.law._get_neighborhood(_fitted(space)))
 
 
 def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
@@ -700,7 +751,7 @@ def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSp
     It also takes one configuration per row.
     """
     inputs = {'space': automaton.space if space is None else space, automaton.state: np.asarray(configuration)}
-    return np.asarray(automaton.law.run(inputs).value_, dtype=np.int64)
+    return np.asarray(automaton.law._get_value(inputs), dtype=np.int64)
 
 
 def _get_steps(automaton: _AutomatonSpec, configuration: npt.ArrayLike, steps: int) -> IntArray:
@@ -768,20 +819,6 @@ def _check_method(method: str, enumerable: bool) -> bool:
         error_msg = f'Unknown method {method!r}. Use one of {", ".join(METHODS)}.'
         raise AnalysisError(error_msg)
     return method == 'enumeration' or (method == 'auto' and enumerable)
-
-
-def _shifted(element: Item, base: Item) -> Item:
-    """Return the composite of an element of a memory set after an element of another.
-
-    The composite is a word or an offset.
-    """
-    if isinstance(element, str) and isinstance(base, str):
-        parts = [part for part in (base, element) if part.strip() not in {'', IDENTITY}]
-        return '*'.join(parts) or IDENTITY
-    if isinstance(element, tuple) and isinstance(base, tuple):
-        return tuple(first + second for first, second in zip(base, element, strict=True))
-    error_msg = f'Composed automata read words of a memory set or offsets of a lattice, not {element!r} after {base!r}.'
-    raise AnalysisError(error_msg)
 
 
 def _rule_clauses(
@@ -877,16 +914,17 @@ def _images(automaton: _AutomatonSpec) -> tuple[IntArray, IntArray]:
     return configurations, _codes(_step(automaton, configurations), states)
 
 
-def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> Reach:
+def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> BaseNeighborhood:
     """Return the neighbourhood of every cell within a radius.
 
-    It is a box of offsets or a ball of group elements.
+    It has fixed slots, such as a box of offsets or a ball of group elements.
     """
-    if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.law.over, LatticeNeighborhood):
+    reach = automaton.law._get_neighborhood(_fitted(automaton.space))
+    if isinstance(automaton.space, LatticeSpace) and not isinstance(reach, LatticeNeighborhood):
         error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
         raise AnalysisError(error_msg)
     ball = automaton.space._get_ball(radius)
-    if not isinstance(ball, LatticeNeighborhood | MemoryNeighborhood):
+    if ball._get_slots() is None:
         error_msg = f'The space of the automaton gives a ball of {type(ball).__name__}, which an automaton cannot read.'
         raise AnalysisError(error_msg)
     return ball
@@ -939,27 +977,43 @@ def _garden_of_eden(
     return None
 
 
-def _get_system(automaton: _AutomatonSpec, neighborhood: Reach, rule: object, name: str) -> CompositeSystem:
-    """Return the system with the elements of the analysed one and a new local rule.
+def _get_rule_system(
+    automaton: _AutomatonSpec,
+    system: System,
+    neighborhood: BaseNeighborhood,
+    rule: object,
+    name: str,
+) -> System:
+    """Return a `System` of the analysed elements with a new local rule.
 
-    The rule acts on the same state.
+    The interaction sets an update law with the rule and the neighbourhood on the same state.
     """
-    system = automaton.system
     source = automaton.rule
-    interaction = LocalRuleInteraction(
+    laws = functools.partial(_get_local_rule_laws, state=automaton.state, rule=rule, neighborhood=neighborhood)
+    interaction = Interaction(
         f'{source.label}_{name}',
-        target=getattr(source, source._get_role('target')),
-        state=automaton.state,
-        rule=rule,
-        neighborhood=neighborhood,
+        roles={'target': source.target},
+        laws=laws,
     )
-    return CompositeSystem(system.label, elements=system.elements, interactions=[interaction], space=system.space)
+    return System(system.label, elements=list(system.elements), interactions=[interaction], space=system.space)
 
 
-def _inverse(automaton: _AutomatonSpec, max_radius: int = 2) -> CompositeSystem | None:
-    """Return the system of the inverse of a reversible automaton.
+def _get_local_rule_laws(
+    s: SimpleNamespace,
+    *,
+    state: str,
+    rule: object,
+    neighborhood: BaseNeighborhood,
+) -> list[BaseLaw]:
+    """Return the update law of a state of the target by a rule of its neighbourhood."""
+    return [UpdateLaw(getattr(s.target, state), rule, neighborhood=neighborhood)]
 
-    Its composition with the automaton is the identity, and it is `None` when there is none.
+
+def _inverse(automaton: _AutomatonSpec, system: System, max_radius: int = 2) -> System | None:
+    """Return the `System` of the inverse of a reversible automaton.
+
+    It holds the elements of the system. Its composition with the automaton is the identity, and it is `None` when
+    there is none.
     """
     configurations, codes = _images(automaton)
     if np.unique(codes).size != codes.size:
@@ -977,29 +1031,29 @@ def _inverse(automaton: _AutomatonSpec, max_radius: int = 2) -> CompositeSystem 
             continue
         rows = _patterns(states, table.shape[1])
         mapping = {tuple(int(item) for item in rows[code]): int(value) for code, value in pairs}
-        return _get_system(automaton, ball, TableSpec(mapping, states=states), 'inverse')
+        return _get_rule_system(automaton, system, ball, TableSpec(mapping, states=states), 'inverse')
     return None
 
 
-def _get_reach(automaton: _AutomatonSpec) -> Reach:
+def _get_reach(automaton: _AutomatonSpec) -> BaseNeighborhood:
     """Return the neighbourhood the rule of the automaton reads.
 
-    It is made of offsets or of group elements.
+    It has fixed slots, such as offsets or group elements.
     """
-    reach = automaton.law._get_neighborhood()
-    if not isinstance(reach, LatticeNeighborhood | MemoryNeighborhood):
+    reach = automaton.law._get_neighborhood(_fitted(automaton.space))
+    if reach._get_slots() is None:
         error_msg = f'An automaton reads offsets or a memory set, not {reach!r}.'
         raise AnalysisError(error_msg)
     return reach
 
 
-def _compose(automaton: _AutomatonSpec, second: CompositeSystem) -> CompositeSystem:
-    """Return the system of the automaton that applies this one then a second one.
+def _compose(automaton: _AutomatonSpec, second: _CompositeSystem, system: System) -> System:
+    """Return the `System` of the automaton that applies this one then a second one.
 
-    Both act on the same space.
+    It holds the elements of the system, and both automata act on the same space.
     """
     rule = _find_rule(second)
-    if rule is None or isinstance(rule.rule, LinearRuleSpec):
+    if rule is None or isinstance(rule.law.rule, LinearRuleSpec):
         error_msg = 'Composed automata are systems with a local rule that is not linear.'
         raise AnalysisError(error_msg)
     other = _read_automaton(second, rule)
@@ -1007,28 +1061,22 @@ def _compose(automaton: _AutomatonSpec, second: CompositeSystem) -> CompositeSys
         error_msg = 'Composed automata share their space and their number of states.'
         raise AnalysisError(error_msg)
     inner, outer = _get_reach(automaton), _get_reach(other)
-    inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.prepare().offsets_
-    outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.prepare().offsets_
-    composite: list[Item] = []
+    composite: list[Hashable] = []
     columns = []
-    for base in outer_items:
+    for base in outer._get_slots() or ():
         row = []
-        for element in inner_items:
-            item = _shifted(element, base)
+        for slot in inner._get_slots() or ():
+            item = inner._join_slots(base, slot)
             if item not in composite:
                 composite.append(item)
             row.append(composite.index(item))
         columns.append(tuple(row))
-    reach: Reach = (
-        MemoryNeighborhood(tuple(item for item in composite if isinstance(item, str)))
-        if isinstance(inner, MemoryNeighborhood)
-        else LatticeNeighborhood(tuple(item for item in composite if isinstance(item, tuple)))
-    )
+    reach = inner._get_from_slots(composite)
     composed = _ComposedRuleSpec(automaton.local_map, other.local_map, tuple(columns), _get_states_count(automaton))
-    return _get_system(automaton, reach, functools.partial(_composed_rule, composed), 'composition')
+    return _get_rule_system(automaton, system, reach, functools.partial(_composed_rule, composed), 'composition')
 
 
-def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike) -> IntArray:
+def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike, **kwargs: object) -> IntArray:
     """Return the value of the second rule of a composition on the first rule's values.
 
     The values of the first rule are those around every cell.
@@ -1096,11 +1144,12 @@ def _get_polynomial(automaton: _AutomatonSpec) -> LaurentPolynomial:
     It is its symbol on `Z^d`.
     """
     rule = _get_linear_rule(automaton)
-    if not isinstance(automaton.law.over, LatticeNeighborhood):
+    reach = automaton.law._get_neighborhood(_fitted(automaton.space))
+    if not isinstance(reach, LatticeNeighborhood):
         error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
         raise AnalysisError(error_msg)
     field = rule.sage_field
-    offsets = automaton.law.over.prepare().offsets_
+    offsets = reach.prepare().offsets_
     ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(len(offsets[0]))])
     terms = (
         field(QQ(coefficient)) * np.prod([variable**step for variable, step in zip(ring.gens(), offset, strict=True)])
@@ -1132,7 +1181,7 @@ def _linear_surjective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
 def _get_complete(subshift: SubshiftSpec, space: BaseSpace) -> tuple[Indices, npt.NDArray[np.bool_]]:
     """Return the neighbour table of a space and the sites whose patterns lie in it."""
     neighborhood = subshift.neighborhood
-    if not isinstance(neighborhood, LatticeNeighborhood | MemoryNeighborhood):
+    if not isinstance(neighborhood, BaseNeighborhood) or neighborhood._get_slots() is None:
         error_msg = f'A subshift covers offsets or a memory set, not {neighborhood!r}.'
         raise AnalysisError(error_msg)
     table = _fitted(space)._get_index_table(neighborhood)

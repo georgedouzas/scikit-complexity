@@ -8,13 +8,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..engine.problems._cascade_record_spec import _CascadeRecordSpec
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, CascadeRecordSpec
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_path, _read_real, _read_series
 from ._utils import load_module
-from .types import Source
+from .types import DataSource
 
 SETTINGS = {
     'detect': {'threshold'},
@@ -33,6 +35,13 @@ KIND_TAGS = {
 @dataclass(frozen=True)
 class EventsResult:
     """A result of `events`, the events of one series or of event times.
+
+    It holds the series it read and what the kind measures: the start, size, duration, and peak of every event, the
+    counts in windows, the laminar phases, the excursions, or the branching ratio, such as the sizes 4 and 2 of the
+    two bursts of `[0, 3, 1, 0, 0, 2, 0]`. It reports the crashes of a market, the spikes of a neuron, and the floods
+    of a river.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         times:
@@ -68,6 +77,14 @@ class EventsResult:
 
         branching_ratio:
             The branching ratio `m`, 1 at criticality.
+
+    See Also:
+        events: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import events
+        >>> events([0, 3, 1, 0, 0, 2, 0]).sizes.tolist()
+        [4.0, 2.0]
     """
 
     times: Array | None
@@ -84,7 +101,7 @@ class EventsResult:
 
 
 def events(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'detect',
     variables: Sequence[str] | None = None,
@@ -97,26 +114,12 @@ def events(
 ) -> EventsResult:
     """Return the events of one series or of event times, of one kind.
 
-    The kinds read one series or the times of events:
+    An event is a run of consecutive values above a threshold, such as the bursts of sizes 4 and 2 in
+    `[0, 3, 1, 0, 0, 2, 0]`, with the waiting time between them. Times are the times of a trajectory, and the step
+    indices of an array. It finds the crashes of a market, the spikes of a neuron, the avalanches of a sandpile, and
+    the floods of a river.
 
-    - `'detect'`: the events of a series, every maximal run of consecutive values above `threshold`, with their
-      starts, sizes, durations, peaks, and the waiting times between them. For avalanches recorded as topplings per
-      drive step, an event is an avalanche and its size is the total number of topplings.
-    - `'counts'`: the number of events in consecutive windows of length `window`, from the times of the events, or
-      from the jump times of a discrete state of a trajectory.
-    - `'laminar-durations'`: the durations of the laminar phases of a series, the complete runs of values within
-      `threshold` of 0 between two bursts, such as the distance from an invariant manifold of on-off intermittency.
-    - `'excursions'`: the excursions of a series above `threshold`, every maximal run of values above it, with the
-      profile of every excursion, its values minus the threshold, its size, the sum of the profile, and its duration,
-      the number of its samples. A sequence of records with a `size` and a `duration`, such as the cascade records
-      of a lattice, holds excursions already.
-    - `'branching'`: the branching ratio of the series by the multistep regression estimator of `mrestimator`, which
-      fits `r_k ∝ m^k` to the regression slopes `r_k` of the values `k` steps apart, and stays unbiased when only a
-      fraction of the units is observed. Every series is one trial.
-
-    Times are the times of a trajectory, and the step indices of an array.
-
-    It appears in many fields. It finds the crashes of a market, the spikes of a neuron, and the floods of a river.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -124,7 +127,16 @@ def events(
             events for `'counts'`, or records of excursions for `'excursions'`.
 
         kind:
-            The events to measure, one of the kinds above.
+            What to return. `'detect'` gives every maximal run of values above `threshold`, with its start, size,
+            duration, and peak, and the waiting times between runs. `'counts'` gives the number of events in
+            consecutive windows of length `window`, from the times of the events or the jump times of a discrete
+            state of a trajectory. `'laminar-durations'` gives the durations of the complete runs of values within
+            `threshold` of 0 between two bursts, the quiet phases of on and off intermittency. `'excursions'` gives the
+            profile of every run above `threshold`, its values minus the threshold, with its size, the sum of the
+            profile, and its duration, the number of its samples. Records with a `size` and a `duration`, such as the
+            cascade records of a lattice, are excursions already. `'branching'` gives the branching ratio by the
+            multistep regression of `mrestimator`, which fits `r_k ∝ m^k` to the slopes `r_k` of the values `k` steps
+            apart and stays unbiased when only some of the units are observed, with every series one trial.
 
         variables:
             The one variable of a trajectory to read, or `None` for the only scalar series or discrete state.
@@ -156,26 +168,15 @@ def events(
             The kind is unknown, a setting the kind does not read is changed, a setting is out of range, or the source
             does not suit the kind.
 
+    See Also:
+        distribution: Fits the distribution of the sizes or the waiting times.
+        fit_law: Fits a power law to the sizes of avalanches.
+
     Examples:
         >>> from skcomplex.core.analysis import events
         >>> found = events([0, 3, 1, 0, 0, 2, 0])
         >>> found.sizes.tolist(), found.durations.tolist(), found.waiting_times.tolist()
         ([4.0, 2.0], [2.0, 1.0], [2.0])
-        >>> events([0.1, 0.2, 1.5, 2.2], kind='counts', window=1.0, end=3.0).counts.tolist()
-        [2.0, 1.0, 1.0]
-        >>> events([1, 0, 0, 1, 0, 1], kind='laminar-durations', threshold=0.5).durations.tolist()
-        [2.0, 1.0]
-        >>> excursions = events([0, 1, 2, 1, 0, 3, 0], kind='excursions')
-        >>> excursions.sizes.tolist(), excursions.durations.tolist()
-        ([4.0, 3.0], [3.0, 1.0])
-        >>> import numpy as np
-        >>> rng = np.random.default_rng(0)
-        >>> activity = np.zeros(20_000)
-        >>> activity[0] = 100
-        >>> for t in range(1, activity.size):
-        ...     activity[t] = rng.poisson(0.9 * activity[t - 1] + 10)
-        >>> round(events(activity, kind='branching').branching_ratio, 1)
-        0.9
     """
     _check_choice('events', 'kind', kind, KINDS)
     _check_settings(
@@ -293,14 +294,14 @@ def _laminar_durations(values: Array, clock: Array, threshold: float) -> Array:
     return clock[ends[complete] - 1] - clock[starts[complete]] + step
 
 
-def _records(source: object) -> list[CascadeRecordSpec]:
+def _records(source: object) -> list[_CascadeRecordSpec]:
     """Return the records of excursions of a source.
 
     Each record has a size and a duration, and values give nothing.
     """
     if isinstance(source, np.ndarray | Trajectory) or not isinstance(source, Sequence):
         return []
-    records = [item for item in source if isinstance(item, CascadeRecordSpec)]
+    records = [item for item in source if isinstance(item, _CascadeRecordSpec)]
     return records if records and len(records) == len(source) else []
 
 

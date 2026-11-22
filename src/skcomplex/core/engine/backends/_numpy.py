@@ -1,4 +1,4 @@
-"""Run compiled problems in NumPy, the default backend."""
+"""Define the backend that evaluates laws with NumPy, the default."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,60 +6,47 @@
 from collections.abc import Mapping
 from dataclasses import replace
 
-from ...components.laws import (
-    ArrayUpdateLaw,
-    BilinearLaw,
-    BoundaryLaw,
-    CascadeLaw,
-    CrossingLaw,
-    DissipatorLaw,
-    EquationLaw,
-    ExtremalLaw,
-    FluxLaw,
-    GeneratorLaw,
-    JumpLaw,
-    LocalRuleLaw,
-    MatchLaw,
-    NoiseLaw,
-    RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
-    TransitionLaw,
-    UpdateLaw,
-)
-from ...components.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-    StaticTime,
-)
+from ...components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._local_rule import _LocalRuleLaw
+from ...components.laws._rule import _RuleLaw
+from ...components.laws._sample import _SampleLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...components.spaces._static_time import _StaticTime
+from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ValidationError
-from ...specs import LoweredFunctionsSpec, SupportSpec
-from ...types import FormKind, NoiseKind, OrderKind, VectorFunction
+from ...types import VectorFunction
+from ..problems._bilinear_law import BilinearLaw
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ._base import BaseBackend
+from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._support_spec import SupportSpec
 
 
 class NumpyBackend(BaseBackend):
-    """A backend that evaluates every kernel with NumPy array operations, the default.
+    """A backend that evaluates every law with NumPy array operations, the default.
 
-    Choose it by default, for small systems, and to check the other backends. It appears in every field, as the
-    reference that runs any law the compiler can lower.
+    It writes the rate function `f(t, x, p)` of `x' = f(t, x, p)`, or the next state of a map, as NumPy operations on
+    whole arrays, so it needs no compiling and runs any law the system can compile, as in
+    `System(..., backend=NumpyBackend())`. It suits small systems and checks the results of the other backends. A
+    reaction network, a predator and its prey, and a small market all run on it by default.
+
+    Read more in the user guide, under Backends.
+
+    See Also:
+        NumbaBackend: Compiles the functions to machine code for large groups.
+        JaxBackend: Writes functions that JAX differentiates.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.engine.backends import NumpyBackend
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = CompositeSystem(elements=[PopulationElement('a')])
-        >>> simulate(system, until=0, backend=NumpyBackend()).problem.backend
+        >>> from skcomplex.core.systems import System
+        >>> system = System(elements=[Element('herd', values={'x': 2.0})], backend=NumpyBackend())
+        >>> system.prepare().simulate(until=0).problem.backend
         'numpy'
     """
 
@@ -70,28 +57,19 @@ class NumpyBackend(BaseBackend):
         It is the times, spaces, laws, noise, and orders.
         """
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime, StaticTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
+            time={_ContinuousTime, _DiscreteTime, _StaticTime},
+            space={None, BaseSpace},
             laws={
-                BoundaryLaw,
-                CrossingLaw,
-                DissipatorLaw,
-                ArrayUpdateLaw,
-                EquationLaw,
-                ExtremalLaw,
-                FluxLaw,
-                GeneratorLaw,
+                _BoundaryLaw,
+                EventLaw,
+                ConstraintLaw,
                 JumpLaw,
-                LocalRuleLaw,
-                MatchLaw,
+                _LocalRuleLaw,
                 NoiseLaw,
                 BilinearLaw,
                 RateLaw,
-                CascadeLaw,
-                RuleLaw,
-                SampleLaw,
-                TransferLaw,
-                TransitionLaw,
+                _RuleLaw,
+                _SampleLaw,
                 UpdateLaw,
             },
             noise=frozenset(NoiseKind),
@@ -118,7 +96,7 @@ class NumpyBackend(BaseBackend):
             error_msg = 'A backend runs on the kernels of a problem. Pass a `LoweredKernelsSpec` to `run`.'
             raise ValidationError(error_msg)
         form, size, kernels = inputs.form, inputs.size, inputs.kernels
-        boundary = kernels.get(BoundaryLaw)
+        boundary = kernels.get(_BoundaryLaw)
         lowering = LoweredFunctionsSpec(
             drift=(
                 BaseBackend._get_adding_function(kernels.get(RateLaw, []), size)
@@ -185,7 +163,7 @@ class NumpyBackend(BaseBackend):
             diffusion=NumpyBackend._get_wrapped(lowering.diffusion, NoiseLaw, reductions, kernels),
             propensities=NumpyBackend._get_wrapped(lowering.propensities, JumpLaw, reductions, kernels),
             update=NumpyBackend._get_wrapped(lowering.update, UpdateLaw, reductions, kernels),
-            boundary=NumpyBackend._get_wrapped(lowering.boundary, BoundaryLaw, reductions, kernels),
+            boundary=NumpyBackend._get_wrapped(lowering.boundary, _BoundaryLaw, reductions, kernels),
         )
 
     @staticmethod

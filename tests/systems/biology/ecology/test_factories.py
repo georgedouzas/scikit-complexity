@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import (
     FibonacciRabbitsSystem,
     LotkaVolterraSystem,
@@ -31,7 +30,7 @@ def test_varying_capacity_settles_on_cycle_of_the_season():
 
 def test_fibonacci_rabbits():
     """Test that Fibonacci's rabbits double their growth like the Fibonacci numbers."""
-    assert simulate(FibonacciRabbitsSystem(), until=9).get_values(
+    assert FibonacciRabbitsSystem().prepare().simulate(until=9).get_values(
         'rabbits.pairs',
     ).tolist() == [
         1,

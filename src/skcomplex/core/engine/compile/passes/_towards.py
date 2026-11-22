@@ -1,4 +1,4 @@
-"""Pass that sets apart the weights and scores of the candidate nodes of requests."""
+"""Set apart the weights by which network requests choose their nodes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,21 +9,34 @@ from sage.all__sagemath_symbolics import SR
 
 from ....components.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
-from ....specs._weight_spec import _WeightSpec
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation
+from .._weight_spec import _WeightSpec
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
 
 
 class TowardsPass(BasePass):
-    """A pass that sets apart the weights and scores of the candidates of requests.
+    """A pass that sets apart the weights by which network requests choose their nodes.
 
-    They are read like laws, for every request.
+    A request may choose the nodes it links to by a weight, such as the degree of every node, so a newcomer links to
+    popular nodes more often. The pass reads every weight as a law of the nodes, for every request.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        MaskRequestsPass: Silences the requests of free rows.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).run().compilation_
+        >>> [spec.owner for spec, _ in compilation.drawn_apart]
+        ['growth', 'nodes']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -73,7 +86,7 @@ class TowardsPass(BasePass):
                 node_spec = SpecsPass._get_member_spec(nodes, declarations.time)
                 references = dict(node_spec.references)
                 namespace = SpecsPass._copy_with_source(nodes, node_spec.namespace, references)
-                weights = [
+                weights: list[BaseLaw] = [
                     UpdateLaw(_WeightSpec(request, score=part == 'score'), SR(function(namespace)))
                     for part, function in (('toward', request.toward), ('score', request.score))
                     if function is not None

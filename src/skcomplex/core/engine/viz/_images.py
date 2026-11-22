@@ -12,10 +12,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import PhaseSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, FrameSpec
-from ._base import MODULUS, PHASE, BaseVisual
+from ..enums import ComplexComponentKind
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ._base import BaseVisual
 
 MIN_HISTORY = 64
 MAX_HISTORY = 256
@@ -24,15 +25,15 @@ SPACE_TIME = 'space_time'
 
 
 class ImageVisual(BaseVisual):
-    """A visual that logs every state of a lattice group as an image coloured by value.
+    """A visual that draws every value of a group on a grid as a coloured image.
 
-    In 3D and more, it logs a tensor. A one-dimensional lattice also logs a space-time image under
-    `<path>/space_time/<state>`, with one row per logged frame, the oldest at the top, and at most `history` rows. Its
-    colors span the values of the rows it shows.
+    It draws one pixel per site, with colours from `low` to `high`, such as `ImageVisual(low=0, high=1)` for a value
+    between 0 and 1. A row of sites also builds an image with one row per frame, the oldest at the top, so the change
+    over time reads from top to bottom. On a phase space it can show one plane through `slices` and the averages over
+    the extra axes through `moments`. It shows the patterns of a chemical reaction, the spins of a magnet, and the heat
+    spreading along a rod.
 
-    A state on a phase space of more than two axes can log a plane through `slices`. Its moments over the class axes log
-    under `<path>/<state>/moment_<order>`, as a bar series over a one-dimensional position lattice and as an image over
-    a two-dimensional one.
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -70,11 +71,17 @@ class ImageVisual(BaseVisual):
             `slices` or `moments` are given for a group that is not on a phase space, or `slices` does not leave two
             axes.
 
+    See Also:
+        SiteVisual: Draws values on the sites of a triangular grid or a network.
+        MeshVisual: Draws values on the triangles of a mesh.
+
     Examples:
         >>> from skcomplex.core.engine.viz import ImageVisual
         >>> ImageVisual(low=0, high=1)
         ImageVisual(high=1, low=0)
     """
+
+    numeric_options = ('low', 'high', 'history', 'moments')
 
     def __init__(
         self,
@@ -253,22 +260,35 @@ class ImageVisual(BaseVisual):
             if (self.states is not None and state not in self.states) or shaped:
                 continue
             values = np.asarray(frame.get_lattice(name))
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             if self.moments:
                 self._log_moments(recording, element, path, np.asarray(values, dtype=float))
             if self.plane_:
                 values = self._get_sliced(np.asarray(values, dtype=float))
             magnitudes = np.abs(values) if np.iscomplexobj(values) else np.asarray(values, dtype=float)
             if magnitudes.ndim == 1:
-                self._log_space_time(recording, f'{element.path}/{SPACE_TIME}/{state}', magnitudes)
+                self._log_space_time(
+                    recording,
+                    BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state),
+                    magnitudes,
+                )
             if not np.iscomplexobj(values):
                 cyclic = frame.problem.states.get_entry(name).period is not None
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
-            self._log_image(recording, f'{path}/{MODULUS}', magnitudes, cyclic=False)
-            self._log_image(recording, f'{path}/{PHASE}', np.angle(np.asarray(values, dtype=complex)), cyclic=True)
+            self._log_image(recording, f'{path}/{ComplexComponentKind.MODULUS}', magnitudes, cyclic=False)
+            self._log_image(
+                recording,
+                f'{path}/{ComplexComponentKind.PHASE}',
+                np.angle(np.asarray(values, dtype=complex)),
+                cyclic=True,
+            )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state.
 
         A lattice of three or more dimensions gets a tensor view. A one-dimensional lattice gets the 2D spatial views of
@@ -288,15 +308,14 @@ class ImageVisual(BaseVisual):
                 dimension.
 
         Examples:
-            >>> from skcomplex.core.engine.runtime import simulate
             >>> from skcomplex.core.engine.viz import ImageVisual
             >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
-            >>> problem = simulate(GrayScottSystem(shape=(16, 16)), until=0).problem
+            >>> problem = GrayScottSystem(shape=(16, 16)).prepare().simulate(until=0).problem
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/u', 'cells/v']
             >>> from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem
-        >>> problem = simulate(ElementaryAutomatonSystem(), until=0).problem
+            >>> problem = ElementaryAutomatonSystem().prepare().simulate(until=0).problem
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']
@@ -311,17 +330,23 @@ class ImageVisual(BaseVisual):
             if (self.states is not None and state not in self.states) or problem.states.get_entry(name).member_shape:
                 continue
             path, shape = (
-                f'{element.path}/{state}',
+                BaseVisual._get_state_path(element.path, state),
                 problem.get_lattice_shape(name) or (),
             )
             if len(shape) == 1 and self._get_history_of(shape[0]):
                 histories.append(
-                    rrb.Spatial2DView(origin=f'{element.path}/{SPACE_TIME}/{state}', name=f'{state} history'),
+                    rrb.Spatial2DView(
+                        origin=BaseVisual._get_state_path(f'{element.path}/{SPACE_TIME}', state),
+                        name=f'{state} history',
+                    ),
                 )
             kind = rrb.TensorView if len(shape) - len(self.plane_) > IMAGE_RANK else rrb.Spatial2DView
             views += self._get_moment_views(element, path)
             if problem.states.get_entry(name).is_complex:
-                views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (MODULUS, PHASE)]
+                views += [
+                    kind(origin=f'{path}/{part}', name=f'{state} {part}')
+                    for part in (ComplexComponentKind.MODULUS, ComplexComponentKind.PHASE)
+                ]
             else:
                 views.append(kind(origin=path, name=state))
         return [*histories, *views]

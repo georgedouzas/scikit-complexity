@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import correlation, distribution
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import HasselmannSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'hasselmann'
 
 system = HasselmannSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # The Ornstein-Uhlenbeck statistics
@@ -30,7 +29,7 @@ trajectory = simulate(system, observers=[observer], random_state=0)
 # its values should follow a normal distribution of variance `sigma^2 / (2 lam)`.
 
 lam, sigma = 0.5, 0.3
-run = simulate(HasselmannSystem(), until=2000, random_state=1)
+run = HasselmannSystem().prepare().simulate(until=2000, random_state=1)
 anomaly = run.get_values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
 histogram = distribution(anomaly, kind='histogram', bins=40)

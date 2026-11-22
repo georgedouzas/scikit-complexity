@@ -4,11 +4,10 @@ import math
 
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement
-from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.solvers import MesaSolver
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.collective_behaviour import (
     CouzinLeadershipSystem,
     SchoolingInteraction,
@@ -21,12 +20,8 @@ def _accuracy(informed):
     """Return the mean cosine between the shoal's late heading and the preferred direction, over four shoals."""
     cosines = []
     for seed in range(4):
-        trajectory = simulate(
-            CouzinLeadershipSystem(30, informed=informed, random_state=seed).prepare().system_,
-            until=150,
-            dt=1,
-            random_state=seed,
-        )
+        system = CouzinLeadershipSystem(30, informed=informed, random_state=seed).prepare()
+        trajectory = system.simulate(until=150, dt=1, random_state=seed)
         for frame in range(100, 151):
             snapshot = trajectory.get_agents('shoal', frame)
             heading = np.arctan2(np.mean(snapshot.values['vy']), np.mean(snapshot.values['vx']))
@@ -44,14 +39,16 @@ def test_couzin_leadership_informed_minority_leads():
 
 def test_swimming_interaction_turns_by_deviation_and_swims():
     """Test that a fish turns its heading by its deviation and swims `speed` along the new heading."""
-    values = {'vx': 1.0, 'vy': 0.0, 'deviation': 0.5, 'speed': 2.0}
-    shoal = GroupElement('shoal', element=ShoalMemberElement, size=1, values=values, location=[(99.0, 1.0)])
-    system = CompositeSystem(
-        elements=[shoal],
-        interactions=[SwimmingInteraction('swimming', target='shoal')],
+    shoal = ShoalMemberElement(
+        'shoal',
+        deviation=0.5,
+        speed=2.0,
+        values={'x': [99.0], 'y': [1.0]},
+        size=1,
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
     )
-    snapshot = simulate(system, random_state=0, until=1).get_agents('shoal', 1)
+    system = System(elements=[shoal], interactions=[SwimmingInteraction('swimming', target='shoal')]).prepare()
+    snapshot = system.simulate(random_state=0, until=1).get_agents('shoal', 1)
     heading = [math.cos(0.5), math.sin(0.5)]
     np.testing.assert_allclose([snapshot.values['vx'][0], snapshot.values['vy'][0]], heading)
     np.testing.assert_allclose(snapshot.locations[0], np.mod([99.0 + 2 * heading[0], 1.0 + 2 * heading[1]], 100.0))
@@ -59,20 +56,20 @@ def test_swimming_interaction_turns_by_deviation_and_swims():
 
 def _headings(locations):
     """Return the headings of fish heading east after one simultaneous turn."""
-    shoal = GroupElement(
+    points = np.asarray(locations)
+    shoal = ShoalMemberElement(
         'shoal',
-        element=ShoalMemberElement,
+        max_turn=0.4,
+        values={'x': points[:, 0], 'y': points[:, 1]},
         size=len(locations),
-        values={'vx': 1.0, 'vy': 0.0, 'max_turn': 0.4},
-        location=locations,
+        space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
     )
-    system = CompositeSystem(
+    system = System(
         elements=[shoal],
         interactions=[SchoolingInteraction('schooling', target='shoal', phase='turn')],
-        space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous')])),
-    )
-    snapshot = simulate(system, random_state=0, until=1).get_agents('shoal', 1)
+        solver=MesaSolver(phases=[PhaseSpec('turn', activation='simultaneous')]),
+    ).prepare()
+    snapshot = system.simulate(random_state=0, until=1).get_agents('shoal', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 

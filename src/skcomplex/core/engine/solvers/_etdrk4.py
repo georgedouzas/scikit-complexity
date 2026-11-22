@@ -13,23 +13,29 @@ CONTOUR_POINTS = 64
 
 
 class ETDRK4Solver(SplitSolver):
-    """A solver of fourth-order exponential time differencing of Cox and Matthews.
+    """A solver of order 4 by the exponential time differencing of Cox and Matthews.
 
-    It is for spectral fields. The linear part is integrated exactly per Fourier mode and the remainder by a
-    fourth-order scheme, with the coefficients computed by contour integrals as Kassam and Trefethen propose. Coupled
-    states of a field use a small matrix exponential per mode. States outside spectral fields follow classical RK4.
+    It solves the linear part of a spectral field exactly per Fourier mode and steps the rest with a scheme of order 4,
+    with the weights computed by contour integrals as Kassam and Trefethen propose, so stiff patterns take large steps.
+    Linked states of a field use a small matrix exponential per mode, and states outside spectral fields take classical
+    Runge-Kutta steps. Choose it for stiff fields on a periodic grid, such as the stripes of Swift-Hohenberg, the chaos
+    of Kuramoto-Sivashinsky, and the flow of a heated film.
 
-    Choose it for stiff fields with a linear part on a periodic grid. It appears in pattern formation, such as the
-    Kuramoto-Sivashinsky and Swift-Hohenberg equations.
+    Read more in the user guide, under Solvers.
 
     Args:
         dt:
             The fixed internal step.
 
+    See Also:
+        IMEX2Solver: Steps the linear part of any field implicitly.
+
     Examples:
         >>> from skcomplex.core.engine.solvers import ETDRK4Solver
-        >>> ETDRK4Solver(dt=0.25).dt
-        0.25
+        >>> from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
+        >>> system = SwiftHohenbergSystem(shape=(32, 32), solver=ETDRK4Solver(dt=0.25)).prepare()
+        >>> system.simulate(until=1, dt=1).get_values('cells.u').shape
+        (2, 1024)
     """
 
     def _check_built(self, p: Array) -> None:

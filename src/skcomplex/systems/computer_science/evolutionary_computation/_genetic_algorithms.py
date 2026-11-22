@@ -6,20 +6,23 @@ They are Mitchell's genetic algorithm and Gooding's evolution by circumstance of
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array, IntArray
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, IntArray, Role
 from ...general.agents import EvolutionInteraction
 
 N_SITUATIONS = 243
@@ -31,7 +34,7 @@ MOVES = np.array([[-1, 0], [1, 0], [0, 1], [0, -1]])
 CAN_REWARD, EMPTY_PICK_UP_PENALTY, WALL_PENALTY = 10.0, -1.0, -5.0
 
 
-class StrategyView(AgentView):
+class StrategyView(AgentViewProtocol, Protocol):
     """View of a strategy of a genetic algorithm, with its states as attributes."""
 
     actions: IntArray
@@ -48,41 +51,34 @@ class StrategyElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         actions:
             The initial action per situation, an array of 243 integers from 0 to 6.
 
         score:
             The initial score.
 
+        size:
+            The number of strategies, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.computer_science.evolutionary_computation import StrategyElement
-        >>> GroupElement('strategies', element=StrategyElement, size=3).get_params()['size']
+        >>> StrategyElement('strategies', size=3).get_params()['size']
         3
     """
+
+    visual = VisualSpec('agents', {'color_by': 'score'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'score'}),
         *,
-        actions: Annotated[object, StateSpec()] = 0.0,
-        score: Annotated[float, StateSpec()] = 0.0,
+        actions: object = 0.0,
+        score: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.actions = actions
         self.score = score
-
-    @classmethod
-    def _get_view(cls) -> type[StrategyView]:
-        """Return the view of the strategies.
-
-        It types their states.
-        """
-        return StrategyView
 
 
 class RoomCleaningInteraction(Interaction):
@@ -120,13 +116,13 @@ class RoomCleaningInteraction(Interaction):
         10
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         sessions: int = 10,
         n_actions: int = 100,
         side: int = 10,
@@ -143,23 +139,20 @@ class RoomCleaningInteraction(Interaction):
 
     def _score_agents(self, system: SystemView) -> None:
         """Set the score of every strategy of the target to its mean score in random rooms."""
-        agents = system.get_agents('target', StrategyView)
+        agents = cast(list[StrategyView], system.get_agents('target'))
         strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
         for agent, score in zip(agents, self.score(strategies, system.rng), strict=True):
             agent.score = float(score)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that scores the strategies.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule that scores the strategies, once per step for the whole population.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The scoring rule.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self._score_agents, phase=self.phase)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._score_agents, phase=self.phase)]
 
     def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -251,9 +244,6 @@ class AgedStrategyElement(StrategyElement):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         actions:
             The initial action per situation, an array of 243 integers from 0 to 6.
 
@@ -263,31 +253,28 @@ class AgedStrategyElement(StrategyElement):
         age:
             The initial age in generations.
 
+        size:
+            The number of strategies, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import AgedStrategyElement
         >>> AgedStrategyElement('strategy', age=3).age
         3
     """
 
+    visual = VisualSpec('agents', {'color_by': 'score'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'score'}),
         *,
-        actions: Annotated[object, StateSpec()] = 0.0,
-        score: Annotated[float, StateSpec()] = 0.0,
-        age: Annotated[float, StateSpec(domain=NN)] = 0,
+        actions: object = 0.0,
+        score: object = 0.0,
+        age: Annotated[object, NN] = 0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, actions=actions, score=score)
+        super().__init__(label, actions=actions, score=score, size=size)
         self.age = age
-
-    @classmethod
-    def _get_view(cls) -> type[AgedStrategyView]:
-        """Return the view of the aged strategies.
-
-        It types their states.
-        """
-        return AgedStrategyView
 
 
 class CircumstanceInteraction(Interaction):
@@ -326,13 +313,13 @@ class CircumstanceInteraction(Interaction):
         7
     """
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         lifespan: int = 7,
         starvation: float = 0.3,
         mutation: float = 0.005,
@@ -345,25 +332,22 @@ class CircumstanceInteraction(Interaction):
         self.mutation = mutation
         self.switch = switch
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the deaths and births of a generation.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the deaths and births of a generation, once per step for the whole population.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the generation.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self._advance_generation)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._advance_generation)]
 
     def _advance_generation(self, system: SystemView) -> None:
         """Age the strategies and replace the old and starving ones.
 
         Their places are filled with children of survivors.
         """
-        agents = system.get_agents('target', AgedStrategyView)
+        agents = cast(list[AgedStrategyView], system.get_agents('target'))
         rng = system.rng
         ages = np.array([agent.age for agent in agents]) + 1
         scores = np.array([agent.score for agent in agents])
@@ -447,13 +431,19 @@ class RobbyGASystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The regime is unknown.
 
     Examples:
         >>> from skcomplex.systems.computer_science.evolutionary_computation import RobbyGASystem
-        >>> RobbyGASystem(5).prepare().system_.elements[0].values['actions'].shape
+        >>> RobbyGASystem(5).prepare().system_.elements[0].actions.shape
         (5, 243)
     """
 
@@ -475,8 +465,10 @@ class RobbyGASystem(BaseSystem):
         switch: int | None = None,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_strategies = n_strategies
         self.mutation = mutation
         self.sessions = sessions
@@ -487,8 +479,9 @@ class RobbyGASystem(BaseSystem):
         self.switch = switch
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
             raise ParameterError(error_msg)
@@ -521,22 +514,17 @@ class RobbyGASystem(BaseSystem):
                 switch=self.switch,
             )
             ages = rng.integers(0, self.lifespan, size=self.n_strategies).astype(float)
-            strategies = GroupElement(
+            strategies = AgedStrategyElement(
                 'strategies',
-                element=AgedStrategyElement,
+                actions=actions,
+                score=scores,
+                age=ages,
                 size=self.n_strategies,
-                values={'actions': actions, 'score': scores, 'age': ages},
             )
-            return CompositeSystem(self.label, elements=[strategies], interactions=[circumstance, scoring])
-        return CompositeSystem(
+            self.system_ = System(self.label, elements=[strategies], interactions=[circumstance, scoring])
+            return
+        self.system_ = System(
             self.label,
-            elements=[
-                GroupElement(
-                    'strategies',
-                    element=StrategyElement,
-                    size=self.n_strategies,
-                    values={'actions': actions, 'score': scores},
-                ),
-            ],
+            elements=[StrategyElement('strategies', actions=actions, score=scores, size=self.n_strategies)],
             interactions=[evolution, scoring],
         )

@@ -1,0 +1,69 @@
+"""Define the spec of a schedule that runs named phases at every step."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+from ...components.spaces import ScheduleSpec
+from ...enums import ActivationKind
+from ...errors import ValidationError
+from ._phase_spec import PhaseSpec
+
+DEFAULT_PHASE = 'default'
+
+
+@dataclass(frozen=True)
+class PhasesScheduleSpec(ScheduleSpec):
+    """A spec of a schedule that runs named phases in order at every step.
+
+    An agent model in discrete time may split each step into phases, such as producing goods and then trading them, and
+    this schedule runs them in the order given. It orders the days of a market, the seasons of a farm, and the rounds of
+    a game.
+
+    Read more in the user guide, under Agents.
+
+    Args:
+        phases:
+            The phases, each with its rules and activation policy.
+
+    See Also:
+        PhaseSpec: One named phase with its activation policy.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile import PhaseSpec, PhasesScheduleSpec
+        >>> [phase.name for phase in PhasesScheduleSpec((PhaseSpec('produce'), PhaseSpec('trade'))).phases]
+        ['produce', 'trade']
+    """
+
+    phases: Sequence[PhaseSpec]
+
+    def _check(self) -> None:
+        """Raise an error for an invalid phase or a repeated name.
+
+        A phase is invalid with an unknown activation, no round, negative visits, or no period.
+
+        Raises:
+            ValidationError:
+                A phase repeats the name of another, has an unknown activation, runs no round, a negative number of
+                visits, or a period below one.
+        """
+        names = [phase.name for phase in self.phases]
+        if len(names) != len(set(names)):
+            error_msg = f'The phases {names} repeat a name. Give every phase of a step its own name.'
+            raise ValidationError(error_msg)
+        for phase in self.phases:
+            if phase.activation not in ActivationKind:
+                accepted = tuple(map(str, ActivationKind))
+                error_msg = f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {accepted}.'
+                raise ValidationError(error_msg)
+            if phase.visits < 0:
+                error_msg = f'Phase {phase.name!r} visits {phase.visits} times per agent. Give a number at least 0.'
+                raise ValidationError(error_msg)
+            if phase.period < 1:
+                error_msg = f'Phase {phase.name!r} runs every {phase.period} steps. Give a period of at least one step.'
+                raise ValidationError(error_msg)
+            if phase.repeat < 1:
+                error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'
+                raise ValidationError(error_msg)

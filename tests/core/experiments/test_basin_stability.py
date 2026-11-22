@@ -6,26 +6,23 @@ import pytest
 from sage.all__sagemath_symbolics import NN
 
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import basin_stability
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.physics.nonlinear_oscillators import DuffingSystem
 
-BOUNDS = {'duffing.x': (-2.0, 2.0), 'duffing.x_d1': (-2.0, 2.0)}
+BOUNDS = {'duffing.x': (-2.0, 2.0), "duffing.x'": (-2.0, 2.0)}
 
 
 class ArrivalsElement(Element):
-    """Count of arrivals that grows by one at a constant rate."""
+    """Count of arrivals, a whole number."""
 
-    def __init__(self, label, visual=None, *, count: Annotated[float, StateSpec(domain=NN)] = 0) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label, *, count: Annotated[float, NN] = 0) -> None:
+        super().__init__(label)
         self.count = count
-
-    def _get_laws(self, s):
-        """Return the arrivals."""
-        return [JumpLaw(1.0, {s.count: 1})]
 
 
 def side(trajectory):
@@ -61,7 +58,8 @@ def test_invalid_number_of_initial_states_and_bounds():
 
 def test_counting_states_start_from_integers():
     """Test that the starts of a state whose domain holds integers are integers within the bounds."""
-    system = CompositeSystem(elements=[ArrivalsElement('queue')])
+    arrivals = Interaction('arrivals', roles={'target': 'queue'}, laws=lambda s: [JumpLaw(1.0, {s.target.count: 1})])
+    system = System(elements=[ArrivalsElement('queue')], interactions=[arrivals])
     result = basin_stability(
         system,
         {'queue.count': (0, 5)},
@@ -75,3 +73,16 @@ def test_counting_states_start_from_integers():
     assert all(float(start).is_integer() and 0 <= start <= 5 for start in starts)
     assert {0, 5} <= set(starts)
     assert len(result.labels) == 40
+
+
+def test_vectorised_basins_of_a_system_match_separate_runs():
+    """Test that the basins of the logistic map run as one element of many members equal those of separate runs."""
+
+    def phase(trajectory):
+        return 'high' if trajectory.get_values('map.x')[-1] > 0.6 else 'low'
+
+    settings = {'n': 20, 'until': 101, 'dt': 1, 'random_state': 0}
+    serial = basin_stability(LogisticMapSystem(r=3.2), {'map.x': (0.05, 0.95)}, phase, **settings)
+    vectorised = basin_stability(LogisticMapSystem(r=3.2), {'map.x': (0.05, 0.95)}, phase, vectorized=True, **settings)
+    assert serial.labels == vectorised.labels
+    assert set(serial.labels) == {'high', 'low'}

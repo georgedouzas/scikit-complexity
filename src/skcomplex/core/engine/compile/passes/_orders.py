@@ -1,4 +1,4 @@
-"""Read derivatives and lags of states and solve for highest derivatives."""
+"""Rewrite derivatives and past values of states as states of their own."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,21 +14,21 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....components.interactions import ConnectionInteraction
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws import BaseLaw, CallSpec, ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....components.laws.utils._reductions import reductions_in
-from ....components.spaces import StaticTime
+from ....enums import VariableKind
 from ....errors import ValidationError
-from ....specs import CallSpec, IssueSpec
-from ....specs._orders_spec import _OrdersSpec
-from ....types import Array, VariableKind
+from ....types import Array
 from ..._utils import components_of, declarations_of, symbol, vector
 from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
 from .._compilation import Compilation
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
+from .._orders_spec import _OrdersSpec
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
 from ._equation_blocks import EquationBlocksLowering
@@ -37,9 +37,24 @@ EQUATION_UNKNOWNS = 6
 
 
 class OrdersPass(BasePass):
-    """A pass that reads derivatives and lags through companion states.
+    """A pass that rewrites derivatives and past values as states of their own.
 
-    It also adds their chains and solves equations.
+    The solvers step first derivatives only, so a law of a second derivative, such as the acceleration of a mass on a
+    spring, becomes two laws: the position moves with the velocity, a new state, and the velocity moves with the force.
+    A past value of a map becomes a state that keeps it. The pass also solves the equations that fix algebraic states.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        EquationBlocksLowering: Solves the equations of algebraic states.
+        DelaysPass: Reads states in the past by a delay.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> compilation = PassCompiler().prepare(HarmonicOscillatorSystem()).compilation_
+        >>> [law.target for _, laws in compilation.ordered for law in laws]
+        [x_mass, x_d1_mass]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -56,7 +71,7 @@ class OrdersPass(BasePass):
         blocks = list(Compilation._get_required(compilation.layout, 'layout').blocks.values())
         orders = self._get_orders_of(blocks, self._get_program_variables(compilation))
         specs = self._get_specs_of(compilation, orders)
-        if isinstance(compilation.system.time, StaticTime):
+        if compilation.is_static():
             compilation.ordered = self._solve_static(specs)
         elif orders.algebraic:
             relations, unknowns = self._get_unknowns_of(specs, blocks, orders)
@@ -66,50 +81,18 @@ class OrdersPass(BasePass):
             compilation.ordered = self._solve_equations(specs)
 
     @staticmethod
-    def _get_connected_ports(compilation: Compilation) -> set[tuple[str, str]]:
-        """Return the element path and port name of every port a connection names."""
-        return {
-            (f'{node.scope}{member}', port)
-            for node in Compilation._get_required(compilation.nodes, 'nodes')
-            if isinstance(node.component, ConnectionInteraction)
-            for member, port in zip(node.component.members, node.component.ports, strict=True)
-        }
-
-    @staticmethod
-    def _get_zero_flows(spec: KernelSpec, block: BlockSpec, connected: set[tuple[str, str]]) -> list[_RelationSpec]:
-        """Return the relation `flow == 0` of every unconnected port of an element.
-
-        A port is unconnected when no connection names it.
-        """
-        if block.node.interaction:
-            return []
-        ports = getattr(block.node.component_type, 'ports', {})
-        relations = []
-        for port, connector in ports.items():
-            if (block.node.path, port) in connected:
-                continue
-            flow = getattr(spec.namespace, f'{port}_{connector.flow}')
-            description = f'the zero flow of the unconnected port {port} of {spec.owner}'
-            relations.append(_RelationSpec(spec, SR(flow), {flow: flow}, description))
-        return relations
-
-    @staticmethod
     def _get_specs_of(
         compilation: Compilation,
         orders: _OrdersSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]:
         """Return the laws of every spec with orders and lags read.
 
-        Equations become relations, and zero flows are added.
+        Equations become relations.
         """
-        connected = OrdersPass._get_connected_ports(compilation)
         return [
             (
                 spec,
-                [
-                    *OrdersPass._copy_with_orders(spec, laws, block, orders),
-                    *OrdersPass._get_zero_flows(spec, block, connected),
-                ],
+                [*OrdersPass._copy_with_orders(spec, laws, block, orders)],
             )
             for spec, laws, block in Compilation._get_required(compilation.lowered, 'lowered')
         ]
@@ -194,7 +177,7 @@ class OrdersPass(BasePass):
 
         The states are those of the blocks, and the solved states are those equations determine.
         """
-        orders, lags, algebraic = {}, {}, set()
+        orders, lags, algebraic, fractional = {}, {}, set(), {}
         for block in blocks:
             if block.node.interaction or block.node.is_agent:
                 continue
@@ -203,28 +186,33 @@ class OrdersPass(BasePass):
                 declaration = declarations.get(variable)
                 if declaration is not None and declaration.derivatives:
                     orders[entry.name] = declaration.derivatives + 1
+                if declaration is not None and declaration.is_fractional:
+                    fractional[entry.name] = float(declaration.order)
                 if declaration is not None and declaration.lags:
                     lags[entry.name] = declaration.lags
                 if declaration is not None and declaration.algebraic and entry.name not in programmed:
                     algebraic.add(entry.name)
-        return _OrdersSpec(orders, lags, frozenset(algebraic))
+        return _OrdersSpec(orders, lags, frozenset(algebraic), fractional)
 
     @staticmethod
     def _get_companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
         """Return the symbol of a companion state of the state a symbol reads.
 
-        It is in the same namespace and column.
+        It is in the same namespace and column, and read under the same alias, such as the neighbour `other` or the
+        second other member `others[1]` of a hyperedge.
         """
         reference = spec.references[item]
         name = f'{reference.entry.name}{suffix}'
+        alias = str(item).rpartition('__')[2] if '__' in str(item) else ''
         for other, candidate in spec.references.items():
             if (
                 candidate.entry.name == name
                 and candidate.column == reference.column
                 and candidate.source == reference.source
+                and (str(other).rpartition('__')[2] if '__' in str(other) else '') == alias
             ):
                 return other
-        error_msg = f'A law of {spec.owner} reads {name}, which the namespace does not hold.'
+        error_msg = f'A law of {spec.owner} reads {name}, which is not a state or parameter it can read.'
         raise ValidationError(error_msg)
 
     @staticmethod
@@ -238,7 +226,8 @@ class OrdersPass(BasePass):
         """Return a law value with derivatives and lags replaced by companion symbols.
 
         When `highest` is given, derivatives of a state's own order become placeholders that map to the symbol of the
-        state's highest derivative, which an equation solves for.
+        state's highest derivative, which an equation solves for. A parameter is constant in time, so its derivatives
+        are zero, such as in `(m * v).diff(t)` for a constant mass `m`.
         """
         if isinstance(value, FreeModuleElement):
             return vector(OrdersPass._substitute(item, spec, orders, owner, highest) for item in value)
@@ -248,6 +237,9 @@ class OrdersPass(BasePass):
         for call in BasePass._get_calls_of(value, 'derivative'):
             item, degree = call.operands()
             reference = spec.references.get(item)
+            if reference is not None and not reference.is_state:
+                replacements[call] = SR(0)
+                continue
             order = orders.orders.get(reference.entry.name, 1) if reference is not None else 1
             if highest is not None and reference is not None and degree.is_integer() and int(degree) == order:
                 top = item if order == 1 else OrdersPass._get_companion_symbol(spec, item, f'_d{order - 1}')
@@ -257,9 +249,9 @@ class OrdersPass(BasePass):
                 continue
             if reference is None or not degree.is_integer() or not 0 < int(degree) < order:
                 error_msg = (
-                    f'{owner} uses {call}, but laws read derivatives of a state only below its declared order, here '
-                    f'{order}. Declare a higher order with `state(order=...)`, or state the highest derivative with an '
-                    '`EquationLaw`.'
+                    f'{owner} uses {call}, but laws read the derivatives of a state only below its declared order, '
+                    f'here {order}, the highest derivative its rate laws give. Give the state a rate law of a higher '
+                    'derivative, such as RateLaw(x.diff(t, 2), ...), or state the derivative with a ConstraintLaw.'
                 )
                 raise ValidationError(error_msg)
             replacements[call] = OrdersPass._get_companion_symbol(spec, item, f'_d{int(degree)}')
@@ -269,7 +261,8 @@ class OrdersPass(BasePass):
             kept = orders.lags.get(reference.entry.name, 0) if reference is not None else 0
             if reference is None or not steps.is_integer() or not 0 < int(steps) <= kept:
                 error_msg = (
-                    f'{owner} uses {call}, but the state keeps {kept} past values. Declare more with `state(lags=...)`.'
+                    f'{owner} uses {call}, but the state keeps {kept} past values. Write a past value as `x(t=t - k)` '
+                    'with a whole number of steps `k` of at least 1.'
                 )
                 raise ValidationError(error_msg)
             replacements[call] = OrdersPass._get_companion_symbol(spec, item, f'_lag{int(steps)}')
@@ -300,13 +293,20 @@ class OrdersPass(BasePass):
             ValidationError:
                 The law gives a derivative of another order than the order of its state.
         """
-        order = OrdersPass._get_state_order(law, spec, orders)
-        if law.order is not None and law.order != order:
-            references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
-            names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
+        references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
+        names = ', '.join(sorted({reference.entry.name for reference in references if reference is not None}))
+        order: float = OrdersPass._get_state_order(law, spec, orders)
+        given = law._get_order()
+        if given is not None and not float(given).is_integer():
+            declared = {
+                orders.fractional.get(reference.entry.name, 1.0) for reference in references if reference is not None
+            }
+            order = max(declared, default=1.0)
+        if given is not None and given != order:
+            stated = 'NoiseLaw' if isinstance(law, NoiseLaw) else 'RateLaw'
             error_msg = (
-                f'A {type(law).__name__} of {spec.owner} on {names} gives the derivative of order {law.order}, but the '
-                f'state has order {order}. Match the law to the order declared with `state(order=...)`.'
+                f'A {stated} of {spec.owner} on {names} gives the derivative of order {given}, but the '
+                f'state has order {order}. Write the law on the derivative of that order, such as `x.diff(t, {order})`.'
             )
             raise ValidationError(error_msg)
 
@@ -342,18 +342,19 @@ class OrdersPass(BasePass):
         return laws
 
     @staticmethod
-    def _get_relation(spec: KernelSpec, law: EquationLaw, orders: _OrdersSpec) -> _RelationSpec:
+    def _get_relation(spec: KernelSpec, law: ConstraintLaw, orders: _OrdersSpec) -> _RelationSpec:
         """Return an equation law as a relation in highest derivative placeholders.
 
         The placeholders stand for the highest derivatives it contains.
         """
-        description = f'the equation {law.lhs_} == {law.rhs_} of {spec.owner}'
+        left, right = law._get_sides()
+        description = f'the equation {left} == {right} of {spec.owner}'
         if spec.pairs is not None:
             error_msg = f'Pair interaction {spec.owner} returns {description}. Pair interactions take only rate laws.'
             raise ValidationError(error_msg)
         highest: dict[Expression, Expression] = {}
-        lhs = OrdersPass._substitute(SR(law.lhs_), spec, orders, f'In {description}, it', highest)
-        rhs = OrdersPass._substitute(SR(law.rhs_), spec, orders, f'In {description}, it', highest)
+        lhs = OrdersPass._substitute(SR(left), spec, orders, f'In {description}, it', highest)
+        rhs = OrdersPass._substitute(SR(right), spec, orders, f'In {description}, it', highest)
         reference = spec.references.get(law.target) if isinstance(law.target, Expression) else None
         key = None if reference is None else (reference.entry.name, reference.column)
         target = None if key is None else law.target
@@ -407,10 +408,10 @@ class OrdersPass(BasePass):
 
         Derivatives and lags are replaced and rates retargeted.
         """
-        owner = f'A {type(law).__name__} of {spec.owner}'
+        owner = f'A {law._get_name()} of {spec.owner}'
         if isinstance(law, JumpLaw):
             return JumpLaw(OrdersPass._substitute(law.rate, spec, orders, owner), law.changes)
-        if isinstance(law, CrossingLaw | RenewalLaw):
+        if isinstance(law, EventLaw | RenewalLaw):
             reset = {
                 OrdersPass._substitute(SR(target), spec, orders, owner): (
                     value if BaseLaw._is_function(value) else OrdersPass._substitute(SR(value), spec, orders, owner)
@@ -437,12 +438,20 @@ class OrdersPass(BasePass):
                 ),
                 reset=reset_value,
             )
-        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return law
         value = OrdersPass._substitute(law.value, spec, orders, owner)
         if isinstance(law, RateLaw | NoiseLaw):
             return OrdersPass._retarget(BasePass._get_replaced(law, value=value), spec, orders)
         return BasePass._get_replaced(law, value=value)
+
+    @staticmethod
+    def _reads_derivatives(law: BaseLaw) -> bool:
+        """Return whether a value of a law reads a derivative, such as `derivative(x, 1)`."""
+        if isinstance(law, KERNEL_FREE_LAWS):
+            return False
+        values = [SR(item) for item in law._get_values() if isinstance(item, Expression)]
+        return any(BasePass._get_calls_of(value, 'derivative') for value in values)
 
     @staticmethod
     def _copy_with_orders(
@@ -458,13 +467,14 @@ class OrdersPass(BasePass):
         for law in laws:
             if isinstance(law, RateLaw | NoiseLaw):
                 OrdersPass._check_order(law, spec, orders)
-        if not orders.orders and not orders.lags and not any(isinstance(law, EquationLaw) for law in laws):
+        lowered = any(isinstance(law, ConstraintLaw) or OrdersPass._reads_derivatives(law) for law in laws)
+        if not orders.orders and not orders.lags and not lowered:
             return list(laws)
         result: list[BaseLaw | _RelationSpec] = []
         for law in laws:
             if isinstance(law, KERNEL_FREE_LAWS):
                 result.append(law)
-            elif isinstance(law, EquationLaw):
+            elif isinstance(law, ConstraintLaw):
                 result.append(OrdersPass._get_relation(spec, law, orders))
             else:
                 result.append(OrdersPass._get_ordered_law(spec, law, orders))
@@ -607,7 +617,10 @@ class OrdersPass(BasePass):
         if not relations:
             return kept
         values = OrdersPass._get_exact_solution(relations)
+        solved: list[tuple[KernelSpec, list[BaseLaw]]]
         if values is None:
-            return [*kept, *((item.spec, [RateLaw(item.target, item.expression)]) for item in relations)]
-        pairs = zip(relations, values, strict=True)
-        return [*kept, *((item.spec, [UpdateLaw(item.target, value)]) for item, value in pairs)]
+            solved = [(item.spec, [RateLaw(item.target, item.expression)]) for item in relations]
+        else:
+            pairs = zip(relations, values, strict=True)
+            solved = [(item.spec, [UpdateLaw(item.target, value)]) for item, value in pairs]
+        return [*kept, *solved]

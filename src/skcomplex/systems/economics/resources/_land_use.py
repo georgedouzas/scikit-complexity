@@ -3,22 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ....core.components.base import BasePart
-from ....core.components.elements import Element, FieldElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import BaseLaw, ConstraintLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import BaseSpace, LatticeSpace, StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class LandCellElement(Element):
@@ -34,6 +35,15 @@ class LandCellElement(Element):
         distance:
             The distance from the market.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of cells, or `None` for one.
+
+        space:
+            The plain with one cell per site, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import LandCellElement
         >>> LandCellElement('cell', distance=3.0).distance
@@ -43,10 +53,14 @@ class LandCellElement(Element):
     def __init__(
         self,
         label: str,
-        crop: Annotated[float, StateSpec()] = 0.0,
-        distance: Annotated[float, StateSpec()] = 0.0,
+        *,
+        crop: object = 0.0,
+        distance: object = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, values=values, size=size, space=space)
         self.crop = crop
         self.distance = distance
 
@@ -87,13 +101,13 @@ class BidRentInteraction(Interaction):
         (0.1,)
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         yields: Sequence[float],
         prices: Sequence[float],
         costs: Sequence[float],
@@ -106,18 +120,14 @@ class BidRentInteraction(Interaction):
         self.costs = costs
         self.rates = rates
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for sequences without one value per crop.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The sequences have different lengths.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         lengths = {len(self.yields), len(self.prices), len(self.costs), len(self.rates)}
         if len(lengths) != 1:
             error_msg = (
@@ -126,23 +136,24 @@ class BidRentInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the equation of the crop of highest bid.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The equation of the crop of a cell.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [self._get_equation(context)]
+
+    def _get_equation(self, s: SimpleNamespace) -> ConstraintLaw:
+        """Return the equation of the crop of highest bid of a cell."""
         crop, best = SR(0), SR(0)
         crops = zip(self.yields, self.prices, self.costs, self.rates, strict=True)
         for index, (yield_, price, cost, rate) in enumerate(crops, start=1):
             bid = yield_ * (price - cost) - yield_ * rate * s.target.distance
             crop, best = where(bid > best, index, crop), where(bid > best, bid, best)
-        return [EquationLaw(s.target.crop == crop, target=s.target.crop)]
+        return ConstraintLaw(s.target.crop == crop, target=s.target.crop)
 
 
 class VonThunenSystem(BaseSystem):
@@ -171,10 +182,15 @@ class VonThunenSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.economics.resources import VonThunenSystem
-        >>> trajectory = simulate(VonThunenSystem(), until=1.0)
+        >>> trajectory = VonThunenSystem().prepare().simulate(until=1.0)
         >>> sorted(set(trajectory.get_values('plain.crop')[0].ravel().tolist()))
         [0.0, 1.0, 2.0, 3.0]
     """
@@ -192,25 +208,23 @@ class VonThunenSystem(BaseSystem):
         costs: Sequence[float] = (1.0, 0.5, 0.5),
         rates: Sequence[float] = (0.2, 0.2, 0.2),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.yields = yields
         self.prices = prices
         self.costs = costs
         self.rates = rates
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         centre = (self.size - 1) / 2
         rows, columns = np.indices((self.size, self.size))
         distance = np.hypot(rows - centre, columns - centre)
-        plain = FieldElement(
-            'plain',
-            element=LandCellElement,
-            space=LatticeSpace((self.size, self.size)),
-            values={'distance': distance},
-        )
+        plain = LandCellElement('plain', distance=distance, space=LatticeSpace((self.size, self.size)))
         bid = BidRentInteraction(
             'bid',
             target='plain',
@@ -219,4 +233,4 @@ class VonThunenSystem(BaseSystem):
             costs=self.costs,
             rates=self.rates,
         )
-        return CompositeSystem(self.label, elements=[plain], interactions=[bid], time=StaticTime())
+        self.system_ = System(self.label, elements=[plain], interactions=[bid])

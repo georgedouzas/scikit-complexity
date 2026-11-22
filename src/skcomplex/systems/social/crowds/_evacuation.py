@@ -6,6 +6,7 @@ The rooms of the building form a network.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -16,11 +17,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components import Observable
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.kinetics import EncounterInteraction
 from ..common.kinetics import ActivityDensityElement
 
@@ -108,11 +111,11 @@ class CrowdingInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        rooms: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
-        speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
-        crowding: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        candidate: Role,
+        field: Role,
+        rooms: Annotated[int, RealSet.open(0, oo)] = 7,
+        speeds: Annotated[int, RealSet.open(0, oo)] = 3,
+        crowding: Annotated[float, RealSet.closed_open(0, oo)] = 2.0,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.rooms = rooms
@@ -166,11 +169,11 @@ class GuidanceInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        rooms: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
-        speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
-        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        candidate: Role,
+        field: Role,
+        rooms: Annotated[int, RealSet.open(0, oo)] = 7,
+        speeds: Annotated[int, RealSet.open(0, oo)] = 3,
+        recovery: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.rooms = rooms
@@ -341,12 +344,12 @@ class WalkingInteraction(EncounterInteraction):
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str, RoleSpec()],
-        branching: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
-        depth: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
-        speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
-        mobility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        candidate: Role,
+        field: Role,
+        branching: Annotated[int, RealSet.open(0, oo)] = 2,
+        depth: Annotated[int, RealSet.open(0, oo)] = 2,
+        speeds: Annotated[int, RealSet.open(0, oo)] = 3,
+        mobility: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.branching = branching
@@ -406,7 +409,7 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     return moment(s.x, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
-def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
+def evacuation_observables(rooms: int, speeds: int) -> list[Observable]:
     """Return the evacuated fraction and the mean walking speed of a crowd `crowd`.
 
     Args:
@@ -426,8 +429,8 @@ def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
         ['evacuated', 'mean_speed']
     """
     return [
-        ObservableSpec('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
-        ObservableSpec('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
+        Observable('evacuated', partial(evacuated_fraction, rooms=rooms, speeds=speeds), group='crowd'),
+        Observable('mean_speed', partial(mean_speed, rooms=rooms, speeds=speeds), group='crowd'),
     ]
 
 
@@ -470,9 +473,15 @@ class EvacuationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.crowds import EvacuationSystem
-        >>> EvacuationSystem().prepare().system_.elements[0].prepare().size_
+        >>> EvacuationSystem().prepare().system_.elements[0].x.size
         24
     """
 
@@ -483,7 +492,7 @@ class EvacuationSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_sizes_of(system: CompositeSystem) -> tuple[int, int]:
+    def _get_sizes_of(system: System) -> tuple[int, int]:
         """Return the number of rooms and of speed classes of a system.
 
         They are read from its crowding interaction.
@@ -501,8 +510,10 @@ class EvacuationSystem(BaseSystem):
         crowding: float = 2.0,
         recovery: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.branching = branching
         self.depth = depth
         self.speeds = speeds
@@ -510,23 +521,18 @@ class EvacuationSystem(BaseSystem):
         self.crowding = crowding
         self.recovery = recovery
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rooms = building_of(self.branching, self.depth).number_of_nodes()
         initial = np.zeros((rooms + 1, self.speeds))
         initial[:rooms, self.speeds // 2] = 1.0 / rooms
         crowd_space = LatticeSpace((rooms + 1, self.speeds), boundary='fixed')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'crowd',
-                    element=ActivityDensityElement,
-                    on='sites',
-                    space=crowd_space,
-                    values={'x': initial.ravel()},
-                ),
-                GroupElement('signs', element=ActivityDensityElement, size=1, values={'x': 1.0}),
+                ActivityDensityElement('crowd', x=initial.ravel(), space=crowd_space),
+                ActivityDensityElement('signs', x=[1.0], size=1),
             ],
             interactions=[
                 WalkingInteraction(
@@ -556,15 +562,6 @@ class EvacuationSystem(BaseSystem):
                 ),
             ],
             space=crowd_space,
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = evacuation_observables(*EvacuationSystem._get_sizes_of(system))
-        return settings
+        if not self.observables_:
+            self.observables_ = tuple(evacuation_observables(*EvacuationSystem._get_sizes_of(self.system_)))

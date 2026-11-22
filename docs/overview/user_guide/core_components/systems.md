@@ -1,99 +1,114 @@
 # Systems
 
-A system composes elements, interactions, nested systems, a space, and a time into one model that `simulate` runs.
-Elements hold the states, interactions return the laws that change them, a space places the members of a group, and a
-time says whether the states flow, step, or are solved once. A `CompositeSystem` takes these parts as data. A
-`BaseSystem` builds them from the parameters of a model, so users can set, sweep, and calibrate them. `RunSettings`
-holds the end time, the step, and the solver that suit a system class. [How the parts fit](index.md) shows the
-families together, and the [systems parts page](../../../parts/systems.md) compares the system classes and holds their
-fact sheets.
+A system composes elements, interactions, nested systems, and a space into one model. Elements hold the values,
+interactions set the laws that change them, and a space places the members of an element. A `System` takes these
+components as data, `prepare` compiles them into one problem, and `simulate` runs it, as `fit` and `predict` do for a
+scikit-learn estimator. A `BaseSystem` builds its system from the parameters of a model, so users can set, sweep, and
+calibrate them. Its class variables, such as `until` and `dt`, are the run settings that suit it. [How the components fit](index.md)
+shows the families together, and the [systems page](../../../components/systems.md) compares the system classes and
+holds their fact sheets.
 
-## CompositeSystem
+## System
 
-A `CompositeSystem` holds the parts of a model as they are given. Here prey grow and predators hunt them on every
-site of a lattice of three by three sites, and prey move between neighbouring sites. The prey start unevenly, with
-more on the first site and fewer on the third.
+A `System` holds the components of a model as they are given. Here prey grow and predators hunt them on every site of
+a lattice of three by three sites, and prey move between neighbouring sites. The prey start unevenly, with more on the
+first site and fewer on the third.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement, GroupElement
-from skcomplex.core.components.interactions import CouplingInteraction, RateInteraction
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.systems import System
 
-animals = {
-    'variables': {'prey': DeclaredVariableSpec(1.0, StateSpec()), 'predators': DeclaredVariableSpec(0.5, StateSpec())},
-    'prey': [1.5, 1.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-}
-habitats = GroupElement('habitats', element=DeclaredElement, on='sites', values=animals)
-births = RateInteraction(
-    'births', target='habitats', state='prey', rate=lambda s: s.target.prey * (1.0 - s.target.predators)
+prey = [1.5, 1.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+habitats = Element('habitats', values={'prey': prey, 'predators': 0.5}, space=LatticeSpace((3, 3)))
+births = Interaction(
+    'births',
+    roles={'target': 'habitats'},
+    laws=lambda s: [RateLaw(s.target.prey.diff(s.t), s.target.prey * (1.0 - s.target.predators))],
 )
-hunting = RateInteraction(
-    'hunting', target='habitats', state='predators', rate=lambda s: s.target.predators * (s.target.prey - 1.0)
+hunting = Interaction(
+    'hunting',
+    roles={'target': 'habitats'},
+    laws=lambda s: [RateLaw(s.target.predators.diff(s.t), s.target.predators * (s.target.prey - 1.0))],
 )
-dispersal = CouplingInteraction('dispersal', target='habitats', read='prey', write='prey')
-ecosystem = CompositeSystem(
-    'ecosystem', elements=[habitats], interactions=[births, hunting, dispersal], space=LatticeSpace((3, 3))
+dispersal = Interaction(
+    'dispersal',
+    roles={'target': 'habitats'},
+    laws=lambda s: [RateLaw(s.target.prey.diff(s.t), neighbors(s.target.other.prey - s.target.prey))],
 )
-simulate(ecosystem, until=4, dt=2.0).get_values('habitats.prey').mean(axis=1).round(2).tolist()
+ecosystem = System('ecosystem', elements=[habitats], interactions=[births, hunting, dispersal]).prepare()
+ecosystem.simulate(until=4, dt=2.0).get_values('habitats.prey').mean(axis=1).round(2).tolist()
 ```
 
-The mean prey over the lattice rises to 1.65 and falls to 0.53, a cycle of Lotka and Volterra. The group takes the
-lattice of the system as its space, since it has none of its own.
+The mean prey over the lattice rises to 1.65 and falls to 0.52, a cycle of Lotka and Volterra. The element on the
+lattice holds one member per site, and its value `predators` starts at 0.5 on every site.
 
 The same class holds a savings account. Interest of 5 percent a year grows the balance, and withdrawals of 120 a
 year draw it down.
 
 ```python continuation
-account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(1000.0, StateSpec())})
-interest = RateInteraction('interest', target='account', state='x', rate=lambda s: 0.05 * s.target.x)
-withdrawals = RateInteraction('withdrawals', target='account', state='x', rate=-120.0)
-savings = CompositeSystem('savings', elements=[account], interactions=[interest, withdrawals])
-simulate(savings, until=10, dt=5.0).get_values('account.x').round(2).tolist()
+account = Element('account', values={'x': 1000.0})
+interest = Interaction(
+    'interest',
+    roles={'target': 'account'},
+    laws=lambda s: [RateLaw(s.target.x.diff(s.t), 0.05 * s.target.x)],
+)
+withdrawals = Interaction(
+    'withdrawals',
+    roles={'target': 'account'},
+    laws=lambda s: [RateLaw(s.target.x.diff(s.t), -120.0)],
+)
+savings = System('savings', elements=[account], interactions=[interest, withdrawals])
+savings.prepare().simulate(until=10, dt=5.0).get_values('account.x').round(2).tolist()
 ```
 
 The withdrawals exceed the interest, so the balance falls to 602.36 after five years and to 91.79 after ten.
 
-**How the engine runs it.** `prepare` prepares the space and the time first, then the elements and the nested
-systems on the space, then the interactions. The compiler collects the laws of every part and lowers them to one
-problem, and the tags of the system come from its parts. The tags choose the default solver.
+**How the engine runs it.** `prepare` checks every component, binds the interactions to the elements their roles name,
+and compiles the laws of every component into one problem. The kinds of the laws choose the form of the problem and
+its default solver, and `prepare` sets the attributes it learns, such as `form_` and `solver_`.
 
 ```python continuation
-tags = ecosystem.get_tags()
-sorted(tags.laws), sorted(tags.space), sorted(tags.time)
+ecosystem.form_, type(ecosystem.solver_).__name__
 ```
 
-The ecosystem holds rate laws on a lattice in continuous time, so `ScipyODESolver` integrates it.
+The rate laws of the ecosystem make ordinary differential equations, so `ScipyODESolver` integrates it.
 
 **How it combines.** A system nests other systems through `systems`, and an interaction names an element of a nested
 system by its path, such as `savings/account`. Here a family fund grows by 10 percent a year of the balance of the
 nested account, a matching gift that the account itself does not pay.
 
 ```python continuation
-fund = DeclaredElement('fund', variables={'x': DeclaredVariableSpec(0.0, StateSpec())})
-deposit = RateInteraction(
-    'deposit', target='fund', state='x', rate=lambda s: 0.1 * s.sources[0].x, sources=['savings/account']
+fund = Element('fund', values={'x': 0.0})
+deposit = Interaction(
+    'deposit',
+    roles={'target': 'fund', 'source': 'savings/account'},
+    laws=lambda s: [RateLaw(s.target.x.diff(s.t), 0.1 * s.source.x)],
 )
-family = CompositeSystem('family', elements=[fund], systems=[savings], interactions=[deposit])
-trajectory = simulate(family, until=2, dt=1.0)
+family = System('family', elements=[fund], systems=[savings], interactions=[deposit]).prepare()
+trajectory = family.simulate(until=2, dt=1.0)
 trajectory.get_values('savings/account.x').round(2).tolist(), trajectory.get_values('fund.x').round(2).tolist()
 ```
 
 The account falls to 928.22 and 852.76 under its own laws, and the fund grows to 96.44 and 185.52. A nested system
-may also be a `BaseSystem` subclass, which the composite replaces by the parts it builds.
+may also be a `BaseSystem` subclass, which the system replaces by the system it builds.
 
-**Limits and errors.** The parts are fixed when the system is built, so a parameter sweep over a composite rebuilds
-the parts by hand. A `BaseSystem` builds them from parameters. Every role must name an element of the system, and the
-run raises a `RoleError`, a kind of `ValidationError`, for a path that names none.
+**Limits and errors.** Every role must name an element of the system, and `prepare` raises a `RoleError`, a kind of
+`ValidationError`, for a path that names none.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
 
-typo = RateInteraction('interest', target='acount', state='x', rate=lambda s: 0.05 * s.target.x)
+typo = Interaction(
+    'interest',
+    roles={'target': 'acount'},
+    laws=lambda s: [RateLaw(s.target.x.diff(s.t), 0.05 * s.target.x)],
+)
 try:
-    simulate(CompositeSystem(elements=[account], interactions=[typo]), until=1)
+    System(elements=[account], interactions=[typo]).prepare()
 except ValidationError as error:
     message = str(error)
 message
@@ -102,47 +117,23 @@ message
 The message says that the interaction `interest` binds the role `target` to `acount`, which is not an element or
 group path of the system. The fix is the label of the element, `account`.
 
-**A field realization.** The catalog writes a system as a `BaseSystem` subclass whose hook `_build_system` returns the
-composite. Here the savings account takes its rate and its withdrawals as model parameters.
+**A field realization.** The catalog writes a system as a `BaseSystem` subclass whose `_prepare` sets the `System` of
+its components, as the next section shows.
 
-```python continuation
-from skcomplex.core.components.systems import BaseSystem
-
-
-class SavingsSystem(BaseSystem):
-    def __init__(self, label='savings', rate=0.05, withdrawal=120.0):
-        super().__init__(label)
-        self.rate = rate
-        self.withdrawal = withdrawal
-
-    def _build_system(self):
-        account = DeclaredElement('account', variables={'x': DeclaredVariableSpec(1000.0, StateSpec())})
-        interest = RateInteraction('interest', target='account', state='x', rate=lambda s: self.rate * s.target.x)
-        withdrawals = RateInteraction('withdrawals', target='account', state='x', rate=-self.withdrawal)
-        return CompositeSystem(self.label, elements=[account], interactions=[interest, withdrawals])
-
-
-simulate(SavingsSystem(withdrawal=50.0), until=10, dt=10.0).get_values('account.x').round(2).tolist()
-```
-
-Withdrawals of 50 a year equal the interest on 1000 at 5 percent, so the balance stays at 1000.
-
-See its [fact sheet](../../../parts/systems.md#compositesystem)
-and its [API entry][skcomplex.core.components.systems.CompositeSystem].
+See its [API entry][skcomplex.core.systems.System].
 
 ## BaseSystem
 
 A `BaseSystem` is the base of a system class with model parameters. The subclass takes the parameters as arguments of
-its `__init__` and stores each under the same name, as a scikit-learn estimator does, and it builds its parts in the
-hook `_build_system`. Class variables such as `until` and `dt` are its tuned run settings. Here an outbreak grows
-logistically in a town, at the rate `beta` among `population` people.
+its `__init__` and stores each under the same name, as a scikit-learn estimator does, and its `_prepare` sets
+`system_`, the `System` of its components. Class variables such as `until` and `dt` are its tuned run settings. Here an
+outbreak grows logistically in a town, at the rate `beta` among `population` people.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import BaseSystem, System
 
 
 class OutbreakSystem(BaseSystem):
@@ -154,15 +145,20 @@ class OutbreakSystem(BaseSystem):
         self.beta = beta
         self.population = population
 
-    def _build_system(self):
-        infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        infected = Element('infected', values={'x': 10.0})
         growth = lambda s: self.beta * s.target.x * (1 - s.target.x / self.population)
-        spread = RateInteraction('spread', target='infected', state='x', rate=growth)
-        return CompositeSystem(self.label, elements=[infected], interactions=[spread])
+        spread = Interaction(
+            'spread',
+            roles={'target': 'infected'},
+            laws=lambda s: [RateLaw(s.target.x.diff(s.t), growth(s))],
+        )
+        self.system_ = System(self.label, elements=[infected], interactions=[spread])
 
 
 outbreak = OutbreakSystem()
-outbreak.get_params(), simulate(outbreak).get_values('infected.x').round(1).tolist()
+outbreak.get_params(), outbreak.prepare().simulate().get_values('infected.x').round(1).tolist()
 ```
 
 `simulate` takes the end time 30 and the step 10 from the class. The infected number 168.7 after ten days, 803.0
@@ -181,85 +177,83 @@ class CoolingSystem(BaseSystem):
         self.k = k
         self.room = room
 
-    def _build_system(self):
-        cup = DeclaredElement('coffee', variables={'T': DeclaredVariableSpec(90.0, StateSpec())})
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        cup = Element('coffee', values={'T': 90.0})
         newton = lambda s: -self.k * (s.target.T - self.room)
-        cooling = RateInteraction('cooling', target='coffee', state='T', rate=newton)
-        return CompositeSystem(self.label, elements=[cup], interactions=[cooling])
+        cooling = Interaction(
+            'cooling',
+            roles={'target': 'coffee'},
+            laws=lambda s: [RateLaw(s.target.T.diff(s.t), newton(s))],
+        )
+        self.system_ = System(self.label, elements=[cup], interactions=[cooling])
 
 
 cup = CoolingSystem()
-before = simulate(cup).get_values('coffee.T').round(1).tolist()
-after = simulate(cup.set_params(k=0.05)).get_values('coffee.T').round(1).tolist()
+before = cup.prepare().simulate().get_values('coffee.T').round(1).tolist()
+after = cup.set_params(k=0.05).prepare().simulate().get_values('coffee.T').round(1).tolist()
 before, after
 ```
 
 With `k = 0.1` the coffee falls from 90 to 45.8 and 29.5 degrees, and with `k = 0.05` it cools more slowly, to 62.5 and
 45.8 degrees.
 
-**How the engine runs it.** `prepare` builds the parts again when a parameter has changed by value since the last
-build, and prepares them as `system_`. The tags of the system are those of its parts, never declared, and `clone`
-copies the parameters, as for any scikit-learn estimator.
+**How the engine runs it.** `prepare` calls `_prepare`, which builds the components from the current parameters, and
+prepares `system_`. A parameter set after `prepare` asks for `prepare` again before the next run, and `clone` copies
+the parameters, as for any scikit-learn estimator.
 
 ```python continuation
 from sklearn.base import clone
 
 copy = clone(cup)
-copy.get_params(), sorted(copy.get_tags().laws), type(copy.prepare().system_).__name__
+copy.get_params(), type(copy.prepare().system_).__name__
 ```
 
-The clone has the cooling constant 0.05 that `set_params` gave the cup, its laws are rates, and its parts form a
-`CompositeSystem`.
+The clone has the cooling constant 0.05 that `set_params` gave the cup, and its components form a `System`.
 
-**How it combines.** A system class nests inside a `CompositeSystem` through `systems`, and its states are named by
-its path, such as `outbreak/infected.x`. The parameters are what calibration fits and what experiments sweep.
+**How it combines.** A system class nests inside a `System` through `systems`, and its states are named by its path,
+such as `outbreak/infected.x`. The parameters are what calibration fits and what experiments sweep.
 
 ```python continuation
-town = CompositeSystem('town', systems=[OutbreakSystem()])
-simulate(town, until=10, dt=10.0).get_values('outbreak/infected.x').round(1).tolist()
+town = System('town', systems=[OutbreakSystem()]).prepare()
+town.simulate(until=10, dt=10.0).get_values('outbreak/infected.x').round(1).tolist()
 ```
 
 The nested outbreak reaches 168.7 infected after ten days, as it does alone.
 
-**Limits and errors.** The hook `_build_system` returns the `CompositeSystem` of the parts, and `prepare` raises a
-`ValidationError` for anything else, such as one element.
+**Limits and errors.** A system simulates only once it is prepared, and again after a parameter changes, so a run
+raises a `NotPreparedError` that names the parameter.
 
 ```python continuation
-from skcomplex.core.errors import ValidationError
-
-
-class TankSystem(BaseSystem):
-    def _build_system(self):
-        return DeclaredElement('tank', variables={'x': DeclaredVariableSpec(1.0, StateSpec())})
-
+from skcomplex.core.errors import NotPreparedError
 
 try:
-    TankSystem().prepare()
-except ValidationError as error:
+    outbreak.set_params(beta=0.5).simulate()
+except NotPreparedError as error:
     message = str(error)
 message
 ```
 
-The message reads "TankSystem builds its parts as a CompositeSystem, not as DeclaredElement." The fix is to return
-`CompositeSystem(self.label, elements=[tank])`.
+The message says that the parameter `beta` of the system changed since it was prepared and asks to call `prepare()`
+again.
 
 **A field realization.** The subclasses above are field realizations, an outbreak of epidemiology and the cooling of
 physics. The catalog writes each of its systems the same way.
 
-See its [fact sheet](../../../parts/systems.md#basesystem)
-and its [API entry][skcomplex.core.components.systems.BaseSystem].
+See its [fact sheet](../../../components/systems.md#basesystem)
+and its [API entry][skcomplex.core.systems.BaseSystem].
 
-## RunSettings
+## Run settings
 
-`RunSettings` is the mapping of the tuned run settings of a system class, which `get_run_settings` returns and
-`simulate` reads for every argument a call leaves out. An outbreak runs for a month, in frames ten days apart.
+The run settings of a system class are the end time `until`, the time between frames `dt`, the observables, the initial
+state, the invariants, and the schedule. A ready-made system tunes them as class variables, and `simulate` reads each one only where the call gives no value. An outbreak runs for a month, in frames
+ten days apart.
 
 ```python
-from skcomplex.core.components.elements import DeclaredElement
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.specs import DeclaredVariableSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.systems import BaseSystem, System
 
 
 class OutbreakSystem(BaseSystem):
@@ -270,21 +264,26 @@ class OutbreakSystem(BaseSystem):
         super().__init__(label)
         self.beta = beta
 
-    def _build_system(self):
-        infected = DeclaredElement('infected', variables={'x': DeclaredVariableSpec(10.0, StateSpec())})
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        infected = Element('infected', values={'x': 10.0})
         growth = lambda s: self.beta * s.target.x * (1 - s.target.x / 1000)
-        spread = RateInteraction('spread', target='infected', state='x', rate=growth)
-        return CompositeSystem(self.label, elements=[infected], interactions=[spread])
+        spread = Interaction(
+            'spread',
+            roles={'target': 'infected'},
+            laws=lambda s: [RateLaw(s.target.x.diff(s.t), growth(s))],
+        )
+        self.system_ = System(self.label, elements=[infected], interactions=[spread])
 
 
-settings = OutbreakSystem().get_run_settings()
-settings['until'], settings['dt'], sorted(settings) == sorted(RunSettings.__annotations__)
+outbreak = OutbreakSystem().prepare()
+outbreak.simulate().times.tolist()
 ```
 
-The settings hold the end time 30 and the step 10, and every key that `RunSettings` names. Settings that the class
-leaves out are `None`, or an empty sequence for `observables`.
+The run takes the end time 30 and the step 10 from the class, so it has frames at 0, 10, 20, and 30.
 
-A pendulum in mechanics tunes its solver as well, a fixed step of Runge and Kutta of order four.
+A pendulum in mechanics tunes its solver as well, a fixed step of Runge and Kutta of order four, which it passes to
+its system.
 
 ```python continuation
 from skcomplex.core.engine.solvers import RK4Solver
@@ -293,24 +292,24 @@ from skcomplex.core.engine.solvers import RK4Solver
 class PendulumSystem(BaseSystem):
     until = 6.0
     dt = 3.0
-    solver = RK4Solver(dt=0.01)
 
     def __init__(self, label='pendulum', length=1.0):
         super().__init__(label)
         self.length = length
 
-    def _build_system(self):
-        variables = {'theta': DeclaredVariableSpec(0.1, StateSpec()), 'omega': DeclaredVariableSpec(0.0, StateSpec())}
-        bob = DeclaredElement('bob', variables=variables)
-        swing = RateInteraction('swing', target='bob', state='theta', rate=lambda s: s.target.omega)
-        gravity = RateInteraction(
-            'gravity', target='bob', state='omega', rate=lambda s: -9.81 / self.length * s.target.theta
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        bob = Element('bob', values={'theta': 0.1})
+        gravity = Interaction(
+            'gravity',
+            roles={'target': 'bob'},
+            laws=lambda s: [RateLaw(s.target.theta.diff(s.t, 2), -9.81 / self.length * s.target.theta)],
         )
-        return CompositeSystem(self.label, elements=[bob], interactions=[swing, gravity])
+        self.system_ = System(self.label, elements=[bob], interactions=[gravity], solver=RK4Solver(dt=0.01))
 
 
-pendulum = PendulumSystem()
-type(pendulum.get_run_settings()['solver']).__name__, simulate(pendulum).get_values('bob.theta').round(3).tolist()
+pendulum = PendulumSystem().prepare()
+type(pendulum.solver_).__name__, pendulum.simulate().get_values('bob.theta').round(3).tolist()
 ```
 
 The period of a pendulum of one metre is about two seconds, so the angle is -0.1 radians after three seconds, on the
@@ -320,18 +319,15 @@ far side, and 0.1 again after six.
 no value, so an argument of the call wins over the class.
 
 ```python continuation
-outbreak = OutbreakSystem()
-simulate(outbreak, until=10).get_values('infected.x').round(1).tolist()
+outbreak.simulate(until=10).get_values('infected.x').round(1).tolist()
 ```
 
 The call asks for 10 days, and the class still gives the step of 10 days, so the run has two frames.
 
-**How it combines.** The settings are the class variables `until`, `dt`, `solver`, `observables`, `initial_state`,
-`invariants`, `schedule`, `compiler`, and `backend` of a `BaseSystem` subclass. A system whose settings depend on its
-parameters overrides `get_run_settings`.
+**How it combines.** The settings are the class variables `until`, `dt`, `observables`, `initial_state`,
+`invariants`, and `schedule` of a `BaseSystem` subclass, and its arguments `solver` and `backend`.
 
-**Limits and errors.** A `CompositeSystem` has no tuned settings, and a class may leave `until` out. Then a call
-without `until` makes `simulate` raise a `ValidationError`.
+**Limits and errors.** A class may leave `until` out. Then a call without `until` raises a `ValidationError`.
 
 ```python continuation
 from skcomplex.core.errors import ValidationError
@@ -342,17 +338,17 @@ class OpenOutbreakSystem(OutbreakSystem):
 
 
 try:
-    simulate(OpenOutbreakSystem())
+    OpenOutbreakSystem().prepare().simulate()
 except ValidationError as error:
     message = str(error)
 message
 ```
 
-The message reads "OpenOutbreakSystem has no tuned end time. Pass `until`." The fix is `simulate(system, until=30)`,
-or the class variable `until = 30.0`.
+The message says that the system has no tuned end time and asks to pass `until`. The fix is `simulate(until=30)`, or
+the class variable `until = 30.0`.
 
-**A field realization.** A field ties a setting to a parameter by overriding `get_run_settings`, such as a season of
-an epidemic whose length in days is a model parameter.
+**A field realization.** A field ties a setting to a parameter by passing it to the call, such as a season of an
+epidemic whose length in days is a model parameter.
 
 ```python continuation
 class SeasonSystem(OutbreakSystem):
@@ -360,11 +356,9 @@ class SeasonSystem(OutbreakSystem):
         super().__init__(label, beta)
         self.days = days
 
-    def get_run_settings(self):
-        return super().get_run_settings() | {'until': self.days}
 
-
-SeasonSystem(days=20.0).get_run_settings()['until']
+season = SeasonSystem(days=20.0).prepare()
+season.simulate(until=season.days).times[-1]
 ```
 
-See its [API entry][skcomplex.core.components.systems.RunSettings]. It is not a part, so it has no fact sheet.
+The run settings are class variables of [`BaseSystem`](#basesystem), not a class of their own.

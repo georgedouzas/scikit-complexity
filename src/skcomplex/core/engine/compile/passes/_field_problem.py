@@ -1,4 +1,4 @@
-"""Pass that adds the field parts to the problem."""
+"""Add the time step, linear terms, and finite volumes of fields to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,9 +7,10 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....components.elements import FieldElement
+from ....components import Observable
 from ....errors import PipelineError
-from ....specs import LayoutSpec, ObservableSpec
+from ...problems import LayoutSpec
+from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._output_spec import OutputSpec
@@ -19,11 +20,22 @@ from .._field_lowering import FieldLowering
 
 
 class FieldProblemPass(BasePass):
-    """A pass that adds the field parts to the problem.
+    """A pass that adds what fields need to the problem.
 
-    They are the stable step, the linear terms, the finite volumes, the fixed nodes, and the observed fields. An
-    observable of a field whose expression applies field operators, such as `inverse_helmholtz` or `gradient`, is
-    lowered like a law of the field, into a kernel that gives its value at every site.
+    It adds the largest stable time step, the linear terms, the finite volumes, the fixed nodes, and the observables of
+    fields that apply an operator, such as the gradient of a temperature.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        LowerFieldsPass: Finds the stable time step.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).run().compilation_
+        >>> compilation.problem.stable_step
+        0.25
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -66,7 +78,7 @@ class FieldProblemPass(BasePass):
         specs = {
             spec.owner: spec
             for spec, block in Compilation._get_required(compilation.specs, 'specs')
-            if spec.owner == block.node.path and isinstance(block.node.component, FieldElement)
+            if spec.owner == block.node.path and isinstance(block.node.component, _FieldElement)
         }
         kernels = {}
         for scope, observable in BaseCompiler._get_observables_of(compilation.system):
@@ -84,7 +96,7 @@ class FieldProblemPass(BasePass):
         compilation: Compilation,
         spec: KernelSpec,
         path: str,
-        observable: ObservableSpec,
+        observable: Observable,
     ) -> LawKernel | None:
         """Return the kernel of an observable of a field.
 

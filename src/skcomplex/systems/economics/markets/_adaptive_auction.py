@@ -6,22 +6,24 @@ Its buyers and sellers adapt their bids and asks after every meeting.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from collections.abc import Sequence
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.policy import PolicyRuleInteraction
 
 
-class AdaptiveTraderView(AgentView):
+class AdaptiveTraderView(AgentViewProtocol, Protocol):
     """Trader as the auction sees it.
 
     It holds its value or cost, its quote, and the units it can still trade.
@@ -41,9 +43,6 @@ class AdaptiveTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         value:
             The value of a unit to a buyer, or its cost to a seller.
 
@@ -53,46 +52,30 @@ class AdaptiveTraderElement(Element):
         units:
             The units a buyer still wants or a seller still holds.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import AdaptiveTraderElement
-        >>> GroupElement('buyers', element=AdaptiveTraderElement, size=3, values={'value': 120.0}).size
+        >>> AdaptiveTraderElement('buyers', value=120.0, size=3).size
         3
     """
 
-    law_classes = ()
+    visual = VisualSpec('agents', {'color_by': 'quote'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'quote'}),
         *,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        quote: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        units: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        value: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        quote: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        units: Annotated[object, RealSet.closed_open(0, oo)] = 5.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.value = value
         self.quote = quote
         self.units = units
-
-    @classmethod
-    def _get_view(cls) -> type[AdaptiveTraderView]:
-        """Return the view of the agents of the element."""
-        return AdaptiveTraderView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the auction moves every trader.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
@@ -143,9 +126,9 @@ class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        buyers: Annotated[str, RoleSpec()],
-        sellers: Annotated[str, RoleSpec()],
-        step: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        buyers: Role,
+        sellers: Role,
+        step: Annotated[float, RealSet.open(0, oo)] = 1.0,
         unlimited: bool = False,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
@@ -162,8 +145,8 @@ class AdaptiveAuctionInteraction(PolicyRuleInteraction[SystemView]):
                 The system view of the auction.
         """
         rng, step = system.rng, system.get_parameter('step')
-        buyers = sorted(system.get_agents('buyers', AdaptiveTraderView), key=lambda trader: trader.id)
-        sellers = sorted(system.get_agents('sellers', AdaptiveTraderView), key=lambda trader: trader.id)
+        buyers = sorted(cast(list[AdaptiveTraderView], system.get_agents('buyers')), key=lambda trader: trader.id)
+        sellers = sorted(cast(list[AdaptiveTraderView], system.get_agents('sellers')), key=lambda trader: trader.id)
         prices = []
         for buyer in (buyers[index] for index in rng.permutation(len(buyers))):
             stocked = [seller for seller in sellers if seller.units > 0]
@@ -235,9 +218,15 @@ class GoodingDoubleAuctionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import GoodingDoubleAuctionSystem
-        >>> [group.prepare().size_ for group in GoodingDoubleAuctionSystem(4, 3).prepare().system_.elements]
+        >>> [group.size for group in GoodingDoubleAuctionSystem(4, 3).prepare().system_.elements]
         [4, 3]
     """
 
@@ -259,8 +248,10 @@ class GoodingDoubleAuctionSystem(BaseSystem):
         unlimited: bool = False,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_buyers = n_buyers
         self.n_sellers = n_sellers
         self.value = value
@@ -271,30 +262,25 @@ class GoodingDoubleAuctionSystem(BaseSystem):
         self.unlimited = unlimited
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         values = self.value * (1 + self.spread * rng.uniform(-1, 1, self.n_buyers))
         costs = self.cost * (1 + self.spread * rng.uniform(-1, 1, self.n_sellers))
-        buyers = GroupElement(
+        buyers = AdaptiveTraderElement(
             'buyers',
-            element=AdaptiveTraderElement,
+            value=values,
+            quote=self.cost * (1 + self.spread * rng.uniform(-1, 1, self.n_buyers)),
+            units=self.units,
             size=self.n_buyers,
-            values={
-                'value': values,
-                'quote': self.cost * (1 + self.spread * rng.uniform(-1, 1, self.n_buyers)),
-                'units': self.units,
-            },
         )
-        sellers = GroupElement(
+        sellers = AdaptiveTraderElement(
             'sellers',
-            element=AdaptiveTraderElement,
+            value=costs,
+            quote=self.value * (1 + self.spread * rng.uniform(-1, 1, self.n_sellers)),
+            units=self.units,
             size=self.n_sellers,
-            values={
-                'value': costs,
-                'quote': self.value * (1 + self.spread * rng.uniform(-1, 1, self.n_sellers)),
-                'units': self.units,
-            },
         )
         auction = AdaptiveAuctionInteraction(
             'auction',
@@ -303,4 +289,4 @@ class GoodingDoubleAuctionSystem(BaseSystem):
             step=self.step,
             unlimited=self.unlimited,
         )
-        return CompositeSystem(self.label, elements=[buyers, sellers], interactions=[auction])
+        self.system_ = System(self.label, elements=[buyers, sellers], interactions=[auction])

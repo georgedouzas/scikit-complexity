@@ -1,6 +1,6 @@
-"""Ising spin, up at 1 or down at -1.
+"""Ising spins, up at 1 or down at -1.
 
-The spin has its coupling `J`, its field `h`, and its temperature.
+Every spin has its coupling `J`, its field `h`, and its temperature.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -8,29 +8,26 @@ The spin has its coupling `J`, its field `h`, and its temperature.
 
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import ZZ, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.spaces import BaseSpace
 
 
 class IsingSpinElement(Element):
-    """Ising spin, up at 1 or down at -1.
+    """Ising spins, up at 1 or down at -1.
 
-    The spin has its coupling `J`, its field `h`, and its temperature.
+    Every spin has its coupling `J`, its field `h`, and its temperature.
 
     An `IsingSamplingInteraction` flips the spins by Monte Carlo sweeps at the temperature of the spins.
 
     Args:
         label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the spin is drawn, or `None` for `default_visual_`.
+            The label of the spin or the lattice of spins.
 
         spin:
-            The initial spin, 1 or -1.
+            The initial spin, 1 or -1, or one spin per site.
 
         J:
             The coupling between neighbouring spins.
@@ -41,9 +38,8 @@ class IsingSpinElement(Element):
         temperature:
             The temperature in units of the coupling.
 
-    Attributes:
-        default_visual_:
-            The visual of the spin when it sets none.
+        space:
+            The lattice or network of the spins, or `None` for one spin.
 
     Examples:
         >>> from skcomplex.systems.physics.common.spins import IsingSpinElement
@@ -54,14 +50,14 @@ class IsingSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        spin: object = 1.0,
+        J: float = 1.0,
+        h: float = 0.0,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.spin = spin
         self.J = J
         self.h = h

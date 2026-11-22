@@ -3,8 +3,13 @@
 They cover spiking and conductance-based neurons, populations, networks, excitable networks, and synapses.
 """
 
-from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
-from ._associative import AssociativeSiteElement, AssociativeThoughtProcessSystem, CliqueCompetitionInteraction
+from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement, ThetaNeuronInteraction
+from ._associative import (
+    AssociativeSiteElement,
+    AssociativeThoughtProcessSystem,
+    CliqueCompetitionInteraction,
+    ReservoirInteraction,
+)
 from ._conductances import (
     FitzHughNagumoNeuronElement,
     FitzhughNagumoODESystem,
@@ -17,26 +22,38 @@ from ._networks import (
     DelayedLIFNetworkSystem,
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
+    InhibitorDecayInteraction,
     InhibitorDriveInteraction,
     InhibitorElement,
     LegionSystem,
     SpikingNeuronElement,
     TermanWangElement,
+    TermanWangInteraction,
 )
 from ._neural_fields import AmariNeuralFieldSystem, NeuralFieldSiteElement
 from ._neural_masses import (
     NeuralMassElement,
+    NeuralMassInteraction,
     NextGenerationNeuralMassSystem,
     SynapticDriveInteraction,
     ThetaForcingInteraction,
 )
-from ._neurons import IntegrateAndFireSystem, IzhikevichElement, IzhikevichSystem, LeakyIntegrateAndFireElement
+from ._neurons import (
+    IntegrateAndFireSystem,
+    IzhikevichElement,
+    IzhikevichInteraction,
+    IzhikevichSystem,
+    LeakyIntegrateAndFireElement,
+    LeakyIntegrateAndFireInteraction,
+)
 from ._plastic_networks import (
     AdaptiveDelayNetworkSystem,
     AxonElement,
     DelayAdaptationInteraction,
     PhaseUnitElement,
+    RotationInteraction,
     SpikeTimingPlasticityInteraction,
+    SpikeTraceInteraction,
     STDPNetworkSystem,
     SynapseElement,
     TracedThetaNeuronElement,
@@ -47,6 +64,7 @@ from ._populations import (
     PolyhomeostaticNeuronSystem,
     PulseCouplingInteraction,
     RateUnitElement,
+    SaturatingGrowthInteraction,
     ThetaNeuronsSystem,
     WilsonCowanElement,
     WilsonCowanSystem,
@@ -71,33 +89,43 @@ __all__: list[str] = [
     'GlobalInhibitionInteraction',
     'HodgkinHuxleyElement',
     'HodgkinHuxleySystem',
+    'InhibitorDecayInteraction',
     'InhibitorDriveInteraction',
     'InhibitorElement',
     'IntegrateAndFireSystem',
     'IzhikevichElement',
+    'IzhikevichInteraction',
     'IzhikevichSystem',
     'KinouchiCopelliSystem',
     'LeakyIntegrateAndFireElement',
+    'LeakyIntegrateAndFireInteraction',
     'LeakyIntegrationInteraction',
     'LegionSystem',
     'MutualInhibitionInteraction',
     'NeuralFieldSiteElement',
     'NeuralMassElement',
+    'NeuralMassInteraction',
     'NextGenerationNeuralMassSystem',
     'PhaseUnitElement',
     'PolyhomeostaticNeuronElement',
     'PolyhomeostaticNeuronSystem',
     'PulseCouplingInteraction',
     'RateUnitElement',
+    'ReservoirInteraction',
+    'RotationInteraction',
     'STDPNetworkSystem',
+    'SaturatingGrowthInteraction',
     'SpikeResetInteraction',
     'SpikeTimingPlasticityInteraction',
+    'SpikeTraceInteraction',
     'SpikingNeuronElement',
     'SynapseElement',
     'SynapticDriveInteraction',
     'TermanWangElement',
+    'TermanWangInteraction',
     'ThetaForcingInteraction',
     'ThetaNeuronElement',
+    'ThetaNeuronInteraction',
     'ThetaNeuronsSystem',
     'TracedThetaNeuronElement',
     'WilsonCowanElement',

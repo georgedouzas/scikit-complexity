@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import SampleSpaceReducingSystem
 
@@ -35,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(SampleSpaceReducingSystem(), until=40, dt=1, observers=[observer], random_state=0)
+trajectory = SampleSpaceReducingSystem().prepare().simulate(until=40, dt=1, observers=[observer], random_state=0)
 path = levels(trajectory)
 observer.recording_.send_columns(
     'levels/ball_0',
@@ -54,7 +53,11 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 states = np.arange(1, 100)
 for lam in (1.0, 0.7, 0.4, 0.0):
-    run = simulate(SampleSpaceReducingSystem(n_balls=200, n_states=100, lam=lam), until=1000, dt=1, random_state=1)
+    run = (
+        SampleSpaceReducingSystem(n_balls=200, n_states=100, lam=lam)
+        .prepare()
+        .simulate(until=1000, dt=1, random_state=1)
+    )
     visits = np.bincount(levels(run)[100:].astype(int).ravel(), minlength=101)[1:100]
     (line,) = ax.loglog(states, visits / visits.sum(), '.', label=f'lam = {lam}')
     reference = states ** (-lam)

@@ -5,23 +5,20 @@
 
 from typing import ClassVar
 
-import numpy as np
-import numpy.typing as npt
-
 from ...errors import ValidationError
-from ...specs import ScheduleSpec
-from ._base import BaseTime
+from ._base import _BaseTime
+from ._schedule_spec import ScheduleSpec
 
 SCHEDULES = ('synchronous', 'random-sequential')
 
 
-class DiscreteTime(BaseTime):
+class _DiscreteTime(_BaseTime):
     """A time that advances in steps, in which updates and rules change the states.
 
     The laws it accepts are updates, agent rules, local rules, rewrites, and Monte Carlo samples. A `schedule` may order
     the laws of one step in phases.
 
-    Unlike `ContinuousTime`, which flows, it advances by whole steps. Choose it when the model is a map, a cellular
+    Unlike `_ContinuousTime`, which flows, it advances by whole steps. Choose it when the model is a map, a cellular
     automaton, or an agent-based model.
 
     It appears in many fields. A population grows by generations, a cellular automaton steps its cells, agents trade in
@@ -35,11 +32,6 @@ class DiscreteTime(BaseTime):
 
         label:
             The label of the time in its system.
-
-    Examples:
-        >>> from skcomplex.core.components.spaces import DiscreteTime
-        >>> DiscreteTime(schedule='random-sequential').prepare().schedule_
-        'random-sequential'
     """
 
     time_tag: ClassVar[str] = 'discrete'
@@ -65,6 +57,3 @@ class DiscreteTime(BaseTime):
             raise ValidationError(error_msg)
         self.schedule_ = self.schedule
 
-    def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
-        """Return every step from 0 to a time."""
-        return np.arange(int(np.floor(until)) + 1, dtype=float)

@@ -13,17 +13,16 @@ is at capacity, ahead of it the line is empty, and the front keeps its shape whi
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.ecology import FisherKPPSystem
 
 SYSTEM = 'fisher_kpp'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    FisherKPPSystem(length=800, D=1.0, r=1.0, spacing=0.25, front=0.05),
-    observers=[observer],
-    until=80,
+trajectory = (
+    FisherKPPSystem(length=800, D=1.0, r=1.0, spacing=0.25, front=0.05)
+    .prepare()
+    .simulate(observers=[observer], until=80)
 )
 
 # %%

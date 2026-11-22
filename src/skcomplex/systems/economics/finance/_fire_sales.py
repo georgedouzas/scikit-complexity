@@ -6,20 +6,21 @@ Their sales depress the prices of common assets.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from collections.abc import Sequence
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.banking import BalanceSheetElement
 from ..common.banking._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetView
 from ..common.policy import PolicyRuleInteraction
@@ -27,7 +28,7 @@ from ..common.policy import PolicyRuleInteraction
 SELLING_RULES = ('threshold', 'leverage')
 
 
-class MarketAssetView(AgentView):
+class MarketAssetView(AgentViewProtocol, Protocol):
     """Asset as the fire sales see it: its price and the share of it liquidated."""
 
     price: float
@@ -43,53 +44,32 @@ class MarketAssetElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         price:
             The price of the asset, 1 before any sale.
 
         liquidated:
             The share of the asset sold so far.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.finance import MarketAssetElement
-        >>> GroupElement('assets', element=MarketAssetElement, size=4).size
+        >>> MarketAssetElement('assets', size=4).size
         4
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        price: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        liquidated: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        price: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        liquidated: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.price = price
         self.liquidated = liquidated
-
-    @classmethod
-    def _get_view(cls) -> type[MarketAssetView]:
-        """Return the view of the agents of the element."""
-        return MarketAssetView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the fire sales update every asset at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
@@ -151,12 +131,12 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: None = None,
         phase: str | None = None,
-        banks: Annotated[str, RoleSpec()],
-        assets: Annotated[str, RoleSpec()],
+        banks: Role,
+        assets: Role,
         holdings: tuple[tuple[float, ...], ...] = (),
         liabilities: tuple[float, ...] = (),
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        leverage: Annotated[float, ParameterSpec(domain=RealSet.open(1, oo))] = 20.0,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        leverage: Annotated[float, RealSet.open(1, oo)] = 20.0,
         selling: str = 'threshold',
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
@@ -168,18 +148,14 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
         self.leverage = leverage
         self.selling = selling
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown rule.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The rule is unknown.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if self.selling not in SELLING_RULES:
             error_msg = f'The rule of {self.label!r} is {self.selling!r}. Use one of {SELLING_RULES}.'
             raise ValidationError(error_msg)
@@ -191,8 +167,8 @@ class FireSaleInteraction(PolicyRuleInteraction[SystemView]):
             system:
                 The system view of the fire sales.
         """
-        banks = sorted(system.get_agents('banks', BalanceSheetView), key=lambda bank: bank.id)
-        assets = sorted(system.get_agents('assets', MarketAssetView), key=lambda asset: asset.id)
+        banks = sorted(cast(list[BalanceSheetView], system.get_agents('banks')), key=lambda bank: bank.id)
+        assets = sorted(cast(list[MarketAssetView], system.get_agents('assets')), key=lambda asset: asset.id)
         initial = np.asarray(self.holdings, dtype=float)
         holdings = np.asarray(system.storage.get('holdings', initial))
         prices = np.array([asset.price for asset in assets])
@@ -279,10 +255,16 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import OverlappingPortfolioFireSalesSystem
         >>> system = OverlappingPortfolioFireSalesSystem(10, 5, diversification=2).prepare().system_
-        >>> [group.prepare().size_ for group in system.elements]
+        >>> [group.size for group in system.elements]
         [10, 5]
     """
 
@@ -304,8 +286,10 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
         selling: str = 'threshold',
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_banks = n_banks
         self.n_assets = n_assets
         self.diversification = diversification
@@ -316,8 +300,9 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
         self.selling = selling
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         holdings = np.zeros((self.n_banks, self.n_assets))
         for bank in range(self.n_banks):
@@ -327,8 +312,8 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
         prices = np.ones(self.n_assets)
         prices[self.shocked] = 1 - self.shock
         equity = holdings @ prices - liabilities
-        banks = GroupElement('banks', element=BalanceSheetElement, size=self.n_banks, values={'equity': equity})
-        assets = GroupElement('assets', element=MarketAssetElement, size=self.n_assets, values={'price': prices})
+        banks = BalanceSheetElement('banks', equity=equity, size=self.n_banks)
+        assets = MarketAssetElement('assets', price=prices, size=self.n_assets)
         sales = FireSaleInteraction(
             'sales',
             banks='banks',
@@ -339,4 +324,4 @@ class OverlappingPortfolioFireSalesSystem(BaseSystem):
             leverage=self.leverage,
             selling=self.selling,
         )
-        return CompositeSystem(self.label, elements=[banks, assets], interactions=[sales])
+        self.system_ = System(self.label, elements=[banks, assets], interactions=[sales])

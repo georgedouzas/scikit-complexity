@@ -13,15 +13,19 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, tanh
 from sage.modules.free_module_element import FreeModuleElement
+from scipy.stats import irwinhall
 
-from ....core.components.elements import FieldElement
-from ....core.components.interactions import ConservationInteraction, RateInteraction
-from ....core.components.laws.utils import coordinate, integral_transform, integration_variable
-from ....core.components.spaces import BaseSpace, LatticeSpace, PhaseSpace, SimplexSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
+from ....core.components import Observable
+from ....core.components.elements import VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import coordinate, divergence, integral_transform, integration_variable
+from ....core.components.spaces import AxisSpec, FiniteVolumeSpec, LatticeSpace, PhaseSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import AxisSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.kinetics import ActivityDensityElement
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')
@@ -29,13 +33,127 @@ TRIMORPHIC_VICTORIES = ('defectors', 'payoff')
 ADDITIVE_VICTORIES = ('punishers', 'payoff')
 SIMPLEX_SAMPLES = 401
 REFERENCES = ('Cooney 2024',)
-SIMPLEX_VISUAL = VisualSpec('image', {'slices': {0: 0}})
+DISCRETIZED_OPERATORS = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz')
 
 
 type Fraction = Expression | npt.NDArray[np.float64]
 
 
-class SelectionDriftInteraction(ConservationInteraction):
+class SimplexSpace(PhaseSpace):
+    """A space whose extra axes are frequencies that sum to at most one.
+
+    A simplex is the set of frequencies that are nonnegative and sum to one, such as the shares of three strategies. The
+    class axes run over `[0, 1]` with the same number of cells, and the last frequency is one minus the sum of the
+    others, so two class axes hold the simplex of three frequencies. The cells cut by the slanted face are partial, and
+    each cell and face keeps the fraction of its volume or area inside the simplex. Finite-volume fluxes pass only
+    through the open part of each face, and reductions over the class axes weight each cell by its volume.
+
+    Unlike `PhaseSpace`, whose class axes are independent, it constrains the frequencies to a simplex. Choose it when a
+    density lives over the shares of several types.
+
+    It appears in many fields. Populations evolve over the shares of strategies in evolutionary game theory, genotypes
+    over allele frequencies in population genetics, and voters over the shares of parties.
+
+    Args:
+        position:
+            The lattice of the positions.
+
+        axes:
+            The class axes, each on `[0, 1]` with the same number of cells and not periodic.
+
+        limit:
+            The largest number of sites of the space.
+
+        label:
+            The name of the space in its system, such as `'grid'`.
+
+    Attributes:
+        volumes_:
+            The fraction of the volume of every cell inside the simplex, with one entry along every position axis.
+
+        apertures_:
+            The fraction of the area inside the simplex of every face along every axis of the product, one more face
+            than cells along a class axis, and one entry along the position axes.
+
+    Raises:
+        PhaseSpaceTooLargeError:
+            The product has more sites than the limit.
+
+    Examples:
+        >>> from skcomplex.core.components.spaces import AxisSpec, LatticeSpace
+        >>> from skcomplex.systems.social.cooperation import SimplexSpace
+        >>> axes = [AxisSpec('x', 10, 0.0, 1.0), AxisSpec('y', 10, 0.0, 1.0)]
+        >>> space = SimplexSpace(LatticeSpace((1,)), axes).prepare()
+        >>> space.shape_, float(space.volumes_.sum())
+        ((1, 10, 10), 50.0)
+        >>> sorted(set(space.volumes_.ravel().tolist()))
+        [0.0, 0.5, 1.0]
+    """
+
+    def _prepare(self, context: None = None) -> None:
+        """Set the sites of the phase space and the cell volumes and face apertures.
+
+        It first raises an error for class axes that are not intervals on `[0, 1]` of equal cells. They must have the
+        same number of cells.
+        """
+        super()._prepare(context)
+        sizes = {int(axis.size) for axis in self.axes}
+        unit = all(axis.low == 0.0 and axis.high == 1.0 and not axis.periodic for axis in self.axes)
+        if len(sizes) != 1 or not unit:
+            error_msg = (
+                'The class axes of a simplex space are intervals on [0, 1] with the same number of cells, such as '
+                f"`AxisSpec('x', 30, 0.0, 1.0)`, but they are {list(self.axes)!r}."
+            )
+            raise ValidationError(error_msg)
+        dimensions = len(self.axes)
+        cells = int(self.axes[0].size)
+        positions = (1,) * len(self.position_axes_)
+        indices = np.indices((cells,) * dimensions).sum(axis=0)
+        self.volumes_ = np.reshape(self._get_fraction(cells - indices, dimensions), (*positions, *indices.shape))
+        apertures = [np.ones((1,) * self.n_dim_) for _ in self.position_axes_]
+        for axis in range(dimensions):
+            faces = [cells] * dimensions
+            faces[axis] = cells + 1
+            grid = np.indices(faces)
+            others = grid.sum(axis=0) - grid[axis]
+            fraction = self._get_fraction(cells - grid[axis] - others, dimensions - 1)
+            apertures.append(np.reshape(fraction, (*positions, *fraction.shape)))
+        self.apertures_ = tuple(apertures)
+
+    def _get_volumes(self) -> npt.NDArray[np.float64]:
+        """Return the fraction of the volume of every cell inside the simplex."""
+        return self.volumes_
+
+    def _get_apertures(self) -> tuple[npt.NDArray[np.float64], ...]:
+        """Return the fraction of every face inside the simplex along every axis."""
+        return self.apertures_
+
+    def _supports_operator(self, name: str) -> bool:
+        """Check whether a field on the simplex takes an operator.
+
+        The partial cells along the slanted face take finite-volume fluxes, reductions, and integrals, but no local
+        operator of finite differences, such as `laplacian`, nor a spectral inversion.
+        """
+        return name not in DISCRETIZED_OPERATORS
+
+    @staticmethod
+    def _get_fraction(room: npt.NDArray[np.int_], dimensions: int) -> npt.NDArray[np.float64]:
+        """Return the fraction of a unit cube whose coordinates sum to at most the room.
+
+        The cube has a dimension, and the room is that of every cell.
+        """
+        if dimensions == 0:
+            return (room > 0).astype(float)
+        return np.asarray(irwinhall(dimensions).cdf(room), dtype=float)
+
+
+class GroupDensityElement(ActivityDensityElement):
+    """Density of groups over their strategy fractions, drawn as a simplex."""
+
+    visual = VisualSpec('image', {'slices': {0: 0}})
+
+
+class SelectionDriftInteraction(Interaction):
     """Selection drift `du/dt + divergence(a u) = source(ns)` of a density `u` over a trait.
 
     Evolutionary game theory names it the selection within groups, the drift of a density of traits by selection.
@@ -43,11 +161,12 @@ class SelectionDriftInteraction(ConservationInteraction):
     form, so the total of the state on a periodic field stays constant and, on a spectral field, the dealiasing of
     products applies to it. The drift is one expression for a field of one dimension, or one per dimension, of the
     states and parameters of the field, and may read other states than the one it carries, such as the flow of a fluid
-    derived from a streamfunction, or the drift of a probability density in a Fokker-Planck equation.
+    derived from a streamfunction, or the drift of a probability density in a Fokker-Planck equation. Its laws are
+    `RateLaw(u, -divergence(flux))` and, with a source, `RateLaw(u, source)`.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field whose state is carried.
@@ -61,41 +180,21 @@ class SelectionDriftInteraction(ConservationInteraction):
         source:
             A function of the namespace that returns the source, or `None` for none.
 
-        limiter:
-            The slope limiter of the reconstruction of a finite-volume field, `'minmod'`, `'van-leer'`, or `None`.
-
-        riemann:
-            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, or `None` for the divergence of
-            the flux on a field of another discretization.
-
-        sources:
-            The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
-            position lattice of a target on a phase space is read broadcast along the class axes.
-
     Raises:
         ValidationError:
-            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+            The state is not a name, or a function is not callable.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, FieldElement
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.social.cooperation import SelectionDriftInteraction
-        >>> class CellElement(Element):
-        ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.u = u
-        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic', discretization='finite-volume')
         >>> values = {'u': np.exp(-((np.arange(50) - 25) / 5.0) ** 2)}
-        >>> volumes = 'finite-volume'
-        >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = SelectionDriftInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
-        >>> system = CompositeSystem(elements=[field], interactions=[drift])
-        >>> trajectory = simulate(system, until=1.0, dt=0.01)
+        >>> system = System(elements=[Element('tracer', values=values, space=space)], interactions=[drift])
+        >>> trajectory = system.prepare().simulate(until=1.0, dt=0.01)
         >>> total = trajectory.get_values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True
@@ -105,43 +204,46 @@ class SelectionDriftInteraction(ConservationInteraction):
         self,
         label: str,
         *,
-        target: str,
+        target: Role,
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
-        limiter: str | None = 'minmod',
-        riemann: str | None = 'rusanov',
-        sources: Sequence[str] = (),
     ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            source=source,
-            limiter=limiter,
-            riemann=riemann,
-            sources=sources,
-        )
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.drift = drift
+        self.source = source
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an invalid state, drift, or scheme.
-
-        It raises it for a state that is not a name, a drift that is not callable, or an unknown scheme.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
-                The type declares states, the state is not a name, a function is not callable, or the limiter or the
-                numerical flux is unknown.
+                The state is not a name, or the drift or the source is not callable.
+        """
+        super()._check_arguments()
+        if not isinstance(self.state, str):
+            error_msg = f'The state of {self.label!r} is {self.state!r}. Give the name of a state of the field.'
+            raise ValidationError(error_msg)
+        if not callable(self.drift) or (self.source is not None and not callable(self.source)):
+            error_msg = f'The drift and the source of {self.label!r} are functions of the namespace.'
+            raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the divergence of the flux and of the source, after checking the functions.
+
+        Args:
+            context:
+                The namespace of the field.
         """
         super()._prepare(context)
-        if not callable(self.drift):
-            error_msg = f'The drift of {self.label!r} is {self.drift!r}. Give a function of the namespace.'
-            raise ValidationError(error_msg)
+        state = getattr(context.target, self.state)
+        flux = self._get_flux(context)
+        components = list(flux) if isinstance(flux, list) else [flux]
+        self.laws_ = [RateLaw(state, -divergence(components))]
+        if self.source is not None:
+            self.laws_.append(RateLaw(state, self.source(context)))
 
     def _get_flux(self, namespace: SimpleNamespace) -> object:
         """Return the flux `a u`, one component per component of the drift.
@@ -154,7 +256,7 @@ class SelectionDriftInteraction(ConservationInteraction):
             flux:
                 The flux, one expression or one per dimension.
         """
-        state = getattr(self._get_member(namespace, 'target'), self.state)
+        state = getattr(namespace.target, self.state)
         drift = self.drift(namespace) if callable(self.drift) else None
         if isinstance(drift, FreeModuleElement | list | tuple):
             return [SR(component) * state for component in drift]
@@ -209,13 +311,19 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The victory probability is unknown.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import NonlinearPairwiseGroupConflictSystem
-        >>> NonlinearPairwiseGroupConflictSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> NonlinearPairwiseGroupConflictSystem(40).prepare().system_.elements[0].x.size
         40
     """
 
@@ -224,7 +332,6 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
     references = REFERENCES
     until = 15.0
     dt = 0.5
-    solver = RK4Solver(dt=0.01)
 
     @staticmethod
     def _get_pairwise_payoff(z: Fraction, payoffs: tuple[float, ...]) -> Fraction:
@@ -256,8 +363,10 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         sensitivity: float = 2.0,
         exponent: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.victory = victory
         self.group_strength = group_strength
@@ -299,8 +408,9 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         own_share, other_share = (own - lowest) ** (1 / exponent), (other - lowest) ** (1 / exponent)
         return own_share / (own_share + other_share)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, PAIRWISE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -324,28 +434,26 @@ class NonlinearPairwiseGroupConflictSystem(BaseSystem):
         advantage = (self.punishment + self.interaction_cost) * z - (
             self.cost + self.fixed_cost + self.interaction_cost
         )
-        space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': np.ones((1, self.cells))},
-            discretization='finite-volume',
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = PhaseSpace(position, [AxisSpec('z', self.cells, 0.0, 1.0)])
+        groups = ActivityDensityElement('groups', x=np.ones((1, self.cells)), space=space)
         within = SelectionDriftInteraction(
             'within',
             target='groups',
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
-            limiter=None,
         )
-        between = RateInteraction(
+        between = Interaction(
             'between',
-            target='groups',
-            state='x',
-            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+            roles={'target': 'groups'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.x.diff(s.t),
+                    self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+                ),
+            ],
         )
-        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
+        self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))
 
 
 class TwoLevelReplicatorSystem(BaseSystem):
@@ -391,13 +499,19 @@ class TwoLevelReplicatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The victory probability is unknown.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import TwoLevelReplicatorSystem
-        >>> TwoLevelReplicatorSystem(40).prepare().system_.elements[0].prepare().size_
+        >>> TwoLevelReplicatorSystem(40).prepare().system_.elements[0].x.size
         40
     """
 
@@ -406,7 +520,6 @@ class TwoLevelReplicatorSystem(BaseSystem):
     references = REFERENCES
     until = 40.0
     dt = 1.0
-    solver = RK4Solver(dt=0.01)
 
     def __init__(
         self,
@@ -420,8 +533,10 @@ class TwoLevelReplicatorSystem(BaseSystem):
         interaction_cost: float = 0.5,
         fixed_cost: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.victory = victory
         self.group_strength = group_strength
@@ -445,8 +560,9 @@ class TwoLevelReplicatorSystem(BaseSystem):
             values.max() - values.min(),
         )
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, ADDITIVE_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         z, u = coordinate('z'), integration_variable('z')
@@ -454,28 +570,26 @@ class TwoLevelReplicatorSystem(BaseSystem):
         advantage = (self.punishment + self.interaction_cost) * z - (
             self.cost + self.fixed_cost + self.interaction_cost
         )
-        space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', self.cells, 0.0, 1.0)])
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': np.ones((1, self.cells))},
-            discretization='finite-volume',
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = PhaseSpace(position, [AxisSpec('z', self.cells, 0.0, 1.0)])
+        groups = ActivityDensityElement('groups', x=np.ones((1, self.cells)), space=space)
         within = SelectionDriftInteraction(
             'within',
             target='groups',
             state='x',
             drift=lambda _: [0, z * (1 - z) * advantage],
-            limiter=None,
         )
-        between = RateInteraction(
+        between = Interaction(
             'between',
-            target='groups',
-            state='x',
-            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+            roles={'target': 'groups'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.x.diff(s.t),
+                    self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('z',)),
+                ),
+            ],
         )
-        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
+        self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))
 
 
 class TrimorphicMultilevelSelectionSystem(BaseSystem):
@@ -519,13 +633,19 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The victory probability is unknown.
 
     Examples:
         >>> from skcomplex.systems.social.cooperation import TrimorphicMultilevelSelectionSystem
-        >>> TrimorphicMultilevelSelectionSystem(10).prepare().system_.elements[0].prepare().size_
+        >>> TrimorphicMultilevelSelectionSystem(10).prepare().system_.elements[0].x.size
         100
     """
 
@@ -534,7 +654,6 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
     references = REFERENCES
     until = 30.0
     dt = 1.0
-    solver = RK4Solver(dt=0.01)
 
     @staticmethod
     def _get_trimorphic_payoff(x: Fraction, y: Fraction, payoffs: tuple[float, ...]) -> Fraction:
@@ -577,8 +696,10 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         interaction_cost: float = 0.1,
         fixed_cost: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.cells = cells
         self.victory = victory
         self.group_strength = group_strength
@@ -617,27 +738,26 @@ class TrimorphicMultilevelSelectionSystem(BaseSystem):
         exploited = cost + fixed - punishment + punishment * x + (punishment + interaction) * y
         return [0, x * ((1 - x) * punished - y * exploited), y * ((1 - y) * exploited - x * punished)]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         NonlinearPairwiseGroupConflictSystem._check_victory(self.victory, TRIMORPHIC_VICTORIES)
         payoffs = (self.benefit, self.cost, self.punishment, self.interaction_cost, self.fixed_cost)
         gain = self._get_trimorphic_victory_gain(self.victory, payoffs)
         axes = [AxisSpec('x', self.cells, 0.0, 1.0), AxisSpec('y', self.cells, 0.0, 1.0)]
-        space = SimplexSpace(LatticeSpace((1,)), axes)
-        groups = FieldElement(
-            'groups',
-            element=ActivityDensityElement,
-            space=space,
-            values={'x': 2.0 * (space.prepare().volumes_ > 0)},
-            discretization='finite-volume',
-            visual=SIMPLEX_VISUAL,
-        )
+        position = LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None))
+        space = SimplexSpace(position, axes)
+        groups = GroupDensityElement('groups', x=2.0 * (space.prepare().volumes_ > 0), space=space)
         drift = self._get_simplex_drift(payoffs)
-        within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift, limiter=None)
-        between = RateInteraction(
+        within = SelectionDriftInteraction('within', target='groups', state='x', drift=lambda _: drift)
+        between = Interaction(
             'between',
-            target='groups',
-            state='x',
-            rate=lambda s: self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
+            roles={'target': 'groups'},
+            laws=lambda s: [
+                RateLaw(
+                    s.target.x,
+                    self.group_strength * s.target.x * integral_transform(s.target.x, gain, ('x', 'y')),
+                ),
+            ],
         )
-        return CompositeSystem(self.label, elements=[groups], interactions=[within, between])
+        self.system_ = System(self.label, elements=[groups], interactions=[within, between], solver=RK4Solver(dt=0.01))

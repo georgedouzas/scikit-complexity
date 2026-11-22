@@ -13,7 +13,6 @@ other at irregular times: the double-scroll chaotic attractor.
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import ChuaSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'chua'
 
 system = ChuaSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # The double scroll

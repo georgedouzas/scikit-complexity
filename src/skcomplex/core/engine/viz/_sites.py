@@ -1,4 +1,4 @@
-"""Draw the states of a lattice group that is not square."""
+"""Draw the values of a group on a triangular grid or a network as sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +11,8 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ...components.spaces import LatticeSpace, NetworkSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
-from ...specs import NetworkSnapshotSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, NetworkSnapshotSpec
+from ..problems._compiled_agents_spec import _CompiledAgentsSpec
 from ._base import GRID_RADIUS, NODE_SPACING, BaseVisual
 
 HEXAGON_RADIUS = float(1 / np.sqrt(3.0))
@@ -24,13 +23,15 @@ CHANGING_CENTRING = 0.05
 
 
 class SiteVisual(BaseVisual):
-    """A visual that logs every state of a non-square lattice group as coloured sites.
+    """A visual that draws the values of a group on a triangular grid or a network.
 
-    A triangular lattice is logged as `Points2D` at the site positions, with radii that cover the hexagonal cells of
-    the sites. A lattice group on a network is logged as `GraphNodes` colored by state, at the `pos` attributes of the
-    nodes or a seeded spring layout, with its `GraphEdges` logged once as static data. A variable group on the nodes of
-    a network whose topology changes logs the nodes present at every frame, placed by the force layout of the graph
-    view, and its edges at every frame where they change.
+    It colours each site by value, from `low` to `high`, such as `SiteVisual(low=0, high=2)` for three states of a
+    cell. A triangular grid draws a hexagon around each site, and a network draws its nodes at their `pos` attributes or
+    a fixed spring layout, with its edges drawn once. A network whose links change draws the nodes and edges present at
+    each frame. It shows the infected people of a contact network, the cells of a hexagonal automaton, and the opinions
+    of a growing social network.
+
+    Read more in the user guide, under Observe.
 
     Args:
         states:
@@ -55,11 +56,17 @@ class SiteVisual(BaseVisual):
         changing_:
             The hash of the latest logged edges of every changing network, by entity path.
 
+    See Also:
+        ImageVisual: Draws the values of a square grid as images.
+        AgentsVisual: Draws agents at the nodes they occupy.
+
     Examples:
         >>> from skcomplex.core.engine.viz import SiteVisual
         >>> SiteVisual(low=0, high=2)
         SiteVisual(high=2, low=0)
     """
+
+    numeric_options = ('low', 'high')
 
     def __init__(
         self,
@@ -93,7 +100,7 @@ class SiteVisual(BaseVisual):
         layout = self._get_layout(space)
         nodes = [str(node) for node in space.graph.nodes]
         if path not in self.edges_:
-            edges = [(str(source), str(target)) for source, target in space.graph.edges]
+            edges = [(str(source), str(target)) for source, target, *_ in space.graph.edges]
             recording.log(path, rr.GraphEdges(edges), static=True)
             self.edges_.add(path)
         positions = [layout[node] for node in nodes]
@@ -150,7 +157,7 @@ class SiteVisual(BaseVisual):
             if self.states is not None and state not in self.states:
                 continue
             values = np.ravel(np.asarray(frame.get_value(name), dtype=float))
-            path = f'{element.path}/{state}'
+            path = BaseVisual._get_state_path(element.path, state)
             topology = frame.problem.topology
             if topology is not None and self._changes_topology(element, frame.problem):
                 snapshot = topology.read_network(frame.parameters, element.path)
@@ -169,7 +176,11 @@ class SiteVisual(BaseVisual):
                 rr.Points2D(positions, colors=self._get_colors(values, self.low, self.high), radii=radius),
             )
 
-    def _get_views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+    def _get_views(
+        self,
+        element: CompiledElementSpec | _CompiledAgentsSpec,
+        problem: BaseProblemSpec,
+    ) -> list[rrb.View]:
         """Return the views of the chosen states of a group.
 
         A group on a network or a changing topology gets one graph view per state, and others 2D spatial views.
@@ -186,21 +197,19 @@ class SiteVisual(BaseVisual):
                 One view per chosen state, with `<path>/<state>` as origin.
 
         Examples:
-            >>> from typing import Annotated
             >>> import networkx as nx
-            >>> from skcomplex.core.components.elements import Element, GroupElement
+            >>> from skcomplex.core.components.elements import Element
+            >>> from skcomplex.core.components.interactions import Interaction
+            >>> from skcomplex.core.components.laws import RateLaw
             >>> from skcomplex.core.components.spaces import NetworkSpace
-            >>> from skcomplex.core.specs import StateSpec
-            >>> from skcomplex.core.components.systems import CompositeSystem
-            >>> from skcomplex.core.engine.runtime import simulate
+            >>> from skcomplex.core.systems import System
             >>> from skcomplex.core.engine.viz import SiteVisual
-            >>> class NodeElement(Element):
-            ...     def __init__(self, label, value: Annotated[float, StateSpec()] = 0.0):
-            ...         super().__init__(label)
-            ...         self.value = value
-            >>> nodes = GroupElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
-            >>> system = CompositeSystem(elements=[nodes])
-            >>> problem = simulate(system, until=0).problem
+            >>> nodes = Element('nodes', values={'value': 1.0}, space=NetworkSpace(nx.cycle_graph(4)))
+            >>> def fade(s):
+            ...     return [RateLaw(s.target.value, -s.target.value)]
+            >>> decay = Interaction('decay', roles={'target': 'nodes'}, laws=fade)
+            >>> system = System(elements=[nodes], interactions=[decay])
+            >>> problem = system.prepare().simulate(until=0).problem
             >>> views = SiteVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['GraphView']
@@ -214,7 +223,7 @@ class SiteVisual(BaseVisual):
             bounds = rrb.VisualBounds2D(x_range=(-reach, reach), y_range=(-reach, reach))
             return [
                 rrb.GraphView(
-                    origin=f'{element.path}/{state}',
+                    origin=BaseVisual._get_state_path(element.path, state),
                     name=state,
                     visual_bounds=bounds,
                     force_link=rrb.archetypes.ForceLink(distance=CHANGING_LINK),
@@ -224,11 +233,17 @@ class SiteVisual(BaseVisual):
                 for state in states
             ]
         if not isinstance(space, NetworkSpace):
-            return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
+            return [
+                rrb.Spatial2DView(origin=BaseVisual._get_state_path(element.path, state), name=state)
+                for state in states
+            ]
         positions = np.array(list(self._get_layout(space).values()))
         low, high = positions.min(axis=0) - NODE_SPACING, positions.max(axis=0) + NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
-        return [rrb.GraphView(origin=f'{element.path}/{state}', name=state, visual_bounds=bounds) for state in states]
+        return [
+            rrb.GraphView(origin=BaseVisual._get_state_path(element.path, state), name=state, visual_bounds=bounds)
+            for state in states
+        ]
 
     @staticmethod
     def _changes_topology(element: CompiledElementSpec, problem: BaseProblemSpec) -> bool:

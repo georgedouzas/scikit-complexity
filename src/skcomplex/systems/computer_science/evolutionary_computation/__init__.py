@@ -13,6 +13,7 @@ from ._genetic_algorithms import (
 from ._landscapes import BitStringElement, BitStringEvolutionSystem, ReproductionInteraction
 from ._optimisers import (
     AnnealedCandidateElement,
+    AnnealingInteraction,
     CovarianceAdaptationSpec,
     DifferentialEvolutionSpec,
     EvolutionaryOptimisersSystem,
@@ -27,6 +28,7 @@ from ._optimisers import (
 __all__: list[str] = [
     'AgedStrategyElement',
     'AnnealedCandidateElement',
+    'AnnealingInteraction',
     'BitStringElement',
     'BitStringEvolutionSystem',
     'CircumstanceInteraction',

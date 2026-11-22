@@ -180,7 +180,7 @@ source = "scm"
 
 [tool.pdm.build]
 package-dir = "src"
-editable-backend = "editables"
+editable-backend = "path"
 
 [tool.pdm.scripts]
 clean = "nox --error-on-external-run -R -s clean"
@@ -255,7 +255,7 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-ignore = ["D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913", "EXE001", "EXE002", "E741"]
+ignore = ["D107", "D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913", "EXE001", "EXE002", "E741"]
 select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "BLE", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G",
 "INP", "PIE", "T20", "PT", "Q", "RET501", "RET502", "RET503", "SIM",
@@ -263,7 +263,7 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 
 [tool.ruff.lint.flake8-bugbear]
 # Specs are frozen dataclasses, so a spec in a default argument is shared safely.
-extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.systems.general.matching.RandomSearchSpec", "skcomplex.systems.general.matching._random_search_spec.RandomSearchSpec", "skcomplex.systems.computer_science.evolutionary_computation._optimisers.DifferentialEvolutionSpec"]
+extend-immutable-calls = ["skcomplex.core.components.elements.VisualSpec", "skcomplex.core.components.elements._visual_spec.VisualSpec", "skcomplex.systems.physics.common.quantum.HilbertSpec", "skcomplex.systems.physics.common.quantum._hilbert_spec.HilbertSpec", "skcomplex.systems.general.matching.RandomSearchSpec", "skcomplex.systems.general.matching._random_search_spec.RandomSearchSpec", "skcomplex.systems.computer_science.evolutionary_computation._optimisers.DifferentialEvolutionSpec"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.components.base` or `sage.all__sagemath_symbolics`."
@@ -272,8 +272,7 @@ extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.spe
 "docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
 "docs/generated/*" = ["ANN", "D"]
 # Test classes document their arguments in the class docstring, so their `__init__` methods carry none.
-"test_*" = ["ANN", "PLR2004", "D107"]
-"conftest.py" = ["D107"]
+"test_*" = ["ANN", "PLR2004"]
 "src/skcomplex/core/components/declarations.py" = ["ANN401"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
 "src/skcomplex/core/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
@@ -304,7 +303,7 @@ check-yield-types = false
 check-class-attributes = false
 # Raises sections name propagated exceptions too, which pydoclint cannot see in the function body.
 skip-checking-raises = true
-# Constructors carry their own docstrings, as ruff D107 asks, beside the class docstring.
+# A constructor is documented by the Args of its class docstring, as in scikit-learn, or by a docstring of its own.
 allow-init-docstring = true
 
 [tool.bandit]
@@ -365,16 +364,16 @@ DEP002 = [
 root_package = "skcomplex"
 
 [[tool.importlinter.contracts]]
-name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
+name = "Experiments build on analysis, which builds on systems, which build on the engine, which builds on the components, which build on the root modules"
 type = "layers"
 layers = [
     "skcomplex.core.experiments",
     "skcomplex.core.analysis",
+    "skcomplex.core.systems",
     "skcomplex.core.engine",
     "skcomplex.core.components",
-    "skcomplex.core.specs",
     "skcomplex.core.base",
-    "skcomplex.core.types | skcomplex.core.errors",
+    "skcomplex.core.types | skcomplex.core.enums | skcomplex.core.errors",
 ]
 
 [[tool.importlinter.contracts]]
@@ -382,8 +381,6 @@ name = "Core packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.core.components"]
 layers = [
-    "specs",
-    "systems",
     "elements | interactions",
     "laws",
     "spaces",
@@ -391,11 +388,11 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "System modules import only the modules listed after them"
+name = "System modules of the core import only the modules listed after them"
 type = "layers"
-containers = ["skcomplex.core.components.systems"]
+containers = ["skcomplex.core.systems"]
 layers = [
-    "_composite",
+    "_system",
     "_base",
 ]
 
@@ -411,7 +408,7 @@ layers = [
     "compile",
     "backends",
     "problems",
-    "types",
+    "types | enums",
 ]
 
 [[tool.importlinter.contracts]]
@@ -420,6 +417,7 @@ type = "forbidden"
 source_modules = [
     "skcomplex.core.analysis",
     "skcomplex.core.components",
+    "skcomplex.core.systems",
     "skcomplex.core.engine",
     "skcomplex.core.experiments",
 ]
@@ -442,6 +440,13 @@ ignore_imports = [
     "skcomplex.systems.** -> skcomplex.core.analysis.types",
     "skcomplex.systems.** -> skcomplex.core.engine.*",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Systems import nothing from the private modules of the engine"
+type = "forbidden"
+source_modules = ["skcomplex.systems"]
+forbidden_modules = ["skcomplex.core.engine._utils"]
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Realizations shared by several fields import no field package"
@@ -524,6 +529,7 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.biology"]
 forbidden_modules = [
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -537,6 +543,7 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.chemistry"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -565,6 +572,7 @@ source_modules = ["skcomplex.systems.economics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
@@ -578,6 +586,7 @@ source_modules = ["skcomplex.systems.engineering"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
@@ -591,6 +600,7 @@ source_modules = ["skcomplex.systems.mathematics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.physics.common",
@@ -604,6 +614,7 @@ source_modules = ["skcomplex.systems.physics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -617,6 +628,7 @@ source_modules = ["skcomplex.systems.social"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -629,6 +641,7 @@ type = "forbidden"
 source_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.computer_science.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
@@ -728,4 +741,5 @@ docs = [
     "griffelib>=2.0",
     'pandas>=2.2.2',
     "matplotlib>=3.9",
+    "mkdocs-redirects>=1.2.3",
 ]

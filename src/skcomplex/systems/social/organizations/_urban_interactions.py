@@ -6,6 +6,7 @@ Its residents meet their neighbours.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,13 +15,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, ln, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
-from ....core.components.laws.utils import draw, logistic, neighbors
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import TopologyRequestSpec, UpdateLaw
+from ....core.components.laws.utils import draw, logistic, neighbors, where
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 
 MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
 SMALLEST_ANGLE = 1e-12
@@ -36,9 +40,6 @@ class CityDwellerElement(Element):
         label:
             The label of the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         angle:
             The angle of the resident on the circle, its similarity coordinate.
 
@@ -51,23 +52,28 @@ class CityDwellerElement(Element):
         meetings:
             The number of neighbours the resident met in the last step.
 
+        space:
+            The network whose nodes hold the residents, or `None` for one resident.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import CityDwellerElement
         >>> CityDwellerElement('residents', angle=1.5).angle
         1.5
     """
 
+    visual = MEETINGS_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = MEETINGS_VISUAL,
         *,
-        angle: Annotated[float, StateSpec()] = 0.0,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        meetings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        angle: object = 0.0,
+        age: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        meetings: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.angle = angle
         self.age = age
         self.degree = degree
@@ -117,14 +123,19 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The exponent is not above 2, or the temperature is not between 0 and 1.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
-        >>> trajectory = simulate(UrbanScalingInteractionsSystem(13, internal=0.0), until=10, random_state=0)
+        >>> trajectory = UrbanScalingInteractionsSystem(13, internal=0.0).prepare().simulate(until=10, random_state=0)
         >>> int(trajectory.get_network(-1).sources.size)
         23
     """
@@ -137,7 +148,7 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         'Papadopoulos et al. 2015',
     )
     until = 297
-    observables = (ObservableSpec('total_meetings', group='residents', variable='meetings', reduce='sum'),)
+    observables = (Observable('total_meetings', group='residents', variable='meetings', reduce='sum'),)
 
     def __init__(
         self,
@@ -150,8 +161,10 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         temperature: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.population = population
         self.edges = edges
         self.internal = internal
@@ -177,8 +190,9 @@ class UrbanScalingInteractionsSystem(BaseSystem):
         )
         return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         if self.exponent <= MIN_EXPONENT:
             error_msg = f'The degree exponent of the city is {self.exponent!r}. Give an exponent above {MIN_EXPONENT}.'
             raise ValidationError(error_msg)
@@ -194,44 +208,43 @@ class UrbanScalingInteractionsSystem(BaseSystem):
 
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, seed_nodes)
         ages = np.arange(seed_nodes - 1, -1, -1, dtype=float)
-        residents = GroupElement(
-            'residents',
-            element=CityDwellerElement,
-            on='sites',
-            variable=True,
-            capacity=self.population,
-            values={'age': ages.tolist(), 'angle': angles.tolist()},
-        )
-        capacity = self.edges * self.population + seed_nodes**2 + int(np.ceil(self.internal * self.population**2))
-        links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
-        growth = TopologyInteraction(
-            'growth',
-            action='add-node',
+        space = NetworkSpace(nx.complete_graph(seed_nodes))
+        residents = CityDwellerElement('residents', age=ages.tolist(), angle=angles.tolist(), space=space)
+        links = Element('links', space=space, on='edges')
+        arrival = TopologyRequestSpec(
+            'add-node',
             edges=self.edges,
-            condition=lambda s: s.t < self.population - seed_nodes,
-            values={'angle': lambda rng: rng.uniform(0.0, 2 * np.pi)},
             toward=closeness,
+            values=(('angle', lambda rng: rng.uniform(0.0, 2 * np.pi)),),
         )
-        bridging = TopologyInteraction(
+        growth = Interaction(
+            'growth',
+            laws=lambda s: [UpdateLaw(arrival, where(s.t < self.population - seed_nodes, 1, 0))],
+        )
+        bridge = TopologyRequestSpec('add-edge', toward=closeness)
+        bridging = Interaction(
             'bridging',
-            target='residents',
-            action='add-edge',
-            probability=self.internal,
-            condition=lambda s: s.t < self.population - seed_nodes,
-            toward=closeness,
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(bridge, where(s.t < self.population - seed_nodes, self.internal, 0))],
         )
-        ageing = MapInteraction('ageing', target='residents', state='age', function=lambda s: 1, mode='increment')
-        degree = MapInteraction('degree', target='residents', state='degree', function=lambda s: neighbors(1))
-        meetings = MapInteraction(
+        ageing = Interaction(
+            'ageing',
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(s.target.age, s.target.age + 1)],
+        )
+        degree = Interaction(
+            'degree',
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(s.target.degree, neighbors(1))],
+        )
+        meetings = Interaction(
             'meetings',
-            target='residents',
-            state='meetings',
-            function=lambda s: draw('meet', 'binom', n=s.target.degree, p=self.meeting),
+            roles={'target': 'residents'},
+            laws=lambda s: [UpdateLaw(s.target.meetings, draw('meet', 'binom', n=s.target.degree, p=self.meeting))],
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[residents, links],
             interactions=[growth, bridging, ageing, degree, meetings],
-            space=NetworkSpace(nx.complete_graph(seed_nodes)),
-            time=DiscreteTime(),
+            space=space,
         )

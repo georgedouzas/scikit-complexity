@@ -1,8 +1,9 @@
-"""Take the census of the laws every component of a system declares."""
+"""List the laws that every component of a system states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import operator
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
@@ -13,65 +14,98 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 from sage.symbolic.function import SymbolicFunction
 
-from ....components.base import BasePart
-from ....components.elements import FieldElement, GroupElement
+from ....components import EntrySpec, TensorSpec
+from ....components.base import BaseComponent
 from ....components.interactions import BaseInteraction
 from ....components.laws import (
     BaseLaw,
-    BoundaryLaw,
-    CascadeLaw,
-    CrossingLaw,
-    EquationLaw,
-    ExtremalLaw,
+    CallSpec,
+    ConstraintLaw,
+    EventLaw,
     JumpLaw,
-    LocalRuleLaw,
-    MatchLaw,
+    LinearObjectiveSpec,
+    MoveSpec,
     NoiseLaw,
+    ObjectiveLaw,
+    ObjectiveSpec,
     RateLaw,
-    RuleLaw,
-    SampleLaw,
-    TransferLaw,
+    SamplerSpec,
     UpdateLaw,
 )
+from ....components.laws._boundary import _BoundaryLaw
+from ....components.laws._flow_term import FlowTermLaw
+from ....components.laws._linear_program import _LinearProgramLaw
+from ....components.laws._local_rule import _LocalRuleLaw
+from ....components.laws._ordered_rate import _OrderedRateLaw
+from ....components.laws._rule import _RuleLaw
+from ....components.laws._sample import _SampleLaw
 from ....components.laws.utils import laplacian, shifted
+from ....components.laws.utils._history import derivative
 from ....components.laws.utils._operators import _OperatorFunction
 from ....components.laws.utils._reductions import hyperedges_in, neighborhoods_in, reductions_in
+from ....components.laws.utils._relaxations import relaxation_of
 from ....components.laws.utils._tensors import distribute_operators
-from ....components.spaces import CellComplexSpace, LatticeSpace
-from ....components.specs import CensusRecordSpec, CensusSpec, NodeSpec
-from ....components.systems import CompositeSystem
+from ....components.spaces import CellComplexSpace, LatticeSpace, RadiusNeighborhood
+from ....enums import ElementKind, FormKind, VariableKind
 from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
-from ....specs import CallSpec, EntrySpec, TensorSpec
-from ....types import ElementKind, ProcessKey, VariableKind
+from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
+from ...enums import ReadKind
+from ...problems._bilinear_law import BilinearLaw
 from ...problems._block_spec import BlockSpec
+from ...problems._composite_system import _CompositeSystem
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
+from ...problems._field_element import _FieldElement
+from ...problems._group_element import _GroupElement
 from ...problems._kernel_spec import KernelSpec
+from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
+from ...problems._problem_spec import ProblemSpec
 from ...problems._topology_kernel import TopologyKernel
-from ...types import ReadKind
+from .._array_update_law import ArrayUpdateLaw
 from .._base import BasePass
+from .._census_record_spec import _CensusRecordSpec
+from .._census_spec import _CensusSpec
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
+from .._relaxation_law import RelaxationLaw
 from .._renewal_law import RenewalLaw
 from ._cells import DEGREES
 from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
+from ._kernels import KernelsPass
 from ._layout import LayoutPass
 from ._noise import NoisePass
+from ._rows import RowsPass
 from ._specs import SpecsPass
 
 EDGE_REQUESTS = ('remove-edge', 'rewire')
+SHIFT = 'shift_member'
 SYMMETRY_TOLERANCE = 1e-9
 SYMMETRY_TRIALS = 3
 
 
 class CensusPass(BasePass):
-    """A pass that takes the census of the laws of the system.
+    """A pass that lists the laws of every component with the element each one changes.
 
-    It keeps going past failing components.
+    It asks every interaction for its laws and notes the element or group that each law changes, such as the growth of
+    the prey. A component that fails to give its laws is noted, and the pass goes on with the others, so the report
+    lists every failure at once.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FlattenPass: Lists the components of the system.
+        PlanPass: Splits the system by the laws it finds.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [(record.path, record.owner) for record in compilation.census.records]
+        [('growth', 'prey'), ('predation', 'prey'), ('predation', 'predators'), ('death', 'predators')]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -88,6 +122,8 @@ class CensusPass(BasePass):
         compilation.census = self._get_census_of(
             compilation.system,
             Compilation._get_required(compilation.nodes, 'nodes'),
+            frozenset(compilation.trained),
+            compilation.solver,
         )
 
     @staticmethod
@@ -147,11 +183,11 @@ class CensusPass(BasePass):
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
     @staticmethod
-    def _get_component_kind(node: NodeSpec) -> ElementKind:
+    def _get_component_kind(node: _NodeSpec) -> ElementKind:
         """Return the kind of the component of a node."""
-        if isinstance(node.component, GroupElement) and node.component.variable:
+        if isinstance(node.component, _GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
-        if isinstance(node.component, GroupElement):
+        if isinstance(node.component, _GroupElement):
             parts = {'sites': ElementKind.SITE_GROUP, 'edges': ElementKind.EDGE_GROUP}
             parts['hyperedges'] = ElementKind.HYPEREDGE_GROUP
             return parts.get(node.component.on or '', ElementKind.GROUP)
@@ -163,7 +199,7 @@ class CensusPass(BasePass):
 
         It is none for any other law or target.
         """
-        target = law.target if isinstance(law, EquationLaw) else None
+        target = law.target if isinstance(law, ConstraintLaw) else None
         reference = spec.references.get(target) if isinstance(target, Expression) else None
         return (reference.entry,) if reference is not None and reference.is_state else ()
 
@@ -191,14 +227,24 @@ class CensusPass(BasePass):
         observer: Observer,
         declarations: DeclarationsSpec,
         agents: set[str],
-    ) -> list[CensusRecordSpec]:
-        """Return the census records of the laws of one component."""
+        *,
+        solver: object = None,
+        scope: str = '',
+    ) -> list[_CensusRecordSpec]:
+        """Return the census records of the laws of one component.
+
+        A linear program has as many members as the rows its laws settle, such as the members of two groups it reads
+        row by row. The moves of the solver name states relative to `scope`, the path of the system that holds it.
+        """
         records = []
         specs, _ = SpecsPass._get_specs_of(block, elements, declarations, observer)
         for spec in specs:
             component = CensusPass._get_component_of(block.node)
-            for law in CensusPass._get_declared_laws(spec, component):
-                items = [item for target in law._get_targets() for item in components_of(target)]
+            laws = CensusPass._get_declared_laws(spec, component, solver, scope)
+            programs = any(isinstance(law, _LinearProgramLaw) for law in laws)
+            rows = RowsPass._get_settled(spec, list(laws)).rows if programs else spec.rows
+            for law in laws:
+                items = [item for target in law._get_targets() for item in ProblemSpec._get_real_components_of(target)]
                 references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
                 targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
                 targets = targets or CensusPass._get_equation_targets(spec, law)
@@ -207,7 +253,7 @@ class CensusPass(BasePass):
                 kind = CensusPass._get_component_kind(elements.get(owner, block).node)
                 processes, driven, reads = CensusPass._get_noise_census(spec, law, declarations)
                 records.append(
-                    CensusRecordSpec(
+                    _CensusRecordSpec(
                         block.node.path,
                         owner,
                         law,
@@ -215,18 +261,42 @@ class CensusPass(BasePass):
                         vectors,
                         kind,
                         SpecsPass._get_group_space(elements.get(owner, block)),
-                        members=spec.rows,
+                        members=rows if isinstance(law, _LinearProgramLaw) else spec.rows,
                         handles=CensusPass._handle_uses(law, declarations.handles),
                         degrees=CensusPass._get_cell_degrees(spec, declarations),
                         processes=processes,
                         driven=driven,
                         reads=reads,
+                        differentiated=CensusPass._get_differentiated(spec, law),
                     ),
                 )
         return records
 
     @staticmethod
-    def _get_census_of(system: CompositeSystem, nodes: list[NodeSpec]) -> CensusSpec:
+    def _get_differentiated(spec: KernelSpec, law: BaseLaw) -> frozenset[str]:
+        """Return the elements and groups whose states an equation differentiates.
+
+        It is empty for any other law.
+        """
+        if not isinstance(law, ConstraintLaw):
+            return frozenset()
+        found = set()
+        for value in law._get_values():
+            if not isinstance(value, Expression):
+                continue
+            for call in value.find(derivative(SR.wild(0), SR.wild(1))):
+                reference = spec.references.get(call.operands()[0])
+                if reference is not None and reference.is_state:
+                    found.add(reference.entry.name.rpartition('.')[0])
+        return frozenset(found)
+
+    @staticmethod
+    def _get_census_of(
+        system: _CompositeSystem,
+        nodes: list[_NodeSpec],
+        trained: frozenset[str] = frozenset(),
+        solver: object = None,
+    ) -> _CensusSpec:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws
@@ -240,6 +310,12 @@ class CensusPass(BasePass):
             nodes:
                 The nodes of the system.
 
+            trained:
+                The dotted paths of the parameters a training trains, which are adaptive.
+
+            solver:
+                The solver of the compilation, whose moves turn objectives of members into sweeps, or `None`.
+
         Returns:
             census:
                 The census.
@@ -250,7 +326,7 @@ class CensusPass(BasePass):
         groups = LayoutPass._get_group_sizes(nodes)
         for node in nodes:
             try:
-                declarations, block = LayoutPass._declare_component(declarations, node, groups)
+                declarations, block = LayoutPass._declare_component(declarations, node, groups, trained)
             except SkcomplexError as error:
                 errors.append((node.path, error))
                 continue
@@ -260,13 +336,87 @@ class CensusPass(BasePass):
         live = ObservableEvaluator._get_lowerable_observables(system, nodes)
         observer = Observer(declarations, live).prepare()
         agents = {block.node.path for block in blocks if block.node.is_agent}
+        solvers = CensusPass._get_solvers(system, (solver, ''))
         records = []
         for block in blocks:
+            nested, scope = solvers.get(block.node.scope, (solver, ''))
             try:
-                records += CensusPass._get_records_of(block, elements, observer, declarations, agents)
+                records += CensusPass._get_records_of(
+                    block,
+                    elements,
+                    observer,
+                    declarations,
+                    agents,
+                    solver=nested,
+                    scope=scope,
+                )
             except SkcomplexError as error:
                 errors.append((block.node.path, error))
-        return CensusSpec(system, records, errors, declarations.agents)
+        flowing = CensusPass._get_flowing(records)
+        records = [
+            replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records
+        ]
+        return _CensusSpec(system, records, errors, declarations.agents)
+
+    @staticmethod
+    def _get_solvers(
+        system: _CompositeSystem,
+        held: tuple[object, str],
+        scope: str = '',
+    ) -> dict[str, tuple[object, str]]:
+        """Return the solver of every system of a tree, with the path of its holder.
+
+        The result maps the path of every system to its solver and the path of the system that gives it. A nested system
+        keeps its own solver, as it keeps its own time, and one without a solver takes `held`, the solver of the system
+        that holds it. The root takes its own solver when the compilation is given none.
+        """
+        own = getattr(system, 'solver', None)
+        if own is not None and (scope or held[0] is None):
+            held = (own, scope)
+        solvers = {scope: held}
+        for child in getattr(system, 'systems', ()):
+            solvers.update(CensusPass._get_solvers(child, held, f'{scope}{child.label}/'))
+        return solvers
+
+    @staticmethod
+    def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
+        """Return the paths of the elements and groups that flow.
+
+        Rate or noise laws change their states, or equations read derivatives of them, as the equations of motion of
+        a cart and its pendulum do.
+        """
+        rates = {record.owner for record in records if KernelsPass._get_kind_of(record.law) in (RateLaw, NoiseLaw)}
+        return frozenset(rates.union(*(record.differentiated for record in records)))
+
+    @staticmethod
+    def _get_corrected(law: BaseLaw, owner: str, flowing: frozenset[str]) -> BaseLaw:
+        """Return an update law of an element that flows as a correction after each step.
+
+        A value corrected after every step of the solver, such as a wall reflecting `x` to `abs(x)` with
+        `UpdateLaw(x, abs(x))` or a controller setting the input of a plant, is an update law of an element whose states
+        rate or noise laws change. An update law of an element that only steps, such as a counter, or one that adds to
+        other updates, reads neighbours, or runs in an order or a phase, stays an update law.
+
+        Args:
+            law:
+                The law.
+
+            owner:
+                The path of the element or group whose state the law changes.
+
+            flowing:
+                The paths of the elements and groups whose states rate or noise laws change.
+
+        Returns:
+            law:
+                The law, or the correction it states.
+        """
+        if not isinstance(law, UpdateLaw) or not isinstance(law.target, Expression | FreeModuleElement):
+            return law
+        plain = not law.increment and law.source is None and law.order is None and law.phase is None
+        if not plain or law.neighborhood is not None or owner not in flowing:
+            return law
+        return BasePass._get_checked_law(_BoundaryLaw(law.target, law.value, label=law.label))
 
     @staticmethod
     def _get_renewal_group(spec: KernelSpec, law: RenewalLaw) -> str:
@@ -288,7 +438,7 @@ class CensusPass(BasePass):
             return CensusPass._get_renewal_group(spec, RenewalLaw(law.waiting, law.reset))
         if isinstance(law, RenewalLaw):
             return CensusPass._get_renewal_group(spec, law)
-        if isinstance(law, RuleLaw | MatchLaw):
+        if isinstance(law, _RuleLaw):
             paths = [path for value in spec.roles.values() for path in ([value] if isinstance(value, str) else value)]
             return next((path for path in paths if path in agents), next(iter(paths), spec.owner))
         if TopologyKernel._request_of(law) is not None:
@@ -296,12 +446,24 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
+    def _is_offset(target: object) -> bool:
+        """Return whether a target is a member at an offset, such as `shift_member(n, 1)`."""
+        operator = target.operator() if isinstance(target, Expression) else None
+        return getattr(operator, 'name', lambda: '')() == SHIFT
+
+    @staticmethod
     def _get_changed_target(spec: KernelSpec, law: BaseLaw) -> object:
-        """Return the target of a law, or the first state a jump changes."""
+        """Return the target of a law, or the first state a jump changes.
+
+        A jump changes the state of a member it reads at an offset, such as `shift_member(n, 1)`, of the group of its
+        other states, so the first state read at no offset comes first.
+        """
         if isinstance(law, JumpLaw):
-            return next(iter(law.changes or {}))
+            changed = list(law.changes or {})
+            direct = [item for item in changed if not CensusPass._is_offset(item)]
+            return next(iter(direct or changed))
         if not law._get_targets():
-            error_msg = f'A {type(law).__name__} of {spec.owner} changes no state of its component.'
+            error_msg = f'A {law._get_name()} of {spec.owner} changes no state of its component.'
             raise ValidationError(error_msg)
         return law._get_targets()[0]
 
@@ -335,11 +497,9 @@ class CensusPass(BasePass):
         owner = CensusPass._get_special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, TransferLaw | EquationLaw | CrossingLaw) or (
-            isinstance(law, CascadeLaw) and not law._get_targets()
-        ):
+        if isinstance(law, ConstraintLaw | EventLaw) or (isinstance(law, RelaxationLaw) and not law._get_targets()):
             return spec.owner
-        lattice = isinstance(law, CascadeLaw | LocalRuleLaw | ExtremalLaw | SampleLaw)
+        lattice = isinstance(law, RelaxationLaw | _LocalRuleLaw | _SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._get_changed_target(spec, law)
         return spec._get_target_references(target)[0].entry.name.rpartition('.')[0]
 
@@ -437,7 +597,7 @@ class CensusPass(BasePass):
         The replacement goes through vectors, mappings, sequences, calls, and laws.
         """
         if isinstance(value, BaseLaw):
-            parameters = value.get_params(deep=False)
+            parameters = value._get_fields()
             return BasePass._get_replaced(
                 value,
                 **{name: CensusPass._get_substituted(item, mapping) for name, item in parameters.items()},
@@ -480,7 +640,7 @@ class CensusPass(BasePass):
         if not isinstance(substituted, BaseLaw):
             error_msg = f'The law {law!r} of {edges.owner} is not a law once written for the member.'
             raise TypeError(error_msg)
-        return substituted.prepare(edges.owner)
+        return BasePass._get_checked_law(substituted)
 
     @staticmethod
     def _get_own_end(edges: KernelSpec, law: BaseLaw) -> str | None:
@@ -540,7 +700,7 @@ class CensusPass(BasePass):
         return coefficient, member
 
     @staticmethod
-    def _get_squared_spacing(place: FieldElement) -> float | None:
+    def _get_squared_spacing(place: _FieldElement) -> float | None:
         """Return the factor that turns a field Laplacian into a sum over neighbours.
 
         The sum is of the differences over its neighbours. It is the squared spacing of a lattice with one spacing,
@@ -587,7 +747,7 @@ class CensusPass(BasePass):
         for axis, step in enumerate(space.spacings_):
             offset = [sign * step if index == axis else 0 for index in range(dimensions)]
             total += value.subs({other: shifted(member, offset) for other, member in ends.items()})
-        return BasePass._get_replaced(law, value=total).prepare(edges.owner)
+        return BasePass._get_checked_law(BasePass._get_replaced(law, value=total))
 
     @staticmethod
     def _get_field_laws(edges: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
@@ -637,7 +797,7 @@ class CensusPass(BasePass):
                 continue
             coefficient, member = difference
             lowered.append(
-                BasePass._get_replaced(law, value=coefficient * scale * laplacian(member)).prepare(edges.owner),
+                BasePass._get_checked_law(BasePass._get_replaced(law, value=coefficient * scale * laplacian(member))),
             )
             taken |= {index, partner}
         if isinstance(place.space, LatticeSpace):
@@ -694,7 +854,7 @@ class CensusPass(BasePass):
             if not isinstance(expanded, BaseLaw):
                 error_msg = f'The law {law!r} of {spec.owner} is not a law once its reductions are written out.'
                 raise TypeError(error_msg)
-            kept.append(HyperedgeTables._get_masked(spec, expanded.prepare(spec.owner)))
+            kept.append(HyperedgeTables._get_masked(spec, BasePass._get_checked_law(expanded)))
         return kept
 
     @staticmethod
@@ -751,6 +911,44 @@ class CensusPass(BasePass):
                 raise TensorSymmetryError(error_msg)
 
     @staticmethod
+    def _get_array_update(law: BaseLaw) -> BaseLaw:
+        """Return the array update of an update law of a whole array, or the law itself.
+
+        Such a law, such as `UpdateLaw(s.target.height, drop)`, gives a NumPy function of the whole array its state.
+        """
+        function = law.value if isinstance(law, UpdateLaw) else None
+        if not isinstance(law, UpdateLaw) or not law.arrays or not callable(function):
+            return law
+        return ArrayUpdateLaw(law.target, function, label=law.label, score=law.score, stochastic=law.stochastic)
+
+    @staticmethod
+    def _get_relaxation(law: BaseLaw) -> BaseLaw:
+        """Return the relaxation law of an update law of a relaxation, or the law itself.
+
+        A rule of the relaxation that is an update law with a neighbourhood runs as the local rule it stands for, and
+        a drive or a rule that updates a whole array by a function as an array update.
+        """
+        relaxation = relaxation_of(law.value) if isinstance(law, UpdateLaw) else None
+        if relaxation is None or not isinstance(law, UpdateLaw):
+            return CensusPass._get_array_update(law)
+        rules = tuple(
+            (
+                rule._get_local_rule()
+                if isinstance(rule, UpdateLaw) and rule.neighborhood is not None
+                else CensusPass._get_array_update(rule)
+            )
+            for rule in relaxation.rules
+        )
+        return RelaxationLaw(
+            tuple(CensusPass._get_array_update(item) for item in relaxation.drive),
+            rules,
+            relaxation.stable,
+            relaxation.max_iterations,
+            relaxation.activity,
+            label=law.label,
+        )
+
+    @staticmethod
     def _get_component_rates(spec: KernelSpec, law: BaseLaw) -> list[BaseLaw]:
         """Return a rate law on a tensor or vector state as one rate per component.
 
@@ -780,7 +978,7 @@ class CensusPass(BasePass):
             if not any(FieldLowering._has_operators(item) for item in law.value):
                 return [law]
             pairs = zip(law.target, law.value, strict=True)
-            return [RateLaw(target, rate, law.order, label=law.label) for target, rate in pairs]
+            return [_OrderedRateLaw(target, rate, law._get_order(), label=law.label) for target, rate in pairs]
         if not isinstance(law.target, Matrix):
             return [law]
         references = [spec.references.get(item) for item in law.target.variables()]
@@ -791,7 +989,7 @@ class CensusPass(BasePass):
         tensor = entry.tensor
         targets = [law.target[row, column] for row, column in tensor.indices]
         if BaseLaw._is_function(law.value):
-            return [RateLaw(vector(targets), law.value, law.order, label=law.label)]
+            return [_OrderedRateLaw(vector(targets), law.value, law._get_order(), label=law.label)]
         if not isinstance(law.value, Matrix) or law.value.dimensions() != law.target.dimensions():
             error_msg = (
                 f'A rate law of {spec.owner} on the tensor state {entry.name} has the value {law.value}. Give a matrix '
@@ -800,7 +998,10 @@ class CensusPass(BasePass):
             raise TensorShapeError(error_msg)
         CensusPass._check_tensor_rate(law, entry.name, tensor, law.value)
         rates = [law.value[row, column] for row, column in tensor.indices]
-        return [RateLaw(target, rate, law.order, label=law.label) for target, rate in zip(targets, rates, strict=True)]
+        return [
+            _OrderedRateLaw(target, rate, law._get_order(), label=law.label)
+            for target, rate in zip(targets, rates, strict=True)
+        ]
 
     @staticmethod
     def _get_role_of(namespace: SimpleNamespace, holder: SimpleNamespace) -> str | None:
@@ -817,7 +1018,7 @@ class CensusPass(BasePass):
         return None
 
     @staticmethod
-    def _get_returned_laws(spec: KernelSpec, component: BasePart) -> Sequence[BasePart]:
+    def _get_returned_laws(spec: KernelSpec, component: BaseComponent) -> Sequence[BaseLaw]:
         """Return the laws a component returns.
 
         A read of a state a role does not have raises an error of the role.
@@ -838,7 +1039,7 @@ class CensusPass(BasePass):
                 An interaction reads a name that the element bound to a role does not have.
         """
         try:
-            return component.prepare().run(spec.namespace).laws_
+            return component._get_laws_of(spec.namespace) if isinstance(component, BaseInteraction) else []
         except AttributeError as error:
             holder = error.obj
             if not isinstance(component, BaseInteraction) or not isinstance(holder, SimpleNamespace):
@@ -855,7 +1056,12 @@ class CensusPass(BasePass):
             raise RoleElementError(error_msg) from error
 
     @staticmethod
-    def _get_declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
+    def _get_declared_laws(
+        spec: KernelSpec,
+        component: BaseComponent,
+        solver: object = None,
+        scope: str = '',
+    ) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace.
 
         It first checks their classes against its binding.
@@ -866,6 +1072,12 @@ class CensusPass(BasePass):
 
             component:
                 The object whose `laws` method describes the component.
+
+            solver:
+                The solver of the compilation, whose moves turn objectives of members into sweeps, or `None`.
+
+            scope:
+                The path of the system that holds the solver, which the names of its moves are relative to.
 
         Returns:
             laws:
@@ -878,16 +1090,20 @@ class CensusPass(BasePass):
         returned = CensusPass._get_returned_laws(spec, component)
         laws = [law for law in returned if isinstance(law, BaseLaw)]
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
-            error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
+            error_msg = f'The `laws_` of {spec.owner} must be a list of laws.'
             raise ValidationError(error_msg)
-        split = [item for law in laws for item in CensusPass._get_component_rates(spec, law)]
-        declared = [law.prepare(spec.owner) for law in split]
+        laws = [CensusPass._get_sampled(spec, law, solver, scope) for law in laws]
+        laws = [item for law in laws for item in CensusPass._get_mean_jumps(law, solver)]
+        programs = CensusPass._get_programs([CensusPass._get_checked_sides(law) for law in laws], spec.owner)
+        lowered = [BilinearLaw._get_lowered(law) for law in programs]
+        split = [item for law in lowered for item in CensusPass._get_component_rates(spec, law)]
+        declared = [BasePass._get_checked_law(CensusPass._get_relaxation(law)) for law in split]
         if spec.hyperedge is not None:
             declared = CensusPass._get_hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None
         alone = spec.edges is not None and spec.edges.pairs is None
-        rules = [law for law in declared if (searched or alone) and isinstance(law, RuleLaw)]
-        declared = [law for law in declared if law not in rules]
+        rules = [law for law in declared if (searched or alone) and isinstance(law, _RuleLaw)]
+        declared = [law for law in declared if all(law is not rule for rule in rules)]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (
                 f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
@@ -919,7 +1135,7 @@ class CensusPass(BasePass):
                 ),
                 *lowered,
             ]
-        edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, BoundaryLaw)
+        edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, _BoundaryLaw)
         if isinstance(spec.pairs, EdgeSearch) and not all(isinstance(law, edge_kinds) for law in declared):
             error_msg = (
                 f'Interaction {spec.owner} over neighbours returns laws other than Rate, Noise, Jump, Update, or '
@@ -930,19 +1146,170 @@ class CensusPass(BasePass):
         checked = []
         for law in declared:
             try:
-                checked.append(law.prepare(spec.owner))
+                checked.append(BasePass._get_checked_law(law))
             except ValidationError as error:
-                error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
+                error_msg = f'{law._get_name()} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
         return [*rules, *checked]
 
     @staticmethod
-    def _get_component_of(node: NodeSpec) -> BasePart:
-        """Return the part whose laws describe a node, a representative member for a group."""
-        if isinstance(node.component, GroupElement):
+    def _get_checked_sides(law: BaseLaw) -> BaseLaw:
+        """Return a law, checking it first when it is an equation or an objective.
+
+        Linear programs read the sides of both before the other checks run.
+        """
+        if isinstance(law, ConstraintLaw | ObjectiveLaw):
+            law._check()
+        return law
+
+    @staticmethod
+    def _get_programs(laws: Sequence[BaseLaw], owner: str) -> list[BaseLaw]:
+        """Return the laws of a component, its linear objectives as linear programs.
+
+        An objective without controls that is linear in its targets, or a sum of their absolute values, is minimised
+        as a linear program, under the constraints of the component that read its targets, such as the balances and the
+        bounds of the fluxes of a metabolic network. A sequence of values is minimised in order, each minimum held
+        while the next one is sought, as the smallest total flux at the greatest growth. An inequality of another
+        component is a constraint of the program of the value its `target` names, such as the uptake a medium allows.
+
+        Args:
+            laws:
+                The laws of the component.
+
+            owner:
+                The path of the component, which errors name.
+
+        Returns:
+            laws:
+                The laws, with the linear objectives and their constraints as linear programs.
+
+        Raises:
+            ValidationError:
+                A sequence of values is not linear in the targets, or an inequality outside a program names no target.
+        """
+        programs = {
+            id(law): law
+            for law in laws
+            if isinstance(law, ObjectiveLaw) and law.controls is None and CensusPass._is_linear_objective(law)
+        }
+        targets = {str(item) for law in programs.values() for item in law._get_targets()}
+        kept: list[BaseLaw] = []
+        constraints: list[Expression] = []
+        for law in laws:
+            if id(law) in programs:
+                continue
+            objective = isinstance(law, ObjectiveLaw) and law.controls is None
+            value = law.value if isinstance(law, ObjectiveLaw) else None
+            if objective and not isinstance(value, Expression) and isinstance(value, Sequence):
+                error_msg = (
+                    f'The objective of {owner} is a sequence of values, which is minimised in order as a linear '
+                    'program, so every value is linear in the targets or a sum of their absolute values.'
+                )
+                raise ValidationError(error_msg)
+            if not isinstance(law, ConstraintLaw):
+                kept.append(law)
+                continue
+            relation = SR(law.lhs) if law.rhs is None else SR(law.lhs) == SR(law.rhs)
+            inequality = relation.operator() is not operator.eq
+            if targets & {str(item) for item in relation.variables()}:
+                constraints.append(relation)
+            elif inequality and law.target is None:
+                error_msg = (
+                    f'The inequality {relation} of {owner} holds in a linear program, so it names the value it bounds '
+                    'in `target`, such as `ConstraintLaw(flux >= -uptake, target=flux)`.'
+                )
+                raise ValidationError(error_msg)
+            elif inequality:
+                kept.append(_LinearProgramLaw([SR(law.target)], [relation], label=law.label))
+            else:
+                kept.append(law)
+        converted = [
+            _LinearProgramLaw(
+                list(law._get_targets()),
+                constraints if position == 0 else [],
+                [LinearObjectiveSpec(value, sense='min') for value in law._get_values_in_order()],
+                active=law.active,
+                infeasible=law.infeasible,
+                duals=law.duals,
+                label=law.label,
+            )
+            for position, law in enumerate(programs.values())
+        ]
+        return [*kept, *converted]
+
+    @staticmethod
+    def _is_linear_objective(law: ObjectiveLaw) -> bool:
+        """Return whether an objective is linear or sums absolute values of its targets."""
+        targets = {str(item) for item in law._get_targets()}
+        for value in law._get_values_in_order():
+            expression = SR(value)
+            absolutes = {
+                item: symbol(f'_absolute_{index}')
+                for index, item in enumerate(BasePass._get_calls_of(expression, 'abs'))
+                if str(item.operands()[0]) in targets
+            }
+            expression = expression.subs(absolutes)
+            for item in expression.variables():
+                if str(item) in targets and targets & {str(other) for other in expression.diff(item).variables()}:
+                    return False
+        return True
+
+    @staticmethod
+    def _get_sampled(spec: KernelSpec, law: BaseLaw, solver: object, scope: str = '') -> BaseLaw:
+        """Return the objective of members a Metropolis solver moves, as a sweep.
+
+        The objective is the local objective of a member, such as its energy over the temperature, and the moves, the
+        rule, the schedule, and the neighbourhood are the settings of the solver, so the sweep accepts a move with the
+        weight `exp(-change)` of the objective. The moves name states relative to `scope`, the path of the system that
+        holds the solver.
+        """
+        metropolis = getattr(solver, 'metropolis', solver)
+        moves = getattr(metropolis, 'moves', None)
+        if not isinstance(law, ObjectiveLaw) or not moves or not isinstance(law.targets, Expression):
+            return law
+        reference = spec.references.get(law.targets)
+        name = reference.entry.name.removeprefix(scope) if reference is not None else None
+        if name not in moves:
+            return law
+        kind = moves[name]
+        if callable(kind):
+            move = MoveSpec(law.targets, 'function', function=kind)
+        else:
+            values = tuple((getattr(metropolis, 'values', None) or {}).get(name, ()))
+            move = MoveSpec(law.targets, kind, values, getattr(metropolis, 'width', 1.0))
+        over = getattr(metropolis, 'neighborhood', None) or RadiusNeighborhood(1, metric='manhattan')
+        sampler = SamplerSpec(
+            getattr(metropolis, 'rule', 'metropolis'),
+            1.0,
+            getattr(metropolis, 'schedule', 'checkerboard'),
+        )
+        label = law.label or spec.owner.rpartition('/')[2]
+        return _SampleLaw(ObjectiveSpec(law.value, over), move, sampler, label=label)
+
+    @staticmethod
+    def _get_mean_jumps(law: BaseLaw, solver: object) -> list[BaseLaw]:
+        """Return a jump as the rate laws of its mean under an ODE solver, else as it is.
+
+        A jump that adds `changes` at the rate `r`, such as `JumpLaw(k * a, {a: -1, b: 1})`, moves every state by its
+        change times `r` on average, so an ODE solver runs `RateLaw(a, -k * a)` and `RateLaw(b, k * a)`. A labelled jump
+        whose changes are `-1` and `+1` is a flow of that label.
+        """
+        get_form = getattr(type(solver), '_get_form', None)
+        ode = callable(get_form) and get_form() == FormKind.ODE
+        if not ode or not isinstance(law, JumpLaw) or law.waiting is not None or not isinstance(law.rate, Expression):
+            return [law]
+        changes = law.changes or {}
+        if law.label and all(change in (-1, 1) for change in changes.values()):
+            return list(FlowTermLaw._get_terms(RateLaw(dict(changes), law.rate, label=law.label), law.label))
+        return [RateLaw(target, SR(change) * law.rate) for target, change in changes.items()]
+
+    @staticmethod
+    def _get_component_of(node: _NodeSpec) -> BaseComponent:
+        """Return the component whose laws describe a node, a member for a group."""
+        if isinstance(node.component, _GroupElement):
             group = node.component
             return group.element(group.label).set_params(**(group.values or {})).prepare()
-        if not isinstance(node.component, BasePart):
-            error_msg = f'The node {node.path} holds a {type(node.component).__name__}, which declares no laws.'
+        if not isinstance(node.component, BaseComponent):
+            error_msg = f'The component {node.path} is a {type(node.component).__name__}, which declares no laws.'
             raise TypeError(error_msg)
         return node.component

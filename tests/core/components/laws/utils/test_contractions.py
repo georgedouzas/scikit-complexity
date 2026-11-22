@@ -1,24 +1,20 @@
 """Test the `_contractions` module of `skcomplex.core.components.laws.utils`."""
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction
 from skcomplex.core.components.laws.utils._contractions import contractions_in
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ParameterError, ValidationError
-from skcomplex.core.specs import ParameterSpec, RoleSpec
-
-from .....conftest import NodeElement
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend, JaxBackend], ids=['numpy', 'numba', 'jax'])
 
@@ -30,24 +26,27 @@ class CubicInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        T: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'))] = 0.0,
+        target: Role,
+        T: object = 0.0,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.T = T
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the contraction of the tensor with the states."""
-        return [RateLaw(s.target.x, contraction(s.T, s.target.x, s.target.x))]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the contraction of the tensor with the states."""
+        super()._prepare(context)
+        x = context.target.x
+        self.laws_: list[BaseLaw] = [RateLaw(x.diff(context.t), contraction(context.T, x, x))]
 
 
-def _cubic(tensor, x, target='species'):
+def _cubic(tensor, x, target='species', backend='auto'):
     """Return a group whose rates contract a tensor with its states."""
-    return CompositeSystem(
+    return System(
         'community',
-        elements=[GroupElement('species', element=NodeElement, size=len(x), values={'x': x}), NodeElement('single')],
+        elements=[Element('species', values={'x': x}, size=len(x)), Element('single', values={'x': 0.0})],
         interactions=[CubicInteraction('cubic', target=target, T=tensor)],
+        backend=backend,
     )
 
 
@@ -59,7 +58,7 @@ def test_contraction_keeps_its_tensor_and_expressions():
 
 def test_contraction_rejects_a_tensor_that_is_not_a_symbol():
     """Test that a tensor that is not a symbol raises an error."""
-    with pytest.raises(ValidationError, match='symbol of a shaped parameter'):
+    with pytest.raises(ValidationError, match='symbol of an array parameter'):
         contraction(2.0, var('x'))
 
 
@@ -74,7 +73,7 @@ def test_contraction_equals_einsum(backend):
     """Test that a contraction of a random tensor of order 3 over 20 members equals `einsum('ijk,j,k->i', T, x, x)`."""
     rng = np.random.default_rng(0)
     tensor, x = rng.normal(size=(20, 20, 20)), rng.uniform(size=20)
-    problem = PassCompiler(backend=backend()).prepare(_cubic(tensor, x)).run().problem_
+    problem = _cubic(tensor, x, backend=backend()).prepare()._problem
     rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'species.x')
     np.testing.assert_allclose(rate, np.einsum('ijk,j,k->i', tensor, x, x), atol=1e-12)
 
@@ -83,4 +82,4 @@ def test_contraction_equals_einsum(backend):
 def test_contraction_of_a_tensor_on_an_element(backend):
     """Test that a tensor whose role binds a single element reports the issue `parameter-shape`."""
     with pytest.raises(ParameterError, match='parameter-shape'):
-        PassCompiler(backend=backend()).prepare(_cubic(np.zeros((1, 1, 1)), np.zeros(3), target='single')).run()
+        _cubic(np.zeros((1, 1, 1)), np.zeros(3), target='single', backend=backend()).prepare()

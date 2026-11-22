@@ -6,6 +6,7 @@ The outbreaks spread on networks of heterogeneous degree.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,10 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import CouplingInteraction, TransferInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import total
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 
 class ImmunizingDegreeClassElement(Element):
@@ -34,9 +40,6 @@ class ImmunizingDegreeClassElement(Element):
     Args:
         label:
             The label of the class or the group of classes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         s:
             The initial susceptible density.
@@ -59,31 +62,29 @@ class ImmunizingDegreeClassElement(Element):
         P:
             The probability `P(k)` of the degree.
 
+        size:
+            The number of degree classes, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ImmunizingDegreeClassElement
-        >>> GroupElement(
-        ...     'network',
-        ...     element=ImmunizingDegreeClassElement,
-        ...     size=3,
-        ...     values={'k': [1.0, 2.0, 3.0], 'P': [0.5, 0.3, 0.2]},
-        ... ).size
+        >>> ImmunizingDegreeClassElement('network', k=[1.0, 2.0, 3.0], P=[0.5, 0.3, 0.2], size=3).size
         3
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.999,
-        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.999,
+        i: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.001,
+        r: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        beta: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.1,
+        mu: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        k: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        P: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.s = s
         self.i = i
         self.r = r
@@ -138,9 +139,15 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSIRSystem
-        >>> HeterogeneousMeanFieldSIRSystem(k_min=2, k_max=5).prepare().system_.elements[0].prepare().size_
+        >>> HeterogeneousMeanFieldSIRSystem(k_min=2, k_max=5).prepare().system_.elements[0].size
         4
     """
 
@@ -154,8 +161,8 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
     until = 100.0
     dt = 0.5
     observables = (
-        ObservableSpec('infected', _get_infected_share, group='network', reduce='sum'),
-        ObservableSpec('recovered', _get_recovered_share, group='network', reduce='sum'),
+        Observable('infected', _get_infected_share, group='network', reduce='sum'),
+        Observable('recovered', _get_recovered_share, group='network', reduce='sum'),
     )
 
     def __init__(
@@ -168,8 +175,10 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
         mu: float = 1.0,
         infected: float = 1e-4,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.exponent = exponent
         self.k_min = k_min
         self.k_max = k_max
@@ -201,56 +210,54 @@ class HeterogeneousMeanFieldSIRSystem(BaseSystem):
     @staticmethod
     def _get_recovery(namespace: SimpleNamespace) -> Expression:
         """Return the recovery `mu i_k` of a degree class."""
-        return namespace.source.mu * namespace.source.i
+        return namespace.target.mu * namespace.target.i
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the SIR epidemic on an uncorrelated power-law network."""
+    @staticmethod
+    def _get_mean(s: SimpleNamespace, term: Callable[[SimpleNamespace], Expression]) -> Expression:
+        """Return the mean of a term over every degree class, weighted by the share of the ends of edges."""
+        pair = SimpleNamespace(member=s.target, other=s.target.other)
+        weight = HeterogeneousMeanFieldSIRSystem._get_edge_weight(pair)
+        mean: Expression = total(weight * term(pair), over=s.target.other) / total(weight, over=s.target.other)
+        return mean
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the SIR epidemic on an uncorrelated power-law network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
-        classes = GroupElement(
+        classes = ImmunizingDegreeClassElement(
             'network',
-            element=ImmunizingDegreeClassElement,
+            s=1.0 - self.infected,
+            i=self.infected,
+            r=0.0,
+            beta=self.beta,
+            mu=self.mu,
+            k=degrees,
+            P=weights,
             size=len(degrees),
-            values={
-                's': 1.0 - self.infected,
-                'i': self.infected,
-                'r': 0.0,
-                'beta': self.beta,
-                'mu': self.mu,
-                'k': degrees,
-                'P': weights,
-            },
         )
         interactions = [
-            CouplingInteraction(
+            Interaction(
                 'infection',
-                target='network',
-                read='i',
-                write='i',
-                function=self._get_infection,
-                reduce='normalized-mean',
-                mode='group',
-                weights=self._get_edge_weight,
-                include_self=True,
+                roles={'target': 'network'},
+                laws=lambda s: [RateLaw(s.target.i, self._get_mean(s, self._get_infection))],
             ),
-            CouplingInteraction(
+            Interaction(
                 'contagion',
-                target='network',
-                read='s',
-                write='s',
-                function=self._get_susceptible_loss,
-                reduce='normalized-mean',
-                mode='group',
-                weights=self._get_edge_weight,
-                include_self=True,
+                roles={'target': 'network'},
+                laws=lambda s: [RateLaw(s.target.s, self._get_mean(s, self._get_susceptible_loss))],
             ),
-            TransferInteraction(
+            Interaction(
                 'recovery',
-                source='network',
-                target='network',
-                state='i',
-                into='r',
-                amount=self._get_recovery,
+                roles={'target': 'network'},
+                laws=lambda s: [
+                    RateLaw({s.target.i: -1, s.target.r: +1}, self._get_recovery(s), label='flow'),
+                ],
             ),
         ]
-        return CompositeSystem(self.label, elements=[classes], interactions=interactions)
+        self.system_ = System(self.label, elements=[classes], interactions=interactions)

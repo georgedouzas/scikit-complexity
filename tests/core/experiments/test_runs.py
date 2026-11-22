@@ -2,7 +2,6 @@
 
 import inspect
 from dataclasses import dataclass
-from typing import Annotated
 
 import numpy as np
 import pytest
@@ -11,35 +10,27 @@ from skcomplex.core import experiments
 from skcomplex.core.analysis import bind_analysis
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.experiments._runs import _map_calls
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 
-class LogisticMapElement(Element):
-    """Logistic map element."""
+def _logistic(s):
+    """Return the logistic map `x -> r x (1 - x)`."""
+    x = s.target.x
+    return [UpdateLaw(x, s.target.r * x * (1 - x))]
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.2,
-        r: Annotated[object, ParameterSpec()] = 3.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.r = r
 
-    def _get_laws(self, s):
-        """Return the laws of the logistic map element."""
-        return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
+def logistic_map():
+    """Return the logistic map of the element `map`, with `x = 0.2` and `r = 3`."""
+    logistic = Interaction('logistic', roles={'target': 'map'}, laws=_logistic)
+    return System(elements=[Element('map', values={'x': 0.2, 'r': 3.0})], interactions=[logistic])
 
 
 @dataclass(frozen=True)
@@ -57,10 +48,10 @@ def peak(trajectory, *, variable='I.x'):
 
 
 def test_surface_holds_functions_and_results():
-    """Test that the public names are experiment functions and frozen results, and none is an estimator."""
+    """Test that the public names are experiment functions, frozen results, and values, and none is an estimator."""
     for name in experiments.__all__:
         item = getattr(experiments, name)
-        if name.endswith('Result'):
+        if name.endswith(('Result', 'Spec')):
             assert item.__dataclass_params__.frozen, name
         else:
             assert inspect.isfunction(item), name
@@ -102,7 +93,7 @@ def test_a_sweep_leaves_the_system_unchanged():
 
 def test_paths_of_states_and_parameters_change_one_run():
     """Test that a dotted state path changes the initial value and a parameter path the value for the whole run."""
-    system = CompositeSystem(elements=[LogisticMapElement('map')])
+    system = logistic_map()
     result = sweep(system, [{'map.x': 0.5, 'map.r': 2.0}], until=3, outputs=['map.x'])
     assert result.get_series('map.x')[0].tolist() == [0.5, 0.5, 0.5, 0.5]
 
@@ -171,7 +162,7 @@ def test_system_name_raises_a_named_error(experiment):
 
 def test_unknown_names_are_rejected():
     """Test that a name that is no model parameter, and a path that is no state or parameter, name what is available."""
-    with pytest.raises(ValidationError, match=r'rate is not a model parameter of LogisticGrowthSystem\. Its model'):
+    with pytest.raises(ValidationError, match=r'rate is not a parameter of LogisticGrowthSystem\. Its parameters'):
         sweep(LogisticGrowthSystem(), {'rate': [1.0]}, until=1)
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
         sweep(LogisticGrowthSystem(), {'growth.rate': [1.0]}, until=1)
@@ -193,15 +184,15 @@ def test_a_system_of_the_library_runs_as_an_instance_or_its_class():
 
 
 def test_runs_of_one_structure_compile_once_per_call(monkeypatch):
-    """Test that runs differing by dotted paths and seeds share one compile, and model parameters compile each."""
+    """Test that runs differing by dotted paths and seeds share one preparation, and model parameters prepare each."""
     calls = []
-    compile_problem = experiments._runs._compile_problem
+    prepare = SIRSystem.prepare
 
-    def counted(system, **settings):
+    def counted(system, context=None):
         calls.append(system.get_params(deep=False))
-        return compile_problem(system, **settings)
+        return prepare(system, context)
 
-    monkeypatch.setattr(experiments._runs, '_compile_problem', counted)
+    monkeypatch.setattr(SIRSystem, 'prepare', counted)
     rows = [{'I.x': value} for value in (1.0, 5.0, 10.0)]
     result = sweep(SIRSystem(), rows, replicates=2, until=5, outputs=['I.x'], random_state=0)
     assert len(calls) == 1

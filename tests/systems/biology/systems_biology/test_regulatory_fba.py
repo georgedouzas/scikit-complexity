@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.systems_biology import RegulatoryFBASystem
 
 THRESHOLD = 0.1
@@ -11,7 +10,7 @@ THRESHOLD = 0.1
 
 def test_glucose_represses_acetate_uptake():
     """Test that acetate is untouched while glucose lasts, and that biomass grows in two phases with a lag."""
-    trajectory = simulate(RegulatoryFBASystem())
+    trajectory = RegulatoryFBASystem().prepare().simulate()
     times = trajectory.times
     glucose = trajectory.get_values('culture/glucose.c')
     biomass = trajectory.get_values('culture/biomass.x')

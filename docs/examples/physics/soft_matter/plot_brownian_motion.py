@@ -15,17 +15,16 @@ the plane, spreading into a round Gaussian cloud.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.soft_matter import BrownianMotionSystem
 
 SYSTEM = 'brownian_motion'
 
-system = BrownianMotionSystem(n_particles=500, n_dim=2, random_state=0)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer], random_state=0)
+system = BrownianMotionSystem(n_particles=500, n_dim=2, random_state=0, solver=solver).prepare()
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+trajectory = system.simulate(dt=0.05, observers=[observer], random_state=0)
 
 # %%
 # From ballistic flight to diffusion

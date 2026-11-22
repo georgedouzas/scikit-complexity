@@ -1,15 +1,12 @@
 """Test the `Solver` class."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._steps import step_count
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
@@ -18,59 +15,22 @@ from skcomplex.core.engine.solvers import (
     IterationSolver,
     MilsteinSolver,
     RK4Solver,
+    StepSpec,
     VelocityVerletSolver,
 )
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 
 
-class BeadElement(Element):
-    """Bead element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.v = v
-
-    def _get_laws(self, s):
-        """Return the laws of the bead element."""
-        return [RateLaw(s.x, s.v), RateLaw(s.v, -s.x**3)]
-
-
-class WalkerElement(Element):
-    """Walker element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-
-    def _get_laws(self, s):
-        """Return the laws of the walker element."""
-        return [RateLaw(s.x, -s.x**3), NoiseLaw(s.x, 0.5 * s.x)]
-
-
 def _growth_problem():
     """Return the compiled problem of exponential growth."""
-    system = CompositeSystem(
+    system = System(
         elements=[PopulationElement('a', x=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
-    return PassCompiler().prepare(system).run().problem_
+    return system.prepare()._problem
 
 
 def test_stepper_wrong_form_raises_error():
@@ -88,19 +48,33 @@ def test_step_count_rounds_up_beyond_rounding(t, until, dt, count):
     assert step_count(t, until, dt) == count
 
 
-def _system(kind):
-    """Return a nonlinear system of the oscillator, noise, or map kind."""
+def _bead_laws(s):
+    """Return the laws of the beads, `x' = v` and `v' = -x^3`."""
+    x, v = s.target.x, s.target.v
+    return [RateLaw(x.diff(s.t), v), RateLaw(v.diff(s.t), -(x**3))]
+
+
+def _walker_laws(s):
+    """Return the laws of the walkers, a cubic drift and a multiplicative noise."""
+    x = s.target.x
+    return [RateLaw(x.diff(s.t), -(x**3)), NoiseLaw(x, 0.5 * x)]
+
+
+def _system(kind, backend):
+    """Return a nonlinear system of the oscillator, noise, or map kind on a backend."""
+    start = [1.0, 0.5, -0.2]
     if kind == 'ode':
-        return CompositeSystem(
-            elements=[GroupElement('beads', element=BeadElement, size=3, values={'x': [1.0, 0.5, -0.2]})],
-        )
+        beads = Element('beads', values={'x': start, 'v': [0.0, 0.0, 0.0]}, size=3)
+        motion = Interaction('motion', roles={'target': 'beads'}, laws=_bead_laws)
+        return System(elements=[beads], interactions=[motion], backend=backend)
     if kind == 'sde':
-        return CompositeSystem(
-            elements=[GroupElement('walkers', element=WalkerElement, size=3, values={'x': [1.0, 0.5, -0.2]})],
-        )
-    return CompositeSystem(
+        walkers = Element('walkers', values={'x': start}, size=3)
+        motion = Interaction('motion', roles={'target': 'walkers'}, laws=_walker_laws)
+        return System(elements=[walkers], interactions=[motion], backend=backend)
+    return System(
         elements=[MarketElement('m', price=1.0)],
         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
+        backend=backend,
     )
 
 
@@ -119,7 +93,7 @@ def test_fixed_step_steppers_agree_on_both_backends(stepper, kind):
     """Test that every fixed-step stepper takes the same steps and draws on the NumPy and Numba backends."""
     states, generators = [], []
     for backend in (NumpyBackend(), NumbaBackend()):
-        problem = PassCompiler(backend=backend).prepare(_system(kind)).run().problem_
+        problem = _system(kind, backend).prepare()._problem
         rng = np.random.default_rng(0)
         stepper.set_params(random_state=rng).prepare(problem)
         states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 3.4)).state_)

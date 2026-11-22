@@ -15,7 +15,6 @@ punishers only when between-group competition is strong enough.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import TwoLevelReplicatorSystem
@@ -23,7 +22,9 @@ from skcomplex.systems.social.cooperation import TwoLevelReplicatorSystem
 SYSTEM = 'two_level_replicator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(TwoLevelReplicatorSystem(), until=20, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer])
+trajectory = (
+    TwoLevelReplicatorSystem(solver=RK4Solver(dt=0.01)).prepare().simulate(until=20, dt=1.0, observers=[observer])
+)
 
 # %%
 # The threshold of group selection
@@ -36,7 +37,13 @@ strengths = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0])
 means = []
 for strength in strengths:
     system = TwoLevelReplicatorSystem(group_strength=float(strength))
-    final = simulate(system, until=20, dt=20.0, solver=RK4Solver(dt=0.01)).get_values('groups.x')[-1].ravel()
+    final = (
+        system.set_params(solver=RK4Solver(dt=0.01))
+        .prepare()
+        .simulate(until=20, dt=20.0)
+        .get_values('groups.x')[-1]
+        .ravel()
+    )
     means.append(np.sum(centres * final) / np.sum(final))
 density = trajectory.get_values('groups.x')[-1].ravel()
 fig, (steady, threshold) = plt.subplots(1, 2, figsize=(10, 4))

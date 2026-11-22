@@ -1,23 +1,20 @@
 """Test the `_toppling` module of `skcomplex.systems.physics.common.avalanches`."""
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
-    DiscreteTime,
+    BaseSpace,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.physics.common.avalanches import TopplingInteraction
 
 SIDE = 50
@@ -27,23 +24,17 @@ RUNS = 100
 
 
 class SiteElement(Element):
-    """Site with a height."""
+    """Sites with a height, one per site of a space."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        height: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, height: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.height = height
 
 
 class PileInteraction(TopplingInteraction):
     """Cascade that binds its sites as `pile`."""
 
-    def __init__(self, label: str, *, pile: Annotated[str, RoleSpec()], **arguments: object) -> None:
+    def __init__(self, label: str, *, pile: Role, **arguments: object) -> None:
         super().__init__(label, target=pile, **arguments)
         self.pile = pile
 
@@ -52,7 +43,7 @@ class PileInteraction(TopplingInteraction):
         return 'pile' if role == 'target' else role
 
 
-def _drop(values, *, random):
+def _drop(values, *, random, **kwargs):
     """Return the heights with one grain dropped on a random site."""
     following = values.copy()
     following[tuple(random.integers(size) for size in values.shape)] += 1
@@ -61,12 +52,11 @@ def _drop(values, *, random):
 
 def _run(space, heights, threshold, until, seed=0, **arguments):
     """Return the trajectory of a cascade over the sites of a space, run for some steps."""
-    system = CompositeSystem(
-        elements=[GroupElement('sites', element=SiteElement, space=space, values={'height': heights}, on='sites')],
+    system = System(
+        elements=[SiteElement('sites', height=heights, space=space)],
         interactions=[TopplingInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
-        time=DiscreteTime(),
     )
-    return simulate(system, until=until, dt=until, random_state=seed)
+    return system.prepare().simulate(until=until, dt=until, random_state=seed)
 
 
 def test_sandpile_avalanches_follow_a_power_law_over_two_decades():
@@ -95,7 +85,7 @@ def test_redistribution_keeps_the_grains_inside_a_periodic_lattice():
         2,
         1,
         share=1,
-        neighborhood=BallNeighborhood(metric='manhattan', n_dim=1, center='first'),
+        neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
     )
     assert trajectory.states[-1].tolist() == [1.0] * 5
     (event,) = trajectory.events
@@ -151,7 +141,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
     [
         ({'mode': 'flip'}, 'Unknown mode'),
         ({'drive': 1.0}, 'callable'),
-        ({'neighborhood': BallNeighborhood(metric='manhattan')}, 'center=True'),
+        ({'neighborhood': RadiusNeighborhood(1, metric='manhattan')}, 'center=True'),
         ({'mode': 'random', 'neighborhood': AdjacencyNeighborhood(center=True)}, 'lattice neighbourhood'),
         ({'mode': 'random', 'threshold': 3.0, 'share': 2.0}, 'divides the threshold'),
     ],
@@ -166,15 +156,13 @@ def test_get_laws_reads_a_renamed_target():
     """Test that a cascade that binds its sites as `pile` relaxes as the plain cascade."""
     heights = np.zeros((9, 9))
     heights[4, 4] = 5.0
-    elements = [
-        GroupElement('sites', element=SiteElement, space=LatticeSpace((9, 9)), values={'height': heights}, on='sites'),
-    ]
+    elements = [SiteElement('sites', height=heights, space=LatticeSpace((9, 9)))]
     finals = []
     for cascade in (
         TopplingInteraction('cascade', target='sites', state='height', threshold=4, share=1),
         PileInteraction('cascade', pile='sites', state='height', threshold=4, share=1),
     ):
-        system = CompositeSystem(elements=elements, interactions=[cascade], time=DiscreteTime())
-        finals.append(simulate(system, until=1, dt=1, random_state=0).states[-1])
+        system = System(elements=elements, interactions=[cascade])
+        finals.append(system.prepare().simulate(until=1, dt=1, random_state=0).states[-1])
     np.testing.assert_array_equal(finals[1], finals[0])
     assert finals[0].max() < 4.0

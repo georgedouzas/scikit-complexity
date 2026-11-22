@@ -6,18 +6,20 @@ Its residues are sampled on the cells of an ellipse path.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import lru_cache, partial
-from typing import Annotated
 
 import numpy as np
 from scipy.optimize import minimize_scalar
 
 from ....core.base import BaseConfig
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..._extras import import_extra
 from ..common.sequences import RowScoreSpec, SequenceSamplingInteraction
@@ -69,21 +71,32 @@ class PathCellElement(Element):
         amino:
             The index of the amino acid of the residue.
 
+        cells:
+            The number of cells of the path, whose last one is the brightest colour of the drawing.
+
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import PathCellElement
         >>> PathCellElement('residue').cell
         0.0
     """
 
+    visual = VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': 'cells - 1'})
+
     def __init__(
         self,
         label: str,
-        cell: Annotated[float, StateSpec()] = 0.0,
-        amino: Annotated[float, ParameterSpec()] = 0.0,
+        cell: float | Array = 0.0,
+        amino: float | Array = 0.0,
+        cells: float | Array = float(CELLS),
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, space=space)
         self.cell = cell
         self.amino = amino
+        self.cells = cells
 
 
 class EllipsePath(BaseConfig[None, Array]):
@@ -309,6 +322,12 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         MissingExtraError:
             The extra `structures` is not installed.
@@ -334,8 +353,10 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         cells: int = CELLS,
         temperature: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.entry = entry
         self.cells = cells
         self.temperature = temperature
@@ -345,8 +366,14 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         """Return the sum of the local energies of the cells of the residues of a chain."""
         return float(energies[amino.astype(int), row.astype(int)].sum())
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the residues of a protein sampling the cells of an ellipse path by heat bath.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
         if self.temperature <= 0:
             error_msg = f'The temperature of the system must be positive, but it is {self.temperature}.'
@@ -354,16 +381,14 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
         names = [residue for _, _, residue in read_structure(self.entry).residues]
         amino = np.array([AMINO_ACIDS.index(name) for name in names], dtype=float)
         energies = -np.log(read_cell_probabilities(self.cells))
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                PathCellElement(
                     'residues',
-                    element=PathCellElement,
+                    amino=amino[None],
+                    cells=float(self.cells),
                     space=LatticeSpace((1, len(names)), boundary='fixed'),
-                    values={'amino': amino[None]},
-                    visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(self.cells - 1)}),
-                    on='sites',
                 ),
             ],
             interactions=[
@@ -378,5 +403,4 @@ class EarlyStageFoldingIntermediateSystem(BaseSystem):
                     values=tuple(float(cell) for cell in range(self.cells)),
                 ),
             ],
-            time=DiscreteTime(),
         )

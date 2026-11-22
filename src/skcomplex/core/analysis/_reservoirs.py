@@ -10,14 +10,15 @@ from types import SimpleNamespace
 import numpy as np
 import numpy.typing as npt
 
-from ..components.laws import BaseLaw, UpdateLaw
-from ..components.spaces import DiscreteTime
-from ..components.systems import CompositeSystem
+from ..components.laws import BaseLaw, CallSpec, UpdateLaw
 from ..engine._utils import vector
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, CallSpec, SamplesSpec
-from ..types import Array, DataKind
+from ..systems import System
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_samples
+from ._samples_spec import _SamplesSpec
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -157,15 +158,20 @@ class _ReservoirStep:
 class ReservoirResult:
     """A result of `reservoir`, a reservoir system fitted to series.
 
-    The increments are over one sample.
+    It holds the fitted `System`, which steps once per sample, its states, the errors of its predicted increments over
+    one sample, the map it steps with, and the forecast, such as the states `x`, `memory_0`, and `memory_1` of a
+    reservoir that reads two consecutive samples of `x`. It gives a model of a chaotic flow, a power demand, or a
+    speech signal learned from series alone.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         samples:
             The series of every run, the names of the variables, and the step.
 
         system:
-            The system of one surrogate element under discrete time, one step per sample, whose states are the
-            variables and then the memory of the reservoir.
+            The `System` of one surrogate element and one interaction whose update law steps in discrete time, one
+            step per sample, and whose states are the variables and then the memory of the reservoir.
 
         labels:
             The variables the surrogate was fitted to.
@@ -192,10 +198,19 @@ class ReservoirResult:
 
         forecast:
             The variables at the `horizon` samples after the last one, one row per sample.
+
+    See Also:
+        reservoir: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import reservoir
+        >>> reservoir(np.sin(0.1 * np.arange(400.0)), variables=['x']).states
+        ['x', 'memory_0', 'memory_1']
     """
 
-    samples: SamplesSpec
-    system: CompositeSystem
+    samples: _SamplesSpec
+    system: System
     labels: list[str]
     states: list[str]
     last_state: Array
@@ -228,15 +243,13 @@ def reservoir(
 ) -> ReservoirResult:
     """Return the reservoir system whose ridge readout gives the variable increments.
 
-    The reservoir comes from ReservoirPy. The reservoir is driven by the variables, standardized unless `standardize` is
-    false, and a ridge regression from its features to the increments of the variables over one sample is fitted on the
-    training samples. A next-generation reservoir takes as features the variables at `delay` consecutive samples and
-    their monomials of degree `order`. An echo state network takes the activities of `units` leaky tanh units with
-    random recurrent weights. The fitted system runs under discrete time, one step per sample, and starts at the last
-    sample of the last run with the memory the runs left, so a run of the system is the autonomous forecast.
+    A reservoir is a fixed set of features of the recent past of the variables, and a ridge regression from these
+    features to the change of the variables over one sample is fitted on the training samples, with ReservoirPy. The
+    fitted `System` steps once per sample and starts at the last sample of the last run with the memory the runs left,
+    so `result.system.prepare().simulate(until=n)` forecasts `n` samples, such as a sine wave continued to within 0.01.
+    It learns a model of a chaotic flow, a power demand, or a speech signal from series alone.
 
-    It appears in many fields. It learns a model of a chaotic flow, of a power demand, or of a speech signal from series
-    alone.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -246,7 +259,9 @@ def reservoir(
             The variables of trajectories, or `None` for every scalar state or observable.
 
         kind:
-            The reservoir, `'next_generation'` or `'echo_state'`.
+            The reservoir. `'next_generation'` takes as features the variables at `delay` consecutive samples and their
+            monomials of degree `order`. `'echo_state'` takes the activities of `units` leaky tanh units with random
+            recurrent weights.
 
         delay:
             The number of consecutive samples of a next-generation reservoir.
@@ -301,13 +316,14 @@ def reservoir(
             The reservoir kind is unknown, the validation share lies outside `[0, 1)`, the horizon is negative, or no
             training sample is left after the warmup.
 
+    See Also:
+        mode_decomposition: Fits a linear system to series.
+        sparse_identification: Finds the equations of series from a library of terms.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import reservoir
-        >>> times = np.arange(400.0)
-        >>> result = reservoir(np.sin(0.1 * times), variables=['x'], horizon=10)
-        >>> result.states
-        ['x', 'memory_0', 'memory_1']
+        >>> result = reservoir(np.sin(0.1 * np.arange(400.0)), variables=['x'], horizon=10)
         >>> bool(abs(result.forecast[-1, 0] - np.sin(0.1 * 409)) < 0.01)
         True
     """
@@ -347,7 +363,6 @@ def reservoir(
         label,
         dict(zip(states, map(float, last_state), strict=True)),
         _reservoir_laws(states, step),
-        DiscreteTime(),
     )
     current = last_state
     rows = []
@@ -434,7 +449,7 @@ def _reservoir_laws(names: Sequence[str], step: _ReservoirStep) -> Callable[[Sim
 
     def laws(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update law."""
-        symbols = _symbols_of(s, names)
+        symbols = _symbols_of(s.target, names)
         return [UpdateLaw(vector(symbols), CallSpec(step.evaluate, tuple(symbols)))]
 
     return laws

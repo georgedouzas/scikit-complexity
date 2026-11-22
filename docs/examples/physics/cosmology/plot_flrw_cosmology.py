@@ -14,17 +14,16 @@ expansion of the universe follows from the metric and what fills it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.cosmology import FLRWCosmologySystem
 
 SYSTEM = 'flrw_cosmology'
 
-system = FLRWCosmologySystem(a=0.3, omega_matter=0.3, omega_lambda=0.7)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
-trajectory = simulate(system, solver=solver, observers=[observer])
+system = FLRWCosmologySystem(a=0.3, omega_matter=0.3, omega_lambda=0.7, solver=solver)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # Matter, radiation, and vacuum
@@ -43,7 +42,7 @@ mixture.set_xlabel('time')
 mixture.set_ylabel('scale factor a')
 mixture.set_title('Matter, then dark energy')
 for name, (densities, exact) in cases.items():
-    run = simulate(FLRWCosmologySystem(a=0.5, **densities), until=1.5, dt=0.05, solver=solver)
+    run = FLRWCosmologySystem(a=0.5, **densities, solver=solver).prepare().simulate(until=1.5, dt=0.05)
     times = np.asarray(run.times)
     single.plot(times, np.ravel(run.get_values('universe.a')), label=name)
     single.plot(times, exact(times), '--', color='black')

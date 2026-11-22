@@ -12,11 +12,13 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 from scipy.special import logsumexp
 
+from ...components import EntrySpec
 from ...errors import ValidationError
-from ...specs import EntrySpec, ReadSpec, RunStateSpec
 from ...types import AnyArray, Array
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
+from ._read_spec import _ReadSpec
+from ._run_state_spec import RunStateSpec
 
 REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
     'count': lambda array: np.full(array.shape[1:], float(array.shape[0])),
@@ -30,7 +32,14 @@ REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
 
 
 class ReductionKernel(BaseKernel):
-    """A kernel of a reduction that laws read, compiled into a function.
+    """A kernel of a sum, mean, or other reduction over the members of a group.
+
+    Laws often read a value over a whole group, such as the mean phase of a set of oscillators or the number of infected
+    people. The kernel computes it before the laws run, over all members or those a condition selects, with weights when
+    given, and stores it after the parameters, so the laws read it like any other value. It gives the mean field of
+    oscillators, the total wealth of a market, and the count of infected people.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         symbol:
@@ -46,8 +55,8 @@ class ReductionKernel(BaseKernel):
             The condition that selects the members, or `None` for all members.
 
         weights:
-            The constant weight matrix as a CSR array of shape `(readers, size)`, the read of a shaped parameter of
-            that shape, or `None`.
+            The constant weight matrix as a CSR array of shape `(readers, size)`, the read of a shaped parameter of that
+            shape, or `None`.
 
         entry:
             The hidden entry that holds the value, after the parameters in the extended parameter vector.
@@ -69,6 +78,16 @@ class ReductionKernel(BaseKernel):
 
         function:
             The function of the array of member values of a reduction of the kind `'function'`, or `None`.
+
+    See Also:
+        NeighborhoodKernel: A reduction over the neighbours of every member.
+        ReductionScheduleSpec: The order the reductions run in.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> kernel = KuramotoSystem().prepare().simulate(until=0).problem.reductions[0]
+        >>> kernel.kind, kernel.group
+        ('count', 'oscillators')
     """
 
     values_: None
@@ -79,12 +98,12 @@ class ReductionKernel(BaseKernel):
         kind: str,
         argument: Expression,
         condition: Expression | None,
-        weights: scipy.sparse.csr_array | ReadSpec | None,
+        weights: scipy.sparse.csr_array | _ReadSpec | None,
         *,
         entry: EntrySpec,
         size: int,
         group: str | None,
-        reads: dict[Expression, ReadSpec],
+        reads: dict[Expression, _ReadSpec],
         time: Expression,
         members: EntrySpec | None = None,
         function: Callable[[AnyArray], object] | None = None,
@@ -151,7 +170,7 @@ class ReductionKernel(BaseKernel):
         if weights is None:
             error_msg = f'The reduction {self.symbol} has no weights.'
             raise ValidationError(error_msg)
-        if isinstance(weights, ReadSpec) and weights.entry is not None:
+        if isinstance(weights, _ReadSpec) and weights.entry is not None:
             return (x if weights.is_state else q)[weights.index].reshape(weights.entry.shape)
         return weights
 

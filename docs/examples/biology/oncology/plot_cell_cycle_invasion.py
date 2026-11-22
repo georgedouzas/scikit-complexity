@@ -14,7 +14,6 @@ cycle and move into it, while the crowded cells behind them stay in G1.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.oncology import CellCycleInvasionSystem
@@ -23,7 +22,7 @@ SYSTEM = 'cell_cycle_invasion'
 PHASES = ('g1', 'es', 'sg2m')
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(CellCycleInvasionSystem(), observers=[observer], random_state=0)
+trajectory = CellCycleInvasionSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Cells per phase and the closing scratch
@@ -55,7 +54,7 @@ plt.show()
 # simulation with those of one run at `Rr = 0.1`, with a uniform prior on `Rr` between 0.01 and 0.5 and a small budget
 # of simulations. The weighted posterior should concentrate around the true rate.
 
-truth = simulate(CellCycleInvasionSystem(12, 6, Rr=0.1), until=48, random_state=1)
+truth = CellCycleInvasionSystem(12, 6, Rr=0.1).prepare().simulate(until=48, random_state=1)
 times = np.arange(0.0, 49.0, 12.0)
 data = {
     f'{phase}_cells': (times, np.interp(times, truth.times, truth.get_values(f'{phase}_cells'))) for phase in PHASES

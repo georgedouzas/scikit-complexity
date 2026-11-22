@@ -7,6 +7,7 @@ The tissue lies on a square, triangular, or disordered lattice.
 # License: MIT
 
 import functools
+import inspect
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -18,30 +19,41 @@ import networkx as nx
 import numba
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import NN, SR, oo
+from sage.all__sagemath_symbolics import NN, RR, SR, ConditionSet, Expression, oo
 from sage.sets.real_set import RealSet
 from scipy.spatial import Voronoi
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import SamplingInteraction
-from ....core.components.laws import ArrayUpdateLaw, BaseLaw
+from ....core.base import BaseSpec
+from ....core.components import Observable, Tags
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
-    BallNeighborhood,
     BaseNeighborhood,
     BaseSpace,
-    DiscreteTime,
     LatticeSpace,
     NetworkSpace,
+    RadiusNeighborhood,
 )
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array, Indices
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Indices, Role
 
 MATRIX_AXES = 2
 LATTICES = ('square', 'triangular', 'disordered')
 DEFAULT_ADHESION = ((1.0, 2.0), (2.0, 1.5))
+RULES = ('metropolis', 'glauber')
+
+
+def _is_positive(value: float) -> bool:
+    """Return whether a value is above zero."""
+    return bool(value > 0)
+
+
+POSITIVE_VALUES = ConditionSet(RR, _is_positive)
 
 
 @numba.njit(cache=True)
@@ -195,15 +207,15 @@ class TissueSiteElement(Element):
         label:
             The label of the site or the lattice group.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         cell:
             The initial label of the cell that covers the site, from 0.
 
+        space:
+            The lattice or network whose sites hold one site each, or `None` for one site.
+
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import TissueSiteElement
@@ -214,15 +226,15 @@ class TissueSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        cell: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        cell: Annotated[float | Array, NN] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.cell = cell
 
 
-class RegionSamplingInteraction(SamplingInteraction):
+class RegionSamplingInteraction(Interaction):
     """Monte Carlo sampling of regions of integer labels by copies of the labels of neighbours.
 
     The objective is a `RegionScoreSpec`, and the state holds integer labels from 0 on the sites of a `LatticeSpace` or
@@ -232,63 +244,135 @@ class RegionSamplingInteraction(SamplingInteraction):
     keeps the volume and the surface of every region and updates them on every accepted copy. The neighbourhood is that
     of the copies and the contacts, by default the Moore neighbourhood of a square lattice, the six neighbours of a
     triangular lattice, or the edges of a network, whose edge attribute `'weight'` weighs the contact and node
-    attribute `'volume'` the volume of a site. The schedule does not apply. The arguments are those of
-    `SamplingInteraction`, with the move `'copy'`.
+    attribute `'volume'` the volume of a site. It samples the cells of a tissue, the grains of a foam, or the domains
+    of a polycrystal.
+
+    Args:
+        label:
+            The label of the interaction, unique among the components of its system.
+
+        target:
+            The path of the group of sites.
+
+        state:
+            The name of the state that holds the label of a site.
+
+        objective:
+            The score of the regions.
+
+        move:
+            `'copy'`, the copy of the label of a neighbour, the one move of regions.
+
+        intensity:
+            The factor of the change of the score in the acceptance `exp(-intensity * change)`, positive and possibly
+            infinite.
+
+        rule:
+            The acceptance, `'metropolis'` or `'glauber'`.
+
+        neighborhood:
+            The neighbours of a site, or `None` for the default neighbourhood of the space.
+
+        cooling:
+            The function of the time that multiplies one over the intensity, or `None` for a constant intensity.
+
+    Raises:
+        ValidationError:
+            The move is not a copy, the rule is unknown, or the objective is not a region score, raised by `prepare`.
 
     Examples:
-        >>> from typing import Annotated
         >>> import numpy as np
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.specs import StateSpec
+        >>> from skcomplex.core.components.elements import Element
+        >>> from skcomplex.core.components.spaces import LatticeSpace
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.physiology import RegionSamplingInteraction, RegionScoreSpec
-        >>> class SiteElement(Element):
-        ...     def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
-        ...         super().__init__(label)
-        ...         self.region = region
         >>> contact = lambda first, second: np.ones(np.broadcast(first, second).shape)
         >>> area = lambda labels: (1.0, 16.0)
         >>> copies = RegionSamplingInteraction(
         ...     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, area), move='copy'
         ... )
         >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
-        >>> space = LatticeSpace((8, 8))
-        >>> sites = GroupElement('sites', element=SiteElement, space=space, on='sites', values={'region': regions})
-        >>> system = CompositeSystem(elements=[sites], interactions=[copies], time=DiscreteTime())
-        >>> final = simulate(system, until=20, random_state=0).states[-1]
+        >>> sites = Element('sites', values={'region': regions}, space=LatticeSpace((8, 8)))
+        >>> system = System(elements=[sites], interactions=[copies]).prepare()
+        >>> final = system.simulate(20, random_state=0).states[-1]
         >>> sorted(np.unique(final).tolist())
         [0.0, 1.0, 2.0, 3.0]
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (ArrayUpdateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
-    def _check_move(self) -> None:
-        """Raise an error for a move other than `'copy'`, which copies the label of a neighbour."""
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        state: str,
+        objective: RegionScoreSpec,
+        move: str = 'copy',
+        intensity: Annotated[float, POSITIVE_VALUES] = 1.0,
+        rule: str = 'metropolis',
+        neighborhood: BaseNeighborhood | None = None,
+        cooling: Callable[[Expression | float], object] | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.objective = objective
+        self.move = move
+        self.intensity = intensity
+        self.rule = rule
+        self.neighborhood = neighborhood
+        self.cooling = cooling
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the update of the labels, which draws."""
+        return self._get_variant_tags((UpdateLaw,), stochastic=True)
+
+    def _get_intensity(self, namespace: SimpleNamespace) -> object:
+        """Return the intensity of the acceptance before cooling."""
+        return self._get_parameter_symbol('intensity', namespace)
+
+    def _get_keywords(self, function: Callable[..., object], parameters: Mapping[str, object]) -> dict[str, object]:
+        """Return the parameters that a function names."""
+        try:
+            names = inspect.signature(function).parameters
+        except (TypeError, ValueError):
+            return {}
+        return {name: value for name, value in parameters.items() if name in names}
+
+    def _check_arguments(self) -> None:
+        """Raise an error for a sampling it cannot run.
+
+        Raises:
+            ValidationError:
+                The move is not a copy, the rule is unknown, the objective is not a region score, or the cooling is not
+                callable.
+        """
+        super()._check_arguments()
         if self.move != 'copy':
             error_msg = f"The region sampling {self.label!r} moves labels by the move 'copy', not {self.move!r}."
             raise ValidationError(error_msg)
-
-    def _check_objective(self, objective: object) -> None:
-        """Raise an error for an objective that is not a region score, or a region score it cannot run."""
-        if not isinstance(objective, RegionScoreSpec):
-            error_msg = f'The objective of region sampling {self.label!r} must be a RegionScoreSpec.'
-            raise ValidationError(error_msg)
-        self._check_region_score(objective)
-
-    def _check_region_score(self, score: RegionScoreSpec) -> None:
-        """Raise an error for a region score with a bad move or the heat-bath rule.
-
-        A bad move is a move other than a label copy.
-        """
-        score._check()
-        if self.move != 'copy':
-            error_msg = f"The region score of sampling {self.label!r} moves labels by the move 'copy'."
-            raise ValidationError(error_msg)
-        if self.rule == 'heat-bath':
+        if self.rule not in RULES:
             error_msg = f"The region score of sampling {self.label!r} takes the rule 'metropolis' or 'glauber'."
             raise ValidationError(error_msg)
+        if self.cooling is not None and not callable(self.cooling):
+            error_msg = f'The cooling of sampling {self.label!r} must be a function of the time.'
+            raise ValidationError(error_msg)
+        if not isinstance(self.objective, RegionScoreSpec):
+            error_msg = f'The objective of region sampling {self.label!r} must be a RegionScoreSpec.'
+            raise ValidationError(error_msg)
+        self.objective._check()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the law that samples the labels.
+
+        Args:
+            context:
+                The namespace of the target and the parameters.
+        """
+        super()._prepare(context)
+        target = getattr(self._get_member(context, 'target'), self.state)
+        self.laws_ = [UpdateLaw(target, self._sample_regions, label=self.label, arrays=True, stochastic=True)]
 
     @staticmethod
     @functools.cache
@@ -380,7 +464,7 @@ class RegionSamplingInteraction(SamplingInteraction):
         The sweep makes as many copies as `hits` times the sites.
         """
         rng = random
-        score = getattr(self, self._get_parameter('objective'))
+        score = self.objective
         if not isinstance(space, (LatticeSpace, NetworkSpace)) or values.size != space.size_:
             error_msg = f'The region score of sampling {self.label!r} reads a label per site of a lattice or a network.'
             raise ValidationError(error_msg)
@@ -418,20 +502,6 @@ class RegionSamplingInteraction(SamplingInteraction):
         )
         return labels.reshape(values.shape).astype(values.dtype)
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the law that samples the state by the score.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.target`.
-
-        Returns:
-            laws:
-                The law of the sampling.
-        """
-        target = getattr(self._get_member(namespace, 'target'), self.state)
-        return [ArrayUpdateLaw(target, self._sample_regions, label=self.label)]
-
 
 class CellAdhesionInteraction(RegionSamplingInteraction):
     """Cellular Potts sampling of a tissue, whose cells move their boundaries.
@@ -447,7 +517,7 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of sites.
@@ -500,14 +570,14 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         kinds: Sequence[int],
         adhesion: npt.ArrayLike,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        area_strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        target_area: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        perimeter_strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        target_perimeter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        area_strength: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        target_area: Annotated[float, RealSet.closed_open(0, oo)] = 40.0,
+        perimeter_strength: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        target_perimeter: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         state: str = 'cell',
         rule: str = 'metropolis',
         neighborhood: BaseNeighborhood | None = None,
@@ -564,20 +634,14 @@ class CellAdhesionInteraction(RegionSamplingInteraction):
         del labels
         return perimeter_strength, target_perimeter
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an invalid adhesion or kind.
-
-        The adhesion must be a symmetric square matrix, and every kind one of its rows.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The adhesion is not a symmetric square matrix, or a kind is not one of its rows.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         adhesion = np.asarray(self.adhesion, dtype=float)
         if (
             adhesion.ndim != MATRIX_AXES
@@ -642,6 +706,12 @@ class CellularPottsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The lattice is unknown, or the shape is not a multiple of the cell shape.
@@ -673,12 +743,12 @@ class CellularPottsSystem(BaseSystem):
             first, second = space.edges_[None]
             weights = np.asarray([weight for *_, weight in space.graph.edges(data='weight', default=1.0)], dtype=float)
             return np.concatenate([first, second]), np.concatenate([second, first]), np.concatenate([weights, weights])
-        neighborhood = BallNeighborhood(metric='hexagonal') if space.geometry == 'triangular' else BallNeighborhood()
+        neighborhood = RadiusNeighborhood(1, metric='hexagonal' if space.geometry == 'triangular' else 'chebyshev')
         coordinates = np.indices(space.shape_).reshape(2, -1)
         sites = np.arange(space.size_)
         pairs = [
             (sites, np.ravel_multi_index(tuple(coordinates + np.asarray(offset)[:, None]), space.shape_, mode='wrap'))
-            for offset in neighborhood.prepare().offsets_
+            for offset in neighborhood._get_offsets(space.n_dim_) or ()
         ]
         first, second = (np.concatenate(items) for items in zip(*pairs, strict=True))
         return first, second, np.ones(first.size)
@@ -713,20 +783,20 @@ class CellularPottsSystem(BaseSystem):
         return float(np.abs(areas - target_area).mean() / target_area)
 
     @staticmethod
-    def _get_cellular_potts_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_cellular_potts_observables(system: System) -> list[Observable]:
         """Return the share of homotypic contacts and the deviation of the areas.
 
         The deviation is that of the areas from their target.
         """
         tissue = next(element for element in system.elements if element.label == 'tissue')
-        adhesion = next(part for part in system.interactions if isinstance(part, CellAdhesionInteraction))
+        adhesion = next(item for item in system.interactions if isinstance(item, CellAdhesionInteraction))
         space = tissue.space.prepare()
         sizes = np.ones(space.size_)
         if isinstance(space, NetworkSpace):
             sizes = np.asarray([volume for _, volume in space.graph.nodes(data='volume', default=1.0)], dtype=float)
         kinds = np.asarray(adhesion.kinds, dtype=np.intp)
         return [
-            ObservableSpec(
+            Observable(
                 'homotypic_contacts',
                 function=partial(
                     CellularPottsSystem._get_homotypic_contacts,
@@ -734,7 +804,7 @@ class CellularPottsSystem(BaseSystem):
                     kinds,
                 ),
             ),
-            ObservableSpec(
+            Observable(
                 'area_deviation',
                 function=partial(CellularPottsSystem._get_area_deviation, sizes, float(adhesion.target_area)),
             ),
@@ -754,8 +824,10 @@ class CellularPottsSystem(BaseSystem):
         hits: int = 1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.lattice = lattice
         self.cell_shape = cell_shape
@@ -766,19 +838,6 @@ class CellularPottsSystem(BaseSystem):
         self.target_perimeter = target_perimeter
         self.hits = hits
         self.random_state = random_state
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the observables of the built parts.
-
-        The observables are the homotypic contacts and the deviation of the areas.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = CellularPottsSystem._get_cellular_potts_observables(self._build_system())
-        return settings
 
     @staticmethod
     def _get_disordered_lattice(shape: tuple[int, int], rng: np.random.Generator) -> nx.Graph:
@@ -811,8 +870,14 @@ class CellularPottsSystem(BaseSystem):
             data['weight'] = data.pop('length') / mean
         return graph
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the cellular Potts model of a confluent tissue."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the cellular Potts model of a confluent tissue.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rows, columns = (int(size) for size in self.shape)
         height, width = (int(size) for size in self.cell_shape)
         if self.lattice not in LATTICES:
@@ -837,13 +902,7 @@ class CellularPottsSystem(BaseSystem):
             y, x = np.indices((rows, columns)).reshape(2, -1).astype(float)
             space = LatticeSpace((rows, columns), geometry=self.lattice)
         cells = (y // height).astype(int) * (columns // width) + (x // width).astype(int)
-        tissue = GroupElement(
-            'tissue',
-            element=TissueSiteElement,
-            space=space,
-            values={'cell': cells.astype(float)},
-            on='sites',
-        )
+        tissue = TissueSiteElement('tissue', cell=cells.astype(float), space=space)
         sampling = CellAdhesionInteraction(
             'adhesion',
             target='tissue',
@@ -856,4 +915,5 @@ class CellularPottsSystem(BaseSystem):
             target_perimeter=self.target_perimeter,
             hits=self.hits,
         )
-        return CompositeSystem(self.label, elements=[tissue], interactions=[sampling], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[tissue], interactions=[sampling])
+        self.observables_ = tuple(CellularPottsSystem._get_cellular_potts_observables(self.system_))

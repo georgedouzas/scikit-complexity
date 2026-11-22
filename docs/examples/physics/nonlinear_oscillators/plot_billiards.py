@@ -12,7 +12,6 @@ the open three-disk billiard the particle comes from far away, bounces between t
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.nonlinear_oscillators import BilliardsSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'billiards'
 
 system = BilliardsSystem(shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, until=40, dt=0.04, observers=[observer])
+trajectory = system.prepare().simulate(until=40, dt=0.04, observers=[observer])
 
 # %%
 # Separation of nearby paths
@@ -33,7 +32,7 @@ trajectory = simulate(system, until=40, dt=0.04, observers=[observer])
 turn = 1e-8
 vx, vy = 0.6 * np.cos(turn) - 0.8 * np.sin(turn), 0.6 * np.sin(turn) + 0.8 * np.cos(turn)
 paths = [
-    (simulate(BilliardsSystem(shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]), until=60, dt=0.01))
+    (BilliardsSystem(shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]).prepare().simulate(until=60, dt=0.01))
     for velocity in [(0.6, 0.8), (vx, vy)]
 ]
 times = np.asarray(paths[0].times)
@@ -66,7 +65,7 @@ for phi in angles:
         vx=-np.cos(phi),
         vy=-np.sin(phi),
     )
-    collisions.append(len(simulate(system, until=25, dt=0.1).events))
+    collisions.append(len(system.prepare().simulate(until=25, dt=0.1).events))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(angles, collisions, '.-')
 ax.set_xlabel('incoming angle phi')

@@ -1,4 +1,4 @@
-"""Expand flows and delays into laws and check conserved quantities."""
+"""Turn flows and delays into laws and check the conserved quantities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,30 +11,22 @@ from dataclasses import replace
 import numpy as np
 from sage.all__sagemath_symbolics import RR, SR, Expression
 
-from ...components.laws import (
-    BaseLaw,
-    BoundaryLaw,
-    CrossingLaw,
-    JumpLaw,
-    NoiseLaw,
-    RateLaw,
-    Sink,
-    Source,
-    TransferLaw,
-    UpdateLaw,
-)
-from ...components.laws.utils import shift_member
+from ...components import EntrySpec
+from ...components.laws import BaseLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._flow_term import FlowTermLaw
 from ...components.laws.utils._delays import delay_parts
 from ...components.laws.utils._draws import draws_in
-from ...components.spaces import DiscreteTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...enums import VariableKind
 from ...errors import ConservationError, LabelError, ValidationError
-from ...specs import EntrySpec
-from ...specs._compiled_flow_spec import _CompiledFlowSpec
-from ...types import Array, VariableKind
+from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
+from ..enums import ReadKind
 from ..problems._block_spec import BlockSpec
 from ..problems._born_spec import _BornSpec
 from ..problems._compiled_delay_spec import _CompiledDelaySpec
+from ..problems._compiled_flow_spec import _CompiledFlowSpec
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._flow_term_spec import _FlowTermSpec
 from ..problems._kernel_spec import KernelSpec
@@ -44,24 +36,24 @@ from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
-from ._members import MemberLowering
 
 BOUNDARY_PREFIX = '__boundary'
-SHIFT = 'shift_member'
+ENVIRONMENT = 'environment'
+FLOW_TERMS = 2
 
 
 class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
-    """A lowering of flows and delays.
+    """A lowering that turns flows and delays into laws and checks what is conserved.
 
-    It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every
-    tagged state, and `run(laws)` takes the laws of every kernel spec and sets them in `lowered_` with their flows
-    expanded into laws of other kinds. A later pass finishes the lowering on the laws of every spec after their complex
-    states and Markov laws are lowered: it checks the conserved quantities and lowers the flows and the delays into the
-    transfer network of the system. The flows of a system that declares discrete time, or that holds update laws, move
-    their amounts once per step. A flow that draws records its expected amount at the state of every frame.
+    A flow moves an amount from one stock to another, such as water from a faucet into a tub. This lowering turns every
+    flow into the laws that remove the amount from its source and add it to its sink, and records each flow under its
+    label. A later pass finishes the work: it checks that a conserved quantity changes only through flows and builds the
+    network of stocks and flows of the system. The flows of a system in discrete time move their amounts once per step.
+    It serves the stocks and flows of a business, the compartments of an epidemic, and the tanks of a plant.
+
+    Read more in the user guide, under Extend the library.
 
     Attributes:
         quantities_:
@@ -84,6 +76,18 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         claimed_:
             The path and the set index of every flow expanded by `run`, which no two flows share.
+
+    See Also:
+        ExpandFlowsPass: The pass that starts this lowering.
+        LowerFlowsPass: The pass that finishes it.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._flows import TransferLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.engineering.processes import BathtubSystem
+        >>> compilation = PassCompiler().prepare(BathtubSystem()).compilation_
+        >>> TransferLowering().prepare(compilation).quantities_
+        {'tub.water': 'water'}
     """
 
     quantities_: dict[str, str]
@@ -124,7 +128,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         Raises:
             LabelError:
-                Two flows reported under one part share a label.
+                Two flows reported under one component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
@@ -147,7 +151,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         layout = self.compilation_.layout
         if layout is None:
-            error_msg = 'The compilation has no layout yet. Lower flows after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting flows.'
             raise ValidationError(error_msg)
         return layout
 
@@ -197,27 +201,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return name, self.quantities_.get(name)
 
     @staticmethod
-    def _get_offset_of(holder: object) -> tuple[Expression, int, str, float] | None:
-        """Return the symbol, offset, boundary, and fill of a holder read at an offset.
-
-        The symbol is that of the state of the holder. The offset is a member offset.
-        """
-        if not isinstance(holder, Expression) or getattr(holder.operator(), 'name', lambda: '')() != SHIFT:
-            return None
-        return MemberLowering._shift_arguments(holder)
-
-    @staticmethod
-    def _get_presence(offset: tuple[Expression, int, str, float] | None) -> Expression:
-        """Return 1 where the member at the offset of a holder exists, and 0 otherwise.
-
-        The member is missing past the ends of a fixed boundary.
-        """
-        if offset is None or offset[2] != 'fixed':
-            return SR(1)
-        state, step = offset[0], offset[1]
-        return 1 + shift_member(state, step, boundary='fixed') - shift_member(state, step, boundary='fixed', fill=1.0)
-
-    @staticmethod
     def _get_expected(amount: Expression) -> Expression:
         """Return an amount with every draw replaced by its mean.
 
@@ -250,59 +233,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             found = draws_in(amount)
         return amount
 
-    def _get_rate_law(self, holder: Expression, change: Expression, presence: Expression) -> RateLaw:
-        """Return the rate law of a holder.
-
-        A holder read at an offset takes the rate law from the member behind it.
-        """
-        offset = self._get_offset_of(holder)
-        if offset is None:
-            return RateLaw(holder, change * presence)
-        state, step, boundary, _ = offset
-        return RateLaw(state, shift_member(change, -step, boundary=boundary))
-
-    def _expand_flow(
-        self,
-        spec: KernelSpec,
-        flow: TransferLaw,
-        label: str,
-    ) -> list[BaseLaw]:
-        """Return the rate or jump laws of a flow, after recording it.
-
-        A flow with a holder read at a member offset moves the amount of every member to the member at the offset, so
-        the holder at the offset takes the amount of the member behind it, and past the ends of a fixed boundary no
-        member moves anything.
-        """
-        source, source_label = self._get_holder(flow.source, spec.references, spec.owner)
-        sink, sink_label = self._get_holder(flow.sink, spec.references, spec.owner)
-        tags = {self.quantities_.get(name) for name in (source, sink) if name is not None}
-        if len(tags) > 1:
-            error_msg = (
-                f'The flow {self._get_owner_of(flow, spec)}.{label} moves a quantity from {source_label} to '
-                f'{sink_label}, '
-                f'which hold different quantities {sorted(map(str, tags))}. A flow connects holders of one quantity.'
-            )
-            raise ConservationError(error_msg)
-        path = f'{self._get_owner_of(flow, spec)}.{label}'
-        compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
-        holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
-        presence = self._get_presence(next(filter(None, map(self._get_offset_of, (flow.source, flow.sink))), None))
-        if flow.rate is not None:
-            amount = SR(flow.amount)
-            laws: list[BaseLaw] = [
-                JumpLaw(SR(flow.rate) * presence, {item: sign * amount for item, sign in holders}),
-            ]
-        else:
-            laws = [self._get_rate_law(item, sign * SR(flow.amount), presence) for item, sign in holders]
-            amount = SR(flow.amount) * presence
-        sign = 1 if source is None else -1 if sink is None else 0
-        born = _BornSpec(spec, compiled, amount, sign)
-        self.flows_.append(born)
-        self.born_.update({id(law): born for law in laws})
-        self.records_.append(_RecordSpec(path, self._get_expected(amount), spec))
-        self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
-        return laws
-
     def _expand(self, spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
         """Return the laws of a component with flows expanded into laws of the other kinds.
 
@@ -319,19 +249,18 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
         Raises:
             LabelError:
-                Two flows reported under one part share a label.
+                Two flows reported under one component share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
         """
         expanded: list[BaseLaw] = []
-        for index, law in enumerate(laws):
-            if isinstance(law, TransferLaw):
-                label = law.label or f'flow_{index}'
-                self._claim_label(self._get_owner_of(law, spec), label, spec.set_index)
-                expanded.extend(self._expand_flow(spec, law, label))
-                continue
-            if (
+        labelled: dict[str, list[FlowTermLaw]] = defaultdict(list)
+        for law in laws:
+            if isinstance(law, FlowTermLaw):
+                self._check_flow_term(law, spec)
+                labelled[law.label].append(law)
+            elif (
                 isinstance(law, RateLaw)
                 and isinstance(law.value, Expression)
                 and isinstance(law._get_targets()[0], Expression)
@@ -339,7 +268,110 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 target, _ = self._get_quantity_of(law._get_targets()[0], spec)
                 self.terms_.append(_FlowTermSpec(spec, 'rate', target, law.value))
             expanded.append(law)
+        for label, terms in labelled.items():
+            self._record_flow(spec, label, terms)
         return expanded
+
+    @staticmethod
+    def _check_flow_term(law: FlowTermLaw, spec: KernelSpec) -> None:
+        """Raise an error for a flow whose stock is no real scalar state.
+
+        A stock is a real scalar state of one element or of every member of a group, and the amount of its flow is a
+        number or an expression.
+
+        Args:
+            law:
+                The term of the flow.
+
+            spec:
+                The kernel spec that holds the term.
+
+        Raises:
+            ValidationError:
+                The stock is no state, a vector, or complex, or the amount is a function.
+        """
+        reference = spec.references.get(law._get_targets()[0])
+        is_scalar = (
+            reference is not None
+            and reference.is_state
+            and not reference.entry.member_shape
+            and not reference.entry.is_complex
+        )
+        if not is_scalar or not isinstance(law.value, Expression | int | float):
+            error_msg = (
+                f'The flow {law.label!r} of {spec.owner} changes {law.target} by {law.value}. A flow moves an '
+                'expression between real scalar stocks.'
+            )
+            raise ValidationError(error_msg)
+
+    def _record_flow(self, spec: KernelSpec, label: str, terms: list[FlowTermLaw]) -> None:
+        """Record the terms of the flows of a spec that share a label as one flow.
+
+        The term with the sign `-1` is on the stock the flow leaves and the term with the sign `+1` on the stock it
+        enters. A flow from outside the system has only the term on the stock it enters, and a flow out of it only the
+        term on the stock it leaves. The flow is reported under the element of its stocks, or under the component when
+        its stocks belong to several elements, and a flow that draws reports its mean.
+
+        Args:
+            spec:
+                The kernel spec that holds the terms.
+
+            label:
+                The label the terms share.
+
+            terms:
+                The terms of the flow, one or two.
+
+        Raises:
+            ValidationError:
+                Two flows of one label leave or enter stocks, or move different amounts.
+
+            ConservationError:
+                The stocks hold different quantities.
+        """
+        names = [spec.references[term._get_targets()[0]].entry.name for term in terms]
+        signs = [term.sign for term in terms]
+        if len(set(signs)) < len(signs):
+            error_msg = (
+                f'{spec.owner} has {len(terms)} flows labelled {label!r} on {names}. A flow leaves one stock and '
+                "enters one, such as RateLaw({s.alive: -1, s.dead: +1}, f, label='deaths'). Rename one."
+            )
+            raise ValidationError(error_msg)
+        amounts = [term.sign * SR(term.value) for term in terms]
+        shifted = any(term.shifted for term in terms)
+        if len(amounts) == FLOW_TERMS and not shifted and not bool((amounts[0] - amounts[1]).is_trivial_zero()):
+            error_msg = (
+                f'The flows labelled {label!r} of {spec.owner} move {amounts[0]} out of {names[0]} and {amounts[1]} '
+                f'into {names[1]}. Write one flow, such as RateLaw({{s.alive: -1, s.dead: +1}}, f, label={label!r}).'
+            )
+            raise ValidationError(error_msg)
+        source = next((name for name, sign in zip(names, signs, strict=True) if sign < 0), None)
+        sink = next((name for name, sign in zip(names, signs, strict=True) if sign > 0), None)
+        amount = next((value for value, term in zip(amounts, terms, strict=True) if not term.shifted), amounts[0])
+        elements = {name.rpartition('.')[0] for name in names}
+        owner = next(iter(elements)) if len(elements) == 1 else spec.owner
+        path = f'{owner}.{label}'
+        self._claim_label(owner, label, spec.set_index)
+        tags = {self.quantities_.get(name) for name in names}
+        if len(tags) > 1:
+            error_msg = (
+                f'The flow {path} moves a quantity from {source} to {sink}, which hold different quantities '
+                f'{sorted(map(str, tags))}. A flow connects stocks of one quantity.'
+            )
+            raise ConservationError(error_msg)
+        compiled = _CompiledFlowSpec(
+            path,
+            source,
+            sink,
+            source or ENVIRONMENT,
+            sink or ENVIRONMENT,
+            next(iter(tags)),
+        )
+        born = _BornSpec(spec, compiled, amount, 1 if source is None else -1 if sink is None else 0)
+        self.flows_.append(born)
+        self.born_.update({id(term): born for term in terms})
+        self.records_.append(_RecordSpec(path, self._get_expected(amount), spec))
+        self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
 
     def _check_conserved(self, spec: KernelSpec, law: BaseLaw) -> None:
         """Raise an error for a law outside flows that changes a quantity-tagged state."""
@@ -359,9 +391,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             name, quantity = self._get_quantity_of(target, spec)
             if quantity is not None:
                 error_msg = (
-                    f'A {type(law).__name__} of {spec.owner} changes {name}, which holds the quantity '
-                    f'{quantity!r}, by {value} outside any flow. Move the change into a Transfer between holders of '
-                    f'{quantity!r} or with Source() or Sink().'
+                    f'A {law._get_name()} of {spec.owner} changes {name}, which holds the quantity '
+                    f'{quantity!r}, by {value} outside any flow. Write the change as a flow, such as '
+                    f"RateLaw({{s.{name.rpartition('.')[2]}: -1}}, f, label='outflow') for a flow out of the system."
                 )
                 raise ConservationError(error_msg)
 
@@ -372,8 +404,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         increments: dict[tuple[object, ...], list[tuple[KernelSpec, Expression, Expression]]] = defaultdict(list)
         for spec, laws in specs:
-            for law in [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]:
-                laws.remove(law)
+            born = [law for law in laws if id(law) in self.born_ and isinstance(law, RateLaw)]
+            laws[:] = [law for law in laws if all(law is not item for item in born)]
+            for law in born:
                 target = SR(law._get_targets()[0])
                 reference = spec.references[target]
                 key: tuple[object, ...] = (reference.entry.name, reference.column)
@@ -393,7 +426,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 host_spec = next(spec for spec, laws in specs if laws is host)
                 found = host[index]
                 if not isinstance(found, UpdateLaw):
-                    error_msg = f'The law that updates {key[0]} is a {type(found).__name__}, not an UpdateLaw.'
+                    error_msg = f'The law that updates {key[0]} is a {found._get_name()}, not an UpdateLaw.'
                     raise TypeError(error_msg)
                 target, value = SR(found._get_targets()[0]), SR(found.value)
             for spec, _, increment in items:
@@ -438,14 +471,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         return declarations, names
 
     def _add_boundary(self, laws: list[BaseLaw], born: _BornSpec, accumulator: Expression) -> None:
-        """Add the inflow of a boundary flow to the accumulator of its quantity.
-
-        The inflow is a rate or a jump increment.
-        """
-        for index, law in enumerate(laws):
-            if isinstance(law, JumpLaw) and self.born_.get(id(law)) is born:
-                laws[index] = JumpLaw(law.rate, {**(law.changes or {}), accumulator: born.sign * born.amount})
-                return
+        """Add the inflow of a boundary flow to the accumulator of its quantity as a rate."""
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
     def _expand_delays(
@@ -530,9 +556,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
-        declared = isinstance(self.compilation_.system.time, DiscreteTime)
+        declared = isinstance(self.compilation_.system.time, _DiscreteTime)
         discrete = declared or any(
-            isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws
+            (isinstance(law, UpdateLaw) and id(law) not in self.born_)
+            or (isinstance(law, FlowTermLaw) and law.increment)
+            for _, laws in specs
+            for law in laws
         )
         if discrete:
             self._rewrite_to_updates(specs)
@@ -589,11 +618,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         """
         if not mapping:
             return law
-        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             return BasePass._get_replaced(law, value=TransferLowering._get_substituted(law.value, mapping))
         if isinstance(law, JumpLaw):
             return JumpLaw(TransferLowering._get_substituted(law.rate, mapping), law.changes)
-        if isinstance(law, CrossingLaw):
+        if isinstance(law, EventLaw):
             reset = (
                 None
                 if law.reset is None
@@ -623,27 +652,6 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             return [RateLaw(stage, inflow - stage / each) for stage, inflow in zip(stages, inflows, strict=True)]
         inputs = [value, *stages[:-1]]
         return [RateLaw(stage, (item - stage) / each) for stage, item in zip(stages, inputs, strict=True)]
-
-    @staticmethod
-    def _get_holder(
-        holder: object,
-        references: Mapping[Expression, ReferenceSpec],
-        owner: str,
-    ) -> tuple[str | None, str]:
-        """Return the state name of a holder and its name in flow matrices.
-
-        The state name is `None` for the environment.
-        """
-        if isinstance(holder, Source | Sink):
-            return None, holder.label
-        offset = TransferLowering._get_offset_of(holder)
-        reference = references.get(holder if offset is None else offset[0])
-        if reference is None or not reference.is_state:
-            error_msg = (
-                f'A flow of {owner} moves a quantity to or from {holder}, which is not a state of its namespace `s`.'
-            )
-            raise ValidationError(error_msg)
-        return reference.entry.name, reference.entry.name
 
     @staticmethod
     def _update_of(
@@ -686,21 +694,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 raise ValidationError(error_msg)
             self._add_reference(host, item, reference)
 
-    @staticmethod
-    def _get_owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
-        """Return the path a flow is reported under.
-
-        It is its owner in the system of the declaring part, or that part.
-        """
-        if not flow.owner:
-            return spec.owner
-        scope = spec.owner.rpartition('/')[0]
-        return f'{scope}/{flow.owner}' if scope else flow.owner
-
     def _claim_label(self, owner: str, label: str, set_index: int) -> None:
-        """Add the label of a flow reported under a part.
+        """Add the label of a flow reported under a component.
 
-        A label the part already reports raises an error.
+        A label the component already reports raises an error.
         """
         if (f'{owner}.{label}', set_index) in self.claimed_:
             error_msg = f'{owner} reports two flows labelled {label!r}. Rename one.'

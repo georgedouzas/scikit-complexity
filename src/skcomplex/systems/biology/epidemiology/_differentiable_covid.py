@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,15 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, total
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 BINARY = FiniteEnumeratedSet([0, 1])
 HOUSEHOLD_ADULTS = 2
@@ -60,6 +63,9 @@ class CovidAgentElement(Element):
         gamma:
             The probability per day that an infected agent recovers.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import CovidAgentElement
         >>> CovidAgentElement('agent', i=1).i
@@ -70,17 +76,18 @@ class CovidAgentElement(Element):
         self,
         label: str,
         *,
-        s: Annotated[float, StateSpec(domain=BINARY)] = 1,
-        i: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        r: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        new: Annotated[float, StateSpec(domain=BINARY)] = 0,
-        beta_household: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        beta_school: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        beta_company: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        psi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.2,
+        s: Annotated[float | Array, BINARY] = 1,
+        i: Annotated[float | Array, BINARY] = 0,
+        r: Annotated[float | Array, BINARY] = 0,
+        new: Annotated[float | Array, BINARY] = 0,
+        beta_household: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.9,
+        beta_school: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.6,
+        beta_company: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.3,
+        psi: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        gamma: Annotated[float | Array, RealSet.closed(0, 1)] = 0.2,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, size=size)
         self.s = s
         self.i = i
         self.r = r
@@ -115,8 +122,8 @@ class CaseCountElement(Element):
         self,
         label: str,
         *,
-        children: Annotated[float, StateSpec()] = 0.0,
-        adults: Annotated[float, StateSpec()] = 0.0,
+        children: float = 0.0,
+        adults: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.children = children
@@ -163,7 +170,7 @@ class CovidTransmissionInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         contacts: tuple[scipy.sparse.csr_array | npt.NDArray[np.float64], ...],
         temperature: float = 0.1,
         hard: bool = False,
@@ -174,8 +181,15 @@ class CovidTransmissionInteraction(Interaction):
         self.temperature = temperature
         self.hard = hard
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the updates of the states of every agent."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the updates of the states of every agent.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        namespace = context
         s = namespace.target
         betas = (s.beta_household, s.beta_school, s.beta_company)
         pressure = sum(
@@ -183,7 +197,7 @@ class CovidTransmissionInteraction(Interaction):
         )
         infected = bernoulli('infect', 1 - exp(-s.psi * pressure), temperature=self.temperature, hard=self.hard)
         recovered = bernoulli('recover', s.gamma, temperature=self.temperature, hard=self.hard)
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(s.s, s.s - s.s * infected),
             UpdateLaw(s.i, s.i + s.s * infected - s.i * recovered),
             UpdateLaw(s.r, s.r + s.i * recovered),
@@ -220,8 +234,8 @@ class CaseCountInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
+        target: Role,
+        source: Role,
         children: npt.NDArray[np.float64],
     ) -> None:
         super().__init__(label)
@@ -229,11 +243,18 @@ class CaseCountInteraction(Interaction):
         self.source = source
         self.children = children
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the counts of the new infections of children and of adults."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the counts of the new infections of children and of adults.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        namespace = context
         cases, people = namespace.target, namespace.source
         children = np.asarray(self.children, dtype=float)
-        return [
+        self.laws_: list[BaseLaw] = [
             UpdateLaw(cases.children, total(people.new, over=people, weights=children)),
             UpdateLaw(cases.adults, total(people.new, over=people, weights=1.0 - children)),
         ]
@@ -287,6 +308,12 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import DifferentiableCovidAbmSystem
         >>> DifferentiableCovidAbmSystem(n_households=10).get_tags().differentiable
@@ -297,7 +324,7 @@ class DifferentiableCovidAbmSystem(BaseSystem):
     topics = ('agents', 'covid-19', 'differentiable', 'calibration', 'households')
     references = ('Quera-Bofarull et al. 2023', 'Aylett-Bullock et al. 2021', 'Chopra et al. 2023')
     until = 30
-    observables = (ObservableSpec('daily_infections', group='people', variable='new', reduce='sum'),)
+    observables = (Observable('daily_infections', group='people', variable='new', reduce='sum'),)
 
     def __init__(
         self,
@@ -314,8 +341,10 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         hard: bool = False,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_households = n_households
         self.n_schools = n_schools
         self.n_companies = n_companies
@@ -337,8 +366,14 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         sizes = same.sum(axis=1, keepdims=True)
         return scipy.sparse.csr_array(np.where(same, 1.0 / np.maximum(sizes, 1), 0.0))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the agents of the synthetic population with their places and the case counts."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the agents of the synthetic population with their places and the case counts.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = HOUSEHOLD_ADULTS + HOUSEHOLD_CHILDREN
         n_agents = self.n_households * size
@@ -348,18 +383,15 @@ class DifferentiableCovidAbmSystem(BaseSystem):
         companies = np.where(children, -1, rng.integers(self.n_companies, size=n_agents))
         infected = np.zeros(n_agents)
         infected[rng.choice(n_agents, size=self.initial_infected, replace=False)] = 1.0
-        people = GroupElement(
+        people = CovidAgentElement(
             'people',
-            element=CovidAgentElement,
+            s=1.0 - infected,
+            i=infected,
+            beta_household=self.beta_household,
+            beta_school=self.beta_school,
+            beta_company=self.beta_company,
+            gamma=self.gamma,
             size=n_agents,
-            values={
-                's': 1.0 - infected,
-                'i': infected,
-                'beta_household': self.beta_household,
-                'beta_school': self.beta_school,
-                'beta_company': self.beta_company,
-                'gamma': self.gamma,
-            },
         )
         contacts = tuple(self._get_contacts(places) for places in (households, schools, companies))
         spread = CovidTransmissionInteraction(
@@ -370,9 +402,4 @@ class DifferentiableCovidAbmSystem(BaseSystem):
             hard=self.hard,
         )
         count = CaseCountInteraction('count', target='cases', source='people', children=children.astype(float))
-        return CompositeSystem(
-            self.label,
-            elements=[people, CaseCountElement('cases')],
-            interactions=[spread, count],
-            time=DiscreteTime(),
-        )
+        self.system_ = System(self.label, elements=[people, CaseCountElement('cases')], interactions=[spread, count])

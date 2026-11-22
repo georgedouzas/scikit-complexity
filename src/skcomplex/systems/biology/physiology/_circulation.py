@@ -5,17 +5,22 @@
 
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import mod, where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class ChamberElement(Element):
@@ -30,9 +35,6 @@ class ChamberElement(Element):
     Args:
         label:
             The label of the chamber.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         V:
             The initial volume.
@@ -61,16 +63,15 @@ class ChamberElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        V0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        E_min: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        E_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.8,
-        systole: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        V: Annotated[float, RealSet.closed_open(0, oo)] = 100.0,
+        V0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        E_min: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        E_max: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        period: Annotated[float, RealSet.open(0, oo)] = 0.8,
+        systole: Annotated[float, RealSet.open(0, oo)] = 0.3,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.V = V
         self.V0 = V0
         self.E_min = E_min
@@ -79,7 +80,7 @@ class ChamberElement(Element):
         self.systole = systole
 
 
-class ResistiveFlowInteraction(TransferInteraction):
+class ResistiveFlowInteraction(Interaction):
     """Flow of blood from one chamber to another through a resistance.
 
     The flow is `Q = (P_source - P_target) / R`.
@@ -108,18 +109,33 @@ class ResistiveFlowInteraction(TransferInteraction):
         True
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        source: Role,
+        target: Role,
+        R: Annotated[float, RealSet.open(0, oo)] = 1.0,
         valve: bool = False,
     ) -> None:
-        super().__init__(label, source=source, target=target, state='V', amount=self._get_flow)
+        super().__init__(label)
+        self.source = source
+        self.target = target
         self.R = R
         self.valve = valve
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flow of blood from the source chamber to the target chamber.
+
+        Args:
+            context:
+                The namespace of the two chambers.
+        """
+        super()._prepare(context)
+        flow = {context.source.V: -1, context.target.V: +1}
+        self.laws_: list[BaseLaw] = [RateLaw(flow, self._get_flow(context), label='flow')]
 
     def _get_pressure(self, chamber: SimpleNamespace, t: Expression) -> Expression:
         """Return the pressure of a chamber.
@@ -172,6 +188,12 @@ class CardiovascularSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import CardiovascularSystem
         >>> sum(chamber.V for chamber in CardiovascularSystem().prepare().system_.elements)
@@ -194,8 +216,10 @@ class CardiovascularSystem(BaseSystem):
         C_venous: float = 50.0,
         volume: float = 1500.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.heart_rate = heart_rate
         self.E_max = E_max
         self.R_systemic = R_systemic
@@ -203,8 +227,14 @@ class CardiovascularSystem(BaseSystem):
         self.C_venous = C_venous
         self.volume = volume
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set a closed lumped system of the systemic circulation.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         period = 60.0 / self.heart_rate
         systole = 0.375 * period
         ventricle = ChamberElement(
@@ -239,4 +269,4 @@ class CardiovascularSystem(BaseSystem):
             ResistiveFlowInteraction('systemic', source='arteries', target='veins', R=self.R_systemic),
             ResistiveFlowInteraction('mitral_valve', source='veins', target='ventricle', R=0.02, valve=True),
         ]
-        return CompositeSystem(self.label, elements=[ventricle, arteries, veins], interactions=flows)
+        self.system_ = System(self.label, elements=[ventricle, arteries, veins], interactions=flows)

@@ -13,16 +13,17 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, SR, Expression, oo
 from sage.sets.real_set import RealSet
 
+from ...enums import FormKind
 from ...errors import SolverError, ValidationError
-from ...specs import ControlSolutionSpec
-from ...specs._control_spec import _ControlSpec
-from ...types import Array, FormKind
+from ...types import Array
 from .._utils import symbols_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
+from ..problems._control_spec import _ControlSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..types import Cost, GridFunction
+from ._control_solution_spec import _ControlSolutionSpec
 from ._solver import Solver
 
 TIME_TOLERANCE = 1e-9
@@ -31,16 +32,17 @@ NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo)
 
 
 class OptimalControlSolver(Solver):
-    """An abstract solver that computes the optimal controls of a run.
+    """An abstract solver that finds the controls of a run that minimise a cost.
 
-    The controls minimise or maximise an objective over the run. The solver reads the bounded adaptive parameters of the
-    system as its controls. Its objective is the running cost `objective` integrated over the run plus the terminal cost
-    `terminal` at the horizon, the time `until` of the run. Each cost is a function of the namespace `s` of the states,
-    parameters, and time of the system by dotted name, such as `lambda s: s.plant.x**2 + s.plant.u**2`, or a number. The
-    solver minimises the objective for the sense `'min'` and maximises it for `'max'`. It solves the problem over the
-    whole run from the initial state and the initial parameters at the start of the run, and then follows the solution
-    frame by frame. Subclasses take `objective`, `terminal`, and `sense` as arguments, implement `_solve`, and may
-    implement `_prepare`.
+    A system states the cost with an objective law that names its controls, such as
+    `ObjectiveLaw(s.plant.x**2 + s.plant.u**2, controls=[s.plant.u], terminal=...)`, whose running cost adds up over the
+    run and whose terminal cost counts at the end time `until`. The bounds of a control are the allowed values of its
+    element. Without such a law the solver takes the bounded adaptive parameters as controls and the costs from its
+    arguments `objective` and `terminal`, minimised for `sense='min'` and maximised for `'max'`. It solves the whole run
+    from the starting values and then hands it on frame by frame. A subclass writes the private method `_solve`. It is
+    the base of the solvers of vaccination plans, harvests of a fishery, and the growth of an economy.
+
+    Read more in the user guide, under Solvers.
 
     Attributes:
         control_problem_:
@@ -51,6 +53,15 @@ class OptimalControlSolver(Solver):
 
         solution_:
             The optimal solution of the run.
+
+    See Also:
+        CollocationSolver: Solves the problem as one large optimisation.
+        PontryaginSolver: Solves the problem by the maximum principle.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import OptimalControlSolver, PontryaginSolver
+        >>> isinstance(PontryaginSolver(), OptimalControlSolver)
+        True
     """
 
     @classmethod
@@ -106,14 +117,14 @@ class OptimalControlSolver(Solver):
         *,
         iterations: int,
         costates: Mapping[str, Array] | None = None,
-    ) -> ControlSolutionSpec:
+    ) -> _ControlSolutionSpec:
         """Return the solution of steered states and controls on a grid, with its cost."""
         control_problem = self.control_problem_
         full = np.tile(x0, (times.size, 1))
         full[:, control_problem.indices] = states
         full[:, control_problem.control_indices] = controls
         cost = self._get_cost(times, states, controls, p)
-        return ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
+        return _ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
@@ -132,12 +143,6 @@ class OptimalControlSolver(Solver):
             ValidationError:
                 The sense is neither `'min'` nor `'max'`.
         """
-        if self.objective is None:
-            error_msg = (
-                f'{type(self).__name__} has no objective. Pass the running cost as `objective`, a function of the '
-                'namespace of the system such as `lambda s: s.plant.x**2`.'
-            )
-            raise SolverError(error_msg)
         if self.sense not in SENSES:
             error_msg = f'Unknown sense {self.sense!r} of the objective. Use one of {", ".join(SENSES)}.'
             raise ValidationError(error_msg)
@@ -266,18 +271,27 @@ class OptimalControlSolver(Solver):
         It holds its bounded controls and the objective.
         """
         self._check_supported(problem)
-        objective = self.objective
-        if objective is None:
-            error_msg = f'{type(self).__name__} needs an objective. Pass `objective`, a function or a number.'
-            raise SolverError(error_msg)
         symbols = self._get_single_symbols(problem)
-        controls = self._controls(problem, symbols)
+        if problem.terminal is not None and problem.objective is not None:
+            controls = self._get_objective_controls(problem, symbols)
+            sign = 1.0
+            running, terminal = SR(problem.objective), SR(problem.terminal)
+        else:
+            if self.objective is None:
+                error_msg = (
+                    f'{type(self).__name__} has no objective. State the cost with an objective law that names its '
+                    'controls, such as `ObjectiveLaw(s.plant.x**2 + s.plant.u**2, controls=[s.plant.u])`.'
+                )
+                raise SolverError(error_msg)
+            controls = self._controls(problem, symbols)
+            sign = 1.0 if self.sense == 'min' else -1.0
+            namespace = ObservableEvaluator._get_namespace_of(problem)
+            running = sign * self._get_cost_value(self.objective, namespace)
+            terminal = sign * self._get_cost_value(self.terminal, namespace)
         rates = {problem.equation_symbols[name]: SR(value) for name, value in problem.equations.items()}
         controlled = {control.index for control in controls}
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
         names = [name for entry in problem.states.entries for name in entry.component_names]
-        sign = 1.0 if self.sense == 'min' else -1.0
-        namespace = ObservableEvaluator._get_namespace_of(problem)
         control_problem = _ControlProblemSpec(
             problem=problem,
             names=tuple(names[index] for index in indices),
@@ -286,8 +300,8 @@ class OptimalControlSolver(Solver):
             controls=controls,
             parameters=tuple(problem.parameter_symbols),
             rates=tuple(rates.get(symbols[index], SR(0)) for index in indices),
-            running=sign * self._get_cost_value(objective, namespace),
-            terminal=sign * self._get_cost_value(self.terminal, namespace),
+            running=running,
+            terminal=terminal,
             sign=sign,
             lower=self._lower_bounds(problem, indices),
         )
@@ -348,6 +362,40 @@ class OptimalControlSolver(Solver):
         return lower[list(indices)]
 
     @staticmethod
+    def _get_objective_controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_ControlSpec, ...]:
+        """Return the controls an objective law names, bounded by their allowed values.
+
+        A control without allowed values is unbounded.
+
+        Args:
+            problem:
+                The compiled problem.
+
+            symbols:
+                The symbols of the states.
+
+        Returns:
+            controls:
+                The controls, in the order of the states.
+
+        Raises:
+            SolverError:
+                A control is not a scalar.
+        """
+        controls = []
+        for entry in problem.states.entries:
+            if not np.isin(np.arange(entry.start, entry.start + entry.size), problem.objective_targets).any():
+                continue
+            if entry.size != 1:
+                error_msg = f'The control {entry.name} is not a scalar. An objective law steers scalar values.'
+                raise SolverError(error_msg)
+            domain = entry.domain
+            lower = float(domain.inf()) if isinstance(domain, RealSet) else -math.inf
+            upper = float(domain.sup()) if isinstance(domain, RealSet) else math.inf
+            controls.append(_ControlSpec(entry.name, entry.start, symbols[entry.start], lower, upper))
+        return tuple(controls)
+
+    @staticmethod
     def _controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_ControlSpec, ...]:
         """Return the bounded adaptive parameters of a problem as its controls."""
         controls = []
@@ -362,14 +410,14 @@ class OptimalControlSolver(Solver):
             controls.append(_ControlSpec(name, entry.start, symbols[entry.start], lower, upper))
         if not controls:
             error_msg = (
-                'The system has no bounded adaptive parameter to control. Declare a control input with '
-                '`Annotated[float, ParameterSpec(adaptive=True, bounds=(lower, upper))]`.'
+                'The system has no bounded adaptive parameter to control. Give the objective law the control '
+                'inputs with their bounds.'
             )
             raise SolverError(error_msg)
         return tuple(controls)
 
     @abstractmethod
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
         """Return the optimal solution from an initial state over a horizon.
 
         Args:

@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.stochastic_processes import HiddenMarkovSourceSystem
 
@@ -32,11 +31,14 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-trajectory = simulate(
-    HiddenMarkovSourceSystem(transition=TRANSITION, emission=EMISSION),
-    until=299,
-    observers=[observer],
-    random_state=0,
+trajectory = (
+    HiddenMarkovSourceSystem(transition=TRANSITION, emission=EMISSION)
+    .prepare()
+    .simulate(
+        299,
+        observers=[observer],
+        random_state=0,
+    )
 )
 
 # %%
@@ -46,7 +48,7 @@ trajectory = simulate(
 # emission probability `E_ij`, and the share of symbol 0 overall should match `0.8 x 0.7 + 0.2 x 0.2 = 0.6` for the
 # stationary distribution `(0.8, 0.2)` of the hidden chain.
 
-long = simulate(HiddenMarkovSourceSystem(transition=TRANSITION, emission=EMISSION), until=100000, random_state=1)
+long = HiddenMarkovSourceSystem(transition=TRANSITION, emission=EMISSION).prepare().simulate(100000, random_state=1)
 hidden, symbol = long.get_values('source.hidden')[1:], long.get_values('source.symbol')[1:]
 measured = np.array([[np.mean(symbol[hidden == i] == j) for j in (0, 1)] for i in (0, 1)])
 fig, ax = plt.subplots(figsize=(6, 4))

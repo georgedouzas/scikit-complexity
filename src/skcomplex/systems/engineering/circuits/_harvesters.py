@@ -3,76 +3,95 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.mechanics import SpringDamperInteraction
 
 
-class PiezoHarvesterElement(Element):
-    """Two-mass suspension of a car whose spring presses a piezoelectric bar.
+class RoadInteraction(Interaction):
+    """Tyre between the unsprung mass of a car and a road of the profile `z(t) = A sin(omega t)`.
 
-    The road shakes the suspension. The element holds the tyre between the unsprung mass and the road, and the system
-    joins the two masses by a `SpringDamperInteraction` of the stiffness `k2` and the damping `b`.
+    The tyre pushes the mass with the force `-k1 (y1 - z(t))`, which accelerates it divided by the mass.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the unsprung mass.
+
+        state:
+            The name of the displacement of the unsprung mass.
+
+        mass:
+            The name of the unsprung mass.
+
+        k1:
+            The stiffness of the tyre.
+
+        A:
+            The amplitude of the road profile.
+
+        omega:
+            The angular frequency of the road profile.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits import RoadInteraction
+        >>> RoadInteraction('road', target='harvester', A=0.02).A
+        0.02
     """
 
-    law_classes = (RateLaw,)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        y1: Annotated[object, StateSpec(order=2)] = 0.0,
-        y1_d1: float = 0.0,
-        y2: Annotated[object, StateSpec(order=2)] = 0.0,
-        y2_d1: float = 0.0,
-        m1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
-        m2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 400.0,
-        k1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
-        k2: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20000.0,
-        b: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1500.0,
-        A: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.42,
-        n: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        d: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4e-10,
-        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-08,
+        target: Role,
+        state: str = 'y1',
+        mass: str = 'm1',
+        k1: Annotated[float, RealSet.closed_open(0, oo)] = 200000.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        omega: Annotated[float, RealSet.closed_open(0, oo)] = 9.42,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.y1 = y1
-        self.y1_d1 = y1_d1
-        self.y2 = y2
-        self.y2_d1 = y2_d1
-        self.m1 = m1
-        self.m2 = m2
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.mass = mass
         self.k1 = k1
-        self.k2 = k2
-        self.b = b
         self.A = A
         self.omega = omega
-        self.n = n
-        self.d = d
-        self.C = C
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the acceleration of the unsprung mass by the tyre on the road.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the unsprung mass by the tyre on the road.
 
-        It leaves the suspension apart.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RateLaw(s.y1, -s.k1 * (s.y1 - s.A * sin(s.omega * s.t)) / s.m1)]
+        super()._prepare(context)
+        y1, t = getattr(context.target, self.state), context.t
+        force = -context.k1 * (y1 - context.A * sin(context.omega * t))
+        self.laws_: list[BaseLaw] = [RateLaw(y1.diff(t, 2), force / getattr(context.target, self.mass))]
 
 
 def _get_piezo_voltage(s: SimpleNamespace) -> Expression:
     """Return the voltage of the piezoelectric bar, `n d k2 (y2 - y1) / C`."""
     harvester = s.harvester
-    return harvester.n * harvester.d * harvester.k2 * (harvester.y2 - harvester.y1) / harvester.C
+    return harvester.n * harvester.d * s.suspension.k * (harvester.y2 - harvester.y1) / harvester.C
 
 
 class VibrationEnergyHarvesterSystem(BaseSystem):
@@ -119,9 +138,15 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.circuits import VibrationEnergyHarvesterSystem
-        >>> VibrationEnergyHarvesterSystem(b=1000.0).prepare().system_.elements[0].b
+        >>> VibrationEnergyHarvesterSystem(b=1000.0).prepare().system_.interactions[1].b
         1000.0
     """
 
@@ -130,7 +155,7 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 10.0
     dt = 0.01
-    observables = (ObservableSpec('voltage', _get_piezo_voltage),)
+    observables = (Observable('voltage', _get_piezo_voltage),)
 
     def __init__(
         self,
@@ -146,8 +171,10 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         d: float = 4.0e-10,
         C: float = 1.0e-8,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.m1 = m1
         self.m2 = m2
         self.k1 = k1
@@ -159,27 +186,21 @@ class VibrationEnergyHarvesterSystem(BaseSystem):
         self.d = d
         self.C = C
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        harvester = PiezoHarvesterElement(
-            'harvester',
-            m1=self.m1,
-            m2=self.m2,
-            k1=self.k1,
-            k2=self.k2,
-            b=self.b,
-            A=self.A,
-            omega=self.omega,
-            n=self.n,
-            d=self.d,
-            C=self.C,
-        )
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        values = {'y1': 0.0, 'y2': 0.0, 'm1': self.m1, 'm2': self.m2, 'n': self.n, 'd': self.d, 'C': self.C}
         suspension = SpringDamperInteraction(
             'suspension',
             target='harvester',
             states=('y1', 'y2'),
-            stiffness='k2',
-            damping='b',
-            divisor={'y1': 'm1', 'y2': 'm2'},
+            masses=('m1', 'm2'),
+            k=self.k2,
+            b=self.b,
         )
-        return CompositeSystem(self.label, elements=[harvester], interactions=[suspension])
+        road = RoadInteraction('road', target='harvester', k1=self.k1, A=self.A, omega=self.omega)
+        self.system_ = System(
+            self.label,
+            elements=[Element('harvester', values=values)],
+            interactions=[road, suspension],
+        )

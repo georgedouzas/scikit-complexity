@@ -1,0 +1,128 @@
+"""Define the network rows spec."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+
+import numpy as np
+import numpy.typing as npt
+
+from ...base import BaseSpec
+from ...types import Array, Indices, Pair
+from ._capacity_rows_spec import _CapacityRowsSpec
+from ._network_snapshot_spec import NetworkSnapshotSpec
+
+
+@dataclass(frozen=True)
+class _NetworkRowsSpec(BaseSpec):
+    """A spec of the variable groups of one network.
+
+    They are the groups on its nodes, the edge group of every changing layer, and hyperedges.
+
+    Args:
+        nodes:
+            The groups on the nodes, which share their rows.
+
+        edges:
+            The variable edge group of every layer by label, `None` for the graph of the network.
+
+        directed:
+            Whether the edges of every layer are directed.
+
+        hyperedges:
+            The variable group on the hyperedges of the network, or `None` for hyperedges that do not change.
+    """
+
+    nodes: tuple[_CapacityRowsSpec, ...]
+    edges: Mapping[str | None, _CapacityRowsSpec]
+    directed: Mapping[str | None, bool]
+    hyperedges: _CapacityRowsSpec | None = None
+
+    def get_present(self, p: Array) -> npt.NDArray[np.bool_]:
+        """Return whether every node row holds a node.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            present:
+                One flag per node row.
+        """
+        return self.nodes[0].get_present(p)
+
+    def get_order_ends(self, layer: str | None, first: int, second: int) -> Pair:
+        """Return the ends of an edge, in node order on an undirected layer.
+
+        Args:
+            layer:
+                The layer.
+
+            first:
+                The node row of one end.
+
+            second:
+                The node row of the other end.
+
+        Returns:
+            ends:
+                The source and target node rows.
+        """
+        return (first, second) if self.directed[layer] else (min(first, second), max(first, second))
+
+    def get_neighbours(self, layer: str | None, node: int, p: Array) -> Indices:
+        """Return the node rows a node joins in a layer.
+
+        On a directed layer they are its successors.
+
+        Args:
+            layer:
+                The layer.
+
+            node:
+                The node row.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            neighbours:
+                The node rows.
+        """
+        edges = self.edges[layer]
+        sources, targets = edges.get_ends(p)
+        present = edges.get_present(p)
+        found = targets[present & (sources == node)]
+        if self.directed[layer]:
+            return found
+        return np.concatenate([found, sources[present & (targets == node)]])
+
+    def get_snapshot(self, p: Array, layer: str | None) -> NetworkSnapshotSpec:
+        """Return the nodes and the edges of a layer present at the parameters of a frame.
+
+        Args:
+            p:
+                The parameter vector of the frame.
+
+            layer:
+                The layer.
+
+        Returns:
+            snapshot:
+                The nodes and edges present.
+        """
+        edges = self.edges[layer]
+        present = edges.get_present(p)
+        sources, targets = edges.get_ends(p)
+        hyperedges = None
+        if self.hyperedges is not None:
+            hyperedges = self.hyperedges.get_hyperedges(p)[self.hyperedges.get_present(p)]
+        return NetworkSnapshotSpec(
+            np.flatnonzero(self.get_present(p)).astype(np.intp),
+            sources[present],
+            targets[present],
+            np.flatnonzero(present).astype(np.intp),
+            hyperedges,
+        )

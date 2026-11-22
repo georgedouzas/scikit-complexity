@@ -1,4 +1,4 @@
-"""Run compiled problems in JAX."""
+"""Define the backend that writes functions JAX compiles and differentiates."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,20 +12,25 @@ import numpy as np
 import scipy.sparse
 from jax.scipy.special import logsumexp
 
-from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
-from ...components.spaces import ContinuousTime, DiscreteTime
+from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...enums import FormKind, OrderKind
 from ...errors import BackendError, ValidationError
-from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
-from ...types import Array, FormKind, OrderKind
+from ...types import Array
+from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
+from ..problems._read_spec import _ReadSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind, TracedArray, TracedFunction
+from ..types import TracedArray, TracedFunction
 from ._base import BaseBackend
+from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._support_spec import SupportSpec
 
 FORMS = (FormKind.ODE, FormKind.DISCRETE)
 MEMBER_READS = (ReadKind.MEMBER, ReadKind.REDUCED)
@@ -39,14 +44,14 @@ type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArra
 class JaxBackend(BaseBackend):
     """A backend that writes discrete maps and differential equations as JAX functions.
 
-    The ODEs are ordinary differential equations. The functions return new arrays instead of writing into buffers, so
-    JAX traces, compiles, and differentiates them. Reductions lower to sums, means, and matrix products, and a reduction
-    weighted by a shaped parameter to the product with its block of the parameter vector reshaped into a matrix. The
-    forward functions in `functions_` take and return NumPy arrays and compute in double precision. Rule, noise, and
-    jump laws, reductions over neighbourhoods, and laws given as Python callables have no JAX form.
+    It writes the rate function `f(t, x, p)` of `x' = f(t, x, p)`, or the next state of a map, as a function that
+    returns new arrays, so JAX can compile it, run it on a GPU, and take its gradient, as in
+    `System(..., backend=JaxBackend())`. The functions in `functions_` take and return NumPy arrays in double
+    precision, and `traced_` is the pure JAX function. Rule, noise, and jump laws, sums over neighbourhoods, and laws
+    given as Python functions have no JAX form. The rates of an epidemic are fitted by gradients, a neural
+    differential equation is trained, and the parameters of a circuit are tuned.
 
-    Choose it when a run must be differentiated, as in gradient-based calibration, or run on a GPU. It appears in many
-    fields, such as fitting the rates of an epidemic by gradients and training a neural differential equation.
+    Read more in the user guide, under Backends.
 
     Attributes:
         functions_:
@@ -56,14 +61,15 @@ class JaxBackend(BaseBackend):
             The pure JAX function `f(t, x, p)` of the form of the kernels of the last run, the drift of ordinary
             differential equations or the update of a discrete map.
 
+    See Also:
+        NumpyBackend: Writes the functions with NumPy, the default.
+        NumbaBackend: Compiles the functions to machine code.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.core.engine.backends import JaxBackend
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> system = CompositeSystem(elements=[PopulationElement('a', x=2.0)])
-        >>> problem = simulate(system, until=0, backend=JaxBackend()).problem
-        >>> problem.backend
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> system = LotkaVolterraSystem(backend=JaxBackend()).prepare()
+        >>> system.simulate(until=1.0).problem.backend
         'jax'
     """
 
@@ -181,7 +187,7 @@ class JaxBackend(BaseBackend):
             >>> import jax.numpy as jnp
             >>> import numpy as np
             >>> from skcomplex.core.engine.backends import JaxBackend
-            >>> from skcomplex.core.types import FormKind
+            >>> from skcomplex.core.enums import FormKind
             >>> run = JaxBackend.unroll(lambda t, x, p: p * x, FormKind.DISCRETE, np.array([0.0, 2.0]))
             >>> np.asarray(run(jnp.array([1.0]), 3.0)).ravel().tolist()
             [1.0, 9.0]
@@ -197,10 +203,13 @@ class JaxBackend(BaseBackend):
         drawn = JaxBackend._get_drawn(draws, form)
 
         def run(x0: TracedArray, p: TracedArray, key: TracedArray | None = None) -> TracedArray:
-            if drawn is not None and key is None:
+            if drawn is None:
+                keys = jnp.zeros(starts.size)
+            elif key is None:
                 error_msg = 'The map draws at every step, so its run takes a JAX key, `run(x0, p, key)`.'
                 raise ValidationError(error_msg)
-            keys = jax.random.split(key, starts.size) if drawn is not None else jnp.zeros(starts.size)
+            else:
+                keys = jax.random.split(key, starts.size)
 
             def body(x: TracedArray, item: tuple[TracedArray, ...]) -> tuple[TracedArray, TracedArray]:
                 t, t1, step_key = item
@@ -262,9 +271,9 @@ class JaxBackend(BaseBackend):
     def _get_support(cls) -> SupportSpec:
         """Return the times, laws, and orders the backend writes functions of."""
         return SupportSpec(
-            time={ContinuousTime, DiscreteTime},
+            time={_ContinuousTime, _DiscreteTime},
             space={None},
-            laws={EquationLaw, GradientStepLaw, RateLaw, UpdateLaw},
+            laws={ConstraintLaw, RateLaw, UpdateLaw},
             noise=frozenset(),
             orders=frozenset({OrderKind.INTEGER}),
         )
@@ -405,12 +414,12 @@ class JaxBackend(BaseBackend):
         raise BackendError(error_msg)
 
     @staticmethod
-    def _get_weight_matrix(weights: scipy.sparse.csr_array | ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
+    def _get_weight_matrix(weights: scipy.sparse.csr_array | _ReadSpec) -> Callable[[TracedArray, TracedArray], object]:
         """Return the function that gives the weight matrix of a reduction.
 
         The matrix is a shaped parameter or a constant matrix.
         """
-        if isinstance(weights, ReadSpec) and weights.entry is not None:
+        if isinstance(weights, _ReadSpec) and weights.entry is not None:
             is_state, index, shape = weights.is_state, weights.index, weights.entry.shape
             return lambda x, q: (x if is_state else q)[index].reshape(shape)
         matrix = np.asarray(scipy.sparse.csr_array(weights).toarray())

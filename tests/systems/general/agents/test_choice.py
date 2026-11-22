@@ -6,16 +6,15 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import ZZ
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import mean
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
-from skcomplex.core.engine.solvers import AgentView, SystemView
+from skcomplex.core.engine.compile import PhaseSpec
+from skcomplex.core.engine.runtime import Trajectory
+from skcomplex.core.engine.solvers import AgentView, MesaSolver, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.general.agents import ChoiceInteraction
 
 GLAUBER_ROOT = 0.9575040240772687
@@ -28,16 +27,16 @@ class ChooserView(AgentView):
 
 
 class ChooserElement(Element):
-    """Member with one discrete state."""
+    """Members with one discrete state."""
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        option: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        option: Annotated[object, ZZ] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.option = option
 
     @classmethod
@@ -49,16 +48,17 @@ class ChooserElement(Element):
 class PayoffFeedback(Interaction):
     """Reporter of a constant payoff of option 1 after every choice."""
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
     reports: ClassVar[tuple[str, ...]] = ('payoff',)
 
     def __init__(self, label: str, *, phase: str | None = None) -> None:
         super().__init__(label)
         self.phase = phase
 
-    def _get_laws(self, namespace):
-        """Return the rule that reports the payoff in its phase."""
-        return [RuleLaw(self.act, phase=self.phase)]
+    def _prepare(self, context=None):
+        """Set the rule that reports the payoff in its phase."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context, self.act, phase=self.phase)]
 
     def act(self, system: SystemView) -> None:
         """Report the payoff of option 1."""
@@ -67,9 +67,8 @@ class PayoffFeedback(Interaction):
 
 def _run_choice(choice: ChoiceInteraction, initial: np.ndarray, until: int, seed: int = 0) -> Trajectory:
     """Return the trajectory of a group of choosers bound to a choice."""
-    group = GroupElement('members', element=ChooserElement, size=len(initial), values={'option': initial})
-    system = CompositeSystem(elements=[group], interactions=[choice], time=DiscreteTime())
-    return simulate(system, until=until, random_state=seed)
+    group = ChooserElement('members', option=initial, size=len(initial))
+    return System(elements=[group], interactions=[choice]).prepare().simulate(until, random_state=seed)
 
 
 def _fixed(namespace: object, option: float) -> float:
@@ -128,7 +127,7 @@ def test_choice_interaction_agent_logit_reaches_mean_field():
         options=(-1, 1),
         utility=_agent_field,
         intensity=2.0,
-        form='agent',
+        schedule='synchronous',
     )
     initial = np.where(np.random.default_rng(0).random(400) < 0.7, 1.0, -1.0)
     trajectory = _run_choice(choice, initial, 30)
@@ -172,7 +171,7 @@ def test_choice_interaction_agent_proposal_rules_reach_boltzmann_distribution(ru
         utility=_fixed_agent,
         rule=rule,
         intensity=0.5,
-        form='agent',
+        schedule='synchronous',
     )
     trajectory = _run_choice(choice, np.zeros(2000), 40)
     values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(30, 41)])
@@ -180,22 +179,22 @@ def test_choice_interaction_agent_proposal_rules_reach_boltzmann_distribution(ru
     assert np.allclose(_frequencies(values, 3), expected, atol=0.015)
 
 
-@pytest.mark.parametrize('form', ['symbolic', 'agent'])
-def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(form):
+@pytest.mark.parametrize('schedule', [None, 'synchronous'])
+def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(schedule):
     """Test that Fermi acceptance of proposals of every option reaches the distribution `exp(beta u) / sum`."""
     choice = ChoiceInteraction(
         'choice',
         target='members',
         state='option',
         options=(0, 1, 2),
-        utility=_fixed if form == 'symbolic' else _fixed_agent,
+        utility=_fixed if schedule is None else _fixed_agent,
         rule='fermi',
         intensity=0.5,
-        form=form,
+        schedule=schedule,
         proposal='all',
     )
     trajectory = _run_choice(choice, np.zeros(2000), 60)
-    if form == 'symbolic':
+    if schedule is None:
         values = trajectory.get_values('members.option')[-20:]
     else:
         values = np.concatenate([trajectory.get_agents('members', frame).values['option'] for frame in range(40, 61)])
@@ -213,7 +212,7 @@ def test_choice_interaction_heat_bath_proposals_keep_the_option_at_equal_utiliti
         utility=_fixed_agent,
         rule='metropolis',
         intensity=0.0,
-        form='agent',
+        schedule='synchronous',
         proposal='all',
     )
     values = _run_choice(choice, np.zeros(3000), 1).get_agents('members', 1).values['option']
@@ -243,7 +242,7 @@ def test_choice_interaction_agent_best_takes_the_largest_utility():
         options=(0, 1, 2),
         utility=_fixed_agent,
         rule='best',
-        form='agent',
+        schedule='synchronous',
     )
     assert _run_choice(choice, np.zeros(50), 1).get_agents('members', 1).values['option'].tolist() == [2.0] * 50
 
@@ -273,7 +272,7 @@ def test_choice_interaction_agent_activity_revises_a_share_of_agents():
         utility=_fixed_agent,
         rule='best',
         activity=0.3,
-        form='agent',
+        schedule='synchronous',
     )
     values = _run_choice(choice, np.zeros(5000), 1).get_agents('members', 1).values['option']
     assert abs(values.mean() - 0.3) < 0.03
@@ -295,7 +294,6 @@ def test_choice_interaction_random_sequential_sees_earlier_choices():
         utility=attend,
         rule='best',
         schedule='random-sequential',
-        form='agent',
     )
     synchronous = ChoiceInteraction(**{**sequential.get_params(), 'schedule': 'synchronous'})
     finals = [
@@ -307,7 +305,7 @@ def test_choice_interaction_random_sequential_sees_earlier_choices():
 
 def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
     """Test that an agent choice whose utility reads the payoffs reported in earlier steps takes the better option."""
-    group = GroupElement('members', element=ChooserElement, size=30)
+    group = ChooserElement('members', size=30)
     choice = ChoiceInteraction(
         'choice',
         target='members',
@@ -315,16 +313,15 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_system():
         options=(0, 1),
         utility=_last_payoff,
         intensity=4.0,
-        form='agent',
+        schedule='synchronous',
         phase='choice',
     )
-    schedule = PhasesScheduleSpec([PhaseSpec('choice'), PhaseSpec('report')])
-    system = CompositeSystem(
+    system = System(
         elements=[group],
         interactions=[choice, PayoffFeedback('feedback', phase='report')],
-        time=DiscreteTime(schedule=schedule),
+        solver=MesaSolver(phases=[PhaseSpec('choice'), PhaseSpec('report')]),
     )
-    trajectory = simulate(system, until=5, random_state=0)
+    trajectory = system.prepare().simulate(5, random_state=0)
     assert 0.0 < trajectory.get_agents('members', 1).values['option'].mean() < 1.0
     assert trajectory.get_agents('members', 5).values['option'].mean() > 0.9
 
@@ -348,9 +345,6 @@ def test_choice_interaction_keeps_values_among_options():
     [
         ({'rule': 'glauber'}, 'Unknown rule'),
         ({'schedule': 'ordered'}, 'Unknown schedule'),
-        ({'form': 'table'}, 'Unknown form'),
-        ({'schedule': 'random-sequential'}, 'only the agent form'),
-        ({'schedule': 'member'}, 'only the agent form'),
         ({'options': (1,)}, 'at least 2 options'),
         ({'utility': 1.0}, 'must be callable'),
         ({'proposal': 'current'}, 'Unknown proposal'),
@@ -375,7 +369,7 @@ def _flat_agent(agent: object, system: object, option: float) -> float:
 
 
 def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
-    """Test that the best rule with the ties `'first'` takes the first of the options of equal utility in both forms."""
+    """Test that the best rule with the ties `'first'` takes the first of the options of equal utility either way."""
     symbolic = ChoiceInteraction(
         'choice',
         target='members',
@@ -385,26 +379,26 @@ def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
         rule='best',
         ties='first',
     )
-    agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'form': 'agent'})
+    agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'schedule': 'synchronous'})
     assert set(_run_choice(symbolic, np.zeros(200), 1).get_values('members.option')[1].tolist()) == {2.0}
     assert set(_run_choice(agent, np.zeros(200), 1).get_agents('members', 1).values['option'].tolist()) == {2.0}
 
 
-@pytest.mark.parametrize('form', ['symbolic', 'agent'])
-def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(form):
+@pytest.mark.parametrize('schedule', [None, 'synchronous'])
+def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(schedule):
     """Test that the best rule with the ties `'random'` draws every option of equal utility equally often."""
     choice = ChoiceInteraction(
         'choice',
         target='members',
         state='option',
         options=(0, 1, 2),
-        utility=_flat if form == 'symbolic' else _flat_agent,
+        utility=_flat if schedule is None else _flat_agent,
         rule='best',
-        form=form,
+        schedule=schedule,
     )
     trajectory = _run_choice(choice, np.zeros(6000), 1)
-    values = trajectory.get_values('members.option')[1] if form == 'symbolic' else trajectory.get_agents('members', 1)
-    options = values if form == 'symbolic' else values.values['option']
+    values = trajectory.get_values('members.option')[1] if schedule is None else trajectory.get_agents('members', 1)
+    options = values if schedule is None else values.values['option']
     np.testing.assert_allclose(_frequencies(np.asarray(options), 3), [1 / 3] * 3, atol=0.03)
 
 
@@ -423,7 +417,6 @@ def test_choice_sequential_schedule_reads_the_choices_of_the_members_before():
         options=(0, 1),
         utility=scarce,
         rule='best',
-        form='agent',
         schedule='sequential',
     )
     assert _run_choice(choice, np.zeros(3), 1).get_agents('members', 1).values['option'].tolist() == [1.0, 0.0, 0.0]

@@ -13,14 +13,13 @@ make defection costly in the future and lower the benefit-to-cost ratio that coo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.cooperation import GameTransitionsSystem
 
 SYSTEM = 'game_transitions'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = simulate(GameTransitionsSystem(), observers=[observer], random_state=0)
+trajectory = GameTransitionsSystem().prepare().simulate(observers=[observer], random_state=0)
 
 # %%
 # Transitions against a single game
@@ -33,7 +32,7 @@ settings = {'update': 'pairwise', 'selection': 1.0, 'first_benefit': 6.0, 'secon
 fig, (strategies, games) = plt.subplots(1, 2, figsize=(10, 4))
 for name, transitions in (('with transitions', True), ('game 1 only', False)):
     system = GameTransitionsSystem(transitions=transitions, **settings)
-    trajectory = simulate(system, until=50, random_state=0)
+    trajectory = system.prepare().simulate(until=50, random_state=0)
     share = [np.mean(trajectory.get_agents('players', frame).values['strategy']) for frame in range(51)]
     strategies.plot(trajectory.times, share, label=name)
     games.plot(trajectory.times[1:], trajectory.get_values('evolution.game_one')[1:], label=name)

@@ -6,23 +6,27 @@ In it, employers learn to pay migrant workers below the minimum wage.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class FarmerView(AgentView):
+class FarmerView(AgentViewProtocol, Protocol):
     """View of an employer of Ajani's Choice, with its states as attributes."""
 
     wage: float
@@ -31,7 +35,7 @@ class FarmerView(AgentView):
     area: float
 
 
-class HarvesterView(AgentView):
+class HarvesterView(AgentViewProtocol, Protocol):
     """View of a worker of Ajani's Choice, with its states as attributes."""
 
     slum: float
@@ -49,9 +53,6 @@ class FarmerElement(Element):
         label:
             The label of the employer or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         wage:
             The daily wage the employer offers, the minimum wage being 1.
 
@@ -64,32 +65,32 @@ class FarmerElement(Element):
         area:
             The area of the farm, 0 near the first slum and 1 near the second.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import FarmerElement
         >>> FarmerElement('farmer', wage=1.5).wage
         1.5
     """
 
+    visual = VisualSpec('agents', {'color_by': 'wage', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'wage', 'color_range': (0.0, 2.0)}),
         *,
-        wage: Annotated[float, StateSpec(domain=RealSet.closed(0, 2))] = 1.0,
-        workforce: Annotated[float, StateSpec(domain=NN)] = 50.0,
-        employed: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        area: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        wage: Annotated[object, RealSet.closed(0, 2)] = 1.0,
+        workforce: Annotated[object, NN] = 50.0,
+        employed: Annotated[object, NN] = 0.0,
+        area: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.wage = wage
         self.workforce = workforce
         self.employed = employed
         self.area = area
-
-    @classmethod
-    def _get_view(cls) -> type[FarmerView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return FarmerView
 
 
 class HarvesterElement(Element):
@@ -100,9 +101,6 @@ class HarvesterElement(Element):
     Args:
         label:
             The label of the worker or the group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
 
         slum:
             The slum the worker lives in, 0 or 1.
@@ -116,32 +114,32 @@ class HarvesterElement(Element):
         total_pay:
             The pay the worker has earned so far.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import HarvesterElement
         >>> HarvesterElement('worker', slum=1.0).slum
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'pay', 'color_range': (0.0, 2.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'pay', 'color_range': (0.0, 2.0)}),
         *,
-        slum: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        working: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        pay: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        total_pay: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        slum: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        working: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        pay: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        total_pay: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.slum = slum
         self.working = working
         self.pay = pay
         self.total_pay = total_pay
-
-    @classmethod
-    def _get_view(cls) -> type[HarvesterView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return HarvesterView
 
 
 class HarvestInteraction(Interaction):
@@ -184,7 +182,7 @@ class HarvestInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('slaves', 'in_work')
 
@@ -192,11 +190,11 @@ class HarvestInteraction(Interaction):
         self,
         label: str,
         *,
-        employers: Annotated[str, RoleSpec()],
-        workers: Annotated[str, RoleSpec()],
-        asks: Annotated[int, ParameterSpec(domain=NN)] = 1,
-        chat: Annotated[int, ParameterSpec(domain=NN)] = 3,
-        adjustment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        employers: Role,
+        workers: Role,
+        asks: Annotated[int, NN] = 1,
+        chat: Annotated[int, NN] = 3,
+        adjustment: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
     ) -> None:
         super().__init__(label)
         self.employers = employers
@@ -205,18 +203,15 @@ class HarvestInteraction(Interaction):
         self.chat = chat
         self.adjustment = adjustment
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the working day.
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the rule of the working day.
 
         Args:
             s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.work)]
+        super()._prepare(s)
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.work)]
 
     def _hire(self, farmers: list[FarmerView], harvesters: list[HarvesterView], rng: np.random.Generator) -> None:
         """Let the workers ask the employers of their area for work.
@@ -252,8 +247,8 @@ class HarvestInteraction(Interaction):
             system:
                 The system.
         """
-        farmers = system.get_agents(self.employers, FarmerView)
-        harvesters = system.get_agents(self.workers, HarvesterView)
+        farmers = cast(list[FarmerView], system.get_agents(self.employers))
+        harvesters = cast(list[HarvesterView], system.get_agents(self.workers))
         rng = system.rng
         for farmer in farmers:
             farmer.employed = 0.0
@@ -308,9 +303,15 @@ class AjanisChoiceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import AjanisChoiceSystem
-        >>> AjanisChoiceSystem(5, n_workers=10).prepare().system_.elements[1].prepare().size_
+        >>> AjanisChoiceSystem(5, n_workers=10).prepare().system_.elements[1].size
         20
     """
 
@@ -329,8 +330,10 @@ class AjanisChoiceSystem(BaseSystem):
         adjustment: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_employers = n_employers
         self.n_workers = n_workers
         self.asks = asks
@@ -338,25 +341,18 @@ class AjanisChoiceSystem(BaseSystem):
         self.adjustment = adjustment
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
-        employers = GroupElement(
+        employers = FarmerElement(
             'employers',
-            element=FarmerElement,
+            wage=1.0 + rng.random(self.n_employers),
+            workforce=rng.integers(50, 100, size=self.n_employers).astype(float),
+            area=rng.integers(2, size=self.n_employers).astype(float),
             size=self.n_employers,
-            values={
-                'wage': 1.0 + rng.random(self.n_employers),
-                'workforce': rng.integers(50, 100, size=self.n_employers).astype(float),
-                'area': rng.integers(2, size=self.n_employers).astype(float),
-            },
         )
-        workers = GroupElement(
-            'workers',
-            element=HarvesterElement,
-            size=2 * self.n_workers,
-            values={'slum': np.repeat([0.0, 1.0], self.n_workers)},
-        )
+        workers = HarvesterElement('workers', slum=np.repeat([0.0, 1.0], self.n_workers), size=2 * self.n_workers)
         day = HarvestInteraction(
             'day',
             employers='employers',
@@ -365,4 +361,4 @@ class AjanisChoiceSystem(BaseSystem):
             chat=self.chat,
             adjustment=self.adjustment,
         )
-        return CompositeSystem(self.label, elements=[employers, workers], interactions=[day])
+        self.system_ = System(self.label, elements=[employers, workers], interactions=[day])

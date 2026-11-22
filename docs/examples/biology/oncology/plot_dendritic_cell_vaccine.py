@@ -12,7 +12,6 @@ without vaccine, and the tumour regrows once the injections stop.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import DendriticCellVaccineSystem
@@ -21,7 +20,7 @@ SYSTEM = 'dendritic_cell_vaccine'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DendriticCellVaccineSystem(), dt=12.0, solver=solver, observers=[observer])
+trajectory = DendriticCellVaccineSystem().set_params(solver=solver).prepare().simulate(dt=12.0, observers=[observer])
 
 # %%
 # Vaccinated and unvaccinated tumours
@@ -30,7 +29,7 @@ trajectory = simulate(DendriticCellVaccineSystem(), dt=12.0, solver=solver, obse
 # `1 - c1 s2 / (d2 r3) = 0.9`. With the vaccine it should fall below 0.05 during the injections.
 
 vaccinated = trajectory
-unvaccinated = simulate(DendriticCellVaccineSystem(dose=0.0), dt=12.0, solver=solver)
+unvaccinated = DendriticCellVaccineSystem(dose=0.0).set_params(solver=solver).prepare().simulate(dt=12.0)
 days = vaccinated.times / 24
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(days, unvaccinated.get_values('site.A'), label='no vaccine')

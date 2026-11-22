@@ -14,11 +14,15 @@ import networkx as nx
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement, GroupElement
-from ....core.components.interactions import CouplingInteraction, RateInteraction
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.components.laws.utils import total
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class NetworkSaverElement(Element):
@@ -29,9 +33,6 @@ class NetworkSaverElement(Element):
     Args:
         label:
             The label of the saver.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         W:
             The wealth.
@@ -46,6 +47,12 @@ class NetworkSaverElement(Element):
             The mean number of exchange partners `c`, which divides the exchange rate, `N - 1` for exchange with every
             other saver.
 
+        size:
+            The number of savers, or `None` for one or one per node of the space.
+
+        space:
+            The network whose nodes hold the savers, or `None` for none.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import NetworkSaverElement
         >>> NetworkSaverElement('saver', W=2.0).W
@@ -55,14 +62,15 @@ class NetworkSaverElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        W: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        J: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        sigma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        degree: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        W: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        J: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        sigma: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        degree: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.W = W
         self.J = J
         self.sigma = sigma
@@ -100,9 +108,15 @@ class BouchaudMezardWealthSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import BouchaudMezardWealthSystem
-        >>> BouchaudMezardWealthSystem(10).prepare().system_.elements[0].values['J']
+        >>> BouchaudMezardWealthSystem(10).prepare().system_.elements[0].J
         1.0
     """
 
@@ -111,7 +125,7 @@ class BouchaudMezardWealthSystem(BaseSystem):
     references = ('Yakovenko and Rosser 2009', 'Bouchaud and Mezard 2000')
     until = 1.0
     dt = 0.1
-    observables = (ObservableSpec('mean_wealth', group='agents', variable='W'),)
+    observables = (Observable('mean_wealth', group='agents', variable='W'),)
 
     def __init__(
         self,
@@ -122,8 +136,10 @@ class BouchaudMezardWealthSystem(BaseSystem):
         sigma: float = 0.5,
         wealth: float | Sequence[float] = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.graph = graph
         self.J = J
@@ -131,38 +147,50 @@ class BouchaudMezardWealthSystem(BaseSystem):
         self.wealth = wealth
 
     @staticmethod
-    def _exchange(s: SimpleNamespace) -> Expression:
+    def _get_flow(member: SimpleNamespace, other: SimpleNamespace) -> Expression:
         """Return the flow `(J / c) (W_j - W_i)` from saver `j` to saver `i`."""
-        return s.member.J / s.member.degree * (s.other.W - s.member.W)
+        return member.J / member.degree * (other.W - member.W)
 
     @staticmethod
-    def _returns(s: SimpleNamespace) -> Expression:
-        """Return the amplitude `sigma W` of the random returns."""
-        return s.target.sigma * s.target.W
+    def _get_returns(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the random returns `sigma W dB` of every saver, in the Stratonovich sense."""
+        return [NoiseLaw(s.target.W, s.target.sigma * s.target.W, convention='stratonovich')]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        returns = RateInteraction('returns', target='agents', state='W', noise=self._returns, convention='stratonovich')
+    @staticmethod
+    def _get_exchange(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the exchange of every saver with every other saver."""
+        saver = s.target
+        return [RateLaw(saver.W, total(BouchaudMezardWealthSystem._get_flow(saver, saver.other), over=saver.other))]
+
+    @staticmethod
+    def _get_edge_exchange(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the exchange of both ends of a link."""
+        flow = BouchaudMezardWealthSystem._get_flow
+        return [RateLaw(s.target.W, flow(s.target, s.source)), RateLaw(s.source.W, flow(s.source, s.target))]
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        returns = Interaction('returns', roles={'target': 'agents'}, laws=self._get_returns)
         if self.graph is None:
-            values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': self.n_agents - 1}
-            agents: FieldElement | GroupElement = GroupElement(
+            agents = NetworkSaverElement(
                 'agents',
-                element=NetworkSaverElement,
+                W=self.wealth,
+                J=self.J,
+                sigma=self.sigma,
+                degree=self.n_agents - 1,
                 size=self.n_agents,
-                values=values,
             )
-            mode = 'group'
+            exchange = Interaction('exchange', roles={'target': 'agents'}, laws=self._get_exchange)
         else:
             degree = 2 * nx.number_of_edges(self.graph) / nx.number_of_nodes(self.graph)
-            values = {'W': self.wealth, 'J': self.J, 'sigma': self.sigma, 'degree': degree}
-            agents = FieldElement('agents', element=NetworkSaverElement, space=NetworkSpace(self.graph), values=values)
-            mode = 'edges'
-        exchange = CouplingInteraction(
-            'exchange',
-            target='agents',
-            read='W',
-            write='W',
-            function=self._exchange,
-            mode=mode,
-        )
-        return CompositeSystem(self.label, elements=[agents], interactions=[exchange, returns])
+            agents = NetworkSaverElement(
+                'agents',
+                W=self.wealth,
+                J=self.J,
+                sigma=self.sigma,
+                degree=degree,
+                space=NetworkSpace(self.graph),
+            )
+            exchange = Interaction('exchange', among='agents', along=True, laws=self._get_edge_exchange)
+        self.system_ = System(self.label, elements=[agents], interactions=[exchange, returns])

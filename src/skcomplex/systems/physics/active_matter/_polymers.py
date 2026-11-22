@@ -6,46 +6,81 @@ The polymers are chains of self-propelled beads bonded by springs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, oo, pi, sin, sqrt
+from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
+from ....core.components.laws import NoiseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class ActiveBeadElement(Element):
-    """Bead of an active polymer.
-
-    The bead is an active Brownian particle bonded to its neighbours along a chain by springs.
-
-    The bead at `(x, y)` swims at the speed `v0` along its orientation `theta`, which diffuses with `D_r`, its position
-    diffuses with `D_t`, and harmonic springs of stiffness `k` and zero rest length pull it towards its neighbours
-    along the chain, `k (r_{i+1} + r_{i-1} - 2 r_i)`, the Rouse chain. The beads at the ends have one neighbour.
+    """Beads of a chain with the coordinates `x` and `y` and the orientations `theta`.
 
     Args:
         label:
-            The label of the bead or the chain.
-
-        visual:
-            How the bead is drawn, or `None` for `default_visual_`.
+            The label of the chain.
 
         x:
-            The initial first coordinate.
+            The initial first coordinates, one per bead or shared.
 
         y:
-            The initial second coordinate.
+            The initial second coordinates, one per bead or shared.
 
         theta:
-            The initial orientation.
+            The initial orientations, one per bead or shared.
+
+        space:
+            The lattice of the beads along the chain, or `None` for one bead.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import ActiveBeadElement
+        >>> ActiveBeadElement('bead', theta=1.0).theta
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = 0.0,
+        y: object = 0.0,
+        theta: Annotated[object, Period(2 * math.pi)] = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.x = x
+        self.y = y
+        self.theta = theta
+
+
+class ActiveRouseInteraction(Interaction):
+    """Rouse chain of active Brownian beads.
+
+    The bead at `(x, y)` swims at the speed `v0` along its orientation `theta`, which diffuses with `D_r`, its position
+    diffuses with `D_t`, and harmonic springs of stiffness `k` and zero rest length pull it towards its neighbours
+    along the chain, `k (r_{i+1} + r_{i-1} - 2 r_i)`. The beads at the ends have one neighbour. It is a chain of
+    self-propelled colloids, a filament driven by molecular motors, or a worm.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the chain, with the coordinates `x` and `y` and the orientations `theta`.
 
         v0:
             The self-propulsion speed.
@@ -59,62 +94,47 @@ class ActiveBeadElement(Element):
         D_r:
             The rotational diffusion coefficient.
 
-    Attributes:
-        default_visual_:
-            The visual of the bead when it sets none.
-
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import ActiveBeadElement
-        >>> ActiveBeadElement('bead').k
+        >>> from skcomplex.systems.physics.active_matter import ActiveRouseInteraction
+        >>> ActiveRouseInteraction('rouse', target='chain').k
         10.0
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        v0: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        D_t: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        D_r: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.theta = theta
+        super().__init__(label)
+        self.target = target
         self.v0 = v0
         self.k = k
         self.D_t = D_t
         self.D_r = D_r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the propulsion, the bonds, and the noises of the bead.
-
-        The noises act on its position and orientation.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the propulsion, the bonds, and the noises of the beads of the target.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [
-            RateLaw(s.x, s.v0 * cos(s.theta) + s.k * laplacian(s.x)),
-            RateLaw(s.y, s.v0 * sin(s.theta) + s.k * laplacian(s.y)),
-            NoiseLaw(s.x, sqrt(2 * s.D_t)),
-            NoiseLaw(s.y, sqrt(2 * s.D_t)),
-            NoiseLaw(s.theta, sqrt(2 * s.D_r)),
+        super()._prepare(context)
+        s, t = context, context.t
+        x, y, theta = s.target.x, s.target.y, s.target.theta
+        self.laws_ = [
+            RateLaw(x.diff(t), s.v0 * cos(theta) + s.k * laplacian(x)),
+            RateLaw(y.diff(t), s.v0 * sin(theta) + s.k * laplacian(y)),
+            NoiseLaw(x, sqrt(2 * s.D_t)),
+            NoiseLaw(y, sqrt(2 * s.D_t)),
+            NoiseLaw(theta, sqrt(2 * s.D_r)),
         ]
 
 
@@ -154,9 +174,15 @@ class ActivePolymerSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import ActivePolymerSystem
-        >>> ActivePolymerSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> ActivePolymerSystem(5).prepare().simulate(until=1.0).get_values('chain.x').shape[-1]
         5
     """
 
@@ -165,7 +191,6 @@ class ActivePolymerSystem(BaseSystem):
     references = ('Winkler and Gompper 2020', 'Osmanović and Rabin 2017', 'Eisenstecken et al. 2016')
     until = 50.0
     dt = 0.5
-    solver = EulerMaruyamaSolver(dt=0.005)
 
     def __init__(
         self,
@@ -177,8 +202,10 @@ class ActivePolymerSystem(BaseSystem):
         D_r: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_beads = n_beads
         self.v0 = v0
         self.k = k
@@ -186,22 +213,26 @@ class ActivePolymerSystem(BaseSystem):
         self.D_r = D_r
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of an active polymer, a Rouse chain of active Brownian beads.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         angles = np.random.default_rng(self.random_state).uniform(0.0, 2 * np.pi, self.n_beads)
-        chain = FieldElement(
+        chain = ActiveBeadElement(
             'chain',
-            element=ActiveBeadElement,
+            x=np.arange(self.n_beads, dtype=float),
+            y=np.zeros(self.n_beads),
+            theta=angles,
             space=LatticeSpace(self.n_beads, boundary='reflecting'),
-            boundary={'x': 'zero-flux', 'y': 'zero-flux'},
-            values={
-                'x': np.arange(self.n_beads, dtype=float),
-                'y': np.zeros(self.n_beads),
-                'theta': angles,
-                'v0': self.v0,
-                'k': self.k,
-                'D_t': self.D_t,
-                'D_r': self.D_r,
-            },
         )
-        return CompositeSystem(self.label, elements=[chain])
+        rouse = ActiveRouseInteraction('rouse', target='chain', v0=self.v0, k=self.k, D_t=self.D_t, D_r=self.D_r)
+        self.system_ = System(
+            self.label,
+            elements=[chain],
+            interactions=[rouse],
+            solver=EulerMaruyamaSolver(dt=0.005),
+        )

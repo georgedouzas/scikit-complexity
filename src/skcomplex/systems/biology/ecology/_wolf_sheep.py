@@ -4,30 +4,35 @@
 # License: MIT
 
 
+from collections.abc import Mapping, Sequence
+from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw, Sink, Source
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.agents import BirthDeathInteraction, MovementInteraction
 
 GROWN_SHARE = 0.5
 
 
-class GrassView(AgentView):
+@runtime_checkable
+class GrassView(AgentViewProtocol, Protocol):
     """View of a patch of grass, with its states and parameters as attributes.
 
-    `GrassElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `GrassElement` read them with checked types.
     """
 
     grown: float
@@ -36,14 +41,11 @@ class GrassView(AgentView):
 
 
 class GrassElement(Element):
-    """Grass patch that regrows a fixed number of steps after it is eaten.
+    """Grass patch that regrows a fixed number of steps after it is eaten, by `GrassRegrowthInteraction`.
 
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         grown:
             Whether the grass is grown, 1 or 0.
@@ -54,49 +56,74 @@ class GrassElement(Element):
         regrowth:
             The number of steps the grass takes to regrow.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the grid.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import GrassElement
-        >>> GroupElement('grass', element=GrassElement, size=4, values={'grown': 1.0}).size
+        >>> GrassElement('grass', grown=1.0, size=4).size
         4
     """
 
-    law_classes = (RuleLaw,)
+    visual = VisualSpec(
+        'agents',
+        {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5},
+    )
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'agents',
-            {'color_by': 'grown', 'color_range': (0.0, 1.0), 'radius': 0.5},
-        ),
         *,
-        grown: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        countdown: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        regrowth: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        grown: Annotated[object, NN] = 1.0,
+        countdown: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        regrowth: Annotated[object, RealSet.open(0, oo)] = 30.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.grown = grown
         self.countdown = countdown
         self.regrowth = regrowth
 
-    @classmethod
-    def _get_view(cls) -> type[GrassView]:
-        """Return the view of a patch of grass, `GrassView`."""
-        return GrassView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the regrowth rule.
+class GrassRegrowthInteraction(Interaction):
+    """Regrowth of eaten grass, which counts down its steps and grows back when the countdown ends.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the grass patches.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import GrassRegrowthInteraction
+        >>> GrassRegrowthInteraction('regrowth', target='grass').target
+        'grass'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the regrowth rule of every patch.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the patches.
         """
-        return [RuleLaw(self.regrow)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.regrow)]
 
     def regrow(self, agent: GrassView, system: SystemView) -> None:
         """Count down eaten grass and grow it back when the countdown ends.
@@ -117,10 +144,11 @@ class GrassElement(Element):
             agent.countdown = agent.regrowth
 
 
-class SheepView(AgentView):
+@runtime_checkable
+class SheepView(AgentViewProtocol, Protocol):
     """View of a sheep, with its states and parameters as attributes.
 
-    `SheepElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `SheepElement` read them with checked types.
     """
 
     energy: float
@@ -139,9 +167,6 @@ class SheepElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         energy:
             The initial energy.
 
@@ -151,37 +176,45 @@ class SheepElement(Element):
         reproduction:
             The probability of reproducing at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the grid.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import SheepElement
-        >>> GroupElement('sheep', element=SheepElement, size=100).size
+        >>> SheepElement('sheep', size=100).size
         100
     """
+
+    visual = VisualSpec('agents', {'radius': 0.3})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
         *,
-        energy: Annotated[float, StateSpec()] = 8.0,
-        gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
+        energy: object = 8.0,
+        gain: Annotated[object, RealSet.closed_open(0, oo)] = 4.0,
+        reproduction: Annotated[object, RealSet.closed_open(0, oo)] = 0.04,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction
 
-    @classmethod
-    def _get_view(cls) -> type[SheepView]:
-        """Return the view of a sheep, `SheepView`."""
-        return SheepView
 
-
-class WolfView(AgentView):
+@runtime_checkable
+class WolfView(AgentViewProtocol, Protocol):
     """View of a wolf, with its states and parameters as attributes.
 
-    `WolfElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `WolfElement` read them with checked types.
     """
 
     energy: float
@@ -200,9 +233,6 @@ class WolfElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         energy:
             The initial energy.
 
@@ -212,31 +242,38 @@ class WolfElement(Element):
         reproduction:
             The probability of reproducing at every step.
 
+        values:
+            Further values by name, such as the cells `x` and `y` of the members on the grid.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The grid the members live on, or `None`.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.biology.ecology import WolfElement
-        >>> GroupElement('wolves', element=WolfElement, size=25).size
+        >>> WolfElement('wolves', size=25).size
         25
     """
+
+    visual = VisualSpec('agents', {'radius': 0.35})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.35}),
         *,
-        energy: Annotated[float, StateSpec()] = 20.0,
-        gain: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        energy: object = 20.0,
+        gain: Annotated[object, RealSet.closed_open(0, oo)] = 20.0,
+        reproduction: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.energy = energy
         self.gain = gain
         self.reproduction = reproduction
-
-    @classmethod
-    def _get_view(cls) -> type[WolfView]:
-        """Return the view of a wolf, `WolfView`."""
-        return WolfView
 
 
 class WolfSheepSystem(BaseSystem):
@@ -266,6 +303,12 @@ class WolfSheepSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import WolfSheepSystem
         >>> [group.label for group in WolfSheepSystem(10, 10).prepare().system_.elements]
@@ -287,8 +330,10 @@ class WolfSheepSystem(BaseSystem):
         regrowth: float = 30.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.sheep = sheep
@@ -322,43 +367,50 @@ class WolfSheepSystem(BaseSystem):
         """Return the probability `reproduction` that an animal gives birth in a step."""
         return float(animal.reproduction) if isinstance(animal, SheepView | WolfView) else 0.0
 
+    @staticmethod
+    def _pay_cost(animal: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Take the unit of energy a step costs an animal."""
+        if isinstance(animal, SheepView | WolfView):
+            animal.energy -= 1.0
+
+    def _feed(self, animal: AgentViewProtocol, system: SystemViewProtocol, *, food: str, removed: bool) -> None:
+        """Let an animal eat one item of its food in its cell, drawn at random among several.
+
+        A sheep eats the grass of its cell when it is grown, which then has to grow again, and a wolf eats a sheep of
+        its cell, which dies.
+        """
+        groups = set(system.get_groups(food))
+        found = [other for other in animal.get_agents_here() if other.group in groups]
+        if len(found) > 1:
+            found = [found[int(index)] for index in system.rng.permutation(len(found))[:1]]
+        for item in found:
+            if not (animal.alive and item.alive) or (not removed and not self._is_grown(item, animal, system)):
+                continue
+            if isinstance(animal, SheepView | WolfView):
+                animal.energy += self._get_gain(item, animal, system)
+            if removed:
+                item.remove()
+            elif isinstance(item, GrassView):
+                item.grown -= 1.0
+
     def _get_animal(
         self,
         group: str,
         food: str,
         removed: bool,
-    ) -> list[MovementInteraction | TransferInteraction | BirthDeathInteraction]:
+    ) -> list[MovementInteraction | Interaction | BirthDeathInteraction]:
         """Return the member interactions of an animal.
 
         An animal wanders at a unit cost of energy, eats in its cell, and lives.
         """
-        cost = TransferInteraction(
-            f'{group}_cost',
-            source=group,
-            target=group,
-            state='energy',
-            into=Sink(),
-            amount=1.0,
-            form='agent',
-        )
-        eating = TransferInteraction(
+        eat = partial(self._feed, food=food, removed=removed)
+        eating = Interaction(
             f'{group}_eating',
-            source=food,
-            target=group,
-            state=Source(),
-            into='energy',
-            amount=self._get_gain,
-            legs=() if removed else (('grown', Sink(), 1.0),),
-            guard=None if removed else self._is_grown,
-            pairing='cell',
-            form='agent',
-            schedule='member',
-            actor='target',
-            partners=1,
-            remove='source' if removed else None,
+            roles={'target': group},
+            laws=lambda s: [UpdateLaw(s.target, eat)],
         )
         return [
-            MovementInteraction(f'{group}_walk', target=group, cost=cost, schedule='member'),
+            MovementInteraction(f'{group}_walk', target=group, cost=self._pay_cost, schedule='member'),
             eating,
             BirthDeathInteraction(
                 f'{group}_life',
@@ -370,33 +422,38 @@ class WolfSheepSystem(BaseSystem):
             ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the wolf and sheep predation system.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the wolf and sheep predation system.
 
-        It has one grass patch per cell.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)
         countdown = np.where(grown > 0, self.regrowth, rng.uniform(0, self.regrowth, len(cells)))
-        grass = GroupElement(
+        space = LatticeSpace((self.width, self.height), boundary='periodic')
+        grass = GrassElement(
             'grass',
-            element=GrassElement,
+            grown=grown,
+            countdown=countdown,
+            regrowth=self.regrowth,
+            values={'x': [cell[0] for cell in cells], 'y': [cell[1] for cell in cells]},
             size=len(cells),
-            values={'grown': grown, 'countdown': countdown, 'regrowth': self.regrowth},
-            variable=True,
-            location=cells,
+            space=space,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
                 grass,
-                GroupElement('sheep', element=SheepElement, size=self.sheep, variable=True),
-                GroupElement('wolves', element=WolfElement, size=self.wolves, variable=True),
+                SheepElement('sheep', size=self.sheep, space=space),
+                WolfElement('wolves', size=self.wolves, space=space),
             ],
             interactions=[
+                GrassRegrowthInteraction('regrowth', target='grass'),
                 *self._get_animal('sheep', 'grass', removed=False),
                 *self._get_animal('wolves', 'sheep', removed=True),
             ],
-            space=LatticeSpace((self.width, self.height), boundary='periodic'),
         )

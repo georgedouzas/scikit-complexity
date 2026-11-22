@@ -10,30 +10,32 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import Delaunay, QhullError, cKDTree
 
-from ...components.spaces import (
-    DelaunayNeighborhood,
-    NearestNeighborhood,
-    RadiusNeighborhood,
-)
-from ...specs import DirectionSpec, EntrySpec, RunStateSpec
+from ...components import EntrySpec
+from ...components.spaces import DelaunayNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...types import Array, Indices
 from ..types import EdgesFound, Pairs
 from ._base import BaseSearch
+from ._direction_spec import _DirectionSpec
+from ._run_state_spec import RunStateSpec
 
 
 class MetricSearch(BaseSearch):
-    """A search of the neighbours in a continuous space, from member positions.
+    """A search of the neighbours of every member in a continuous space.
 
-    The search uses a k-d tree or a Delaunay triangulation.
+    At every evaluation it reads the positions of the members and finds the neighbours of each one, the members within a
+    radius, the nearest few, those inside a cone of vision, or those that share a triangle of a Delaunay triangulation,
+    with a k-d tree or a triangulation and with distances that wrap around a periodic box. It finds the neighbours of a
+    bird in a flock, a molecule in a fluid, and a pedestrian in a crowd.
 
-    They are found at every evaluation.
+    Read more in the user guide, under Spaces.
 
     Args:
         neighbourhood:
             The radius, nearest, cone, or Delaunay neighbourhood.
 
         positions:
-            The entry of the position state of the members.
+            The entry of the vector position state of the members, or the entries of their scalar positions along every
+            axis of the space, such as `x` and `y` of walkers in a plane.
 
         periods:
             The sides of a periodic box, or `None` for distances without minimum images.
@@ -44,6 +46,16 @@ class MetricSearch(BaseSearch):
     Attributes:
         pairs_:
             The row starts and the neighbours of every member of the last run, with no edges.
+
+    See Also:
+        PairSearch: The pairs of members closer than a cutoff.
+        StaticSearch: Neighbours that do not change.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
+        >>> search = LennardJonesFluidSystem().prepare().simulate(until=0).problem.neighbourhoods[0].search
+        >>> type(search).__name__, search.neighbourhood
+        ('MetricSearch', RadiusNeighborhood(radius=2.5))
     """
 
     pairs_: EdgesFound
@@ -51,14 +63,31 @@ class MetricSearch(BaseSearch):
     def __init__(
         self,
         neighbourhood: RadiusNeighborhood | NearestNeighborhood | DelaunayNeighborhood,
-        positions: EntrySpec,
+        positions: EntrySpec | tuple[EntrySpec, ...],
         periods: tuple[float, ...] | None = None,
-        direction: DirectionSpec | None = None,
+        direction: _DirectionSpec | None = None,
     ) -> None:
         self.neighbourhood = neighbourhood
         self.positions = positions
         self.periods = periods
         self.direction = direction
+
+    def get_positions(self, x: Array) -> Array:
+        """Return the positions of the members, one row of components per member.
+
+        Positions along every axis of the space are stacked as the columns of the rows.
+
+        Args:
+            x:
+                The state vector.
+
+        Returns:
+            positions:
+                One row of position components per member.
+        """
+        if isinstance(self.positions, tuple):
+            return np.column_stack([entry.get_view(x) for entry in self.positions])
+        return self.positions.get_view(x)
 
     def get_wrapped(self, x: Array) -> Array:
         """Return the positions of the members, wrapped into a periodic box.
@@ -71,7 +100,7 @@ class MetricSearch(BaseSearch):
             positions:
                 One row of position components per member.
         """
-        positions = self.positions.get_view(x)
+        positions = self.get_positions(x)
         if self.periods is None:
             return positions
         periods = np.asarray(self.periods)
@@ -97,7 +126,7 @@ class MetricSearch(BaseSearch):
             differences:
                 One row of components per pair, `x_reader - x_other` wrapped.
         """
-        positions = self.positions.get_view(x)
+        positions = self.get_positions(x)
         difference = positions[readers] - positions[others]
         if self.periods is None:
             return difference
@@ -108,7 +137,6 @@ class MetricSearch(BaseSearch):
         """Set the neighbours of every member at the current positions."""
         state = self._get_state_of(inputs)
         x, q = state.x, state.p
-        del q
         positions = self.get_wrapped(x)
         size = positions.shape[0]
         tree = cKDTree(positions, boxsize=np.asarray(self.periods) if self.periods is not None else None)
@@ -122,7 +150,7 @@ class MetricSearch(BaseSearch):
             readers = np.concatenate([pairs[:, 0], pairs[:, 1]])
             others = np.concatenate([pairs[:, 1], pairs[:, 0]])
             if isinstance(neighbourhood, RadiusNeighborhood) and float(neighbourhood.angle) < math.pi:
-                keep = self._get_inside(x, readers, others, neighbourhood)
+                keep = self._get_inside(x, q, readers, others, neighbourhood)
                 readers, others = readers[keep], others[keep]
         if neighbourhood.center:
             readers, others = self._copy_with_center(readers, others, size)
@@ -174,6 +202,7 @@ class MetricSearch(BaseSearch):
     def _get_inside(
         self,
         x: Array,
+        q: Array,
         readers: Indices,
         others: Indices,
         cone: RadiusNeighborhood,
@@ -181,7 +210,7 @@ class MetricSearch(BaseSearch):
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.direction is not None
         separation = -self.get_differences(x, readers, others)
-        direction = self.direction.get_vectors(x)[readers]
+        direction = self.direction.get_vectors(x, q)[readers]
         dot = np.sum(direction * separation, axis=1)
         norms = np.sqrt(np.sum(direction * direction, axis=1)) * np.sqrt(np.sum(separation * separation, axis=1))
         return dot >= np.cos(cone.angle) * norms

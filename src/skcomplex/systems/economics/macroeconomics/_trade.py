@@ -6,17 +6,21 @@ The economy is open.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class TradingEconomyElement(Element):
@@ -29,9 +33,6 @@ class TradingEconomyElement(Element):
     Args:
         label:
             The label of the economy.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The exchange rate.
@@ -93,27 +94,26 @@ class TradingEconomyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 0.885,
-        X: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 32.0,
-        M: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
-        PH: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.2,
-        home_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        inflation: Annotated[object, ParameterSpec()] = 0.1,
-        world_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        exports: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 32.0,
-        imports: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
-        export_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.062,
-        import_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.13,
-        export_elasticity: Annotated[object, ParameterSpec()] = -1.0,
-        import_elasticity: Annotated[object, ParameterSpec()] = -1.0,
-        floating: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        import_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 52.0,
-        government: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        E: Annotated[object, RealSet.open(0, oo)] = 0.885,
+        X: Annotated[object, RealSet.closed_open(0, oo)] = 32.0,
+        M: Annotated[object, RealSet.closed_open(0, oo)] = 34.0,
+        PH: Annotated[object, RealSet.open(0, oo)] = 1.2,
+        home_price: Annotated[object, RealSet.open(0, oo)] = 1.2,
+        inflation: object = 0.1,
+        world_price: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        exports: Annotated[object, RealSet.closed_open(0, oo)] = 32.0,
+        imports: Annotated[object, RealSet.closed_open(0, oo)] = 34.0,
+        export_price: Annotated[object, RealSet.open(0, oo)] = 1.062,
+        import_price: Annotated[object, RealSet.open(0, oo)] = 1.13,
+        export_elasticity: object = -1.0,
+        import_elasticity: object = -1.0,
+        floating: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        import_share: Annotated[object, RealSet.closed_open(0, oo)] = 0.34,
+        demand: Annotated[object, RealSet.closed_open(0, oo)] = 52.0,
+        government: Annotated[object, RealSet.closed_open(0, oo)] = 50.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.X = X
         self.M = M
@@ -200,6 +200,12 @@ class ExchangeRatesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import ExchangeRatesSystem
         >>> round(ExchangeRatesSystem().prepare().system_.elements[0].E, 3)
@@ -212,9 +218,9 @@ class ExchangeRatesSystem(BaseSystem):
     until = 2
     dt = 1
     observables = (
-        ObservableSpec('balance', _balance),
-        ObservableSpec('real_rate', _get_real_rate),
-        ObservableSpec('output', _get_output),
+        Observable('balance', _balance),
+        Observable('real_rate', _get_real_rate),
+        Observable('output', _get_output),
     )
 
     @staticmethod
@@ -271,8 +277,10 @@ class ExchangeRatesSystem(BaseSystem):
         government: float = 50.0,
         world_price: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.exports = exports
         self.imports = imports
         self.home_price = home_price
@@ -285,23 +293,38 @@ class ExchangeRatesSystem(BaseSystem):
         self.world_price = world_price
 
     @staticmethod
-    def _get_adjustments() -> list[MapInteraction]:
+    def _get_adjustments() -> list[Interaction]:
         """Return the maps of the home price, the exchange rate, and the trade volumes.
 
         There is one at every stage.
         """
+        system = ExchangeRatesSystem
         return [
-            MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
-            for state, function in (
-                ('PH', ExchangeRatesSystem._get_home_price),
-                ('E', ExchangeRatesSystem._exchange_rate),
-                ('X', ExchangeRatesSystem._get_exports),
-                ('M', ExchangeRatesSystem._get_imports),
-            )
+            Interaction(
+                'PH_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.PH, system._get_home_price(s))],
+            ),
+            Interaction(
+                'E_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.E, system._exchange_rate(s))],
+            ),
+            Interaction(
+                'X_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.X, system._get_exports(s))],
+            ),
+            Interaction(
+                'M_adjustment',
+                roles={'target': 'home'},
+                laws=lambda s: [UpdateLaw(s.target.M, system._get_imports(s))],
+            ),
         ]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rate = self.imports * self.world_price / (self.exports * self.home_price)
         home = TradingEconomyElement(
             'home',
@@ -323,4 +346,4 @@ class ExchangeRatesSystem(BaseSystem):
             demand=self.demand,
             government=self.government,
         )
-        return CompositeSystem(self.label, elements=[home], interactions=self._get_adjustments())
+        self.system_ = System(self.label, elements=[home], interactions=self._get_adjustments())

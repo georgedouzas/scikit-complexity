@@ -6,6 +6,7 @@ Welfare policies act on the encounters.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -15,12 +16,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components import Observable
 from ....core.components.interactions import BaseInteraction
 from ....core.components.laws.utils import moment, total
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.elements import NonnegativeElement
 from ...general.kinetics import EncounterInteraction
 
@@ -30,38 +32,39 @@ WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Berto
 class WealthDensityElement(NonnegativeElement):
     """Value `x` of the density of agents at one wealth class.
 
-    A wealth distribution is a group of these elements on the sites of a lattice of wealth classes, one member per
-    class, and the exchanges and the welfare policy change it. The element has no laws of its own.
+    A wealth distribution is this element on a lattice of wealth classes, with one value per class, and the exchanges
+    and the welfare policy change it. The element has no laws of its own.
 
     Args:
         label:
-            The label of the element, unique among the parts of its system.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the element, unique among the components of its system.
 
         x:
             The initial density, a nonnegative number.
 
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The space with one member per site, such as a lattice of classes, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.core.components.spaces import LatticeSpace
         >>> from skcomplex.systems.economics.econophysics import WealthDensityElement
         >>> classes = LatticeSpace(5, boundary='fixed')
-        >>> values = {'x': 0.2}
-        >>> group = GroupElement('wealth', element=WealthDensityElement, space=classes, on='sites', values=values)
-        >>> group.prepare().size_
-        5
+        >>> WealthDensityElement('wealth', x=[0.2] * 5, space=classes).x
+        [0.2, 0.2, 0.2, 0.2, 0.2]
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual, x=x)
+        super().__init__(label, x=x, size=size, space=space)
 
 
 def exchange_table(classes: int, cooperation: object, competition: object) -> npt.NDArray[np.object_]:
@@ -143,10 +146,10 @@ class WealthExchangeInteraction(EncounterInteraction):
         *,
         candidate: str,
         field: str,
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        cooperation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        competition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        classes: Annotated[int, RealSet.open(0, oo)] = 9,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        cooperation: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        competition: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -233,8 +236,8 @@ class WelfarePolicyInteraction(EncounterInteraction):
         *,
         candidate: str,
         field: str,
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
-        tax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        classes: Annotated[int, RealSet.open(0, oo)] = 9,
+        tax: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
@@ -327,7 +330,7 @@ def mean_wealth(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expressi
     return moment(s.x, 1, wealth, normalized=True)
 
 
-def wealth_observables(classes: int) -> list[ObservableSpec]:
+def wealth_observables(classes: int) -> list[Observable]:
     """Return the density, the mean wealth, and the Gini coefficient of a distribution.
 
     The distribution is `wealth`, over wealth classes.
@@ -347,9 +350,9 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
     """
     wealth = wealth_classes(classes)
     return [
-        ObservableSpec('density', partial(wealth_density, wealth=wealth), group='wealth'),
-        ObservableSpec('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
-        ObservableSpec('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
+        Observable('density', partial(wealth_density, wealth=wealth), group='wealth'),
+        Observable('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
+        Observable('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
     ]
 
 
@@ -385,6 +388,12 @@ class KineticWealthWelfareSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem
         >>> [item.label for item in KineticWealthWelfareSystem(tax=0.2).prepare().system_.interactions]
@@ -398,9 +407,9 @@ class KineticWealthWelfareSystem(BaseSystem):
     dt = 1.0
 
     @staticmethod
-    def _get_classes_of(system: CompositeSystem) -> int:
+    def _get_classes_of(system: System) -> int:
         """Return the number of wealth classes of a system, the size of its distribution."""
-        return int(next(item.size or 0 for item in system.elements if item.label == 'wealth'))
+        return int(np.size(next(item.x for item in system.elements if item.label == 'wealth')))
 
     def __init__(
         self,
@@ -411,24 +420,25 @@ class KineticWealthWelfareSystem(BaseSystem):
         eta: float = 1.0,
         tax: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.classes = classes
         self.cooperation = cooperation
         self.competition = competition
         self.eta = eta
         self.tax = tax
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
-        components: list[GroupElement] = [
-            GroupElement(
+        components = [
+            WealthDensityElement(
                 'wealth',
-                element=WealthDensityElement,
-                size=self.classes,
-                on='sites',
-                values={'x': initial / initial.sum()},
+                x=initial / initial.sum(),
+                space=LatticeSpace(self.classes, boundary='fixed'),
             ),
         ]
         interactions: list[BaseInteraction] = [
@@ -443,7 +453,7 @@ class KineticWealthWelfareSystem(BaseSystem):
             ),
         ]
         if self.tax > 0:
-            components.append(GroupElement('state', element=WealthDensityElement, size=1, values={'x': 1.0}))
+            components.append(WealthDensityElement('state', x=[1.0], size=1))
             interactions.append(
                 WelfarePolicyInteraction(
                     'welfare',
@@ -453,20 +463,10 @@ class KineticWealthWelfareSystem(BaseSystem):
                     tax=self.tax,
                 ),
             )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=components,
             interactions=interactions,
             space=LatticeSpace(self.classes, boundary='fixed'),
-            time=ContinuousTime(),
         )
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        system = self._get_pass_parameters()
-        settings['observables'] = wealth_observables(KineticWealthWelfareSystem._get_classes_of(system))
-        return settings
+        self.observables_ = tuple(wealth_observables(KineticWealthWelfareSystem._get_classes_of(self.system_)))

@@ -17,17 +17,15 @@ turned by the flows of all the others.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.systems import System
 from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
 
 SYSTEM = 'squirmers'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = simulate(SquirmersSystem(), observers=[observer])
+simulation = SquirmersSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Pushers attract side by side, pullers repel
@@ -39,15 +37,11 @@ simulation = simulate(SquirmersSystem(), observers=[observer])
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for beta, color in ((-3.0, 'tab:blue'), (0.0, 'tab:gray'), (3.0, 'tab:orange')):
-    pair = GroupElement(
-        'squirmers',
-        element=SquirmerElement,
-        size=2,
-        values={'x': [[0.0, 0.0, 0.0], [0.0, 4.0, 0.0]], 'p': [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]},
-    )
+    x, p = [[0.0, 0.0, 0.0], [0.0, 4.0, 0.0]], [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
+    pair = SquirmerElement('squirmers', x=x, p=p, size=2)
     slip = SquirmerSlipInteraction('slip', target='squirmers', B1=1.5, B2=1.5 * beta)
-    system = CompositeSystem(elements=[pair], interactions=[slip], space=ContinuousSpace(n_dim=3))
-    trajectory = simulate(system, until=12, dt=0.25)
+    system = System(elements=[pair], interactions=[slip], space=ContinuousSpace(n_dim=3))
+    trajectory = system.prepare().simulate(until=12, dt=0.25)
     positions = trajectory.get_values('squirmers.x')
     gap = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
     kind = 'pushers' if beta < 0 else 'pullers' if beta > 0 else 'neutral squirmers'

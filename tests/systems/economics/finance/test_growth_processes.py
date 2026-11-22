@@ -18,7 +18,7 @@ def test_gibrat_process_makes_lognormal_sizes():
         _run(
             GibratProcessSystem(1000).prepare().system_,
             100,
-            observables=GibratProcessSystem().get_run_settings()['observables'],
+            observables=GibratProcessSystem().prepare().observables_,
         ),
         'firms',
         100,
@@ -33,7 +33,7 @@ def test_multiplicative_process_respects_its_floor():
     trajectory = _run(
         MultiplicativeProcessSystem(300).prepare().system_,
         100,
-        observables=MultiplicativeProcessSystem().get_run_settings()['observables'],
+        observables=MultiplicativeProcessSystem().prepare().observables_,
     )
     for frame in (10, 50, 100):
         previous = _agents(trajectory, 'firms', frame)['previous']
@@ -42,7 +42,7 @@ def test_multiplicative_process_respects_its_floor():
         _run(
             GibratProcessSystem(300).prepare().system_,
             100,
-            observables=GibratProcessSystem().get_run_settings()['observables'],
+            observables=GibratProcessSystem().prepare().observables_,
         ),
         'firms',
         100,
@@ -57,7 +57,7 @@ def test_kesten_process_reaches_a_positive_stationary_state():
     trajectory = _run(
         KestenProcessSystem(500).prepare().system_,
         100,
-        observables=KestenProcessSystem().get_run_settings()['observables'],
+        observables=KestenProcessSystem().prepare().observables_,
     )
     sizes = _agents(trajectory, 'firms', 100)['x']
     assert sizes.min() > 0

@@ -12,7 +12,6 @@ and the south, and drifts slowly around the planet. Such trapped orbits form the
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.celestial_mechanics import StormerProblemSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'stormer_problem'
 
 system = StormerProblemSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
-trajectory = simulate(system, until=100, observers=[observer])
+trajectory = system.prepare().simulate(until=100, observers=[observer])
 
 # %%
 # Conserved quantities
@@ -30,7 +29,7 @@ trajectory = simulate(system, until=100, observers=[observer])
 # tolerance of the integrator.
 
 x, y, z = (np.ravel(trajectory.get_values(f'charge.{name}')) for name in 'xyz')
-vx, vy, vz = (np.ravel(trajectory.get_values(f'charge.{name}_d1')) for name in 'xyz')
+vx, vy, vz = (np.ravel(trajectory.get_values(f"charge.{name}'")) for name in 'xyz')
 speed = np.sqrt(vx**2 + vy**2 + vz**2)
 momentum = x * vy - y * vx + (x**2 + y**2) / (x**2 + y**2 + z**2) ** 1.5
 fig, (top, bottom) = plt.subplots(2, 1, figsize=(7, 5), sharex=True)

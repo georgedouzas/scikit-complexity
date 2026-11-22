@@ -11,27 +11,32 @@ from dataclasses import KW_ONLY, dataclass, field
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ...base import BaseSpec
+from ...components import Observable
 from ...components.spaces import BaseSpace
-from ...components.specs import CompiledAgentsSpec, CompiledElementSpec, CompiledInteractionSpec
-from ...components.systems import CompositeSystem
-from ...specs._base_spec import BaseSpec
-from ...specs._layout_spec import LayoutSpec
-from ...specs._observable_spec import ObservableSpec
-from ...specs._variable_spec import VariableSpec
-from ...types import Array, FormKind
-from ._markov_kernel import MarkovKernel
+from ...enums import FormKind
+from ...types import Array
+from ._compiled_agents_spec import _CompiledAgentsSpec
+from ._compiled_element_spec import CompiledElementSpec
+from ._compiled_interaction_spec import _CompiledInteractionSpec
+from ._composite_system import _CompositeSystem
+from ._layout_spec import LayoutSpec
 from ._renewal_kernel import RenewalKernel
 from ._topology_kernel import TopologyKernel
 from ._transfer_network_spec import TransferNetworkSpec
+from ._variable_spec import _VariableSpec
 
 
 @dataclass(frozen=True)
 class BaseProblemSpec(BaseSpec):
     """An abstract spec of a problem that a system compiles to.
 
-    It holds what every solver, observer, and visual reads of a problem. A problem is a value. Its fields hold what the
-    runtime reads, with trivial defaults for what a form does not have, and its readers answer the runtime's questions,
-    trivially by default. A formalism's problem adds the fields its own solver reads.
+    It holds what every solver, observer, and visual reads of a problem, such as the names of the states and their
+    starting values, with empty defaults for what a form does not have, and its readers answer the questions of the run.
+    A form that brings its own solver adds the fields that solver reads. It is the base of the problems of a growing
+    population, a quantum circuit, and a market of agents.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         form:
@@ -78,8 +83,6 @@ class BaseProblemSpec(BaseSpec):
         renewals:
             The renewal laws, whose members renew on their own clocks.
 
-        matrices:
-            The transition and emission matrices of the Markov laws, checked when their parameters change.
 
         transfer_network:
             The quantities, flows, objectives, and feedback terms of the system, or `None` without them.
@@ -91,16 +94,16 @@ class BaseProblemSpec(BaseSpec):
             The observables of the system tree, each with the path of the system that declares it, empty for the
             root, which the compiler collects.
 
+    See Also:
+        ProblemSpec: The problem of the general compiler.
+        OperatorProblemSpec: The problem of operator systems.
+
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.types import FormKind
-        >>> from skcomplex.core.engine._utils import symbol
-        >>> from skcomplex.core.specs import LayoutSpec
         >>> from skcomplex.core.engine.problems import BaseProblemSpec
-        >>> layout = LayoutSpec(())
-        >>> problem = BaseProblemSpec(FormKind.ODE, layout, layout, np.zeros(0), np.zeros(0), symbol('t'))
-        >>> problem.stochastic, problem.adaptive_parameters, problem.get_lattice_shape('a.n')
-        (False, {}, None)
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> problem = LogisticGrowthSystem().prepare().simulate(until=0).problem
+        >>> isinstance(problem, BaseProblemSpec), problem.states.names
+        (True, ['population.x'])
     """
 
     form: FormKind | str
@@ -112,16 +115,15 @@ class BaseProblemSpec(BaseSpec):
     _: KW_ONLY
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict, repr=False)
     elements: tuple[CompiledElementSpec, ...] = ()
-    interactions: tuple[CompiledInteractionSpec, ...] = ()
-    system: CompositeSystem | None = field(default=None, repr=False)
-    agents: tuple[CompiledAgentsSpec, ...] = ()
+    interactions: tuple[_CompiledInteractionSpec, ...] = ()
+    system: _CompositeSystem | None = field(default=None, repr=False)
+    agents: tuple[_CompiledAgentsSpec, ...] = ()
     agent_space: BaseSpace | None = None
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     renewals: tuple[RenewalKernel, ...] = field(default=(), repr=False)
-    matrices: tuple[MarkovKernel, ...] = field(default=(), repr=False)
     transfer_network: TransferNetworkSpec | None = field(default=None, repr=False)
     topology: TopologyKernel | None = field(default=None, repr=False)
-    observables: tuple[tuple[str, ObservableSpec], ...] = field(default=(), repr=False)
+    observables: tuple[tuple[str, Observable], ...] = field(default=(), repr=False)
 
     @property
     def partition_problems(self) -> tuple[BaseProblemSpec, ...]:
@@ -140,7 +142,7 @@ class BaseProblemSpec(BaseSpec):
         return False
 
     @property
-    def adaptive_parameters(self) -> dict[str, VariableSpec]:
+    def adaptive_parameters(self) -> dict[str, _VariableSpec]:
         """Declarations of the adaptive parameters, by dotted state name.
 
         Adaptive parameters are states that a schedule may set.

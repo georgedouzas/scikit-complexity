@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 N_DIM = 2
@@ -11,7 +10,7 @@ N_DIM = 2
 
 def _wall_pressure_times_area(trajectory, size):
     """Return the pressure times area measured from wall impulses."""
-    velocities = trajectory.get_values('gas.x_d1')
+    velocities = trajectory.get_values("gas.x'")
     flipped = np.sign(velocities[1:]) != np.sign(velocities[:-1])
     impulse = float((2 * np.abs(velocities[1:]) * flipped).sum())
     return impulse / (2 * N_DIM * size * trajectory.times[-1]) * size**2
@@ -21,16 +20,16 @@ def _wall_pressure_times_area(trajectory, size):
 def test_ideal_gas_obeys_ideal_gas_law(kT, size):
     """Test that pressure times area equals N times kT within 2 percent."""
     n = 500
-    trajectory = simulate(IdealGasSystem(n, kT=kT, size=size, random_state=0), until=4 * size, dt=0.002 * size)
-    velocities = trajectory.get_values('gas.x_d1')[0]
+    trajectory = IdealGasSystem(n, kT=kT, size=size, random_state=0).prepare().simulate(until=4 * size, dt=0.002 * size)
+    velocities = trajectory.get_values("gas.x'")[0]
     measured_kT = float((velocities**2).sum(axis=1).mean()) / N_DIM
     assert _wall_pressure_times_area(trajectory, size) == pytest.approx(n * measured_kT, rel=0.02)
 
 
 def test_ideal_gas_molecules_stay_inside_and_keep_speed():
     """Test that molecules stay inside the box and keep their speed."""
-    trajectory = simulate(IdealGasSystem(100, kT=3.0, random_state=2), until=5)
-    positions, velocities = trajectory.get_values('gas.x'), trajectory.get_values('gas.x_d1')
+    trajectory = IdealGasSystem(100, kT=3.0, random_state=2).prepare().simulate(until=5)
+    positions, velocities = trajectory.get_values('gas.x'), trajectory.get_values("gas.x'")
     assert np.all((positions >= 0) & (positions <= 1))
     speeds = np.linalg.norm(velocities, axis=2)
     assert np.allclose(speeds, speeds[0])
@@ -39,6 +38,6 @@ def test_ideal_gas_molecules_stay_inside_and_keep_speed():
 def test_ideal_gas_initial_temperature_and_momentum():
     """Test that the ideal gas starts at its temperature with zero total momentum."""
     system = IdealGasSystem(20_000, kT=2.0, mass=4.0, n_dim=3, random_state=3).prepare().system_
-    velocities = system.elements[0].values['x_d1']
+    velocities = system.elements[0].values["x'"]
     assert np.allclose(velocities.sum(axis=0), 0.0)
     assert 4.0 * float((velocities**2).mean()) == pytest.approx(2.0, rel=0.02)

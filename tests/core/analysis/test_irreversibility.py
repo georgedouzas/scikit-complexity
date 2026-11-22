@@ -1,18 +1,16 @@
 """Test the irreversibility analysis of entropy production, detailed balance, fluctuation theorems, and responses."""
 
 import math
-from typing import Annotated
 
 import numpy as np
 import pytest
 
 from skcomplex.core.analysis import IrreversibilityResult, correlation, irreversibility
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 
 RING = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
 RUNS = 20_000
@@ -128,29 +126,16 @@ def test_entropy_production_rejects_one_way_jumps():
 def _walker_currents(forward, backward, duration, paths, seed):
     """Return the net steps of a biased random walk on a ring over a duration, one per path."""
 
-    class WalkerElement(Element):
-        """Walker element."""
+    def steps(s):
+        """Return the steps ahead and behind at their rates."""
+        return [JumpLaw(forward, {s.target.ahead: 1}), JumpLaw(backward, {s.target.behind: 1})]
 
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            ahead: Annotated[object, StateSpec()] = 0.0,
-            behind: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.ahead = ahead
-            self.behind = behind
-
-        def _get_laws(self, s):
-            """Return the laws of the walker element."""
-            return [JumpLaw(forward, {s.ahead: 1}), JumpLaw(backward, {s.behind: 1})]
-
-    system = CompositeSystem(elements=[WalkerElement('walker')])
+    walker = Element('walker', values={'ahead': 0.0, 'behind': 0.0})
+    system = System(elements=[walker], interactions=[Interaction('steps', roles={'target': 'walker'}, laws=steps)])
+    system.prepare()
     currents = []
     for index in range(paths):
-        trajectory = simulate(system, until=duration, dt=duration, random_state=seed + index)
+        trajectory = system.simulate(until=duration, dt=duration, random_state=seed + index)
         currents.append(trajectory.get_values('walker.ahead')[-1] - trajectory.get_values('walker.behind')[-1])
     return np.asarray(currents)
 

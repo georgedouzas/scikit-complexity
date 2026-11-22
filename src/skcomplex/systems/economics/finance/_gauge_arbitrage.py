@@ -6,7 +6,7 @@ Traders who move a good on sites source them.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
@@ -17,15 +17,16 @@ import scipy.sparse.linalg
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import NeighborInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
-from ....core.components.spaces import CellComplexSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.spaces import BaseSpace, CellComplexSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 SOLVER_TOLERANCE = 1e-15
 
@@ -37,15 +38,15 @@ class GoodSiteElement(Element):
         label:
             The label of the site or the group on the sites.
 
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
         rho:
             The initial density of the good.
 
+        space:
+            The space whose sites hold the members, or `None` for one site.
+
     Attributes:
         default_visual_:
-            The visual of the site when it sets none.
+            How the site is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.economics.finance import GoodSiteElement
@@ -56,11 +57,11 @@ class GoodSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[float, StateSpec()] = 1.0,
+        rho: object = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rho = rho
 
 
@@ -73,18 +74,21 @@ class ExchangeLinkElement(Element):
         label:
             The label of the link or the group on the links.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         A:
             The initial exchange-rate potential.
 
         E:
             The initial value of `F_0i` of Schwichtenberg (2020 Eq. 2.22), the rate of change of the potential.
 
+        space:
+            The space whose links hold the members, or `None` for one link.
+
+        on:
+            `'edges'` for one member on every link of the space, or `None` for one per site.
+
     Attributes:
         default_visual_:
-            The visual of the link when it sets none.
+            How the link is drawn by default, the `visual` of its class.
 
     Examples:
         >>> from skcomplex.systems.economics.finance import ExchangeLinkElement
@@ -92,20 +96,23 @@ class ExchangeLinkElement(Element):
         0.5
     """
 
+    visual = VisualSpec('cell', {'state': 'A'})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, StateSpec()] = 0.0,
-        E: Annotated[float, StateSpec()] = 0.0,
+        A: object = 0.0,
+        E: object = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.A = A
         self.E = E
 
 
-class TraderCurrentInteraction(NeighborInteraction):
+class TraderCurrentInteraction(Interaction):
     """Trader current along the links, down the covariant gradient.
 
     The current is `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)`. The covariant derivative is `D_mu = d_mu - A_mu`
@@ -117,13 +124,11 @@ class TraderCurrentInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
-        target:
-            The path of the group on the sites.
-
-        links:
-            The path of the group on the edges.
+        among:
+            The path of the group on the sites, whose links the laws run on, reading the potential `A` of the element on
+            the links.
 
         D:
             The diffusivity of the good.
@@ -131,9 +136,12 @@ class TraderCurrentInteraction(NeighborInteraction):
         q:
             The charge of the good.
 
+        along:
+            The edges the laws run on, `True` for the links of the space of the sites.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import TraderCurrentInteraction
-        >>> TraderCurrentInteraction('current', target='sites', links='links', q=0.5).q
+        >>> TraderCurrentInteraction('current', among='sites', q=0.5).q
         0.5
     """
 
@@ -143,32 +151,31 @@ class TraderCurrentInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        q: Annotated[float, ParameterSpec()] = 0.2,
+        among: Role,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        q: float = 0.2,
+        along: bool | str = True,
     ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.links = links
+        super().__init__(label, among=among, along=along)
         self.D = D
         self.q = q
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the good at both ends of a link and of its electric field.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the good at both ends of a link and of its electric field as the laws.
 
         Args:
-            namespace:
-                The namespace of an edge, with the ends `source` and `target` and the member `edge`.
-
-        Returns:
-            laws:
-                The rates.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        source, target, edge = namespace.source, namespace.target, namespace.edge
+        super()._prepare(context)
+        source, target, edge = context.source, context.target, context.edge
         middle = (source.rho + target.rho) / 2
-        current = -namespace.D * (target.rho - source.rho - namespace.q * edge.A * middle)
-        return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
+        current = -context.D * (target.rho - source.rho - context.q * edge.A * middle)
+        self.laws_: list[BaseLaw] = [
+            RateLaw(source.rho, -current),
+            RateLaw(target.rho, current),
+            RateLaw(edge.E, -current),
+        ]
 
 
 class GaugeArbitrageMarketSystem(BaseSystem):
@@ -205,6 +212,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
         >>> [element.label for element in GaugeArbitrageMarketSystem(4).prepare().system_.elements]
@@ -216,7 +229,6 @@ class GaugeArbitrageMarketSystem(BaseSystem):
     references = ('Schwichtenberg 2020',)
     until = 20.0
     dt = 0.5
-    solver = RK4Solver(dt=0.02)
 
     @staticmethod
     def _get_total_good(t: float, values: Mapping[str, object]) -> float:
@@ -238,12 +250,12 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         return float(np.abs(-(edges.T @ electric) - (density - density.mean())).max())
 
     @staticmethod
-    def _get_market_observables(system: CompositeSystem) -> list[ObservableSpec]:
+    def _get_market_observables(system: System) -> list[Observable]:
         """Return the total of the good and the Gauss residual against its excess density."""
         space = system.elements[0].space.prepare()
         return [
-            ObservableSpec('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
-            ObservableSpec(
+            Observable('total_good', function=GaugeArbitrageMarketSystem._get_total_good),
+            Observable(
                 'gauss_residual',
                 function=partial(GaugeArbitrageMarketSystem._get_gauss_residual, space.incidences_[0]),
             ),
@@ -258,8 +270,10 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         bump: float = 1.0,
         seed: int = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.D = D
         self.q = q
@@ -295,39 +309,26 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         )[0]
         return np.asarray(field, dtype=float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
         density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
         field = self._get_initial_field(space.incidences_[0], density - density.mean())
-        sites = GroupElement(
-            'sites',
-            element=GoodSiteElement,
-            space=space,
-            on='sites',
-            values={'rho': density},
-            visual=VisualSpec(),
-        )
-        links = GroupElement(
-            'links',
-            element=ExchangeLinkElement,
-            space=space,
-            on='edges',
-            values={'E': field},
-            visual=VisualSpec('cell', {'state': 'A'}),
-        )
+        sites = GoodSiteElement('sites', rho=density, space=space)
+        links = ExchangeLinkElement('links', E=field, space=space, on='edges')
         interactions = [
-            RateInteraction('potential', target='links', state='A', rate=self._get_potential_rate),
-            RateInteraction('field', target='links', state='E', rate=self._get_field_rate),
-            TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
+            Interaction(
+                'potential',
+                roles={'target': 'links'},
+                laws=lambda s: [RateLaw(s.target.A.diff(s.t), self._get_potential_rate(s))],
+            ),
+            Interaction(
+                'field',
+                roles={'target': 'links'},
+                laws=lambda s: [RateLaw(s.target.E.diff(s.t), self._get_field_rate(s))],
+            ),
+            TraderCurrentInteraction('current', among='sites', D=self.D, q=self.q),
         ]
-        return CompositeSystem(self.label, elements=[sites, links], interactions=interactions)
-
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
-
-        The observables of the parts are built from the model parameters.
-        """
-        settings = super().get_run_settings()
-        settings['observables'] = GaugeArbitrageMarketSystem._get_market_observables(self._get_pass_parameters())
-        return settings
+        self.system_ = System(self.label, elements=[sites, links], interactions=interactions, solver=RK4Solver(dt=0.02))
+        self.observables_ = tuple(GaugeArbitrageMarketSystem._get_market_observables(self.system_))

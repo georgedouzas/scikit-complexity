@@ -1,4 +1,4 @@
-"""Match, order into blocks, and solve the equations of a system."""
+"""Match, order, and solve the equations of algebraic states."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,10 +15,10 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.optimize import root
 
-from ....components.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....base import BaseSpec
+from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....components.laws._boundary import _BoundaryLaw
 from ....errors import SolverError, ValidationError
-from ....specs import CallSpec, IssueSpec
-from ....specs._base_spec import BaseSpec
 from ....types import Array
 from ..._utils import symbols_of, vector
 from ...problems._expression_printer import ExpressionPrinter
@@ -28,6 +28,7 @@ from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 
@@ -53,14 +54,16 @@ class _NumericBlockSpec(BaseSpec):
 
 
 class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]]):
-    """A lowering of equations into rate and algebraic laws.
+    """A lowering that solves the equations of a system for its algebraic states.
 
-    The equations are in highest derivatives and algebraic states. `run(specs)` matches the relations of the specs to
-    their unknowns, orders the matched pairs into blocks, and solves every block: a block linear in its unknowns
-    symbolically up to six unknowns and by a linear solve above, and any other block by `scipy.optimize.root` with the
-    Jacobian Sage derives, from the values of the last evaluation. The laws that read algebraic states read their
-    solutions. `lowered_` holds the specs without their relations, and a last spec with a rate law per highest
-    derivative and an algebraic law per algebraic state.
+    An algebraic state is fixed at every moment by equations, such as the currents of a circuit that Kirchhoff's laws
+    fix. `run(specs)` matches every equation to the unknown it solves, orders the matched pairs into blocks that can be
+    solved one after the other, and solves every block: a small linear block by hand, a large linear block by a linear
+    solve, and any other block numerically by `scipy.optimize.root`. The laws that read algebraic states then read their
+    solutions, and `lowered_` holds a rate law per highest derivative and an algebraic law per algebraic state. It
+    solves circuits, motors, and networks of pipes.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         relations:
@@ -85,6 +88,17 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         solve_:
             The function of time and `arguments_` that returns the values of `numeric_`.
+
+    See Also:
+        AlgebraicLaw: Gives an algebraic state its value.
+        OrdersPass: The pass that runs this lowering.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.engineering.mechatronics import DcMotorSystem
+        >>> compilation = PassCompiler().prepare(DcMotorSystem()).compilation_
+        >>> [type(law).__name__ for _, laws in compilation.ordered for law in laws].count('AlgebraicLaw')
+        7
     """
 
     guesses_: dict[Expression, float]
@@ -456,14 +470,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         if isinstance(law, JumpLaw):
             rate = self._get_substituted(law.rate, time, owner)
             return law if rate is law.rate else BasePass._get_replaced(law, rate=rate)
-        if isinstance(law, CrossingLaw | RenewalLaw):
+        if isinstance(law, EventLaw | RenewalLaw):
             return self._copy_with_event_solutions(law, owner)
-        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
+        if isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw):
             value = self._get_substituted(law.value, time, owner)
             return law if value is law.value else BasePass._get_replaced(law, value=value)
         return law
 
-    def _copy_with_event_solutions(self, law: CrossingLaw | RenewalLaw, owner: str) -> BaseLaw:
+    def _copy_with_event_solutions(self, law: EventLaw | RenewalLaw, owner: str) -> BaseLaw:
         """Return an event or renewal that reads the symbolic solutions.
 
         Its guard, waiting time, and reset read them.
@@ -520,6 +534,19 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
                 solutions.update(solved)
         return solutions, numeric
 
+    @staticmethod
+    def _get_member_groups(relations: Sequence[_RelationSpec]) -> tuple[str | None, tuple[str, ...]]:
+        """Return the group and the aligned groups that the solved laws run over.
+
+        A constraint of an interaction on a group, such as `y == a x^2` for every point of a group, holds for every
+        member, so its solution reads the values of each member in its own row.
+        """
+        groups = list(dict.fromkeys(relation.spec.group for relation in relations if relation.spec.group is not None))
+        aligned = dict.fromkeys(item for relation in relations for item in relation.spec.aligned)
+        if not groups:
+            return None, ()
+        return groups[0], tuple(dict.fromkeys([*groups[1:], *aligned]))
+
     def _run(self, inputs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]] | None) -> None:
         """Set `lowered_`, the specs without their relations and a spec of unknowns.
 
@@ -547,7 +574,8 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         }
         owner = ', '.join(dict.fromkeys(relation.spec.owner for relation in relations))
         rows = max((relation.spec.rows for relation in relations), default=1)
-        merged = KernelSpec(owner, SimpleNamespace(), references, rows)
+        group, aligned = self._get_member_groups(relations)
+        merged = KernelSpec(owner, SimpleNamespace(), references, rows, group=group, aligned=aligned)
         laws: list[BaseLaw] = []
         for item, state in self.unknowns.items():
             value = self._get_value_of(SR(solutions.get(item, item)), time)

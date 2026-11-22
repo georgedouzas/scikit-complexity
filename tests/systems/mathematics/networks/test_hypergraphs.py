@@ -9,7 +9,6 @@ import xgi
 from skcomplex.core.analysis import fit_law
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem, HypergraphRandomWalkSystem
 
 from .conftest import _final_graph
@@ -42,9 +41,9 @@ def test_hypergraph_random_walk_drift_follows_the_master_equation(backend):
 def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
     """Test that the probability keeps its sum and settles on the weights of the hyperedges of every node."""
     system = HypergraphRandomWalkSystem(seed=0).prepare().system_
-    trajectory = simulate(system, until=60.0, dt=1.0)
+    trajectory = system.simulate(until=60.0, dt=1.0)
     probabilities = np.asarray(trajectory.get_values('nodes.p'))
-    weights = np.asarray(system.elements[0].values['D'])
+    weights = np.asarray(system.elements[0].D)
     assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-9)
     assert np.allclose(probabilities[-1], weights / weights.sum(), atol=1e-6)
 
@@ -52,13 +51,7 @@ def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
     """Test that 50 steps from one triangle give 51 triangles along edges, each with its age in steps."""
-    simulation = simulate(
-        GrowingSimplicialComplexSystem(60).prepare().system_,
-        until=50,
-        backend=backend,
-        random_state=0,
-    )
-    trajectory = simulation
+    trajectory = GrowingSimplicialComplexSystem(backend=backend).prepare().simulate(until=50, random_state=0)
     network = trajectory.get_network(-1)
     graph = network.get_graph()
     assert network.hyperedges.shape == (51, 3)
@@ -71,7 +64,7 @@ def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
 
 def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
     """Test that gluing triangles along uniform edges gives a degree tail exponent near 3."""
-    graph, _ = _final_graph(GrowingSimplicialComplexSystem(2003).prepare().system_, 2000)
+    graph, _ = _final_graph(GrowingSimplicialComplexSystem(), 2000)
     assert graph.number_of_edges() == 3 + 2 * 2000
     degrees = np.array([degree for _, degree in graph.degree])
     fit = fit_law(degrees, minimum=8, discrete=True, bootstrap=0)
@@ -79,7 +72,7 @@ def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
 
 
 def test_growing_simplicial_complex_is_created_by_name():
-    """Test that the system is registered with variable groups on its nodes, edges, and triangles."""
+    """Test that the system holds groups on the nodes, the edges, and the triangles of its network."""
     system = GrowingSimplicialComplexSystem().prepare().system_
-    assert [element.on for element in system.elements] == ['sites', 'edges', 'hyperedges']
-    assert all(element.variable for element in system.elements)
+    assert [element.on for element in system.elements] == [None, 'edges', 'hyperedges']
+    assert all(element.space is system.space for element in system.elements)

@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import DomainsResult, domains
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
 from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
@@ -70,7 +69,7 @@ def test_domain_growth_two_coarsening_laws():
 
 def test_domain_growth_of_an_ising_trajectory():
     """Test that a quenched Ising trajectory gives one domain size per frame that grows."""
-    trajectory = simulate(IsingSystem(size=64, temperature=1.0).prepare().system_, until=100, dt=1, random_state=0)
+    trajectory = IsingSystem(size=64, temperature=1.0).prepare().simulate(until=100, dt=1, random_state=0)
     growth = _domains('growth', trajectory, fit_range=(10, 100))
     assert growth.size.shape == (len(trajectory.times),)
     assert growth.exponent > 0
@@ -79,10 +78,10 @@ def test_domain_growth_of_an_ising_trajectory():
 @pytest.mark.slow
 def test_pattern_wavelength_turing_patterns_on_two_domains():
     """Test that Swift-Hohenberg rolls have wavelength 2 pi and a Brusselator its critical Turing wavelength."""
-    rolls = simulate(SwiftHohenbergSystem(), random_state=0).get_lattice('cells.u')[-1]
+    rolls = SwiftHohenbergSystem().prepare().simulate(random_state=0).get_lattice('cells.u')[-1]
     wavelength = _domains('wavelength', rolls, spacing=16 * math.pi / 64).wavelength[0]
     assert wavelength == pytest.approx(2 * math.pi, rel=0.05)
-    brusselator = simulate(BrusselatorSystem(b=1.95).prepare().system_, until=400.0, dt=10.0)
+    brusselator = BrusselatorSystem(b=1.95).prepare().simulate(until=400.0, dt=10.0)
     spots = brusselator.get_lattice('cells.u')[-1]
     critical = 2 * math.pi / math.sqrt(1 / math.sqrt(1.0 * 8.0))
     assert _domains('wavelength', spots).wavelength[0] == pytest.approx(critical, rel=0.1)

@@ -1,19 +1,16 @@
 """Test the `Yoshida4Solver` class."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import HamiltonianInteraction, RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import Yoshida4Solver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
+from skcomplex.systems.physics.common.mechanics import HamiltonianInteraction
 
 
 class PlaneElement(Element):
@@ -23,10 +20,10 @@ class PlaneElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        px: Annotated[object, StateSpec()] = 0.0,
-        py: Annotated[object, StateSpec()] = 1.0,
+        x: float = 1.0,
+        y: float = 0.0,
+        px: float = 0.0,
+        py: float = 1.0,
     ) -> None:
         super().__init__(label)
         self.x = x
@@ -35,7 +32,7 @@ class PlaneElement(Element):
         self.py = py
 
 
-def _oscillator() -> CompositeSystem:
+def _oscillator() -> System:
     """Return a harmonic oscillator in the plane written with a Hamiltonian."""
     energy = HamiltonianInteraction(
         'energy',
@@ -44,12 +41,13 @@ def _oscillator() -> CompositeSystem:
         momenta=('px', 'py'),
         hamiltonian=lambda s: (s.target.px**2 + s.target.py**2 + s.target.x**2 + s.target.y**2) / 2,
     )
-    return CompositeSystem(elements=[PlaneElement('mass')], interactions=[energy])
+    return System(elements=[PlaneElement('mass')], interactions=[energy])
 
 
 def _final_error(backend: type, dt: float) -> float:
     """Return the error of the oscillator at time 10 for an internal step."""
-    trajectory = simulate(_oscillator(), until=10.0, backend=backend(), solver=Yoshida4Solver(dt=dt), dt=10.0)
+    system = _oscillator().set_params(backend=backend(), solver=Yoshida4Solver(dt=dt)).prepare()
+    trajectory = system.simulate(until=10.0, dt=10.0)
     return float(abs(trajectory.get_values('mass.x')[-1] - np.cos(10.0)))
 
 
@@ -62,7 +60,8 @@ def test_run_converges_at_fourth_order(backend):
 
 def test_run_bounds_the_energy_of_a_long_run():
     """Test that the energy of the oscillator drifts by less than 1e-6 over a thousand periods."""
-    trajectory = simulate(_oscillator(), until=6000.0, solver=Yoshida4Solver(dt=0.05), dt=100.0)
+    system = _oscillator().set_params(solver=Yoshida4Solver(dt=0.05)).prepare()
+    trajectory = system.simulate(until=6000.0, dt=100.0)
     energy = sum(trajectory.get_values(f'mass.{name}') ** 2 for name in ('x', 'y', 'px', 'py')) / 2
     assert np.ptp(energy) < 1e-6
 
@@ -82,15 +81,19 @@ def test_prepare_rejects_a_hamiltonian_that_couples_momenta():
         momenta=('px', 'py'),
         hamiltonian=_rotating_energy,
     )
-    system = CompositeSystem(elements=[PlaneElement('mass')], interactions=[rotating])
+    system = System(elements=[PlaneElement('mass')], interactions=[rotating])
     with pytest.raises(SolverError, match=r'rate of mass\.p[xy] reads .*mass\.p[xy].*RK4Solver'):
-        Yoshida4Solver(dt=0.1).prepare(PassCompiler().prepare(system).run().problem_)
+        Yoshida4Solver(dt=0.1).prepare(system.prepare()._problem)
 
 
 def test_prepare_rejects_a_state_that_reads_itself():
     """Test that a damping rate, which reads its own state, admits no split."""
-    damping = RateInteraction('damping', target='mass', state='px', rate=lambda s: -s.target.px)
+    damping = Interaction(
+        'damping',
+        roles={'target': 'mass'},
+        laws=lambda s: [RateLaw(s.target.px.diff(s.t), -s.target.px)],
+    )
     system = _oscillator()
-    system = CompositeSystem(elements=system.elements, interactions=[*system.interactions, damping])
+    system = System(elements=system.elements, interactions=[*system.interactions, damping])
     with pytest.raises(SolverError, match=r'rate of mass\.px reads mass\.px'):
-        Yoshida4Solver(dt=0.1).prepare(PassCompiler().prepare(system).run().problem_)
+        Yoshida4Solver(dt=0.1).prepare(system.prepare()._problem)

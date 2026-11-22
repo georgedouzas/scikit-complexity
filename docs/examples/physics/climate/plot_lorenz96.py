@@ -15,7 +15,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import Lorenz96System
 
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = Lorenz96System()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=3)
-trajectory = simulate(system, until=30, observers=[observer])
+trajectory = system.prepare().simulate(until=30, observers=[observer])
 
 # %%
 # Space-time diagram of the waves

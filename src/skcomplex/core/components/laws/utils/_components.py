@@ -5,10 +5,10 @@
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....enums import ComponentReductionKind
 from ....errors import ValidationError
-from ....specs import LayerSpec
-from ...spaces import BaseNeighborhood
-from ._reductions import COMPONENT_REDUCTIONS, COMPONENTS, _neighborhood_symbol
+from ...spaces import BaseNeighborhood, LayerSpec
+from ._reductions import COMPONENTS, _neighborhood_symbol
 
 
 def components(
@@ -16,31 +16,29 @@ def components(
     over: BaseNeighborhood | LayerSpec | None = None,
     reduce: str = 'label',
 ) -> Expression:
-    """Return a reduction over the connected components of the active links.
+    """Return the clusters of members joined by active links, as a value per member.
 
-    The links are those between the members of a group. The links are the pairs of neighbours of the neighbourhood, the
-    graph of a network space by default, and a link is active when `active`, written for one link as in `neighbors`, is
-    not 0. Inside it `namespace.other` holds the symbols of the neighbour, `namespace` those of the member, and the
-    states of a group on the edges of the network those of the edge that joins them, so a link is active by a condition,
-    such as `edges.state > 0`, or by an edge weight that is not 0. Two members are in one component when a path of
-    active links joins them, read without direction on a directed network, and a member without active links is a
-    component of its own.
+    A link joins two neighbours of a group, and it is active where `active` is not 0, such as
+    `components(edges.open > 0, reduce='size')` for the size of the cluster of open links each member is in. Inside
+    `active`, `namespace.other` holds the values of the neighbour, `namespace` those of the member, and a group on the
+    edges those of the edge. Two members share a cluster when a path of active links joins them, read in both
+    directions, and a member without active links is a cluster of its own. It finds the spanning cluster of a porous
+    rock, the outbreak cluster of an epidemic, and the groups of firms that a default can reach.
 
-    The reductions are `'label'`, the smallest index of a member of the component of every member, `'size'`, the
-    number of members of the component of every member, `'largest'`, the number of members of the largest component,
-    the same for every member, and `'giant'`, 1 for the members of the largest component and 0 for the others, the
-    component of the smallest label among components of equal size.
+    Read more in the user guide, under Laws.
 
     Args:
         active:
-            The activity of one link, an expression of the symbols of `namespace.other`, `namespace`, and the edge
-            between them, whose links are active where it is not 0.
+            The value of one link, an expression of the values of `namespace.other`, `namespace`, and the edge between
+            them, whose links are active where it is not 0.
 
         over:
             The neighbourhood, or `None` for the neighbours of the network or lattice the group lives on.
 
         reduce:
-            `'label'`, `'size'`, `'largest'`, or `'giant'`.
+            What to give every member. `'label'` gives the smallest index of a member of its cluster, `'size'` the
+            number of members of its cluster, `'largest'` the number of members of the largest cluster, and `'giant'`
+            gives 1 in the largest cluster and 0 elsewhere, taking the smallest label among clusters of equal size.
 
     Returns:
         reduction:
@@ -50,16 +48,17 @@ def components(
         ValidationError:
             The reduction or the neighbourhood is unknown.
 
+    See Also:
+        neighbors: Reduces the values of the neighbours of every member.
+        shortest_paths: Measures the shortest paths of the active links.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import components
-        >>> from skcomplex.core.components.laws.utils._reductions import neighborhoods_in
         >>> components(var('open') > 0, reduce='size')
         components(open > 0, reduce='size')
-        >>> [item.kind for item in neighborhoods_in(1 + components(var('open'), reduce='largest'))]
-        ['component-largest']
     """
-    if reduce not in COMPONENT_REDUCTIONS:
-        error_msg = f'Unknown components reduction {reduce!r}. Use one of {", ".join(COMPONENT_REDUCTIONS)}.'
+    if reduce not in ComponentReductionKind:
+        error_msg = f'Unknown components reduction {reduce!r}. Use one of {", ".join(ComponentReductionKind)}.'
         raise ValidationError(error_msg)
-    return COMPONENTS(SR(active), _neighborhood_symbol(over), COMPONENT_REDUCTIONS.index(reduce))
+    return COMPONENTS(SR(active), _neighborhood_symbol(over), tuple(ComponentReductionKind).index(reduce))

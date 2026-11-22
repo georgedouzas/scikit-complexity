@@ -1,4 +1,4 @@
-"""Lower differential operators on fields to stencils and graph Laplacians."""
+"""Rewrite the operators of fields as sums over neighbouring sites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,38 +17,41 @@ from scipy.ndimage import convolve, map_coordinates
 from scipy.signal import oaconvolve
 from scipy.sparse import csr_matrix, diags, identity
 from scipy.sparse.linalg import factorized
-from skfem import Basis, ElementTetP1, ElementTriP1, asm
+from skfem import Basis, ElementTetP1, ElementTriP1, MeshTet, MeshTri, asm
 from skfem.models.poisson import laplace, mass
 
-from ...components.elements import FieldElement
-from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
 from ...components.laws.utils import coordinate, displacement, integration_variable, where
 from ...components.laws.utils._operators import COLLISION_COSINE, COLLISION_SPEED, INVERSION_BOUNDARIES
 from ...components.laws.utils._phase import COORDINATE_PREFIX
 from ...components.spaces import (
     AdjacencyNeighborhood,
+    BaseSpace,
+    CellComplexSpace,
     LatticeNeighborhood,
     LatticeSpace,
-    MeshSpace,
     NetworkSpace,
     PhaseSpace,
-    SimplexSpace,
 )
 from ...errors import ValidationError
-from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Array, Indices, IntTuple
 from .._utils import domain_of, symbol
+from ..enums import ReadKind
+from ..problems import RunStateSpec
 from ..problems._collision_kernel import CollisionKernel
 from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ..problems._expression_printer import ExpressionPrinter
+from ..problems._field_element import _FieldElement
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
+from ..problems._neighbor_read_spec import _NeighborReadSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
+from ._flux_law import _FluxLaw
 
 OPERATOR_NAMES = (
     'laplacian',
@@ -76,11 +79,15 @@ FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
 class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
-    """A lowering of the differential operators in the laws of one part to stencils.
+    """A lowering that rewrites field operators as sums over neighbouring sites.
 
-    The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial
-    values of the compilation, and `run(laws)` returns the laws with every operator replaced by its stencil, noting the
-    stable steps of the Laplacians of rate laws.
+    A law of a field may apply an operator such as `laplacian(u)`, the spread of heat at every site of a plate. This
+    lowering rewrites every such operator as a weighted sum over the neighbouring sites, a stencil, or as a matrix of a
+    network, a spectral grid, or a mesh. It also notes the largest stable time step of every explicit Laplacian, so a
+    solver can choose its step. It serves the heat of a plate, the concentrations of a reaction and diffusion, and the
+    height of shallow water.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         spec:
@@ -118,12 +125,24 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         applied_:
             The lowered value of every operator call so far, by its name and its lowered operands, so an identical call
             shares one value.
+
+    See Also:
+        LowerFieldsPass: The pass that runs this lowering.
+        LatticeSpace: A grid of sites that fields live on.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._field_lowering import FieldLowering
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
+        >>> compilation = PassCompiler().prepare(HeatDiffusionSystem()).compilation_
+        >>> list(FieldLowering(compilation.specs[0][0]).prepare(compilation).fields_)
+        ['plate.u', 'plate.D']
     """
 
-    fields_: Mapping[str, FieldElement]
+    fields_: Mapping[str, _FieldElement]
     initial_: Mapping[Expression, float]
     shifted_: dict[Expression, tuple[Expression, IntTuple | int]]
-    derived_: dict[Expression, tuple[FieldElement, FieldOperatorKernel]]
+    derived_: dict[Expression, tuple[_FieldElement, FieldOperatorKernel]]
     limits_: list[float]
     volume_limits_: list[DiffusiveLimitSpec]
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
@@ -148,7 +167,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         super()._prepare(context)
         declarations = self.compilation_.layout
         if declarations is None:
-            error_msg = 'The compilation has no layout yet. Lower differential operators after the layout pass.'
+            error_msg = 'The compilation has no layout yet. Run the layout pass before rewriting operators.'
             raise ValidationError(error_msg)
         self.fields_ = self._get_field_entries(declarations)
         self.initial_ = self._get_initial_values(self.spec, declarations)
@@ -167,12 +186,12 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
-            if isinstance(law, FluxLaw) and self._get_law_has_operators(law):
+            if isinstance(law, _FluxLaw) and self._get_law_has_operators(law):
                 result.append(
                     BasePass._get_replaced(law, flux=[self._lower(SR(item)) for item in self._get_components(law)]),
                 )
                 continue
-            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not self._has_operators(law.value):
+            if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw) or not self._has_operators(law.value):
                 result.append(law)
                 continue
             if isinstance(law, RateLaw):
@@ -185,12 +204,12 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self.lowered_ = result
 
     @staticmethod
-    def _get_field_entries(declarations: DeclarationsSpec) -> dict[str, FieldElement]:
+    def _get_field_entries(declarations: DeclarationsSpec) -> dict[str, _FieldElement]:
         """Return the fields by the name of each of their entries."""
         return {
             entry.name: block.node.component
             for block in declarations.blocks.values()
-            if isinstance(block.node.component, FieldElement)
+            if isinstance(block.node.component, _FieldElement)
             for entry in block.entries.values()
         }
 
@@ -227,11 +246,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         reference = self._get_reference_of(item, self.spec)
         if reference is None:
-            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter of its namespace.'
+            error_msg = f'A law of {self.spec.owner} reads {item}, which is not a state or parameter it can read.'
             raise ValidationError(error_msg)
         return reference
 
-    def _get_field_of(self, item: Expression) -> FieldElement | None:
+    def _get_field_of(self, item: Expression) -> _FieldElement | None:
         """Return the field whose member a symbol reads, or `None` for a single value."""
         reference = self._get_known_reference(item)
         if reference.source is not ReadKind.MEMBER:
@@ -240,7 +259,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if found is None:
             error_msg = (
                 f'A law of {self.spec.owner} applies a differential operator to {item}, which is not a state or '
-                'parameter of a field. Create the group with `FieldElement`.'
+                'parameter of a field. Give the element a lattice or a mesh as its space.'
             )
             raise ValidationError(error_msg)
         return found
@@ -248,7 +267,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     def _get_table(
         self,
         item: Expression,
-        place: FieldElement,
+        place: _FieldElement,
         offset: IntTuple | int,
     ) -> tuple[Indices, float | None, int | None]:
         """Return the neighbour table, fixed value, and mode of a symbol at an offset."""
@@ -258,7 +277,11 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             kind, value = place._get_boundary(variable, reference.column)
         else:
             kind, value = (
-                'periodic' if getattr(place.space, 'boundary', 'periodic') == 'periodic' else 'zero-flux',
+                (
+                    'zero-flux'
+                    if isinstance(place.space, LatticeSpace) and place.space._get_edges() != 'periodic'
+                    else 'periodic'
+                ),
                 0.0,
             )
         key = (id(place), kind, value, offset)
@@ -325,7 +348,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 table, ghost, mode = self._get_table(base, place, total)
                 space = place.space
                 lattice = space if isinstance(space, LatticeSpace) and mode is not None else None
-                read = NeighborReadSpec(
+                read = _NeighborReadSpec(
                     table,
                     ghost,
                     None if lattice is None else lattice.shape_,
@@ -386,7 +409,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 found.append(place._get_boundary(reference.entry.name.rpartition('.')[2], reference.column))
         return found
 
-    def _get_boundary(self, expression: Expression, place: FieldElement) -> tuple[str, object]:
+    def _get_boundary(self, expression: Expression, place: _FieldElement) -> tuple[str, object]:
         """Return the one boundary condition of the field states an expression reads.
 
         Without one, it is the edges of the space.
@@ -401,7 +424,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return found.pop() if found else place._get_boundary('')
 
-    def _get_neighbor_table(self, place: FieldElement, kind: str, value: object, offset: IntTuple | int) -> Indices:
+    def _get_neighbor_table(self, place: _FieldElement, kind: str, value: object, offset: IntTuple | int) -> Indices:
         """Return the neighbour of every site at an offset.
 
         Reads beyond fixed edges get the number of sites.
@@ -456,13 +479,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self.shifted_[target] = (base, total)
         return self._get_derived(place, read, target)
 
-    def _get_places(self, expression: Expression) -> dict[int, FieldElement]:
+    def _get_places(self, expression: Expression) -> dict[int, _FieldElement]:
         """Return the fields an expression reads.
 
         The fields are read through member symbols, neighbour reads, and derived values.
         """
-        places: dict[int, FieldElement] = {}
-        place: FieldElement | None
+        places: dict[int, _FieldElement] = {}
+        place: _FieldElement | None
         for item in SR(expression).variables():
             if item in self.derived_:
                 place = self.derived_[item][0]
@@ -473,7 +496,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 places[id(place)] = place
         return places
 
-    def _place(self, expression: Expression) -> FieldElement:
+    def _place(self, expression: Expression) -> _FieldElement:
         """Return the one field an expression reads, or raise an error."""
         places = self._get_places(expression)
         discretizations = {place.discretization for place in places.values()}
@@ -496,10 +519,12 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         space = next(iter(spaces.values()))
-        if not isinstance(space, LatticeSpace | NetworkSpace):
+        if not isinstance(space, LatticeSpace | NetworkSpace) or (
+            isinstance(space, CellComplexSpace) and space._is_mesh()
+        ):
             error_msg = (
-                f'A law of {self.spec.owner} applies a stencil to {expression}, which lives on a mesh. Use the '
-                'finite-element discretization.'
+                f'A law of {self.spec.owner} applies a finite difference operator to {expression}, which lives on a '
+                'mesh. Use the finite-element discretization.'
             )
             raise ValidationError(error_msg)
         return space
@@ -571,7 +596,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return self._get_cumulative(SR(operands[0]), int(SR(operands[1])), bool(SR(operands[2])), place)
         return self._get_discretized(name, operands, place)
 
-    def _get_phase_operator(self, name: str, operands: list[Expression], place: FieldElement) -> Expression:
+    def _get_phase_operator(self, name: str, operands: list[Expression], place: _FieldElement) -> Expression:
         """Return the value of an operator over the class axes of a phase space."""
         if name == 'reduce_axes':
             return self._get_reduced(operands[0], operands[1:], place)
@@ -581,7 +606,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return self._get_transformed(operands[0], operands[1], operands[2:], place)
         return self._get_collision(operands[0], operands[1], place)
 
-    def _get_phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
+    def _get_phase_space(self, operand: Expression, place: _FieldElement) -> PhaseSpace:
         """Return the phase space of a field whose class axes an operator reads.
 
         Another space raises an error.
@@ -609,7 +634,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             raise ValidationError(error_msg)
         return tuple(space.class_axes_[name] for name in names)
 
-    def _get_reduced(self, operand: Expression, coordinates: list[Expression], place: FieldElement) -> Expression:
+    def _get_reduced(self, operand: Expression, coordinates: list[Expression], place: _FieldElement) -> Expression:
         """Return the symbol of the integral of an expression over class axes.
 
         The integral is broadcast back along the axes.
@@ -635,7 +660,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         operand: Expression,
         kernel: Expression,
         coordinates: list[Expression],
-        place: FieldElement,
+        place: _FieldElement,
     ) -> Expression:
         """Return the symbol of the integral of an expression against a two-point kernel.
 
@@ -664,7 +689,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
         return self._get_derived(place, read.prepare())
 
-    def _get_cumulative(self, operand: Expression, axis: int, reverse: bool, place: FieldElement) -> Expression:
+    def _get_cumulative(self, operand: Expression, axis: int, reverse: bool, place: _FieldElement) -> Expression:
         """Return the symbol of the integral of an expression along a lattice axis.
 
         The integral runs up to every site or beyond it.
@@ -694,7 +719,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         operand: Expression,
         order: int,
         coordinates: list[Expression],
-        place: FieldElement,
+        place: _FieldElement,
     ) -> Expression:
         """Return the symbol of the density with the largest entropy.
 
@@ -728,7 +753,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
             return lambda speed, cosine: np.full(np.shape(speed), value)
         return np.vectorize(fast_callable(kernel, vars=arguments, domain=float), otypes=[float])
 
-    def _get_collision(self, operand: Expression, kernel: Expression, place: FieldElement) -> Expression:
+    def _get_collision(self, operand: Expression, kernel: Expression, place: _FieldElement) -> Expression:
         """Return the symbol of the binary collision integral of a density with a kernel.
 
         The integral runs over the class axes of its phase space.
@@ -744,12 +769,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         read = FieldOperatorKernel(operand=operand, symbols=self._get_symbols(operand), apply=apply)
         return self._get_derived(place, read.prepare())
 
-    def _get_discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
+    def _get_discretized(self, name: str, operands: list[object], place: _FieldElement) -> Expression:
         """Return a local operator or inversion lowered for its field's discretization."""
-        if isinstance(place.space, SimplexSpace):
+        if place.space is not None and not place.space._supports_operator(name):
             error_msg = (
-                f'A law of {self.spec.owner} applies {name} to a field on a simplex, which only takes finite-volume '
-                'fluxes, reductions, and integrals. Write the transport as a flux of the finite-volume discretization.'
+                f'A law of {self.spec.owner} applies {name} to a field on {type(place.space).__name__}, whose cells '
+                'only take finite-volume fluxes, reductions, and integrals. Write the transport as `-divergence(flux)` '
+                'on a finite-volume field.'
             )
             raise ValidationError(error_msg)
         if place.discretization == 'spectral':
@@ -777,7 +803,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     def _get_derived(
         self,
-        place: FieldElement,
+        place: _FieldElement,
         read: FieldOperatorKernel,
         target: Expression | None = None,
     ) -> Expression:
@@ -796,13 +822,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self.derived_[target] = (place, read)
         return target
 
-    def _get_spectral(self, name: str, operands: list[object], place: FieldElement) -> Expression:
+    def _get_spectral(self, name: str, operands: list[object], place: _FieldElement) -> Expression:
         """Return the symbol of a spectral operator applied to an expression.
 
         Chains of operators are composed.
         """
         space = place.space
-        if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
+        if not isinstance(space, LatticeSpace) or space._get_edges() != 'periodic':
             error_msg = f'A law of {self.spec.owner} uses a spectral field, which needs a periodic lattice.'
             raise ValidationError(error_msg)
         if name == 'upwind':
@@ -839,7 +865,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self,
         operand: Expression,
         multiplier: npt.NDArray[np.complex128],
-        place: FieldElement,
+        place: _FieldElement,
     ) -> Expression:
         """Return the symbol of a Fourier multiplier applied to an expression.
 
@@ -897,13 +923,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 '`inverse_helmholtz` its boundary as `boundary=`, with a number as the fixed value.'
             )
             raise ValidationError(error_msg)
-        return INVERSION_BOUNDARIES[int(code)], float(value)
+        return INVERSION_BOUNDARIES[int(code)].value, float(value)
 
     def _get_inverse(
         self,
         operand: Expression,
         screening: float,
-        place: FieldElement,
+        place: _FieldElement,
         given: tuple[str, float] | None = None,
     ) -> Expression:
         """Return the symbol of the solution of a modified-Helmholtz equation.
@@ -937,7 +963,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         if isinstance(space, NetworkSpace) and given is not None:
             error_msg = f'A law of {self.spec.owner} inverts on a network with a boundary. Give the inversion none.'
             raise ValidationError(error_msg)
-        if isinstance(space, MeshSpace):
+        if isinstance(space, CellComplexSpace) and space._is_mesh():
             apply = self._get_mesh_inverse(space, screening, kind, value)
         elif isinstance(space, NetworkSpace):
             apply = self._get_network_inverse(space, screening)
@@ -1058,7 +1084,13 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         inside = np.sqrt(sum((grid**2 for grid in grids), np.zeros(grids[0].shape))) <= distance * (1 + WHOLE_SITE)
         return np.where(inside, sampled, 0.0) * float(np.prod(space.spacings_))
 
-    def _convolve(self, operand: Expression, kernel: Expression, radius: Expression, place: FieldElement) -> Expression:
+    def _convolve(
+        self,
+        operand: Expression,
+        kernel: Expression,
+        radius: Expression,
+        place: _FieldElement,
+    ) -> Expression:
         """Return the symbol of the convolution of an expression with a lattice kernel.
 
         The convolution runs along the position axes of the lattice.
@@ -1099,7 +1131,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     def _get_window_matrix(
         self,
         window: npt.NDArray[np.float64],
-        place: FieldElement,
+        place: _FieldElement,
         kind: str,
         value: object,
     ) -> csr_matrix:
@@ -1172,14 +1204,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         )
         return self._get_derived(place, read.prepare())
 
-    def _get_finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
+    def _get_finite_element(self, name: str, operand: Expression, place: _FieldElement) -> Expression:
         """Return the symbol of the finite element Laplacian of an expression."""
         if name != 'laplacian':
             error_msg = (
                 f'A law of {self.spec.owner} takes the {name} of a finite element field, which takes Laplacians only.'
             )
             raise ValidationError(error_msg)
-        if not isinstance(place.space, MeshSpace):
+        if not isinstance(place.space, CellComplexSpace) or not place.space._is_mesh():
             error_msg = f'A law of {self.spec.owner} uses a finite element field, which needs a mesh.'
             raise ValidationError(error_msg)
         matrix = self._get_mesh_laplacian(place.space)
@@ -1390,7 +1422,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return guess
 
     @staticmethod
-    def _get_components(law: FluxLaw) -> list[object]:
+    def _get_components(law: _FluxLaw) -> list[object]:
         """Return the flux of every dimension of a flux law."""
         return list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
 
@@ -1400,17 +1432,18 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
         The flux of a flux law counts as its value.
         """
-        if isinstance(law, FluxLaw):
+        if isinstance(law, _FluxLaw):
             return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._get_components(law))
         return FieldLowering._has_operators(getattr(law, 'value', None))
 
     @staticmethod
-    def _get_volumes(space: object) -> npt.NDArray[np.float64] | float:
-        """Return the fraction of the volume of every cell inside a simplex domain.
+    def _get_volumes(space: BaseSpace) -> npt.NDArray[np.float64] | float:
+        """Return the fraction of the volume of every cell inside the domain of a space.
 
-        Outside a simplex space, the fraction is one.
+        A space of whole cells gives one.
         """
-        return space.volumes_ if isinstance(space, SimplexSpace) else 1.0
+        volumes = space._get_volumes()
+        return 1.0 if volumes is None else volumes
 
     @staticmethod
     def _get_over_positions(
@@ -1722,7 +1755,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
 
     @staticmethod
     def _get_mesh_inverse(
-        space: MeshSpace,
+        space: CellComplexSpace,
         screening: float,
         kind: str,
         fill: object,
@@ -1809,14 +1842,14 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         """
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
-        space = MeshSpace(nodes, elements)
-        basis = Basis(space.prepare().mesh_, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
+        mesh = (MeshTri if shape[0] == PLANE else MeshTet)(nodes, elements)
+        basis = Basis(mesh, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
         stiffness = asm(laplace, basis).tocsr()
         lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
         return stiffness, lumped
 
     @staticmethod
-    def _get_mesh_matrices(space: MeshSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
+    def _get_mesh_matrices(space: CellComplexSpace) -> tuple[csr_matrix, npt.NDArray[np.float64]]:
         """Return the stiffness matrix and lumped mass of the linear elements of a mesh.
 
         Args:
@@ -1832,7 +1865,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return FieldLowering._get_cached_mesh_matrices(points.tobytes(), cells.tobytes(), points.shape, cells.shape)
 
     @staticmethod
-    def _get_mesh_laplacian(space: MeshSpace) -> csr_matrix:
+    def _get_mesh_laplacian(space: CellComplexSpace) -> csr_matrix:
         """Return the discrete Laplacian of linear elements with lumped mass.
 
         It is `-M^-1 K`, as a sparse matrix.

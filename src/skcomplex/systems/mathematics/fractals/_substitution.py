@@ -14,50 +14,47 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import PatchElement, WordElement
-from ....core.components.laws import ProductionLaw, SubstitutionLaw
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ...general.rewriting import (
+    AffineSpec,
+    GeometrySpec,
+    PatchElement,
+    ProductionLaw,
+    PrototileSpec,
+    RewritingInteraction,
+    SubstitutionLaw,
+    WordElement,
+)
 
 SHAPES = ('triangle', 'carpet')
 LARGEST_RATIO = 0.5
 
 
-class CantorElement(PatchElement):
-    """Patch of intervals.
+class CantorInteraction(Interaction):
+    """Removal of the middle of every interval of a patch.
 
     Each interval is replaced by its first and its last part of the length `ratio`.
 
     Args:
         label:
-            The label of the patch.
+            The label of the interaction.
 
-        tiles:
-            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+        target:
+            The path of the patch of intervals.
 
         ratio:
             The length of each kept part relative to its interval.
 
-        prototiles:
-            The prototiles of the patch.
-
-        filled:
-            Whether the geometry visual draws polygons as a filled image instead of outlines.
-
-        max_size:
-            The largest number of tiles a generation may produce.
-
-        bounds:
-            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
-
-        visual:
-            How the patch is drawn, or `None` for `default_visual_`.
-
     Examples:
-        >>> from skcomplex.systems.mathematics.fractals import CantorElement
-        >>> CantorElement('cantor', ratio=0.25).ratio
+        >>> from skcomplex.systems.mathematics.fractals import CantorInteraction
+        >>> CantorInteraction('removal', target='cantor', ratio=0.25).ratio
         0.25
     """
 
@@ -66,159 +63,79 @@ class CantorElement(PatchElement):
     def __init__(
         self,
         label: str,
-        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
         *,
-        ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1 / 3,
-        prototiles: Sequence[PrototileSpec] = (),
-        filled: bool = False,
-        max_size: int = 10_000_000,
-        bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
+        target: Role,
+        ratio: Annotated[float, RealSet.open(0, oo)] = 1 / 3,
     ) -> None:
-        super().__init__(
-            label,
-            tiles,
-            prototiles=prototiles,
-            filled=filled,
-            max_size=max_size,
-            bounds=bounds,
-            visual=visual,
-        )
+        super().__init__(label)
+        self.target = target
         self.ratio = ratio
 
-    def _get_laws(self, s: SimpleNamespace) -> list[SubstitutionLaw]:
-        """Return the substitution of every interval by its two outer parts.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the substitution of every interval by its two outer parts.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The substitution of the patch.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
+        super()._prepare(context)
         pieces = [
-            ('interval', AffineSpec(scale=s.ratio)),
-            ('interval', AffineSpec(scale=s.ratio, translation=(1 - s.ratio, 0))),
+            ('interval', AffineSpec(scale=context.ratio)),
+            ('interval', AffineSpec(scale=context.ratio, translation=(1 - context.ratio, 0))),
         ]
-        return [SubstitutionLaw('interval', pieces)]
+        self.laws_: list[BaseLaw] = [SubstitutionLaw('interval', pieces)]
 
 
-class KochElement(WordElement):
-    """Word rewritten by the production `F → F+F--F+F` of the Koch curve.
-
-    Args:
-        label:
-            The label of the word.
-
-        axiom:
-            The word at generation 0.
-
-        geometry:
-            How the word is drawn as line segments, or `None` for no geometry.
-
-    Examples:
-        >>> from skcomplex.systems.mathematics.fractals import KochElement
-        >>> KochElement('koch', axiom='F').axiom
-        'F'
-    """
-
-    law_classes = (ProductionLaw,)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
-        """Return the production of the Koch curve.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The production of the word.
-        """
-        del s
-        return [ProductionLaw('F', 'F+F--F+F')]
-
-
-class SierpinskiElement(PatchElement):
-    """Patch of triangles or squares.
-
-    Each is replaced by the scaled copies of the Sierpiński triangle or carpet.
+class SierpinskiInteraction(Interaction):
+    """Replacement of every triangle or square of a patch by the scaled copies of the Sierpiński triangle or carpet.
 
     Args:
         label:
-            The label of the patch.
+            The label of the interaction.
 
-        tiles:
-            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+        target:
+            The path of the patch.
 
         shape:
             `'triangle'` or `'carpet'`.
 
-        prototiles:
-            The prototiles of the patch.
-
-        filled:
-            Whether the geometry visual draws polygons as a filled image instead of outlines.
-
-        max_size:
-            The largest number of tiles a generation may produce.
-
-        bounds:
-            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
-
-        visual:
-            How the patch is drawn, or `None` for `default_visual_`.
+    Raises:
+        ValidationError:
+            The shape is unknown.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.fractals import SierpinskiElement
-        >>> SierpinskiElement('sierpinski', shape='carpet').shape
+        >>> from skcomplex.systems.mathematics.fractals import SierpinskiInteraction
+        >>> SierpinskiInteraction('copies', target='sierpinski', shape='carpet').shape
         'carpet'
     """
 
     law_classes = (SubstitutionLaw,)
 
-    def __init__(
-        self,
-        label: str,
-        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
-        *,
-        shape: str = 'triangle',
-        prototiles: Sequence[PrototileSpec] = (),
-        filled: bool = False,
-        max_size: int = 10_000_000,
-        bounds: Sequence[float] | None = None,
-        visual: VisualSpec | None = None,
-    ) -> None:
-        super().__init__(
-            label,
-            tiles,
-            prototiles=prototiles,
-            filled=filled,
-            max_size=max_size,
-            bounds=bounds,
-            visual=visual,
-        )
+    def __init__(self, label: str, *, target: Role, shape: str = 'triangle') -> None:
+        super().__init__(label)
+        self.target = target
         self.shape = shape
 
-    def _get_laws(self, s: SimpleNamespace) -> list[SubstitutionLaw]:
-        """Return the substitution of every polygon by its scaled copies.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The substitution of the patch.
+    def _check_arguments(self) -> None:
+        """Raise an error for an unknown shape.
 
         Raises:
             ValidationError:
                 The shape is unknown.
         """
-        del s
-        prototile, pieces = SierpinskiElement._get_sierpinski_tiles(self.shape)
-        return [SubstitutionLaw(prototile.name, pieces)]
+        super()._check_arguments()
+        self._get_sierpinski_tiles(self.shape)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the substitution of every polygon by its scaled copies.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        prototile, pieces = self._get_sierpinski_tiles(self.shape)
+        self.laws_: list[BaseLaw] = [SubstitutionLaw(prototile.name, pieces)]
 
     @staticmethod
     def _get_sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
@@ -251,10 +168,15 @@ class KochCurveSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import KochCurveSystem
-        >>> simulate(KochCurveSystem(), until=3).get_values('koch.F').tolist()
+        >>> KochCurveSystem().prepare().simulate(until=3).get_values('koch.F').tolist()
         [1.0, 4.0, 16.0, 64.0]
     """
 
@@ -264,20 +186,29 @@ class KochCurveSystem(BaseSystem):
     until = 5
     dt = 1
 
-    def __init__(self, angle: float = 60.0, *, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        angle: float = 60.0,
+        *,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.angle = angle
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        word = KochElement(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        bend = RewritingInteraction('bend', target='koch', laws=[ProductionLaw('F', 'F+F--F+F')])
+        word = WordElement(
             'koch',
             axiom='F',
             alphabet='F+-',
             geometry=GeometrySpec(angle=self.angle, step=1.0, contraction=1 / 3),
             bounds=(-0.03, -0.05, 1.03, 0.35),
         )
-        return CompositeSystem(self.label, elements=[word])
+        self.system_ = System(self.label, elements=[word], interactions=[bend])
 
 
 class CantorSetSystem(BaseSystem):
@@ -295,14 +226,19 @@ class CantorSetSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The ratio is not between 0 and 1/2.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import CantorSetSystem
-        >>> simulate(CantorSetSystem(), until=3).get_values('cantor.size').tolist()
+        >>> CantorSetSystem().prepare().simulate(until=3).get_values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
 
@@ -312,16 +248,23 @@ class CantorSetSystem(BaseSystem):
     until = 8
     dt = 1
 
-    def __init__(self, ratio: float = 1 / 3, *, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        ratio: float = 1 / 3,
+        *,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.ratio = ratio
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for a ratio outside of `(0, 1/2)`, then check the parts.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters.
 
         Args:
             context:
-                The space a nested system inherits from the system that holds it, or `None`.
+                The observables to compile with the problem, or `None` for none.
 
         Raises:
             ValidationError:
@@ -331,12 +274,10 @@ class CantorSetSystem(BaseSystem):
         if not 0 < self.ratio < LARGEST_RATIO:
             error_msg = f'ratio = {self.ratio!r} must lie between 0 and 1/2.'
             raise ValidationError(error_msg)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
         interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])
-        cantor = CantorElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1), ratio=self.ratio)
-        return CompositeSystem(self.label, elements=[cantor])
+        cantor = PatchElement('cantor', prototiles=[interval], bounds=(-0.03, -0.1, 1.03, 0.1))
+        removal = CantorInteraction('removal', target='cantor', ratio=self.ratio)
+        self.system_ = System(self.label, elements=[cantor], interactions=[removal])
 
 
 class SierpinskiSubstitutionSystem(BaseSystem):
@@ -360,14 +301,19 @@ class SierpinskiSubstitutionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The shape is unknown.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> from skcomplex.systems.mathematics.fractals import SierpinskiSubstitutionSystem
-        >>> simulate(SierpinskiSubstitutionSystem(), until=2).get_values('sierpinski.size').tolist()
+        >>> SierpinskiSubstitutionSystem().prepare().simulate(until=2).get_values('sierpinski.size').tolist()
         [1.0, 3.0, 9.0]
     """
 
@@ -377,13 +323,23 @@ class SierpinskiSubstitutionSystem(BaseSystem):
     until = 6
     dt = 1
 
-    def __init__(self, shape: str = 'triangle', *, filled: bool = True, label: str = 'system') -> None:
-        super().__init__(label)
+    def __init__(
+        self,
+        shape: str = 'triangle',
+        *,
+        filled: bool = True,
+        label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
+    ) -> None:
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.filled = filled
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        prototile, _ = SierpinskiElement._get_sierpinski_tiles(self.shape)
-        sierpinski = SierpinskiElement('sierpinski', shape=self.shape, prototiles=[prototile], filled=self.filled)
-        return CompositeSystem(self.label, elements=[sierpinski])
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
+        prototile, _ = SierpinskiInteraction._get_sierpinski_tiles(self.shape)
+        sierpinski = PatchElement('sierpinski', prototiles=[prototile], filled=self.filled)
+        copies = SierpinskiInteraction('copies', target='sierpinski', shape=self.shape)
+        self.system_ = System(self.label, elements=[sierpinski], interactions=[copies])

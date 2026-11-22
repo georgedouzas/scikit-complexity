@@ -26,17 +26,24 @@ class _DelayFunction(_OperatorFunction):
 
 
 def delay_parts(name: str) -> tuple[bool, int] | None:
-    """Return whether a delay function conserves its input, and its order.
+    """Return whether a delay passes its input on whole, and its number of stages.
 
-    They come from its name, or it returns `None` for no delay.
+    It reads both from the name of the function that `distributed_delay` builds, such as `(True, 3)` for
+    `material_delay3`, and gives `None` for a function that is no delay. The compiler reads it to add the hidden stocks
+    of the delay. It finds the delays of a supply chain, a pipeline of trainees, and a smoothed forecast.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         name:
             The name of a function.
 
     Returns:
-        parts:
-            Whether the delay is material, and its order.
+        kind:
+            Whether the delay passes its input on whole, and its number of stages, or `None`.
+
+    See Also:
+        distributed_delay: Builds the delays it reads.
 
     Examples:
         >>> from skcomplex.core.components.laws.utils._delays import delay_parts
@@ -48,18 +55,16 @@ def delay_parts(name: str) -> tuple[bool, int] | None:
 
 
 def distributed_delay(value: object, time: object, order: int = 1, *, conserved: bool = True) -> Expression:
-    """Return the output of a distributed delay of a value.
+    """Return a value delayed through a chain of hidden stocks.
 
-    The delay is hidden stages in series, each with a share of the time. A conserved delay passes its input through the
-    stages like a material, so its output is the outflow of the last stage, `stage / (time / order)`, and its response
-    to a pulse is the Erlang distribution of the order with the mean `time`. A delay that does not conserve its input
-    smooths it, each stage adjusting to the previous one at `gap / (time / order)`, and its output starts at the value.
+    The delay is `order` hidden stocks in a row, each holding the value for `time / order` on average. A conserved delay
+    passes its input on like goods in transit, so its output is the outflow of the last stock and a pulse comes out
+    spread over time with the mean `time`. A delay that is not conserved smooths its input, each stock moving toward the
+    one before it at `gap / (time / order)`, such as `distributed_delay(sales, 2, conserved=False)` for a smoothed
+    forecast of sales. These are the `DELAY1`, `DELAY3`, and `SMOOTH` functions of system dynamics. It delays orders in
+    a supply chain, trainees in a hiring pipeline, and the maturation of cells.
 
-    The first-order material delay is one hidden stock emptied at `stock / time`, and the third-order material delay
-    is three hidden stocks in series, each with a third of the time, whose response to a pulse is the Erlang
-    distribution of order 3. The first-order delay that does not conserve its input is the exponential smoothing of
-    the value, a hidden stock that adjusts at `gap / time`. These are the `DELAY1`, `DELAY3`, and `SMOOTH` functions of
-    system dynamics.
+    Read more in the user guide, under Laws.
 
     Args:
         value:
@@ -69,10 +74,10 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
             The mean delay time, a positive number or an expression of parameters.
 
         order:
-            The number of stages.
+            The number of hidden stocks.
 
         conserved:
-            Whether the delay conserves its input, as a material delay, or smooths it, as an information delay.
+            Whether the delay passes its input on whole, as goods in transit, or smooths it, as a forecast.
 
     Returns:
         output:
@@ -80,24 +85,23 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
 
     Raises:
         ValueError:
-            The order is not a positive integer, or the delay time is a number that is not positive.
+            The order is not a positive whole number, or the delay time is a number that is not positive.
+
+    See Also:
+        fractional: Gives a state a memory of its whole past.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.components.laws.utils import distributed_delay
-        >>> distributed_delay(var('inflow'), 4)
-        material_delay1(inflow, 4)
         >>> distributed_delay(var('orders'), 4, order=3)
         material_delay3(orders, 4)
-        >>> distributed_delay(var('sales'), 2, conserved=False)
-        smoothing_delay1(sales, 2)
     """
     if isinstance(order, bool) or not isinstance(order, int) or order < 1:
-        error_msg = f'A distributed delay has a positive integer order, but got {order!r}.'
+        error_msg = f'The order of a distributed delay must be a positive whole number, but it is {order!r}.'
         raise ValueError(error_msg)
     name = f'{"material" if conserved else "smoothing"}_delay{order}'
     if SR(time).is_numeric() and float(SR(time)) <= 0:
-        error_msg = f'The delay time of {name} must be positive, but got {time}.'
+        error_msg = f'The delay time of a distributed delay must be positive, but it is {time}.'
         raise ValueError(error_msg)
     if name not in DELAY_FUNCTIONS:
         DELAY_FUNCTIONS[name] = _DelayFunction(name, nargs=2)

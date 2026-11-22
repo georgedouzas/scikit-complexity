@@ -11,11 +11,12 @@ import numpy as np
 import powerlaw
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_settings, _read_real, _read_samples_of
-from .types import Source
+from .types import DataSource
 
 NAMED_LAWS = {
     'exponential': stats.expon,
@@ -42,6 +43,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 @dataclass(frozen=True)
 class FitLawResult:
     """A result of `fit_law`, a law fitted to a pooled sample.
+
+    It holds the sample and the fitted parameters of the law with how well it fits, such as an exponent near 2.5 for
+    samples drawn from `p(x) ∝ x^-2.5`. It reports whether the sizes of earthquakes, cities, or firms follow a power
+    law, and the scale of the energies of a gas.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -95,6 +102,16 @@ class FitLawResult:
 
         parameters:
             The fitted and fixed parameters of a named law.
+
+    See Also:
+        fit_law: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import fit_law
+        >>> fit = fit_law(np.random.default_rng(0).exponential(2.0, 1000), law='exponential', fixed={'loc': 0})
+        >>> round(fit.parameters['scale'], 0), fit.p_value > 0.05
+        (2.0, True)
     """
 
     values: Array
@@ -116,7 +133,7 @@ class FitLawResult:
 
 
 def fit_law(
-    source: Source,
+    source: DataSource,
     *,
     law: str = 'power',
     variables: Sequence[str] | None = None,
@@ -134,31 +151,28 @@ def fit_law(
 ) -> FitLawResult:
     """Return the law fitted to the values of a source, pooled into one sample.
 
-    The source gives the series of a trajectory or an array, or the speeds of the agents of a trajectory at every
-    frame.
+    It pools the series of a trajectory or an array, or the speeds of the agents of a trajectory at every frame, into
+    one sample and fits the law to it, such as an exponent near 2.5 for samples drawn from `p(x) ∝ x^-2.5`. It tests
+    whether the sizes of earthquakes, cities, or firms follow a power law, and whether the energies of a gas or the
+    money of traders are exponential.
 
-    The laws are:
-
-    - `'power'`: a power law `p(x) ∝ x^-alpha` fitted to the tail of the positive samples by maximum likelihood, with
-      Clauset, Shalizi, and Newman's method. The lower cutoff minimises the Kolmogorov-Smirnov distance between the
-      tail and the fit, unless `minimum` fixes it. The goodness of fit is the share of `bootstrap` samples whose
-      distance exceeds the data's, and the power law is compared with every alternative of `compare_with` by a
-      likelihood-ratio test. Discrete samples use the exact discrete likelihood. The warnings of `powerlaw` about its
-      optimiser are silenced during the run.
-    - `'stable'`: the Lévy stable law fitted by McCulloch's quantile method, in SciPy's `S1` parameterization.
-    - `'extreme-value'`: the generalized extreme-value law fitted by maximum likelihood to the maxima of blocks of
-      `block` samples.
-    - `'exponential'`, `'normal'`, `'lognormal'`, `'gamma'`, `'maxwell'`, `'rayleigh'`, and `'uniform'`: the named law
-      with its free parameters fitted, tested with a Monte Carlo Kolmogorov-Smirnov test that accounts for the fit.
-
-    It appears in many fields. It tests whether the sizes of earthquakes, of cities, or of firms follow a power law.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array of samples.
 
         law:
-            The law to fit, one of the laws above.
+            The law to fit. `'power'` fits `p(x) ∝ x^-alpha` to the tail of the positive samples by maximum likelihood,
+            with the method of Clauset, Shalizi, and Newman. The lower cutoff makes the Kolmogorov-Smirnov distance
+            between the tail and the fit smallest, unless `minimum` fixes it. The goodness of fit is the share of
+            `bootstrap` samples whose distance exceeds that of the data, and the law is compared with every alternative
+            of `compare_with` by a likelihood ratio test. Discrete samples use the exact discrete likelihood, and the
+            warnings of `powerlaw` about its optimiser are silenced. `'stable'` fits the Lévy stable law by the quantile
+            method of McCulloch, in the `S1` parameters of SciPy. `'extreme-value'` fits the generalized extreme value
+            law by maximum likelihood to the maxima of blocks of `block` samples. `'exponential'`, `'normal'`,
+            `'lognormal'`, `'gamma'`, `'maxwell'`, `'rayleigh'`, and `'uniform'` fit the free parameters of the named
+            law and test it with a Monte Carlo Kolmogorov-Smirnov test that accounts for the fit.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
@@ -207,15 +221,16 @@ def fit_law(
             The law or an alternative is unknown, a setting the law does not read is changed, a needed setting is
             missing, or the sample is too small for the fit.
 
+    See Also:
+        distribution: Measures the shape of a distribution without fitting a law.
+        scaling: Fits how a measure grows with the size of a sample.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import fit_law
         >>> samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
         >>> round(fit_law(samples, law='power', minimum=1.0, bootstrap=0).exponent, 1)
         2.5
-        >>> fit = fit_law(np.random.default_rng(0).exponential(2.0, 1000), law='exponential', fixed={'loc': 0})
-        >>> round(fit.parameters['scale'], 0), fit.p_value > 0.05
-        (2.0, True)
     """
     if law not in LAWS:
         error_msg = f'fit_law has law={law!r}. Use one of {", ".join(LAWS)}.'

@@ -15,35 +15,35 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import NoiseLaw
 from ....core.components.laws.utils import laplacian
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ETDRK4Solver
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ETDRK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ...general.gradients import GradientInteraction
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
 
 class PhaseFieldElement(Element):
-    """Site of a phase field.
+    """Sites of a phase field.
 
-    The site holds the order parameter `phi` that free energies and noise move.
+    Every site holds the order parameter `phi` that free energies and noise move.
 
     Args:
         label:
-            The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
+            The label of the field.
 
         phi:
-            The initial order parameter.
+            The initial order parameter, one value per site or one for all.
 
-    Attributes:
-        default_visual_:
-            The visual of the site when it sets none.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation._ordering import PhaseFieldElement
@@ -51,14 +51,8 @@ class PhaseFieldElement(Element):
         0.5
     """
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, phi: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.phi = phi
 
 
@@ -74,7 +68,7 @@ class LandauEnergyInteraction(GradientInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the field.
@@ -92,9 +86,9 @@ class LandauEnergyInteraction(GradientInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.systems.physics.pattern_formation._ordering import LandauEnergyInteraction
-        >>> energy = LandauEnergyInteraction('energy', target='mixture').prepare()
+        >>> energy = LandauEnergyInteraction('energy', target='mixture')
         >>> namespace = SimpleNamespace(target=SimpleNamespace(phi=var('phi')), kappa=var('kappa'))
-        >>> [law.value for law in energy.run(namespace).laws_]
+        >>> [law.value for law in energy.prepare(namespace).laws_]
         [-phi^3 + kappa*laplacian(phi) + phi]
     """
 
@@ -102,9 +96,9 @@ class LandauEnergyInteraction(GradientInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'phi',
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        kappa: Annotated[float, RealSet.open(0, oo)] = 1.0,
         conserved: bool = False,
     ) -> None:
         super().__init__(label, target=target, states=state, variational=True, conserved=conserved)
@@ -158,6 +152,12 @@ class AllenCahnSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.5.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import AllenCahnSystem
         >>> AllenCahnSystem((8, 8), kappa=2.0).prepare().system_.interactions[0].kappa
@@ -169,7 +169,6 @@ class AllenCahnSystem(BaseSystem):
     references = REFERENCES
     until = 100.0
     dt = 1.0
-    solver = ETDRK4Solver(dt=0.5)
 
     @staticmethod
     def _get_ordering(
@@ -181,39 +180,37 @@ class AllenCahnSystem(BaseSystem):
         kappa: float,
         random_state: int | np.random.Generator | None,
         conserved: bool,
+        step: float,
         temperature: float = 0.0,
-    ) -> CompositeSystem:
+    ) -> System:
         """Return a system of a label with a phase field that relaxes.
 
-        The field starts from small noise around a mean.
+        The field starts from small noise around a mean, and exponential steps of a size solve it.
 
-        A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice.
+        A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice,
+        and leaves the solver to the system.
         """
         shape = tuple(shape)
         rng = np.random.default_rng(random_state)
-        values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape)}
-        space = LatticeSpace(shape, spacing=length / shape[0])
+        phi = mean + 0.05 * rng.uniform(-1.0, 1.0, shape)
+        discretization = 'finite-difference' if temperature else 'spectral'
+        space = LatticeSpace(shape, spacing=length / shape[0], discretization=discretization)
         interactions: list[BaseInteraction] = [
             LandauEnergyInteraction('energy', target='mixture', kappa=kappa, conserved=conserved),
         ]
         if temperature:
-            noise = RateInteraction(
+            noise = Interaction(
                 'noise',
-                target='mixture',
-                state='phi',
-                noise=math.sqrt(2 * temperature),
-                conserved=True,
+                roles={'target': 'mixture'},
+                laws=lambda s: [NoiseLaw(s.target.phi, math.sqrt(2 * temperature), conserved=True)],
             )
             interactions.append(noise)
-        discretization = 'finite-difference' if temperature else 'spectral'
-        field = FieldElement(
-            'mixture',
-            element=PhaseFieldElement,
-            space=space,
-            values=values,
-            discretization=discretization,
+        return System(
+            label,
+            elements=[PhaseFieldElement('mixture', phi=phi.ravel(), space=space)],
+            interactions=interactions,
+            solver='auto' if temperature else ETDRK4Solver(dt=step),
         )
-        return CompositeSystem(label, elements=[field], interactions=interactions)
 
     def __init__(
         self,
@@ -224,17 +221,25 @@ class AllenCahnSystem(BaseSystem):
         kappa: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.length = length
         self.mean = mean
         self.kappa = kappa
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return AllenCahnSystem._get_ordering(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a phase field that relaxes without conserving its mean.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = AllenCahnSystem._get_ordering(
             self.label,
             shape=self.shape,
             length=self.length,
@@ -242,6 +247,7 @@ class AllenCahnSystem(BaseSystem):
             kappa=self.kappa,
             random_state=self.random_state,
             conserved=False,
+            step=0.5,
         )
 
 
@@ -281,6 +287,12 @@ class CahnHilliardSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for exponential steps of 0.25 without noise.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.pattern_formation import CahnHilliardSystem
         >>> CahnHilliardSystem((8, 8), mean=0.3).prepare().system_.interactions[0].conserved
@@ -295,7 +307,6 @@ class CahnHilliardSystem(BaseSystem):
     references = REFERENCES
     until = 1000.0
     dt = 10.0
-    solver = ETDRK4Solver(dt=0.25)
 
     def __init__(
         self,
@@ -307,8 +318,10 @@ class CahnHilliardSystem(BaseSystem):
         temperature: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.length = length
         self.mean = mean
@@ -316,9 +329,15 @@ class CahnHilliardSystem(BaseSystem):
         self.temperature = temperature
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return AllenCahnSystem._get_ordering(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a phase field that relaxes and conserves its mean.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = AllenCahnSystem._get_ordering(
             self.label,
             shape=self.shape,
             length=self.length,
@@ -326,5 +345,6 @@ class CahnHilliardSystem(BaseSystem):
             kappa=self.kappa,
             random_state=self.random_state,
             conserved=True,
+            step=0.25,
             temperature=self.temperature,
         )

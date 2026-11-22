@@ -11,22 +11,30 @@ import numpy.typing as npt
 from scipy import stats
 
 from ...base import BaseConfig
+from ...components.laws import DrawSpec
+from ...enums import DrawKind
 from ...errors import ValidationError
-from ...specs import DrawLogSpec, DrawRecordSpec, DrawSpec
 from ...types import Array
+from ._draw_log_spec import _DrawLogSpec
+from ._draw_record_spec import _DrawRecordSpec
 
-KEYWORDS = {'uniform': ('low', 'high'), 'normal': ('mean', 'deviation'), 'bernoulli': ('p',)}
+KEYWORDS: dict[str, tuple[str, ...]] = {
+    DrawKind.UNIFORM: ('low', 'high'),
+    DrawKind.NORMAL: ('mean', 'deviation'),
+    DrawKind.BERNOULLI: ('p',),
+}
 
 
 class DrawRecorder(BaseConfig[None, int]):
     """A recorder of the named draws and jumps of a run, which also replays them.
 
     A run that records keeps every value it draws by name and step, with the arguments of its distribution, and every
-    firing of a jump law with its time. A run that replays a log takes every named draw and every firing from it
-    instead, while it computes the arguments of each distribution from its own parameters and states, and sums the
-    log-probability of the forced values. `prepare()` forgets earlier draws and `run(step)` moves the recorder to the
-    step of the run the next draws fall in. The places that draw, such as the draws of stochastic maps, the named draws
-    of agent rules, and `GillespieSolver`, call `draw`, `firings`, and `record_firing`.
+    firing of a jump law with its time. A run that replays a log takes every draw and firing from it instead and sums
+    the log probability of the forced values under its own parameters, which tells how likely the recorded run is under
+    new parameters. `prepare()` forgets earlier draws and `run(step)` moves to the step the next draws fall in. It
+    replays the moves of a random walker, the trades of a market, and the infections of an epidemic.
+
+    Read more in the user guide, under Calibrate.
 
     Args:
         replay:
@@ -39,21 +47,22 @@ class DrawRecorder(BaseConfig[None, int]):
         log_probability_:
             The total log-probability of the draws and firings so far.
 
+    See Also:
+        DrawKernel: Draws the random numbers of update laws.
+
     Examples:
         >>> import numpy as np
+        >>> from skcomplex.core.components.laws import DrawSpec
         >>> from skcomplex.core.engine.problems._draw_recorder import DrawRecorder
-        >>> from skcomplex.core.specs import DrawSpec
         >>> recorder = DrawRecorder().prepare().run(1)
         >>> recorder.draw('walker.kick', DrawSpec('normal', 'kick'), [0.0, 1.0], np.array([0.5])).tolist()
         [0.5]
-        >>> round(recorder.log_probability_, 4)
-        -1.0439
     """
 
     step_: int
     log_probability_: float
 
-    def __init__(self, replay: DrawLogSpec | None = None) -> None:
+    def __init__(self, replay: _DrawLogSpec | None = None) -> None:
         self.replay = replay
 
     def _prepare(self, context: None) -> None:
@@ -245,7 +254,7 @@ class DrawRecorder(BaseConfig[None, int]):
         self.log_probability_ += value
 
     @property
-    def log_(self) -> DrawLogSpec:
+    def log_(self) -> _DrawLogSpec:
         """Log of the draws and firings so far."""
         draws = {}
         for label, draw in self._kinds.items():
@@ -253,7 +262,7 @@ class DrawRecorder(BaseConfig[None, int]):
             arguments = {
                 keyword: np.concatenate([item[keyword] for item in self._arguments[label]]) for keyword in keywords
             }
-            draws[label] = DrawRecordSpec(
+            draws[label] = _DrawRecordSpec(
                 draw.kind,
                 draw.distribution,
                 np.concatenate(self._steps[label]),
@@ -262,4 +271,4 @@ class DrawRecorder(BaseConfig[None, int]):
             )
         times = np.asarray([time for time, _ in self._firings], dtype=float)
         laws = np.asarray([law for _, law in self._firings], dtype=np.int64)
-        return DrawLogSpec(draws, times, laws, self.log_probability_)
+        return _DrawLogSpec(draws, times, laws, self.log_probability_)

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -11,30 +12,24 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, pi
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, EquationLaw
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import NetworkSpace, StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class BranchingVesselElement(Element):
-    """Vessel of a space-filling branching network, sized by its level.
-
-    Its size makes the network minimize transport energy.
-
-    Every vessel branches into `n` daughters. Area-preserving branching gives the radii the ratio `n^(-1/2)` between
-    levels and space filling the lengths the ratio `n^(-1/3)`, and the capillaries at the last level `depth` have the
-    same radius `r_c` and length `l_c` in every organism, so `r = r_c n^((depth - level) / 2)`, `l = l_c n^((depth -
-    level) / 3)`, and the volume of the vessel is `pi r^2 l`.
+    """Vessels of a space-filling branching network, with their sizes and levels.
 
     Args:
         label:
             The label of the vessel or of the group on the edges.
-
-        visual:
-            How the vessel is drawn, or `None` for `default_visual_`.
 
         r:
             The radius.
@@ -63,30 +58,35 @@ class BranchingVesselElement(Element):
         l_c:
             The length of a capillary.
 
+        space:
+            The space whose sites hold one member each, or `None` for one member.
+
+        on:
+            `'edges'` for one member per edge of a network space, or `None` for one per site.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import BranchingVesselElement
         >>> BranchingVesselElement('vessel', level=3.0).level
         3.0
     """
 
-    law_classes = (EquationLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        l: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        volume: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        terminal: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        level: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        depth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(1, oo))] = 2.0,
-        r_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        r: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        l: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        volume: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        terminal: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        level: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        depth: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        n: Annotated[float | Array, RealSet.open(1, oo)] = 2.0,
+        r_c: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        l_c: Annotated[float | Array, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.r = r
         self.l = l
         self.volume = volume
@@ -97,25 +97,52 @@ class BranchingVesselElement(Element):
         self.r_c = r_c
         self.l_c = l_c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the radius, the length, the volume, and the capillary flag of the vessel.
 
-        The flag indicates whether the vessel is a capillary.
+class VesselSizingInteraction(Interaction):
+    """Sizes of the vessels of a space-filling branching network, set by their levels.
+
+    The sizes make the network minimize transport energy.
+
+    Every vessel branches into `n` daughters. Area-preserving branching gives the radii the ratio `n^(-1/2)` between
+    levels and space filling the lengths the ratio `n^(-1/3)`, and the capillaries at the last level `depth` have the
+    same radius `r_c` and length `l_c` in every organism, so `r = r_c n^((depth - level) / 2)`, `l = l_c n^((depth -
+    level) / 3)`, and the volume of the vessel is `pi r^2 l`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the vessels, whose values are `r`, `l`, `volume`, `terminal`, `level`, `depth`, `n`, `r_c`, and
+            `l_c`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import VesselSizingInteraction
+        >>> VesselSizingInteraction('sizing', target='vessels').target
+        'vessels'
+    """
+
+    law_classes = (ConstraintLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the radius, the length, the volume, and the capillary flag of the vessel.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context.target
         height = s.depth - s.level
-        return [
-            EquationLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
-            EquationLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
-            EquationLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
-            EquationLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
+        self.laws_ = [
+            ConstraintLaw(s.r == s.r_c * s.n ** (height / 2), target=s.r),
+            ConstraintLaw(s.l == s.l_c * s.n ** (height / 3), target=s.l),
+            ConstraintLaw(s.volume == pi * s.r**2 * s.l, target=s.volume),
+            ConstraintLaw(s.terminal == where(s.level > s.depth - 1 / 2, 1, 0), target=s.terminal),
         ]
 
 
@@ -148,9 +175,15 @@ class WestBrownEnquistSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import WestBrownEnquistSystem
-        >>> WestBrownEnquistSystem(3).prepare().system_.elements[0].prepare().size_
+        >>> WestBrownEnquistSystem(3).prepare().system_.elements[0].level.size
         14
     """
 
@@ -158,8 +191,8 @@ class WestBrownEnquistSystem(BaseSystem):
     topics = ('allometry', 'kleiber law', 'fractal network', 'static', 'metabolic scaling')
     references = ('West, Brown, and Enquist 1997', 'Ribeiro and Netto 2024')
     observables = (
-        ObservableSpec('blood_volume', group='vessels', variable='volume', reduce='sum'),
-        ObservableSpec('capillaries', group='vessels', variable='terminal', reduce='sum'),
+        Observable('blood_volume', group='vessels', variable='volume', reduce='sum'),
+        Observable('capillaries', group='vessels', variable='terminal', reduce='sum'),
     )
 
     def __init__(
@@ -170,30 +203,36 @@ class WestBrownEnquistSystem(BaseSystem):
         r_c: float = 1.0,
         l_c: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.depth = depth
         self.n = n
         self.r_c = r_c
         self.l_c = l_c
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the distribution network of West."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the distribution network of West.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         graph = nx.balanced_tree(self.n, self.depth)
         space = NetworkSpace(graph).prepare()
         _, children = space.edges_[None]
         levels = nx.single_source_shortest_path_length(graph, 0)
-        vessels = GroupElement(
+        vessels = BranchingVesselElement(
             'vessels',
-            element=BranchingVesselElement,
+            level=np.array([levels[int(child)] for child in children], dtype=float),
+            depth=float(self.depth),
+            n=float(self.n),
+            r_c=self.r_c,
+            l_c=self.l_c,
             space=space,
             on='edges',
-            values={
-                'level': np.array([levels[int(child)] for child in children], dtype=float),
-                'depth': float(self.depth),
-                'n': float(self.n),
-                'r_c': self.r_c,
-                'l_c': self.l_c,
-            },
         )
-        return CompositeSystem(self.label, elements=[vessels], space=space, time=StaticTime())
+        sizing = VesselSizingInteraction('sizing', target='vessels')
+        self.system_ = System(self.label, elements=[vessels], interactions=[sizing], space=space)

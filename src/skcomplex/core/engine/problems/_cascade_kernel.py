@@ -8,17 +8,25 @@ from collections.abc import Callable
 import numpy as np
 import numpy.typing as npt
 
-from ...components.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import CascadeRecordSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
+from ._cascade_record_spec import _CascadeRecordSpec
 from ._drive_kernel import DriveKernel
+from ._lattice_state_spec import _LatticeStateSpec
 from ._rule_kernel import RuleKernel
+from ._run_state_spec import RunStateSpec
 
 
 class CascadeKernel(BaseKernel):
-    """A kernel of a cascade of a lattice, with its drive and its relax laws.
+    """A kernel of a cascade on a lattice: a drive, then relaxing until stable.
+
+    At every step it applies the drive laws once, such as dropping one grain of sand on a random site, then applies the
+    relax laws again and again until the stability condition holds everywhere, such as no site holding four grains or
+    more. It records the size and length of the cascade as an event. It runs the avalanches of a sandpile, the fires of
+    a forest, and the failures of a power grid.
+
+    Read more in the user guide, under Extend the library.
 
     Args:
         label:
@@ -45,16 +53,26 @@ class CascadeKernel(BaseKernel):
     Attributes:
         values_:
             The record of the cascade of the last run, or `None` when the lattice did not change.
+
+    See Also:
+        DriveKernel: Runs one drive of a lattice state.
+        RuleKernel: Runs a local rule of a lattice.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import SandpileSystem
+        >>> kernel = SandpileSystem().prepare().simulate(until=0).problem.lattice[0]
+        >>> type(kernel).__name__, kernel.label
+        ('CascadeKernel', 'avalanche')
     """
 
-    values_: CascadeRecordSpec | None
+    values_: _CascadeRecordSpec | None
 
     def __init__(
         self,
         label: str,
         drive: tuple[RuleKernel | DriveKernel, ...],
         relax: tuple[RuleKernel | DriveKernel, ...],
-        targets: tuple[LatticeStateSpec, ...],
+        targets: tuple[_LatticeStateSpec, ...],
         stable: Callable[..., bool],
         *,
         max_iterations: int,
@@ -88,7 +106,7 @@ class CascadeKernel(BaseKernel):
         """
         self.values_ = self._relax(self._get_state_of(inputs))
 
-    def _relax(self, state: RunStateSpec) -> CascadeRecordSpec | None:
+    def _relax(self, state: RunStateSpec) -> _CascadeRecordSpec | None:
         """Apply the drive, then relax until stable, and return the record of a cascade.
 
         A record is returned only for a cascade that changed the lattice.
@@ -136,4 +154,4 @@ class CascadeKernel(BaseKernel):
         if not duration:
             return None
         area = int(changed.sum()) if changed is not None else 0
-        return CascadeRecordSpec(self.label, time, size, duration, area)
+        return _CascadeRecordSpec(self.label, time, size, duration, area)

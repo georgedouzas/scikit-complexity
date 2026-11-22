@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.climate import ENSOSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'enso'
 
 system = ENSOSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, observers=[observer])
+trajectory = system.prepare().simulate(observers=[observer])
 
 # %%
 # A limit cycle with one period

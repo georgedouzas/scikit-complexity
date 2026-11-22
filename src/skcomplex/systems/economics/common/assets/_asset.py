@@ -9,7 +9,6 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
 
 
 class AssetElement(Element):
@@ -18,9 +17,6 @@ class AssetElement(Element):
     Args:
         label:
             The label of the asset.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         price:
             The initial price.
@@ -34,9 +30,8 @@ class AssetElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        price: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.price = price

@@ -8,18 +8,17 @@ The drug enters at a constant rate or in a schedule of infusions.
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.interactions import RateInteraction
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, RateLaw
 from .....core.components.laws.utils import pulse_train
-from .....core.components.spaces import BaseSpace
 from .....core.errors import ValidationError
-from .....core.specs import RoleSpec
+from .....core.types import Role
 
 
-class DosingInteraction(RateInteraction):
+class DosingInteraction(Interaction):
     """Input of a drug into a state of a target at the rate `dose`.
 
     The drug enters constantly or in a schedule of infusions.
@@ -30,7 +29,7 @@ class DosingInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose drug state the dose raises.
@@ -59,21 +58,22 @@ class DosingInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.pharmacokinetics import DosingInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
         >>> dosing = DosingInteraction('dosing', target='patient', state='x', dose=2.0, period=10.0, count=3)
-        >>> system = CompositeSystem(elements=[CompartmentElement('patient', x=0.0)], interactions=[dosing])
-        >>> trajectory = simulate(system, until=40.0, dt=0.5)
+        >>> system = System(elements=[CompartmentElement('patient', x=0.0)], interactions=[dosing])
+        >>> trajectory = system.prepare().simulate(until=40.0, dt=0.5)
         >>> round(float(trajectory.get_values('patient.x')[-1]), 3)
         6.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         state: str = 'x',
         dose: Callable[[SimpleNamespace], object] | float = 1.0,
         period: float | None = None,
@@ -81,25 +81,23 @@ class DosingInteraction(RateInteraction):
         start: float = 0.0,
         count: int | None = None,
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.dose = dose
         self.period = period
         self.width = width
         self.start = start
         self.count = count
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a state, a dose, or a schedule the input cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The state is not a name, the dose is neither a function nor a number, or the schedule is not positive.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if not (callable(self.dose) or isinstance(self.dose, int | float)):
             error_msg = f'The dose of {self.label!r} is {self.dose!r}. Give a function of the namespace or a number.'
             raise ValidationError(error_msg)
@@ -109,6 +107,16 @@ class DosingInteraction(RateInteraction):
                 'both above 0.'
             )
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the dose, times the schedule of infusions when the input has a period.
@@ -121,7 +129,7 @@ class DosingInteraction(RateInteraction):
             rate:
                 The rate of the input.
         """
-        dose = self._evaluate(self.dose, namespace)
+        dose = self.dose(namespace) if callable(self.dose) else self.dose
         if self.period is None:
             constant: Expression = dose
             return constant

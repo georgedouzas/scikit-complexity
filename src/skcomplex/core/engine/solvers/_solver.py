@@ -9,9 +9,9 @@ from collections.abc import Callable
 import numpy as np
 
 from ...errors import SolverError
-from ...specs import AcceleratedSpec
 from ...types import Array, VectorFunction
 from ..problems import ProblemSpec
+from ..problems._accelerated_spec import _AcceleratedSpec
 from ._base import BaseSolver
 from ._event_locator import EventLocator
 from ._history import RESTART, History
@@ -19,10 +19,23 @@ from ._renewals import RenewalClock
 
 
 class Solver(BaseSolver[ProblemSpec]):
-    """An abstract solver of the problem of the general compiler.
+    """An abstract solver of the problems that the general compiler builds.
 
-    They run its events, renewals, delays, and boundary laws. Every call to `run` receives the current parameters, so
-    parameter changes apply at the next call, and applies the boundary laws of the problem after every internal step.
+    It runs what every problem of the general compiler may hold besides its laws: events, renewals, delays, and boundary
+    laws, such as a ball that bounces when its height reaches 0. Every call of `run` reads the current parameters, so a
+    change of a parameter applies from the next call, and the boundary laws apply after every inner step. It is the base
+    of the solvers of epidemics, chemical reactions, and circuits.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        BaseSolver: The base of every solver.
+        ScipyODESolver: The default solver of continuous flows.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import RK4Solver, Solver
+        >>> isinstance(RK4Solver(), Solver)
+        True
     """
 
     def _check_capabilities(self, problem: ProblemSpec) -> None:
@@ -105,7 +118,7 @@ class Solver(BaseSolver[ProblemSpec]):
         return state
 
     @staticmethod
-    def _warm_loops(accelerated: AcceleratedSpec, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
+    def _warm_loops(accelerated: _AcceleratedSpec, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
         """Call every compiled stepper loop of a problem once.
 
         Each loop thus finishes compiling before a run.

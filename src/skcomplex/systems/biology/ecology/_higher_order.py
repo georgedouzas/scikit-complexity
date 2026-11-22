@@ -3,23 +3,27 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from itertools import combinations
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 from scipy.special import comb
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import contraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec
-from ..common.populations import LogisticGrowthInteraction, PopulationElement
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.populations import LogisticGrowthInteraction
 
 
-class TripletInteraction(RateInteraction):
+class TripletInteraction(Interaction):
     """Interactions of every species with the pairs of other species.
 
     They add `dx_i/dt += x_i sum_(j<k) a_ijk x_j x_k`.
@@ -48,21 +52,31 @@ class TripletInteraction(RateInteraction):
         'x'
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        a: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'))] = 0.0,
+        target: Role,
+        a: object = 0.0,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state, rate=self._get_triplets)
+        super().__init__(label)
+        self.target = target
         self.a = a
+        self.state = state
 
-    def _get_triplets(self, namespace: SimpleNamespace) -> object:
-        """Return the growth of a species from the pairs of other species."""
-        abundance = getattr(namespace.target, self.state)
-        return abundance * contraction(namespace.a, abundance, abundance) / 2
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the growth of every species from the pairs of other species.
+
+        Args:
+            context:
+                The namespace of the species, the time `t`, and the tensor.
+        """
+        super()._prepare(context)
+        abundance = getattr(context.target, self.state)
+        self.laws_ = [RateLaw(abundance, abundance * contraction(context.a, abundance, abundance) / 2)]
 
 
 class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
@@ -101,6 +115,12 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem
         >>> HigherOrderRandomLotkaVolterraSystem(5).prepare().system_.interactions[1].a.shape
@@ -123,8 +143,10 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
         k: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.size = size
         self.mu = mu
         self.sigma = sigma
@@ -158,20 +180,20 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
             tensor[i, j, k] = tensor[i, k, j] = values[:, position]
         return tensor
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a random Lotka-Volterra community of third order.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a random Lotka-Volterra community of third order.
 
         Its interactions are of third order.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         tensor = self._draw_tensor(self.size, self.mu, self.sigma, self.gamma, rng)
-        species = GroupElement(
-            'species',
-            element=PopulationElement,
-            size=self.size,
-            values={'x': rng.random(self.size)},
-        )
-        return CompositeSystem(
+        species = Element('species', values={'x': rng.random(self.size)}, size=self.size)
+        self.system_ = System(
             self.label,
             elements=[species],
             interactions=[

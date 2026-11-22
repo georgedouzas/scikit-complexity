@@ -13,10 +13,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import BallNeighborhood, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 from ..common.avalanches import TopplingInteraction
 
@@ -24,20 +26,20 @@ THRESHOLD = 1.0
 
 
 class FaultElement(Element):
-    """Block of the Olami-Feder-Christensen earthquake system, the force on it.
+    """Blocks of the Olami-Feder-Christensen earthquake system, the forces on them.
 
     The cascade of `EarthquakesSystem` loads every block uniformly until one reaches the threshold force, and a slipping
     block passes a fraction of its force to each of its four neighbours and drops to zero.
 
     Args:
         label:
-            The label of the block or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the blocks.
 
         force:
-            The initial force.
+            The initial force, one value or one per block.
+
+        space:
+            The lattice of the blocks, or `None` for one block.
 
     Examples:
         >>> from skcomplex.systems.physics.seismology import FaultElement
@@ -48,11 +50,11 @@ class FaultElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        force: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        force: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.force = force
 
 
@@ -79,6 +81,12 @@ class EarthquakesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.seismology import EarthquakesSystem
         >>> EarthquakesSystem((10, 10), alpha=0.15).prepare().system_.interactions[0].share
@@ -98,14 +106,16 @@ class EarthquakesSystem(BaseSystem):
         alpha: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.alpha = alpha
         self.random_state = random_state
 
     @staticmethod
-    def _load(force: Array, *, random: np.random.Generator) -> Array:
+    def _load(force: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
         """Return the forces after the uniform loading.
 
         The loading brings the most loaded block to the threshold.
@@ -114,16 +124,19 @@ class EarthquakesSystem(BaseSystem):
         following[np.unravel_index(np.argmax(force), force.shape)] = THRESHOLD
         return following
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Olami-Feder-Christensen earthquake system with open edges.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Olami-Feder-Christensen earthquakes with open edges, from random forces.
 
-        The system starts from random forces.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         forces = np.random.default_rng(self.random_state).random(tuple(self.shape))
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[GroupElement('fault', element=FaultElement, space=space, values={'force': forces}, on='sites')],
+            elements=[FaultElement('fault', force=forces.ravel(), space=space)],
             interactions=[
                 TopplingInteraction(
                     'earthquake',
@@ -133,7 +146,7 @@ class EarthquakesSystem(BaseSystem):
                     share=self.alpha,
                     mode='reset',
                     drive=self._load,
-                    neighborhood=BallNeighborhood(metric='manhattan', center='first'),
+                    neighborhood=RadiusNeighborhood(1, metric='manhattan', center=True),
                 ),
             ],
         )

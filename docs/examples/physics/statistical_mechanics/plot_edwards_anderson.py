@@ -14,7 +14,6 @@ of the 48 x 48 lattice at the end of the run.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.statistical_mechanics import EdwardsAndersonSystem
 
@@ -22,7 +21,7 @@ SYSTEM = 'edwards_anderson'
 
 system = EdwardsAndersonSystem(size=48, temperature=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = simulate(system, until=1000, observers=[observer], random_state=0)
+simulation = system.prepare().simulate(until=1000, observers=[observer], random_state=0)
 
 # %%
 # Energy, magnetization, and freezing against temperature
@@ -36,10 +35,10 @@ simulation = simulate(system, until=1000, observers=[observer], random_state=0)
 temperatures = np.linspace(0.3, 3.5, 9)
 energies, magnetizations, frozen = [], [], []
 for temperature in temperatures:
-    sample = EdwardsAndersonSystem(size=32, temperature=temperature)
-    values = sample.prepare().system_.elements[0].values
-    right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
-    trajectory = simulate(sample, until=2000, dt=10, random_state=0)
+    sample = EdwardsAndersonSystem(size=32, temperature=temperature).prepare()
+    spins_element = sample.system_.elements[0]
+    right, down = (getattr(spins_element, name).reshape(32, 32) for name in ('J_right', 'J_down'))
+    trajectory = sample.simulate(until=2000, dt=10, random_state=0)
     spins = trajectory.get_lattice('spins.spin')[-50:]
     bonds = spins * right * np.roll(spins, -1, axis=-1) + spins * down * np.roll(spins, -1, axis=-2)
     energies.append(-bonds.sum(axis=(1, 2)).mean() / 32**2)

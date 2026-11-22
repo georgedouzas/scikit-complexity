@@ -8,8 +8,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import Element
-from .....core.specs import StateSpec, VisualSpec
+from .....core.components.elements import Element, VisualSpec
+from .....core.components.spaces import BaseSpace
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
@@ -17,15 +17,12 @@ DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 class VertexElement(Element):
     """Node of a growing network, with its age in steps and its degree.
 
-    New nodes start with age 0, and the maps of the system age the node and read its degree from the edges at the start
-    of every step.
+    New nodes start with the age their growth gives, and the maps of the system age the node and read its degree from
+    the edges at the start of every step.
 
     Args:
         label:
             The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         age:
             The number of steps since the node joined.
@@ -33,20 +30,25 @@ class VertexElement(Element):
         degree:
             The number of edges of the node.
 
+        space:
+            The network whose nodes hold one member each, or `None` for one node.
+
     Examples:
         >>> from skcomplex.systems.mathematics.networks import VertexElement
         >>> VertexElement('nodes').age
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        age: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.age = age
         self.degree = degree

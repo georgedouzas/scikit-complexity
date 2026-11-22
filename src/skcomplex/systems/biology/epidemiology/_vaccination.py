@@ -11,8 +11,11 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import DeclaredVariableSpec, ObservableSpec, ParameterSpec, StateSpec
+from ....core.components import Observable
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import ObjectiveLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, PontryaginSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -39,7 +42,8 @@ def _get_vaccinated(s: SimpleNamespace) -> Expression:
 class SIRVaccinationSystem(DynamicalSystem):
     """An SIR epidemic with the optimal vaccination rate.
 
-    The rate minimises the burden of infections and vaccines.
+    The rate minimises the burden of infections and vaccines, the objective law
+    `ObjectiveLaw(a I + b u^2 / 2, controls=[s.target.u])`, with `u` between 0 and 0.9.
 
     Run with an optimal control solver, vaccination is strongest early, while many are susceptible, and the epidemic
     peaks lower than without vaccination. With no weight `a` on the infections the optimal rate is 0, the epidemic
@@ -68,9 +72,15 @@ class SIRVaccinationSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
-        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].get_value('beta')
+        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].get_params()['beta']
         0.3
     """
 
@@ -79,10 +89,9 @@ class SIRVaccinationSystem(DynamicalSystem):
     references = ('Lenhart and Workman 2007',)
     until = 30.0
     dt = 0.2
-    solver = PontryaginSolver(objective=_get_cost)
     observables = (
-        ObservableSpec('vaccinated', _get_vaccinated),
-        ObservableSpec('cost', _get_cost),
+        Observable('vaccinated', _get_vaccinated),
+        Observable('cost', _get_cost),
     )
 
     def __init__(
@@ -95,8 +104,10 @@ class SIRVaccinationSystem(DynamicalSystem):
         a: float = 1.0,
         b: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.S = S
         self.I = I
         self.beta = beta
@@ -104,21 +115,47 @@ class SIRVaccinationSystem(DynamicalSystem):
         self.a = a
         self.b = b
 
+    def _get_solver(self) -> BaseSolver:
+        """Return the solver the system is tuned to."""
+        return PontryaginSolver()
+
+    def _get_interactions(self) -> list[BaseInteraction]:
+        """Return the flows between the fractions, and the burden that the vaccination rate minimises."""
+        burden = Interaction(
+            'burden',
+            roles={'target': self._get_element_label()},
+            laws=lambda s: [ObjectiveLaw(_get_cost(SimpleNamespace(population=s.target)), controls=[s.target.u])],
+        )
+        return [*super()._get_interactions(), burden]
+
     def _get_element_label(self) -> str:
         """Return the label of the element that holds the states."""
         return 'population'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'S': DeclaredVariableSpec(self.S, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'I': DeclaredVariableSpec(self.I, StateSpec(domain=RealSet.closed_open(0, oo))),
-            'R': DeclaredVariableSpec(max(1 - self.S - self.I, 0.0), StateSpec(domain=RealSet.closed_open(0, oo))),
-            'u': DeclaredVariableSpec(0.0, ParameterSpec(adaptive=True, bounds=(0.0, MAX_RATE))),
-            'beta': DeclaredVariableSpec(self.beta, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'gamma': DeclaredVariableSpec(self.gamma, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'a': DeclaredVariableSpec(self.a, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'b': DeclaredVariableSpec(self.b, ParameterSpec(domain=RealSet.open(0, oo))),
+            'S': self.S,
+            'I': self.I,
+            'R': max(1 - self.S - self.I, 0.0),
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the vaccination rate, which the burden steers, and the parameters of the model."""
+        return {'u': 0.0, 'beta': self.beta, 'gamma': self.gamma, 'a': self.a, 'b': self.b}
+
+    def _get_allowed(self) -> dict[str, object]:
+        """Return the allowed values of the fractions, the vaccination rate, and the parameters."""
+        nonnegative = RealSet.closed_open(0, oo)
+        return {
+            'S': nonnegative,
+            'I': nonnegative,
+            'R': nonnegative,
+            'u': RealSet.closed(0, MAX_RATE),
+            'beta': nonnegative,
+            'gamma': nonnegative,
+            'a': nonnegative,
+            'b': RealSet.open(0, oo),
         }
 
     def _get_equations(self) -> Equations:

@@ -3,30 +3,42 @@
 The package covers escape-time sets, chaos-game attractors, and words and patches of named curves and sets.
 """
 
-from ._chaos_game import ChaosGameSystem, ChaosPointElement, RandomAffineMapInteraction
-from ._quadratic import InverseJuliaPointElement, InverseJuliaSystem, JuliaSystem, MandelbrotSystem, QuadraticMapElement
+from ._chaos_game import (
+    ChaosGameSystem,
+    ChaosPointElement,
+    RandomAffineMapInteraction,
+)
+from ._quadratic import (
+    InverseJuliaInteraction,
+    InverseJuliaPointElement,
+    InverseJuliaSystem,
+    JuliaSystem,
+    MandelbrotSystem,
+    QuadraticMapElement,
+    QuadraticMapInteraction,
+)
 from ._substitution import (
-    CantorElement,
+    CantorInteraction,
     CantorSetSystem,
     KochCurveSystem,
-    KochElement,
-    SierpinskiElement,
+    SierpinskiInteraction,
     SierpinskiSubstitutionSystem,
 )
 
 __all__: list[str] = [
-    'CantorElement',
+    'CantorInteraction',
     'CantorSetSystem',
     'ChaosGameSystem',
     'ChaosPointElement',
+    'InverseJuliaInteraction',
     'InverseJuliaPointElement',
     'InverseJuliaSystem',
     'JuliaSystem',
     'KochCurveSystem',
-    'KochElement',
     'MandelbrotSystem',
     'QuadraticMapElement',
+    'QuadraticMapInteraction',
     'RandomAffineMapInteraction',
-    'SierpinskiElement',
+    'SierpinskiInteraction',
     'SierpinskiSubstitutionSystem',
 ]

@@ -10,9 +10,9 @@ import numpy.typing as npt
 import pytest
 from scipy.interpolate import RegularGridInterpolator
 
+from skcomplex.core.engine.problems import RunStateSpec
 from skcomplex.core.engine.problems._collision_kernel import CollisionKernel
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RunStateSpec
 
 type CrossSection = Callable[..., npt.NDArray[np.float64]]
 
@@ -72,3 +72,11 @@ def test_check_rejects_values_it_cannot_take() -> None:
         CollisionKernel((4,), (1.0,), lambda _speed, _cosine: 1.0).prepare()
     with pytest.raises(ValidationError, match='is a function'):
         CollisionKernel((4, 4), (1.0, 1.0), 1.0).prepare()
+
+
+def test_run_conserves_the_density() -> None:
+    """Test that the collision rates of a Maxwellian sum to zero, so the total density stays the same."""
+    kernel = CollisionKernel((8, 8), (1.0, 1.0), lambda _speed, _cosine: 1 / (2 * np.pi)).prepare()
+    density = np.exp(-((np.indices((8, 8)) - 3.5) ** 2)).prod(axis=0)
+    rates = kernel.run(RunStateSpec(0.0, density.ravel(), np.zeros(0))).values_
+    assert abs(float(rates.sum())) < 1e-12

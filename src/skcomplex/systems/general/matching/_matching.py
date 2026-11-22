@@ -8,19 +8,17 @@ import itertools
 import math
 from collections.abc import Callable, MutableMapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 
-from ....core.components.base import BasePart
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.components.laws.utils import transfer
+from ....core.components.laws import BaseLaw, PartnerSpec, UpdateLaw
+from ....core.components.laws.utils import pairs, transfer
 from ....core.components.spaces import BaseSpace
 from ....core.components.types import AgentViewProtocol, Pairing, SystemViewProtocol
 from ....core.errors import ValidationError
-from ....core.specs import PartnerSpec, RoleSpec
-from ....core.types import ElementKind
+from ....core.types import Role
 from ._batch_matching_spec import BatchMatchingSpec
 from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._iterative_matching_spec import IterativeMatchingSpec
@@ -61,8 +59,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
     round of its phase and reports `<label>.value`, the clearing value weighted by quantity, `<label>.volume`, and
     `<label>.unmatched`.
 
-    Unlike `TransferInteraction`, which moves amounts between given pairs, it first forms the pairs by a rule, through
-    the `MatchLaw` of the core, and then transfers. Choose it when who trades with whom and at what value are part of
+    Unlike a labelled `RateLaw` flow, which moves amounts between given pairs, it first forms the pairs by a rule,
+    through `pairs` of the core, and then transfers. Choose it when who trades with whom and at what value are part of
     the model.
 
     It appears in many fields. Buyers and sellers trade goods, workers and firms agree on wages, borrowers and banks
@@ -129,7 +127,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('value', 'volume', 'unmatched')
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the rule draws.
@@ -142,8 +140,8 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         self,
         label: str,
         *,
-        requesters: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
-        providers: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
+        requesters: Role,
+        providers: Role,
         rule: MatchingRule | Pairing = RandomSearchSpec(),
         reserve: str | tuple[str, str] = 'reserve',
         quantity: str | tuple[str, str] = 'quantity',
@@ -659,12 +657,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
 
         trades: list[MatchSpec] = []
         left, right = [offer.agent for offer in requesters], [offer.agent for offer in providers]
-        for requester, provider in MatchLaw(self.requesters, self.providers, rule).iterate_pairs(
-            left,
-            right,
-            rng,
-            is_feasible,
-        ):
+        for requester, provider in pairs(left, right, rng, rule, feasible=is_feasible):
             first, second = wanting[id(requester)], offering[id(provider)]
             value = rule.value if isinstance(rule, PartnerMatchingSpec) else 'midpoint'
             self._record_match(trades, first, second, self._get_value(first, second, value))
@@ -686,7 +679,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         trades: list[MatchSpec] = []
         left = [offer.agent for offer in requesters]
         right = left if self.requesters == self.providers else [offer.agent for offer in providers]
-        for requester, provider in MatchLaw(self.requesters, self.providers, rule).get_pairs(left, right, rng):
+        for requester, provider in pairs(left, right, rng, rule):
             first, second = wanting[id(requester)], offering[id(provider)]
             self._record_match(trades, first, second, self._get_value(first, second, 'midpoint'))
         return trades
@@ -769,21 +762,15 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         """
         self._check_partners(self.rule, space)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a bad declaration, an unsigned transfer, or a bad rule.
-
-        A bad declaration is one the matching cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A transfer has a sign other than `-1` or `1`, the rule is neither a matching spec nor a function, or
                 it is invalid.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         for state, sign in self.transfers:
             if sign not in SIGNS:
                 error_msg = f'The transfer of {state!r} has the sign {sign!r}. Use one of {SIGNS}.'
@@ -792,7 +779,17 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
         if isinstance(self.rule, RULES):
             self.rule._check()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: Sequence[BaseLaw] = self._get_matching_laws(context)
+
+    def _get_matching_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
         """Return the rule that matches the members in the matching's phase.
 
         Args:
@@ -803,7 +800,7 @@ class MatchingInteraction[SystemT: SystemViewProtocol](Interaction):
             laws:
                 The laws of the interaction.
         """
-        return [RuleLaw(self.match, phase=self.phase)]
+        return [UpdateLaw(namespace, self.match, phase=self.phase)]
 
     def match(self, system: SystemT) -> None:
         """Match the members, settle the matches, and report the results.

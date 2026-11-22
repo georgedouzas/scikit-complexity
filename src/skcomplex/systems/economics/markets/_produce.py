@@ -3,27 +3,32 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 WHOLESALE_PRICES = (0.6, 0.5, 0.7, 0.9, 1.2, 1.5, 0.8, 0.4, 0.5, 0.3, 0.6, 1.0)
 MAX_LIST_LENGTH = 8
 MAX_MARKUP = 30
 
 
-class ShopperView(AgentView):
+class ShopperView(AgentViewProtocol, Protocol):
     """Shopper as its rule sees it.
 
     It holds its `wanted` items, its `visited` stalls, its `missed` items, and its `spent`.
@@ -35,7 +40,7 @@ class ShopperView(AgentView):
     spent: float
 
 
-class StallView(AgentView):
+class StallView(AgentViewProtocol, Protocol):
     """Stall as the shoppers see it.
 
     It holds its index `stall`, its `stock` of produce as a bit mask, and its `markup`.
@@ -52,17 +57,11 @@ def _items_of(mask: int) -> list[int]:
 
 
 class ShopperElement(Element):
-    """Shopper who visits one stall a step and buys what it wants there.
-
-    It only visits stalls it has not visited yet. A shopper gives up the items that it has not found once it has visited
-    every stall.
+    """Shopper with a shopping list, who visits stalls by `ShoppingInteraction`.
 
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         wanted:
             The bit mask of the items on the shopping list.
@@ -76,50 +75,78 @@ class ShopperElement(Element):
         spent:
             The money spent.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of shoppers, or `None` for one.
+
+        space:
+            The space of the shoppers, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ShopperElement
-        >>> GroupElement('shoppers', element=ShopperElement, size=5, values={'wanted': 3}).size
+        >>> ShopperElement('shoppers', wanted=3, size=5).size
         5
     """
-
-    law_classes = (RuleLaw,)
-
-    stalls: ClassVar[str] = 'stalls'
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        wanted: Annotated[float, StateSpec(domain=NN)] = 0,
-        visited: Annotated[float, StateSpec(domain=NN)] = 0,
-        missed: Annotated[float, StateSpec(domain=NN)] = 0,
-        spent: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        wanted: Annotated[object, NN] = 0,
+        visited: Annotated[object, NN] = 0,
+        missed: Annotated[object, NN] = 0,
+        spent: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.wanted = wanted
         self.visited = visited
         self.missed = missed
         self.spent = spent
 
-    @classmethod
-    def _get_view(cls) -> type[ShopperView]:
-        """Return the view of a shopper, with its list, visits, misses, and spending."""
-        return ShopperView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shopping rule.
+class ShoppingInteraction(Interaction):
+    """Shopping of every shopper, who visits one stall a step and buys what it wants there.
+
+    A shopper only visits stalls it has not visited yet, and gives up the items that it has not found once it has
+    visited every stall.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of shoppers.
+
+        stalls:
+            The path of the group of stalls.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import ShoppingInteraction
+        >>> ShoppingInteraction('shopping', target='shoppers', stalls='stalls').stalls
+        'stalls'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role, stalls: Role) -> None:
+        super().__init__(label)
+        self.target = target
+        self.stalls = stalls
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the shopping rule of every shopper.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the shoppers and the stalls.
         """
-        return [RuleLaw(self.shop)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.shop)]
 
     def shop(self, agent: ShopperView, system: SystemView) -> None:
         """Visit a random stall not visited yet and buy every wanted item that it sells.
@@ -135,7 +162,7 @@ class ShopperElement(Element):
         if not wanted:
             return
         unvisited = [
-            stall for stall in system.get_agents(self.stalls, StallView) if not visited >> int(stall.stall) & 1
+            stall for stall in cast(list[StallView], system.get_agents('stalls')) if not visited >> int(stall.stall) & 1
         ]
         if not unvisited:
             agent.missed, agent.wanted = wanted, 0
@@ -156,9 +183,6 @@ class StallElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         stall:
             The index of the stall.
 
@@ -168,46 +192,36 @@ class StallElement(Element):
         markup:
             The relative markup on the wholesale prices.
 
+        values:
+            Further values by name, or `None` for none.
+
+        size:
+            The number of stalls, or `None` for one.
+
+        space:
+            The space of the stalls, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import StallElement
-        >>> GroupElement('stalls', element=StallElement, size=3, values={'stall': [0, 1, 2]}).size
+        >>> StallElement('stalls', stall=[0, 1, 2], size=3).size
         3
     """
-
-    law_classes = ()
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        stall: Annotated[float, StateSpec(domain=NN)] = 0,
-        stock: Annotated[float, StateSpec(domain=NN)] = 0,
-        markup: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        stall: Annotated[object, NN] = 0,
+        stock: Annotated[object, NN] = 0,
+        markup: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.stall = stall
         self.stock = stock
         self.markup = markup
-
-    @classmethod
-    def _get_view(cls) -> type[StallView]:
-        """Return the view of a stall, with its index, stock, and markup."""
-        return StallView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since stalls only wait for shoppers.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
 
 
 def _get_items_left(wanted: object) -> float:
@@ -239,6 +253,12 @@ class ProduceMarketSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import ProduceMarketSystem
         >>> [group.size for group in ProduceMarketSystem(10, 3).prepare().system_.elements]
@@ -250,8 +270,8 @@ class ProduceMarketSystem(BaseSystem):
     references = ('Hamill and Gilbert 2016',)
     until = 10
     observables = (
-        ObservableSpec('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
-        ObservableSpec('spent', group='shoppers', variable='spent'),
+        Observable('items_left', group='shoppers', variable='wanted', reduce=_get_items_left),
+        Observable('spent', group='shoppers', variable='spent'),
     )
 
     def __init__(
@@ -262,8 +282,10 @@ class ProduceMarketSystem(BaseSystem):
         n_items_stocked: int = 6,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_shoppers = n_shoppers
         self.n_stalls = n_stalls
         self.n_items_stocked = n_items_stocked
@@ -279,20 +301,23 @@ class ProduceMarketSystem(BaseSystem):
         masks = [sum(1 << int(item) for item in rng.choice(n_items, size, replace=False)) for size in sizes]
         return np.array(masks, dtype=float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         stocks = self._get_random_masks(np.full(self.n_stalls, self.n_items_stocked), rng)
         markups = rng.integers(1, MAX_MARKUP + 1, self.n_stalls) / 100
         lists = self._get_random_masks(rng.integers(1, MAX_LIST_LENGTH + 1, self.n_shoppers), rng)
-        stalls = GroupElement(
+        stalls = StallElement(
             'stalls',
-            element=StallElement,
+            stall=np.arange(self.n_stalls, dtype=float),
+            stock=stocks,
+            markup=markups,
             size=self.n_stalls,
-            values={'stall': np.arange(self.n_stalls, dtype=float), 'stock': stocks, 'markup': markups},
         )
-        shoppers = GroupElement('shoppers', element=ShopperElement, size=self.n_shoppers, values={'wanted': lists})
-        return CompositeSystem(
+        shoppers = ShopperElement('shoppers', wanted=lists, size=self.n_shoppers)
+        self.system_ = System(
             self.label,
             elements=[stalls, shoppers],
+            interactions=[ShoppingInteraction('shopping', target='shoppers', stalls='stalls')],
         )

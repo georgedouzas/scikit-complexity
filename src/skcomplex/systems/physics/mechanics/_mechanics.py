@@ -6,28 +6,24 @@ The module covers pendulums, oscillators, projectiles, and collisions.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import BaseInteraction, GradientInteraction, Interaction, RateInteraction
-from ....core.components.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.components.laws.utils import derivative
-from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
-from ..common.particles import (
-    ConstantForceInteraction,
-    DampingInteraction,
-    HarmonicForceInteraction,
-    HarmonicPotentialInteraction,
-    MassPointElement,
-)
+from ....core import systems
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import EventLaw, RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.types import Role
+from ..common.mechanics import PendulumSwingInteraction
+from ..common.particles import LinearDragInteraction, PeriodicForceInteraction, RestoringForceInteraction
 
 WALL_POINTS = 200
 GRAVITY = 9.81
@@ -36,25 +32,18 @@ GRAVITY = 9.81
 class BouncingBallElement(Element):
     """Ball at the height `h` above a floor.
 
-    The ball falls under the gravitational acceleration `g`.
-
-    The height has order 2 and its first derivative `h_d1` is the vertical velocity.
+    The height `h` and its derivative `h'`, the vertical velocity, change under the laws of gravity and of the
+    impacts.
 
     Args:
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         h:
             The initial height.
 
-        h_d1:
-            The initial vertical velocity.
-
-        g:
-            The gravitational acceleration.
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BouncingBallElement
@@ -62,19 +51,9 @@ class BouncingBallElement(Element):
         2.0
     """
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        h: Annotated[float, StateSpec(order=2)] = 1.0,
-        h_d1: float = 0.0,
-        g: Annotated[float, ParameterSpec()] = 9.81,
-    ) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, h: float = 1.0, values: Mapping[str, object] | None = None) -> None:
+        super().__init__(label, values=values)
         self.h = h
-        self.h_d1 = h_d1
-        self.g = g
 
 
 def _get_disc_wall(radius: float, **_: float) -> list[np.ndarray]:
@@ -86,16 +65,11 @@ def _get_disc_wall(radius: float, **_: float) -> list[np.ndarray]:
 class DiscBilliardElement(Element):
     """Particle moving freely in the plane inside a disc.
 
-    The particle has the position `(x, y)` and the velocity `(vx, vy)`.
-
-    The position changes at the velocity, which changes only at the reflections off the wall of the disc.
+    The particle has the position `(x, y)` and the velocity `(vx, vy)`, and the disc the radius `radius`.
 
     Args:
         label:
             The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for its class visual.
 
         x:
             The initial horizontal position.
@@ -118,40 +92,24 @@ class DiscBilliardElement(Element):
         2.0
     """
 
-    law_classes = (RateLaw,)
-
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _get_disc_wall})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.3,
-        y: Annotated[float, StateSpec()] = 0.0,
-        vx: Annotated[float, StateSpec()] = 0.4,
-        vy: Annotated[float, StateSpec()] = 1.0,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: float = 0.3,
+        y: float = 0.0,
+        vx: float = 0.4,
+        vy: float = 1.0,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.y = y
         self.vx = vx
         self.vy = vy
         self.radius = radius
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the free flight `x' = vx`, `y' = vy` of the particle.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the position.
-        """
-        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
 
 
 class HangingBallElement(Element):
@@ -159,21 +117,15 @@ class HangingBallElement(Element):
 
     The ball swings with small amplitude about its rest position.
 
-    The horizontal position `x` has order 2, and its first derivative `x_d1` is the velocity. For small amplitudes
-    the ball moves in the potential `g (x - rest)² / (2 length)`.
+    The horizontal position is `x` and its derivative `x'` is the velocity. For small amplitudes the ball moves in the
+    potential `g (x - rest)² / (2 length)`.
 
     Args:
         label:
             The label of the ball.
 
-        visual:
-            How the ball is drawn, or `None` for none.
-
         x:
             The initial horizontal position.
-
-        x_d1:
-            The initial horizontal velocity.
 
         rest:
             The rest position.
@@ -184,6 +136,9 @@ class HangingBallElement(Element):
         length:
             The length of the string.
 
+        values:
+            Further values by name, such as an initial velocity named with a prime, or `None`.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import HangingBallElement
         >>> HangingBallElement('ball', rest=0.5).rest
@@ -193,17 +148,15 @@ class HangingBallElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(order=2)] = 0.0,
-        x_d1: float = 0.0,
-        rest: Annotated[float, ParameterSpec()] = 0.0,
-        g: Annotated[float, ParameterSpec()] = 9.81,
-        length: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: float = 0.0,
+        rest: float = 0.0,
+        g: float = 9.81,
+        length: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values)
         self.x = x
-        self.x_d1 = x_d1
         self.rest = rest
         self.g = g
         self.length = length
@@ -236,50 +189,240 @@ class ElasticCollisionInteraction(Interaction):
         0.2
     """
 
-    law_classes = (CrossingLaw,)
+    law_classes = (EventLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        left: Annotated[str, RoleSpec()],
-        right: Annotated[str, RoleSpec()],
-        diameter: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        left: Role,
+        right: Role,
+        diameter: Annotated[float, RealSet.open(0, oo)] = 0.1,
     ) -> None:
         super().__init__(label)
         self.left = left
         self.right = right
         self.diameter = diameter
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the crossing law of the contact.
-
-        The law swaps the velocities of the balls.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the event of the contact, which swaps the velocities of the balls.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use, with `s.left` and `s.right`.
-
-        Returns:
-            laws:
-                The crossing law.
+            context:
+                The namespace of the two balls, the time `t`, and the diameter.
         """
-        return [
-            CrossingLaw(
-                s.right.x - s.left.x - s.diameter,
-                {
-                    derivative(s.left.x, 1): derivative(s.right.x, 1),
-                    derivative(s.right.x, 1): derivative(s.left.x, 1),
-                },
-                direction=-1,
-            ),
-        ]
+        super()._prepare(context)
+        t, left, right = context.t, context.left.x, context.right.x
+        swap = {left.diff(t): right.diff(t), right.diff(t): left.diff(t)}
+        self.laws_ = [EventLaw(right - left - context.diameter, swap, direction=-1)]
 
 
-class ProjectileSystem(BaseSystem):
+class HangingSwingInteraction(Interaction):
+    """Small swing of a hanging ball about its rest position.
+
+    The position `x` of the target follows `x'' = -g (x - rest) / length`, with the gravity `g`, the rest position
+    `rest`, and the length `length` of the string, all values of the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the ball.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import HangingSwingInteraction
+        >>> HangingSwingInteraction('swing', target='ball').target
+        'ball'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the ball.
+
+        Args:
+            context:
+                The namespace of the ball and the time `t`.
+        """
+        super()._prepare(context)
+        ball = context.target
+        self.laws_ = [RateLaw(ball.x.diff(context.t, 2), -ball.g * (ball.x - ball.rest) / ball.length)]
+
+
+class UniformGravityInteraction(Interaction):
+    """Uniform gravity, the constant acceleration `-g` of the height of a target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the body.
+
+        g:
+            The gravitational acceleration.
+
+        coordinate:
+            The name of the height of the body, such as `'y'` in a plane or `'h'` above a floor.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import UniformGravityInteraction
+        >>> UniformGravityInteraction('gravity', target='ball', g=1.62).g
+        1.62
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role, g: float = GRAVITY, coordinate: str = 'y') -> None:
+        super().__init__(label)
+        self.target = target
+        self.g = g
+        self.coordinate = coordinate
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the acceleration of the height of the body.
+
+        Args:
+            context:
+                The namespace of the body, the time `t`, and the gravity.
+        """
+        super()._prepare(context)
+        height = getattr(context.target, self.coordinate)
+        self.laws_ = [RateLaw(height.diff(context.t, 2), -context.g)]
+
+
+class FloorImpactInteraction(Interaction):
+    """Impact of a ball on the floor `h = 0`, which reverses its vertical velocity and scales it by `e`.
+
+    When the height `h` of the target falls to zero, the velocity `h'` becomes `-e h'`, with the coefficient of
+    restitution `e`. It is a bouncing ball, a dropped phone, or a hopping robot.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the ball, whose height is `h`.
+
+        e:
+            The coefficient of restitution, the ratio of the speeds after and before the impact.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import FloorImpactInteraction
+        >>> FloorImpactInteraction('impact', target='ball', e=0.5).e
+        0.5
+    """
+
+    law_classes = (EventLaw,)
+
+    def __init__(self, label: str, *, target: Role, e: Annotated[float, RealSet.closed(0, 1)] = 1.0) -> None:
+        super().__init__(label)
+        self.target = target
+        self.e = e
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the event of the impact, which reverses the vertical velocity.
+
+        Args:
+            context:
+                The namespace of the ball, the time `t`, and the restitution.
+        """
+        super()._prepare(context)
+        height = context.target.h
+        velocity = height.diff(context.t)
+        reset = {velocity: velocity - (1 + context.e) * velocity}
+        self.laws_ = [EventLaw(height, reset, direction=-1, label=self.label)]
+
+
+class FreeFlightInteraction(Interaction):
+    """Free flight of a particle in the plane, `x' = vx` and `y' = vy`.
+
+    The velocity `(vx, vy)` changes only at the walls, so the particle moves along straight lines between them.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import FreeFlightInteraction
+        >>> FreeFlightInteraction('flight', target='particle').target
+        'particle'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the position of the particle.
+
+        Args:
+            context:
+                The namespace of the particle and the time `t`.
+        """
+        super()._prepare(context)
+        p, t = context.target, context.t
+        self.laws_ = [RateLaw(p.x.diff(t), p.vx), RateLaw(p.y.diff(t), p.vy)]
+
+
+class DiscWallInteraction(Interaction):
+    """Specular reflection of a particle off the wall of a disc of radius `radius`.
+
+    When the particle reaches the wall `x² + y² = radius²` from inside, its velocity `v = (vx, vy)` becomes
+    `v - 2 (v . n) n / |n|²` with the normal `n = (2 x, 2 y)`, so the angle of incidence equals the angle of
+    reflection. It is a circular billiard table, a gas in a round container, or light in a circular mirror.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle, whose values are `x`, `y`, `vx`, `vy`, and `radius`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import DiscWallInteraction
+        >>> DiscWallInteraction('bounce', target='particle').target
+        'particle'
+    """
+
+    law_classes = (EventLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the event that reflects the velocity about the normal of the wall.
+
+        Args:
+            context:
+                The namespace of the particle and the time `t`.
+        """
+        super()._prepare(context)
+        p = context.target
+        guard = p.x**2 + p.y**2 - p.radius**2
+        normal = [2 * p.x, 2 * p.y]
+        velocities = [p.vx, p.vy]
+        speed = sum((v * n for v, n in zip(velocities, normal, strict=True)), SR(0))
+        scale = 2 * speed / sum((n**2 for n in normal), SR(0))
+        reset = {v: v - scale * n for v, n in zip(velocities, normal, strict=True)}
+        self.laws_ = [EventLaw(guard, reset, direction=1, label=self.label)]
+
+
+class ProjectileSystem(systems.BaseSystem):
     """A particle launched under uniform gravity, optionally slowed by linear drag.
 
-    The system has the particle `ball` in two dimensions.
+    The system has the particle `ball` at the position `(ball.x, ball.y)`, with the height `ball.y`.
 
     Args:
         speed:
@@ -297,10 +440,17 @@ class ProjectileSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import ProjectileSystem
-        >>> ProjectileSystem(speed=5.0, angle=90.0).prepare().system_.elements[0].x_d1[1]
-        5.0
+        >>> trajectory = ProjectileSystem(speed=5.0, angle=90.0).prepare().simulate(until=0.1)
+        >>> float(trajectory.get_values("ball.x'")[0]), float(trajectory.get_values("ball.y'")[0])
+        (0.0, 5.0)
     """
 
     field = 'physics/mechanics'
@@ -317,37 +467,42 @@ class ProjectileSystem(BaseSystem):
         mass: float = 1.0,
         drag: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.speed = speed
         self.angle = angle
         self.mass = mass
         self.drag = drag
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a particle launched under uniform gravity.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a particle launched under uniform gravity, optionally slowed by linear drag.
 
-        Linear drag optionally slows the particle.
+        The drag acts even when its coefficient is zero, so that the horizontal position moves as a state.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         radians = np.radians(self.angle)
-        velocity = [round(float(self.speed * np.cos(radians)), 12), round(float(self.speed * np.sin(radians)), 12)]
-        interactions: list[BaseInteraction] = [
-            ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * self.mass]),
+        speeds = [round(float(self.speed * trig(radians)), 12) for trig in (np.cos, np.sin)]
+        interactions = [
+            UniformGravityInteraction('gravity', target='ball'),
+            LinearDragInteraction('drag', target='ball', gamma=self.drag, coordinates=('x', 'y')),
         ]
-        if self.drag:
-            interactions.append(DampingInteraction('drag', target='ball', gamma=self.drag))
-        return CompositeSystem(
+        self.system_ = systems.System(
             self.label,
-            elements=[MassPointElement('ball', x=[0.0, 0.0], x_d1=velocity, m=self.mass)],
+            elements=[Element('ball', values={'x': 0.0, 'y': 0.0, "x'": speeds[0], "y'": speeds[1], 'm': self.mass})],
             interactions=interactions,
-            space=ContinuousSpace(n_dim=2),
         )
 
 
-class HarmonicOscillatorSystem(BaseSystem):
+class HarmonicOscillatorSystem(systems.BaseSystem):
     """A particle on a spring, optionally damped.
 
-    The system has the particle `mass` in one dimension.
+    The system has the particle `mass` in one dimension, with the displacement `mass.x` and the velocity `mass.x'`.
 
     Args:
         x:
@@ -367,6 +522,12 @@ class HarmonicOscillatorSystem(BaseSystem):
 
         label:
             The label of the system, which names it when it is nested in another one.
+
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
     Examples:
         >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
@@ -389,31 +550,35 @@ class HarmonicOscillatorSystem(BaseSystem):
         mass: float = 1.0,
         damping: float = 0.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.k = k
         self.mass = mass
         self.damping = damping
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a particle on a spring, optionally damped."""
-        interactions: list[BaseInteraction] = [HarmonicPotentialInteraction('spring', target='mass', k=self.k)]
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a particle on a spring, optionally damped.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        interactions: list[BaseInteraction] = [RestoringForceInteraction('spring', target='mass', k=self.k)]
         if self.damping:
-            interactions.append(DampingInteraction('damping', target='mass', gamma=self.damping))
-        return CompositeSystem(
-            self.label,
-            elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.mass)],
-            interactions=interactions,
-            space=ContinuousSpace(n_dim=1),
-        )
+            interactions.append(LinearDragInteraction('damping', target='mass', gamma=self.damping))
+        mass = Element('mass', values={'x': self.x, "x'": self.v, 'm': self.mass})
+        self.system_ = systems.System(self.label, elements=[mass], interactions=interactions)
 
 
-class PendulumSystem(BaseSystem):
+class PendulumSystem(systems.BaseSystem):
     """A pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`.
 
-    The system has the pendulum `bob`, whose angle has order 2 and angular velocity `bob.theta_d1`.
+    The system has the pendulum `bob`, with the angle `bob.theta` and the angular velocity `bob.theta'`.
 
     Args:
         theta:
@@ -434,10 +599,17 @@ class PendulumSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import PendulumSystem
-        >>> PendulumSystem(theta=0.1).prepare().system_.elements[0].theta_d1
-        0.0
+        >>> trajectory = PendulumSystem(theta=0.1).prepare().simulate(until=1.0, dt=1.0)
+        >>> round(float(trajectory.get_values('bob.theta')[0]), 1)
+        0.1
     """
 
     field = 'physics/mechanics'
@@ -455,32 +627,38 @@ class PendulumSystem(BaseSystem):
         g: float = 9.81,
         l: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.theta = theta
         self.omega = omega
         self.m = m
         self.g = g
         self.l = l
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a pendulum.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`.
 
-        Its angle follows Newton's second law `m l θ'' = -m g sin θ`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        bob = Element('bob', values={'theta': self.theta, "theta'": self.omega, 'm': self.m, 'g': self.g, 'l': self.l})
+        self.system_ = systems.System(
             self.label,
-            elements=[PendulumElement('bob', theta=self.theta, theta_d1=self.omega, m=self.m, g=self.g, l=self.l)],
-            interactions=[PendulumInteraction('swing', target='bob')],
+            elements=[bob],
+            interactions=[PendulumSwingInteraction('swing', target='bob')],
         )
 
 
-class DrivenDampedOscillatorSystem(BaseSystem):
+class DrivenDampedOscillatorSystem(systems.BaseSystem):
     """A mass on a spring with damping and a periodic force.
 
     The mass follows `m x'' = -k x - c x' + F cos(ω t)`.
 
-    The system has the mass `mass` in one dimension, whose displacement `mass.x` has order 2.
+    The system has the mass `mass` in one dimension, with the displacement `mass.x` and the velocity `mass.x'`.
 
     Args:
         x:
@@ -507,6 +685,12 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import DrivenDampedOscillatorSystem
         >>> DrivenDampedOscillatorSystem(F=0.5).prepare().system_.interactions[2].F
@@ -530,8 +714,10 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         F: float = 0.0,
         omega: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.v = v
         self.m = m
@@ -540,31 +726,33 @@ class DrivenDampedOscillatorSystem(BaseSystem):
         self.F = F
         self.omega = omega
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a mass on a spring with damping and a periodic force.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a mass on a spring with damping and a periodic force.
 
-        The mass follows `m x'' = -k x - c x' + F cos(ω t)`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = systems.System(
             self.label,
-            elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.m)],
+            elements=[Element('mass', values={'x': self.x, "x'": self.v, 'm': self.m})],
             interactions=[
-                HarmonicPotentialInteraction('spring', target='mass', k=self.k),
-                DampingInteraction('damping', target='mass', gamma=self.c),
-                HarmonicForceInteraction('drive', target='mass', F=self.F, omega=self.omega),
+                RestoringForceInteraction('spring', target='mass', k=self.k),
+                LinearDragInteraction('damping', target='mass', gamma=self.c),
+                PeriodicForceInteraction('drive', target='mass', F=self.F, omega=self.omega),
             ],
-            space=ContinuousSpace(n_dim=1),
         )
 
 
-class BouncingBallSystem(BaseSystem):
+class BouncingBallSystem(systems.BaseSystem):
     """A ball that falls under gravity and bounces off the floor.
 
     The ball loses speed by a coefficient of restitution.
 
     Every impact is an event that reverses the velocity and scales it by `e`. The impacts accumulate at the Zeno time
     `sqrt(2 h / g) (1 + e) / (1 - e)` for a ball dropped from rest, so runs should end before it. The system has the
-    height `ball.h` of order 2 and its velocity `ball.h_d1`.
+    height `ball.h` and its velocity `ball.h'`.
 
     Args:
         h:
@@ -582,10 +770,15 @@ class BouncingBallSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import BouncingBallSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> trajectory = simulate(BouncingBallSystem(), until=1.0, dt=0.01)
+        >>> trajectory = BouncingBallSystem().prepare().simulate(until=1.0, dt=0.01)
         >>> round(trajectory.events[0].time, 6)
         0.451524
     """
@@ -604,41 +797,41 @@ class BouncingBallSystem(BaseSystem):
         g: float = 9.81,
         e: float = 0.8,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.h = h
         self.v = v
         self.g = g
         self.e = e
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a ball that falls under gravity and bounces off the floor.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = systems.System(
             self.label,
-            elements=[BouncingBallElement('ball', h=self.h, h_d1=self.v, g=self.g)],
+            elements=[BouncingBallElement('ball', h=self.h, values={"h'": self.v})],
             interactions=[
-                RateInteraction('gravity', target='ball', state='h', rate=lambda s: -s.target.g),
-                ReflectionInteraction(
-                    'impact',
-                    target='ball',
-                    guard=lambda s: s.target.h,
-                    positions=('h',),
-                    velocities=('h_d1',),
-                    direction=-1,
-                    restitution=self.e,
-                ),
+                UniformGravityInteraction('gravity', target='ball', g=self.g, coordinate='h'),
+                FloorImpactInteraction('impact', target='ball', e=self.e),
             ],
         )
 
 
-class NewtonsCradleSystem(BaseSystem):
+class NewtonsCradleSystem(systems.BaseSystem):
     """Newton's cradle.
 
     Pendulum balls in a row pass momentum along by elastic collisions.
 
     The balls swing with small amplitude about rest positions that leave a small gap between neighbours, so collisions
     are separate events. The first ball starts with a speed towards the others, and equal masses exchange velocities at
-    every collision. The system has the horizontal positions `ball_<i>.x` and velocities `ball_<i>.x_d1`.
+    every collision. The system has the horizontal positions `ball_<i>.x` and velocities `ball_<i>.x'`.
 
     Args:
         n_balls:
@@ -662,6 +855,12 @@ class NewtonsCradleSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import NewtonsCradleSystem
         >>> len(NewtonsCradleSystem(n_balls=3).prepare().system_.interactions)
@@ -684,8 +883,10 @@ class NewtonsCradleSystem(BaseSystem):
         length: float = 1.0,
         g: float = 9.81,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_balls = n_balls
         self.speed = speed
         self.diameter = diameter
@@ -693,30 +894,28 @@ class NewtonsCradleSystem(BaseSystem):
         self.length = length
         self.g = g
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Newton's cradle.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of pendulum balls in a row that pass momentum along by elastic collisions.
 
-        Pendulum balls in a row pass momentum along by elastic collisions.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.diameter + self.gap
         elements = [
             HangingBallElement(
                 f'ball_{index}',
                 x=index * spacing,
-                x_d1=self.speed if index == 0 else 0.0,
                 rest=index * spacing,
                 g=self.g,
                 length=self.length,
+                values={"x'": self.speed if index == 0 else 0.0},
             )
             for index in range(self.n_balls)
         ]
         swings: list[BaseInteraction] = [
-            GradientInteraction(
-                f'swing_{index}',
-                target=f'ball_{index}',
-                potential=lambda s: s.target.g * (s.target.x - s.target.rest) ** 2 / (2 * s.target.length),
-            )
-            for index in range(self.n_balls)
+            HangingSwingInteraction(f'swing_{index}', target=f'ball_{index}') for index in range(self.n_balls)
         ]
         collisions: list[BaseInteraction] = [
             ElasticCollisionInteraction(
@@ -727,10 +926,10 @@ class NewtonsCradleSystem(BaseSystem):
             )
             for index in range(self.n_balls - 1)
         ]
-        return CompositeSystem(self.label, elements=elements, interactions=[*swings, *collisions])
+        self.system_ = systems.System(self.label, elements=elements, interactions=[*swings, *collisions])
 
 
-class CircularBilliardSystem(BaseSystem):
+class CircularBilliardSystem(systems.BaseSystem):
     """A particle moving freely inside a circle and reflecting specularly off its wall.
 
     The angle of incidence is the same at every bounce, so the circular billiard is integrable. The system has the
@@ -755,6 +954,12 @@ class CircularBilliardSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.mechanics import CircularBilliardSystem
         >>> CircularBilliardSystem(radius=2.0).prepare().system_.elements[0].radius
@@ -776,29 +981,30 @@ class CircularBilliardSystem(BaseSystem):
         *,
         radius: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.vx = vx
         self.vy = vy
         self.radius = radius
 
-    def _build_system(self) -> CompositeSystem:
-        """Return a particle moving freely inside a circle.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a particle moving freely inside a circle and reflecting off its wall.
 
-        The particle reflects specularly off the wall of the circle.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        wall = ReflectionInteraction(
-            'bounce',
-            target='particle',
-            guard=lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2,
-            positions=('x', 'y'),
-            velocities=('vx', 'vy'),
-            direction=1,
-        )
-        return CompositeSystem(
+        super()._prepare(context)
+        particle = DiscBilliardElement('particle', x=self.x, y=self.y, vx=self.vx, vy=self.vy, radius=self.radius)
+        self.system_ = systems.System(
             self.label,
-            elements=[DiscBilliardElement('particle', x=self.x, y=self.y, vx=self.vx, vy=self.vy, radius=self.radius)],
-            interactions=[wall],
+            elements=[particle],
+            interactions=[
+                FreeFlightInteraction('flight', target='particle'),
+                DiscWallInteraction('bounce', target='particle'),
+            ],
         )

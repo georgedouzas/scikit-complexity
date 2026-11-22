@@ -6,6 +6,7 @@ The module holds the circulation of a closed ocean basin under a wind stress on 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,34 +14,34 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import inverse_helmholtz, partial
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import RK4Solver
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, RK4Solver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.fields import AdvectionInteraction, DiffusivityInteraction
 
 
 class QuasiGeostrophicSiteElement(Element):
-    """Site of a quasi-geostrophic ocean basin.
+    """Sites of a quasi-geostrophic ocean basin.
 
-    The site holds the relative potential vorticity of the water column at one position.
+    Every site holds the relative potential vorticity of the water column at one position.
 
-    The site holds the relative potential vorticity `zeta = laplacian(psi) - psi / Rd**2`, the potential vorticity
+    A site holds the relative potential vorticity `zeta = laplacian(psi) - psi / Rd**2`, the potential vorticity
     without the planetary part `beta y`, with the planetary vorticity gradient `beta`, the deformation radius `Rd`, the
     viscosity `nu`, and the curl of the wind stress `curl` at the site.
 
     Args:
         label:
-            The label of the site or the basin.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
+            The label of the basin.
 
         zeta:
-            The initial relative potential vorticity.
+            The initial relative potential vorticity, one value or one per site.
 
         beta:
             The gradient of the planetary vorticity.
@@ -52,7 +53,10 @@ class QuasiGeostrophicSiteElement(Element):
             The viscosity.
 
         curl:
-            The curl of the wind stress.
+            The curl of the wind stress, one value or one per site.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.oceanography import QuasiGeostrophicSiteElement
@@ -63,15 +67,15 @@ class QuasiGeostrophicSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        zeta: Annotated[float, StateSpec()] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        Rd: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        nu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1e-4,
-        curl: Annotated[float, ParameterSpec()] = 0.0,
+        zeta: object = 0.0,
+        beta: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        Rd: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        nu: Annotated[float, RealSet.open(0, oo)] = 1e-4,
+        curl: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.zeta = zeta
         self.beta = beta
         self.Rd = Rd
@@ -86,6 +90,43 @@ def _get_streamfunction(s: SimpleNamespace) -> Expression:
     """
     streamfunction: Expression = inverse_helmholtz(s.zeta, 1 / s.Rd, ('fixed', 0))
     return streamfunction
+
+
+class WindStressInteraction(Interaction):
+    """Input of vorticity into a basin by the curl of the wind stress.
+
+    The relative potential vorticity `zeta` of every site of the target grows at the curl `curl` of the wind stress at
+    the site, `zeta' = curl`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the basin.
+
+    Examples:
+        >>> from skcomplex.systems.physics.oceanography import WindStressInteraction
+        >>> WindStressInteraction('wind', target='basin').target
+        'basin'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the vorticity of the basin to the curl of the wind stress.
+
+        Args:
+            context:
+                The namespace of the basin and the time `t`.
+        """
+        super()._prepare(context)
+        zeta = context.target.zeta
+        self.laws_ = [RateLaw(zeta.diff(context.t), context.target.curl)]
 
 
 def _get_sites(values: np.ndarray) -> np.ndarray:
@@ -134,9 +175,15 @@ class DoubleGyreSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.oceanography import DoubleGyreSystem
-        >>> DoubleGyreSystem(16).prepare().system_.elements[0].values['beta']
+        >>> DoubleGyreSystem(16).prepare().system_.elements[0].beta
         1.0
     """
 
@@ -145,8 +192,7 @@ class DoubleGyreSystem(BaseSystem):
     references = ('Munk 1950', 'arXiv:1910.00583')
     until = 400.0
     dt = 0.4
-    solver = RK4Solver(dt=0.4)
-    observables = (ObservableSpec('psi', _get_streamfunction, group='basin', reduce=_get_sites),)
+    observables = (Observable('psi', _get_streamfunction, group='basin', reduce=_get_sites),)
 
     def __init__(
         self,
@@ -158,8 +204,10 @@ class DoubleGyreSystem(BaseSystem):
         nu: float = 1.25e-4,
         tau0: float = 1e-5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.beta = beta
@@ -180,38 +228,30 @@ class DoubleGyreSystem(BaseSystem):
         return drift
 
     @staticmethod
-    def _get_wind(s: SimpleNamespace) -> Expression:
-        """Return the input of vorticity by the curl of the wind stress."""
-        curl: Expression = s.target.curl
-        return curl
-
-    @staticmethod
     def _get_viscosity(s: SimpleNamespace) -> Expression:
         """Return the viscosity of a site."""
         viscosity: Expression = s.target.nu
         return viscosity
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the quasi-geostrophic double gyre.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the wind-driven circulation of a closed ocean basin.
 
-        It is the wind-driven circulation of a closed ocean basin.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / self.n_sites
         latitudes = (np.arange(self.n_sites) + 0.5) * spacing
         curl = -self.tau0 * (2 * np.pi / self.length) * np.sin(2 * np.pi * latitudes / self.length)
-        values = {
-            'zeta': 0.0,
-            'beta': self.beta,
-            'Rd': self.Rd,
-            'nu': self.nu,
-            'curl': np.broadcast_to(curl, (self.n_sites, self.n_sites)).copy(),
-        }
-        basin = FieldElement(
+        basin = QuasiGeostrophicSiteElement(
             'basin',
-            element=QuasiGeostrophicSiteElement,
+            zeta=np.zeros(self.n_sites**2),
+            beta=self.beta,
+            Rd=self.Rd,
+            nu=self.nu,
+            curl=np.broadcast_to(curl, (self.n_sites, self.n_sites)).ravel(),
             space=LatticeSpace((self.n_sites, self.n_sites), spacing=spacing, boundary='fixed'),
-            boundary={'zeta': ('fixed', 0.0)},
-            values=values,
         )
         transport = AdvectionInteraction(
             'transport',
@@ -219,9 +259,12 @@ class DoubleGyreSystem(BaseSystem):
             state='zeta',
             drift=self._get_velocity,
             source=self._get_beta_drift,
-            limiter=None,
-            riemann=None,
         )
-        wind = RateInteraction('wind', target='basin', state='zeta', rate=self._get_wind)
+        wind = WindStressInteraction('wind', target='basin')
         viscosity = DiffusivityInteraction('viscosity', target='basin', state='zeta', coefficient=self._get_viscosity)
-        return CompositeSystem(self.label, elements=[basin], interactions=[transport, wind, viscosity])
+        self.system_ = System(
+            self.label,
+            elements=[basin],
+            interactions=[transport, wind, viscosity],
+            solver=RK4Solver(dt=0.4),
+        )

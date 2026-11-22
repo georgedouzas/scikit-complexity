@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.control import SatelliteTransferSystem
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 system = SatelliteTransferSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-trajectory = simulate(system, solver=RK4Solver(dt=0.005), observers=[observer])
+trajectory = system.set_params(solver=RK4Solver(dt=0.005)).prepare().simulate(observers=[observer])
 
 # %%
 # From one Kepler orbit to another

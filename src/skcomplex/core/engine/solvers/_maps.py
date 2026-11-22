@@ -4,46 +4,76 @@
 # License: MIT
 
 import math
+from collections.abc import Sequence
 
-from ...components.laws import BoundaryLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
-from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ...specs import SupportSpec
-from ...types import Array, FormKind, OrderKind
+import numpy as np
+
+from ...components.laws import UpdateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.laws._linear_program import _LinearProgramLaw
+from ...components.spaces import BaseSpace
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...enums import FormKind, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
+from ..compile import PhaseSpec
 from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._solver import Solver
 
 
 class IterationSolver(Solver):
-    """A solver that iterates a discrete map, one application per unit of time.
+    """A solver that applies a discrete map once per unit of time.
 
-    A stochastic map takes its random draws from the stepper's random number generator at every step, through the draw
-    recorder of a run that records or replays its draws.
+    Every step applies the update laws once, such as `x ← r x (1 - x)` of the logistic map, which takes 0.2 to 0.592 and
+    then 0.894 at `r = 3.7`. A map that draws random numbers takes them from the solver's generator at every step, and a
+    step may run its laws in named phases, each reading what the phases before it set, such as a count in the phase
+    `count` and its copy in the phase `copy`. It runs the logistic map of a population, the cobweb of a market, and the
+    layers of a neural network.
+
+    Read more in the user guide, under Solvers.
+
+    Args:
+        phases:
+            The named phases of a step after the default one, such as `[PhaseSpec('count'), PhaseSpec('copy')]`, in
+            the order they run, which the `phase` of every update law names. A phase of period `k` runs every `k`
+            steps. Without phases, the phases of the update laws run in the order of their laws.
+
+        random_state:
+            The seed or generator of stochastic maps.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
+    See Also:
+        LatticeSolver: Applies the laws of a lattice once per step.
+        MesaSolver: Runs agents one step per unit of time.
 
     Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver
-        >>> from skcomplex.core.specs import StepSpec
-        >>> system = CompositeSystem(
-        ...     elements=[MarketElement('m', price=1)],
-        ...     interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
-        ... )
-        >>> problem = simulate(system, until=0).problem
-        >>> stepper = IterationSolver(random_state=0).prepare(problem)
-        >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.tolist()
-        [4.0]
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> system = LogisticMapSystem(solver=IterationSolver()).prepare()
+        >>> system.simulate(until=2).get_values('map.x').round(3).tolist()
+        [0.2, 0.592, 0.894]
     """
+
+    def __init__(
+        self,
+        *,
+        phases: Sequence[PhaseSpec] = (),
+        random_state: int | np.random.Generator | None = None,
+        until: float = math.inf,
+    ) -> None:
+        super().__init__(random_state=random_state, until=until)
+        self.phases = phases
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={DiscreteTime},
-            space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={UpdateLaw, TransitionLaw, LinearProgramLaw, BoundaryLaw, TransferLaw},
+            time={_DiscreteTime},
+            space={None, BaseSpace},
+            laws={UpdateLaw, _LinearProgramLaw, _BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

@@ -3,22 +3,28 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class ContenderView(AgentView):
+@runtime_checkable
+class ContenderView(AgentViewProtocol, Protocol):
     """View of an agent of the Bonabeau hierarchy system.
 
     Its states and parameters are attributes.
@@ -42,9 +48,6 @@ class ContenderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         strength:
             The initial strength `h`.
 
@@ -54,51 +57,84 @@ class ContenderElement(Element):
         relaxation:
             The fraction of its strength an agent loses every step.
 
+        x:
+            The column of the cell of the contender on a lattice, one per contender or shared.
+
+        y:
+            The row of the cell of the contender on a lattice, one per contender or shared.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The lattice the contenders live on, whose axes `x` and `y` make `x` and `y` their cell, or `None`.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import ContenderElement
-        >>> group = GroupElement('contenders', element=ContenderElement, size=10)
-        >>> group.label, group.element.__name__, group.size
+        >>> group = ContenderElement('contenders', size=10)
+        >>> group.label, type(group).__name__, group.size
         ('contenders', 'ContenderElement', 10)
     """
 
-    draws = True
-
-    law_classes = (RuleLaw,)
+    visual = VisualSpec('agents', {'color_by': 'strength'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'strength'}),
         *,
-        strength: Annotated[float, StateSpec()] = 0.0,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        relaxation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        strength: object = 0.0,
+        eta: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        relaxation: Annotated[object, RealSet.closed_open(0, oo)] = 0.1,
+        x: object = 0,
+        y: object = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.strength = strength
         self.eta = eta
         self.relaxation = relaxation
+        self.x = x
+        self.y = y
 
-    @classmethod
-    def _get_view(cls) -> type[ContenderView]:
-        """Return the class of the views of the agents.
 
-        Their attributes are the states and parameters.
-        """
-        return ContenderView
+class WanderInteraction(Interaction):
+    """Wander and fight of the contenders of the Bonabeau system.
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the wander and fight rule.
+    Every step every contender relaxes its strength by the fraction `relaxation`, then steps into a random neighbouring
+    cell, and when the cell is occupied it fights the occupant, winning with the probability
+    `1 / (1 + exp(eta (s_occupant - s_agent)))`. The winner gains one unit of strength and takes the cell, and the loser
+    loses one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of contenders.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import WanderInteraction
+        >>> WanderInteraction('wander', target='contenders').target
+        'contenders'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the wander and fight of every contender as the rule.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.wander)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.wander)]
 
     def _fight(self, agent: ContenderView, occupant: ContenderView, system: SystemView) -> None:
         """Fight the occupant of a cell and take its place on a win."""
@@ -164,9 +200,15 @@ class BonabeauHierarchiesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.organizations import BonabeauHierarchiesSystem
-        >>> BonabeauHierarchiesSystem(10, 10, density=0.2).prepare().system_.elements[0].prepare().size_
+        >>> BonabeauHierarchiesSystem(10, 10, density=0.2).prepare().system_.elements[0].size
         20
     """
 
@@ -185,8 +227,10 @@ class BonabeauHierarchiesSystem(BaseSystem):
         relaxation: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.density = density
@@ -194,19 +238,22 @@ class BonabeauHierarchiesSystem(BaseSystem):
         self.relaxation = relaxation
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         size = int(self.width * self.height * self.density)
         cells = np.random.default_rng(self.random_state).permutation(self.width * self.height)[:size]
-        contenders = GroupElement(
+        contenders = ContenderElement(
             'contenders',
-            element=ContenderElement,
+            eta=self.eta,
+            relaxation=self.relaxation,
+            x=np.asarray(cells) % self.width,
+            y=np.asarray(cells) // self.width,
             size=size,
-            values={'eta': self.eta, 'relaxation': self.relaxation},
-            location=[(int(cell % self.width), int(cell // self.width)) for cell in cells],
+            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[contenders],
-            space=LatticeSpace((self.width, self.height), boundary='periodic', capacity=1),
+            interactions=[WanderInteraction('wander', target='contenders')],
         )

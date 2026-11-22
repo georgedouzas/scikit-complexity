@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem, LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
@@ -67,7 +66,7 @@ def test_repressilator_closes_one_balancing_loop_of_three_repressions():
 def test_states_of_second_order_link_through_their_velocity():
     """Test that the position and velocity of an oscillator close one balancing loop with the gain `-k / m`."""
     analysis = _loops(HarmonicOscillatorSystem().prepare().system_)
-    assert _found(analysis) == {('mass.x[0]', 'mass.x_d1[0]'): 'balancing'}
+    assert _found(analysis) == {('mass.x', 'mass.x_d1'): 'balancing'}
     assert analysis.gains == pytest.approx([-1.0])
 
 
@@ -98,10 +97,10 @@ def test_members_of_a_group_are_nodes_with_the_signs_of_the_jacobian():
 
 def test_dominance_follows_the_gains_of_any_system():
     """Test that the gains of an oscillator stay `-k / m` and those of predation start at the gains of its loops."""
-    trajectory = simulate(HarmonicOscillatorSystem().prepare().system_, until=1, dt=0.1)
+    trajectory = HarmonicOscillatorSystem().prepare().simulate(until=1, dt=0.1)
     dominance = _loops(trajectory, kind='dominance')
     assert dominance.gains == pytest.approx(np.full((len(trajectory.times), 1), -1.0))
-    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1)
+    trajectory = LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1, dt=0.1)
     dominance = _loops(trajectory, kind='dominance')
     assert dominance.gains[0] == pytest.approx(_loops(LotkaVolterraSystem().prepare().system_).gains)
     assert dominance.polarities[int(dominance.dominant[0])] == 'balancing'
@@ -109,6 +108,6 @@ def test_dominance_follows_the_gains_of_any_system():
 
 def test_flow_matrix_needs_flows():
     """Test that the flow matrix of a system without flows raises an error that names the Jacobian instead."""
-    trajectory = simulate(LotkaVolterraSystem().prepare().system_, until=1, dt=0.1)
+    trajectory = LotkaVolterraSystem().prepare().system_.prepare().simulate(until=1, dt=0.1)
     with pytest.raises(AnalysisError, match='declares no flows'):
         _loops(trajectory, kind='flow-matrix')

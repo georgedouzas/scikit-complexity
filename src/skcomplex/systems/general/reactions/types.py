@@ -5,5 +5,7 @@
 
 from collections.abc import Callable, Mapping
 
-type Stoichiometry = Mapping[tuple[str, str] | str, float | Callable[..., object]]
+from ....core.types import Role
+
+type Stoichiometry = Mapping[tuple[Role, str] | str, float | Callable[..., object]]
 type ReactionTable = Mapping[str, tuple[Mapping[str, float], Mapping[str, float], float]]

@@ -7,11 +7,10 @@ The population grows at a constant per capita rate.
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.types import Role
 from ._growth import GrowthInteraction
 
 
@@ -35,14 +34,13 @@ class ExponentialGrowthInteraction(GrowthInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
-        >>> from skcomplex.core.components.systems import CompositeSystem
+        >>> from skcomplex.core.systems import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> system = System(
         ...     elements=[CompartmentElement('rabbits', x=1.0)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
-        >>> trajectory = simulate(system, until=2.0, dt=0.01)
+        >>> trajectory = system.prepare().simulate(until=2.0, dt=0.01)
         >>> round(float(trajectory.get_values('rabbits.x')[-1]), 3)
         2.718
     """
@@ -51,8 +49,8 @@ class ExponentialGrowthInteraction(GrowthInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        r: float = 1.0,
         state: str = 'x',
     ) -> None:
         super().__init__(label, target=target, r=r, form='exponential', state=state)

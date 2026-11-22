@@ -12,7 +12,6 @@ steeper recovery the spiral is unstable and breaks into many short waves, the sp
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.physiology import BarkleySystem
@@ -20,7 +19,7 @@ from skcomplex.systems.biology.physiology import BarkleySystem
 SYSTEM = 'barkley'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(BarkleySystem(), solver=RK4Solver(dt=0.2), observers=[observer])
+trajectory = BarkleySystem(solver=RK4Solver(dt=0.2)).prepare().simulate(observers=[observer])
 
 # %%
 # Spiral and breakup
@@ -28,8 +27,8 @@ trajectory = simulate(BarkleySystem(), solver=RK4Solver(dt=0.2), observers=[obse
 # The stable regime should keep one rotating spiral, while the regime `(a, epsilon, gamma) = (0.7, 0.08, 3)` should
 # break the wave into many fragments that keep a large part of the medium excited.
 
-chaotic = BarkleySystem(a=0.7, epsilon=0.08, gamma=3.0).prepare().system_
-chaos = simulate(chaotic, dt=4.0, solver=RK4Solver(dt=0.2), until=400)
+chaotic = BarkleySystem(a=0.7, epsilon=0.08, gamma=3.0, solver=RK4Solver(dt=0.2))
+chaos = chaotic.prepare().simulate(dt=4.0, until=400)
 fig, (spiral, broken) = plt.subplots(1, 2, figsize=(11, 4.5))
 for ax, run, title in ((spiral, trajectory, 'gamma = 1'), (broken, chaos, 'gamma = 3')):
     image = ax.imshow(run.get_lattice('medium.u')[-1], cmap='inferno', origin='lower', vmin=0, vmax=1)

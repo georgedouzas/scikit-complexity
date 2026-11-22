@@ -1,21 +1,135 @@
 """Test the `_multilevel_selection` module of `skcomplex.systems.social.cooperation`."""
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws.utils import coordinate, divergence, moment
+from skcomplex.core.components.spaces import AxisSpec, BaseSpace, FiniteVolumeSpec, LatticeSpace
+from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.social.cooperation import (
     NonlinearPairwiseGroupConflictSystem,
+    SimplexSpace,
     TrimorphicMultilevelSelectionSystem,
     TwoLevelReplicatorSystem,
 )
 
+SIZE = 12
+
+
+class AmountElement(Element):
+    """Element that holds one nonnegative scalar `x`, an amount."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space)
+        self.x = x
+
+
+def _simplex(size: int = SIZE, position: LatticeSpace | None = None) -> SimplexSpace:
+    """Return the 2-simplex of three frequencies at one position, the lattice of one site by default."""
+    axes = [AxisSpec('x', size, 0.0, 1.0), AxisSpec('y', size, 0.0, 1.0)]
+    return SimplexSpace(LatticeSpace((1,)) if position is None else position, axes).prepare()
+
+
+def replicator_drift(_: SimpleNamespace) -> list[object]:
+    """Return the replicator dynamics of three strategies whose payoffs make the third dominate the first two."""
+    x, y = coordinate('x'), coordinate('y')
+    first, second = 1 - 2 * x - y, 2 - x - 3 * y
+    return [0, x * ((1 - x) * first - y * second), y * ((1 - y) * second - x * first)]
+
+
+def total(s: SimpleNamespace) -> object:
+    """Return the integral of the density over the simplex."""
+    return moment(s.x, 0, axes=('x', 'y'))
+
+
+def test_simplex_space_cuts_cells_along_the_slanted_face() -> None:
+    """Hold whole cells below the slanted face, half cells along it, and empty cells beyond it."""
+    volumes = _simplex(10).volumes_.ravel()
+    assert (volumes == 1.0).sum() == 45
+    assert (volumes == 0.5).sum() == 10
+    assert (volumes == 0.0).sum() == 45
+    assert volumes.sum() / 100 == pytest.approx(0.5)
+
+
+def test_simplex_space_closes_the_faces_beyond_the_simplex() -> None:
+    """Open the faces between cells inside the simplex and close the faces to the empty cells."""
+    space = _simplex(4)
+    np.testing.assert_array_equal(space.apertures_[0], np.ones((1, 1, 1)))
+    np.testing.assert_array_equal(space.apertures_[1][0, :, 0], [1, 1, 1, 1, 0])
+    np.testing.assert_array_equal(space.apertures_[2][0, 3, :], [1, 0, 0, 0, 0])
+
+
+def test_simplex_space_holds_the_volume_of_a_three_dimensional_simplex() -> None:
+    """Sum the cell volumes of three class axes to the volume one sixth of the 3-simplex."""
+    axes = [AxisSpec(name, 6, 0.0, 1.0) for name in ('x', 'y', 'z')]
+    space = SimplexSpace(LatticeSpace((1,)), axes).prepare()
+    assert space.volumes_.sum() / 6**3 == pytest.approx(1 / 6)
+
+
+@pytest.mark.parametrize(
+    'axes',
+    [
+        [AxisSpec('x', 10, 0.0, 1.0), AxisSpec('y', 12, 0.0, 1.0)],
+        [AxisSpec('x', 10, 0.0, 2.0), AxisSpec('y', 10, 0.0, 2.0)],
+        [AxisSpec('x', 10, 0.0, 1.0, periodic=True), AxisSpec('y', 10, 0.0, 1.0)],
+    ],
+)
+def test_simplex_space_rejects_axes_that_are_not_unit_intervals_of_one_size(axes: list[AxisSpec]) -> None:
+    """Raise a named error for axes of different sizes, ranges other than `[0, 1]`, or periodic axes."""
+    with pytest.raises(ValidationError, match=r'intervals on \[0, 1\]'):
+        SimplexSpace(LatticeSpace((1,)), axes).prepare()
+
+
+def test_moment_over_a_simplex_weights_every_cell_by_its_volume() -> None:
+    """Integrate a uniform density of two over the 2-simplex to one."""
+    space = _simplex()
+    start = 2.0 * (space.volumes_ > 0)
+    groups = AmountElement('groups', x=start, space=space)
+    observables = [Observable('total', total, group='groups')]
+    trajectory = System(elements=[groups]).prepare().simulate(until=0.1, dt=0.1, observables=observables)
+    values = np.asarray(trajectory.get_values('total'), dtype=float)
+    assert np.abs(values - 1.0).max() < 1e-12
+
+
+@pytest.mark.parametrize('solver', [RK4Solver(dt=0.01), SSPRKSolver()], ids=['rk4', 'ssprk'])
+def test_replicator_flow_on_a_simplex_conserves_the_density(solver: object) -> None:
+    """Keep the total of a uniform density on the simplex within 1e-10 and the empty cells at zero."""
+    space = _simplex(position=LatticeSpace((1,), discretization='finite-volume', scheme=FiniteVolumeSpec(limiter=None)))
+    start = 2.0 * (space.volumes_ > 0)
+    groups = AmountElement('groups', x=start, space=space)
+    flow = Interaction(
+        'flow',
+        roles={'target': 'groups'},
+        laws=lambda s: [RateLaw(s.target.x, -divergence([item * s.target.x for item in replicator_drift(s)]))],
+    )
+    trajectory = System(elements=[groups], interactions=[flow], solver=solver).prepare().simulate(until=2.0, dt=0.5)
+    final = trajectory.get_values('groups.x')[-1].reshape(space.shape_)
+    weights = space.volumes_ / SIZE**2
+    assert abs((final * weights).sum() - 1.0) < 1e-10
+    assert np.all(final[space.volumes_ == 0] == 0.0)
+    assert not np.allclose(final, start)
+
 
 def _final_density(system, until, dt=0.02):
     """Return the initial and final density of a system of group compositions."""
-    trajectory = simulate(system, until=until, dt=until, solver=RK4Solver(dt=dt))
+    trajectory = system.set_params(solver=RK4Solver(dt=dt)).prepare().simulate(until=until, dt=until)
     values = trajectory.get_values('groups.x')
     return values[0], values[-1]
 

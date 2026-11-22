@@ -6,7 +6,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ...specs import BaseSpec
+from ...base import BaseSpec
 from ...types import Array
 
 
@@ -14,7 +14,11 @@ from ...types import Array
 class LammpsFixSpec(BaseSpec):
     """A spec of the values that the native fix of an interaction reads in LAMMPS.
 
-    The LAMMPS backend reads them when it writes its command.
+    It names the fix, such as `'langevin'` for a heat bath, the group of atoms it acts on, and functions that give a
+    value by name, the mass, and the seed, which the LAMMPS solver reads when it writes the command of the fix. It sets
+    the heat bath of a liquid, the drag of a colloid, and the push of active particles.
+
+    Read more in the user guide, under Solvers.
 
     Args:
         name:
@@ -31,6 +35,15 @@ class LammpsFixSpec(BaseSpec):
 
         seed:
             The function that draws a random seed.
+
+    See Also:
+        LammpsSolver: Writes the commands of the fixes.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import LammpsFixSpec
+        >>> fix = LammpsFixSpec('langevin', 'gas', lambda name: 1.0, lambda: 1.0, lambda: 7)
+        >>> fix.name, fix.group
+        ('langevin', 'gas')
     """
 
     name: str

@@ -8,14 +8,16 @@ import math
 import numpy as np
 from scipy.optimize import Bounds, minimize
 
-from ...components.laws import EquationLaw, FluxLaw, RateLaw
-from ...components.spaces import ContinuousTime
+from ...components.laws import ConstraintLaw, ObjectiveLaw, RateLaw
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import ControlSolutionSpec, SupportSpec
-from ...types import Array, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
+from ._control_solution_spec import _ControlSolutionSpec
 from ._optimal_control import OptimalControlSolver
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
@@ -26,17 +28,15 @@ MIN_NODES = 2
 class CollocationSolver(OptimalControlSolver):
     """A solver of optimal control by direct collocation.
 
-    Collocation is a transcription of the problem solved by nonlinear programming. The states and the controls at the
-    points of a grid are the variables of a nonlinear programme. The trapezoidal scheme requires the states of
-    neighbouring nodes to differ by the trapezoidal integral of their rates, and the Hermite-Simpson scheme adds a
-    midpoint to every interval, with a cubic interpolation of the states and Simpson's integral. The cost is the
-    quadrature of the running cost over the points plus the terminal cost. The controls lie within their bounds and the
-    states of nonnegative domains stay nonnegative. SciPy's `minimize` solves the programme with the gradient of the
-    cost and the Jacobian of the constraints derived symbolically. An objective to maximise is minimised with its sign
-    changed.
+    The states and controls at the points of a time grid become the unknowns of one large optimisation. The trapezoidal
+    scheme asks the states of neighbouring points to differ by the trapezoidal integral of their rates, and the
+    Hermite-Simpson scheme adds a midpoint to every interval. The cost is the sum of the running cost over the points
+    plus the terminal cost, the controls stay within their bounds, and states that cannot be negative stay nonnegative.
+    SciPy's `minimize` solves it with the slope of the cost and of the constraints derived by Sage, such as the fishing
+    effort of 1 that a fishery keeps at the start. Choose it for controls that minimise a cost under constraints, in
+    vaccination, the harvest of a fishery, and the path of a rocket.
 
-    Choose it when the controls of a run must minimise a cost under constraints. It appears in many fields, such as the
-    timing of vaccination in an epidemic, the harvest of a fishery, and the trajectory of a rocket.
+    Read more in the user guide, under Solvers.
 
     Args:
         objective:
@@ -81,41 +81,24 @@ class CollocationSolver(OptimalControlSolver):
         SolverError:
             The solver has no objective, or the optimiser does not converge.
 
+    See Also:
+        PontryaginSolver: Solves smooth problems by the maximum principle.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import CollocationSolver
-        >>> class PlantElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         x: Annotated[float, StateSpec()] = 1.0,
-        ...         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.u = u
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [RateLaw(s.x, s.u)]
-        >>> cost = lambda s: (s.plant.x**2 + s.plant.u**2) / 2
-        >>> solver = CollocationSolver(objective=cost, nodes=51, scheme='hermite-simpson')
-        >>> trajectory = simulate(CompositeSystem(elements=[PlantElement('plant')]), until=1.0, solver=solver)
-        >>> float(round(trajectory.get_values('plant.u')[0], 3))
-        -0.762
+        >>> from skcomplex.systems.economics.resources import OptimalHarvestingSystem
+        >>> system = OptimalHarvestingSystem().prepare()
+        >>> trajectory = system.simulate(until=5.0)
+        >>> type(system.system_.solver_).__name__, float(trajectory.get_values('resource.effort')[0].round(3))
+        ('CollocationSolver', 1.0)
     """
 
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""
         return SupportSpec(
-            time={ContinuousTime},
+            time={_ContinuousTime},
             space={None},
-            laws={RateLaw, FluxLaw, EquationLaw},
+            laws={RateLaw, ConstraintLaw, ObjectiveLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -257,7 +240,7 @@ class CollocationSolver(OptimalControlSolver):
             [control_problem.terminal.diff(item) for item in states],
         )
 
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
         """Return the optimal solution of the transcribed nonlinear programme.
 
         Args:

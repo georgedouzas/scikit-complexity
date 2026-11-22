@@ -1,8 +1,8 @@
 """Test the `_reductions` module of `skcomplex.core.components.laws.utils`."""
 
-import importlib
 import itertools
 import math
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -11,12 +11,11 @@ import numpy as np
 import pytest
 import scipy.sparse
 import scipy.special
-from sage.all__sagemath_symbolics import RR, SR, atan2, cos, exp, pi, sin, sqrt, tanh, var, vector
+from sage.all__sagemath_symbolics import SR, atan2, cos, exp, pi, sin, sqrt, tanh, var, vector
 
-from skcomplex.core.components.base import BasePart
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element, Period
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import EquationLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import (
     circular_mean,
     count,
@@ -26,6 +25,8 @@ from skcomplex.core.components.laws.utils import (
     mean,
     minimum,
     neighbors,
+    reduction,
+    shift_member,
     total,
     uniform,
     variance,
@@ -37,24 +38,22 @@ from skcomplex.core.components.laws.utils._reductions import (
     reductions_in,
 )
 from skcomplex.core.components.spaces import (
-    BallNeighborhood,
+    BaseSpace,
     ContinuousSpace,
-    DiscreteTime,
+    LatticeNeighborhood,
     LatticeSpace,
     NearestNeighborhood,
     NetworkSpace,
     RadiusNeighborhood,
-    StaticTime,
 )
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
 GAMMA = 0.5
@@ -145,65 +144,31 @@ def test_count_reduces_values():
     assert ReductionKernel._reduce_values([], 'count') == 0.0
 
 
-class ReducingElement(Element):
-    """Element whose state `out` is the reduction of the neighbour's `y` over a neighbourhood."""
+class ReducingInteraction(Interaction):
+    """Interaction that updates the value `out` of every member to a reduction of the neighbours' `w`."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        out: Annotated[object, StateSpec()] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        over: object = None,
-        reduce: str = 'sum',
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.out = out
-        self.y = y
+    def __init__(self, label: str, *, target: Role, over: object = None, reduce: str = 'sum') -> None:
+        super().__init__(label)
+        self.target = target
         self.over = over
         self.reduce = reduce
 
-    def _get_laws(self, s):
-        """Return the update of `out` to the reduction."""
-        return [UpdateLaw(s.out, neighbors(s.other.y, over=self.over, reduce=self.reduce))]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the update of `out` to the reduction."""
+        super()._prepare(context)
+        s = context.target
+        self.laws_ = [UpdateLaw(s.out, neighbors(s.other.w, over=self.over, reduce=self.reduce))]
 
 
-class PositionedReducingElement(ReducingElement):
-    """Reducing element with a position in a continuous space."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        out: Annotated[object, StateSpec()] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        over: object = None,
-        reduce: str = 'sum',
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
-        self.x = x
+def _reducing(group, over=None, reduce='sum'):
+    """Return the system of a group whose `out` is a reduction over the neighbours of every member."""
+    return System(elements=[group], interactions=[ReducingInteraction('reduce', target='g', over=over, reduce=reduce)])
 
 
-class HeadedReducingElement(PositionedReducingElement):
-    """Reducing element with a position and a heading angle."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        out: Annotated[object, StateSpec()] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        over: object = None,
-        reduce: str = 'sum',
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-        phi: Annotated[object, StateSpec(domain=RR)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce, x=x)
-        self.phi = phi
+def _one_off(group, laws, **settings):
+    """Return the system of a group with one interaction on it, written without a class."""
+    interaction = Interaction('rule', roles={'target': group.label}, laws=laws)
+    return System(elements=[group], interactions=[interaction], **settings)
 
 
 def _expected(kind, values, weights):
@@ -238,8 +203,16 @@ def _minimum_image(difference, side):
 
 def test_neighbors_keeps_the_values_at_lattice_offsets():
     """Test that a lattice neighbourhood without a reduction gives the values at every offset, for local energies."""
-    values = neighbors(var('spin'), BallNeighborhood(metric='manhattan'), reduce='each')
+    cross = LatticeNeighborhood(((-1, 0), (0, -1), (0, 1), (1, 0)))
+    values = neighbors(var('spin'), cross, reduce='each')
     assert [str(item) for item in values] == [f'neighbor(spin, {index})' for index in range(4)]
+    assert len(neighbors(var('spin'), RadiusNeighborhood(1, metric='hexagonal'), reduce='each')) == 6
+
+
+def test_neighbors_each_needs_offsets_known_before_the_lattice():
+    """Test that the values at every offset need a neighbourhood whose offsets do not wait for a lattice."""
+    with pytest.raises(ValidationError, match='known before its lattice'):
+        neighbors(var('spin'), RadiusNeighborhood(1, metric='manhattan'), reduce='each')
 
 
 def test_neighbors_rejects_an_unknown_reduction():
@@ -262,48 +235,28 @@ def test_reduction_over_a_network_matches_its_definition(kind, backend):
     graph = nx.gnp_random_graph(12, 0.3, seed=1)
     graph.remove_edges_from(list(nx.selfloop_edges(graph)))
     values = np.random.default_rng(0).choice([-2.0, 0.0, 1.0, 3.5], 12)
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=ReducingElement, size=12, values={'y': values, 'reduce': kind})],
-        space=NetworkSpace(graph),
-    )
+    group = Element('g', values={'out': 0.0, 'w': values}, space=NetworkSpace(graph))
     expected = [_expected(kind, values[list(graph.neighbors(node))], np.ones(graph.degree(node))) for node in graph]
-    assert np.allclose(_outputs(system, backend), expected, atol=1e-12)
+    assert np.allclose(_outputs(_reducing(group, reduce=kind), backend), expected, atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_weighted_reduction_reads_the_member_and_its_neighbour(backend):
     """Test that a weight of the member and the neighbour weighs every neighbour in a normalized mean."""
 
-    class WeightedElement(Element):
-        """Weighted element."""
+    def weighted(s):
+        """Return the update of `out` to the mean of the neighbours weighted by the member and the neighbour."""
+        member = s.target
+        weight = member.w + member.other.w
+        return [UpdateLaw(member.out, neighbors(member.other.w, reduce='normalized-mean', weight=weight))]
 
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            out: Annotated[object, StateSpec()] = 0.0,
-            y: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.out = out
-            self.y = y
-
-        def _get_laws(self, s):
-            """Return the laws of the weighted element."""
-            return [UpdateLaw(s.out, neighbors(s.other.y, reduce='normalized-mean', weight=s.y + s.other.y))]
-
-    weighted = WeightedElement
     values = np.array([1.0, 2.0, 3.0, 4.0])
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=weighted, size=4, values={'y': values})],
-        space=NetworkSpace(nx.path_graph(4)),
-    )
+    group = Element('g', values={'out': 0.0, 'w': values}, space=NetworkSpace(nx.path_graph(4)))
     expected = [
         _expected('normalized-mean', values[others], values[member] + values[others])
         for member, others in enumerate([[1], [0, 2], [1, 3], [2]])
     ]
-    assert np.allclose(_outputs(system, backend), expected, atol=1e-12)
+    assert np.allclose(_outputs(_one_off(group, weighted), backend), expected, atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
@@ -311,10 +264,8 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
     """Test that a sum over a von Neumann neighbourhood of a fixed lattice sums the neighbours inside the lattice."""
     values = np.arange(12.0).reshape(3, 4)
     space = LatticeSpace((3, 4), boundary='fixed')
-    given = {'y': values, 'over': BallNeighborhood(metric='manhattan')}
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=ReducingElement, space=space, values=given, on='sites')],
-    )
+    group = Element('g', values={'out': 0.0, 'w': values}, space=space)
+    system = _reducing(group, over=RadiusNeighborhood(1, metric='manhattan'))
     padded = np.pad(values, 1)
     expected = padded[:-2, 1:-1] + padded[2:, 1:-1] + padded[1:-1, :-2] + padded[1:-1, 2:]
     assert np.allclose(_outputs(system, backend), expected.ravel(), atol=1e-12)
@@ -324,13 +275,9 @@ def test_reduction_over_a_lattice_leaves_out_sites_outside_fixed_edges(backend):
 def test_reduction_without_a_neighbourhood_reads_the_lattice_neighbourhood(backend):
     """Test that a reduction without a neighbourhood on a periodic lattice reads the lattice's Moore neighbourhood."""
     values = np.random.default_rng(2).normal(size=(4, 5))
-    system = CompositeSystem(
-        elements=[
-            GroupElement('g', element=ReducingElement, space=LatticeSpace((4, 5)), values={'y': values}, on='sites'),
-        ],
-    )
+    group = Element('g', values={'out': 0.0, 'w': values}, space=LatticeSpace((4, 5)))
     expected = sum(np.roll(values, (a - 1, b - 1), axis=(0, 1)) for a, b in np.ndindex(3, 3)) - values
-    assert np.allclose(_outputs(system, backend), expected.ravel(), atol=1e-12)
+    assert np.allclose(_outputs(_reducing(group), backend), expected.ravel(), atol=1e-12)
 
 
 def _scattered(count, side, seed):
@@ -346,12 +293,9 @@ def test_reduction_within_a_radius_matches_a_direct_search(boundary, center, bac
     """Test that a sum over the members within a radius matches a search of every pair, with minimum images."""
     side, radius = 4.0, 0.9
     positions, values, _ = _scattered(80, side, 3)
-    given = {'x': positions, 'y': values, 'over': RadiusNeighborhood(radius, center=center)}
     space = ContinuousSpace(extent=(side, side), boundary=boundary)
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=PositionedReducingElement, size=80, values=given)],
-        space=space,
-    )
+    group = Element('g', values={'out': 0.0, 'w': values, 'x': positions}, size=80, space=space)
+    system = _reducing(group, over=RadiusNeighborhood(radius, center=center))
     difference = positions[:, None, :] - positions[None, :, :]
     if boundary == 'periodic':
         difference = _minimum_image(difference, side)
@@ -366,12 +310,9 @@ def test_reduction_over_the_nearest_members_matches_a_direct_search(boundary, ba
     """Test that a mean over the k nearest members matches a sort of every distance."""
     side, k = 5.0, 6
     positions, values, _ = _scattered(70, side, 4)
-    given = {'x': positions, 'y': values, 'over': NearestNeighborhood(k), 'reduce': 'mean'}
     space = ContinuousSpace(extent=(side, side), boundary=boundary)
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=PositionedReducingElement, size=70, values=given)],
-        space=space,
-    )
+    group = Element('g', values={'out': 0.0, 'w': values, 'x': positions}, size=70, space=space)
+    system = _reducing(group, over=NearestNeighborhood(k), reduce='mean')
     difference = positions[:, None, :] - positions[None, :, :]
     if boundary == 'periodic':
         difference = _minimum_image(difference, side)
@@ -387,12 +328,9 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
     side, radius, angle = 4.0, 1.2, math.pi / 3
     positions, values, headings = _scattered(90, side, 5)
     over = RadiusNeighborhood(radius, angle=angle, direction='phi')
-    given = {'x': positions, 'y': values, 'phi': headings, 'over': over, 'reduce': 'count'}
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=HeadedReducingElement, size=90, values=given)],
-        space=space,
-    )
+    given = {'out': 0.0, 'w': values, 'x': positions, 'phi': headings}
+    system = _reducing(Element('g', values=given, size=90, space=space), over=over, reduce='count')
     direction = -_minimum_image(positions[:, None, :] - positions[None, :, :], side)
     distances = np.linalg.norm(direction, axis=2)
     heading = np.stack([np.cos(headings), np.sin(headings)], axis=1)
@@ -406,58 +344,23 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
 def test_neighbour_positions_are_read_by_minimum_image(backend):
     """Test that the position of a neighbour across a periodic edge is its image nearest to the member."""
 
-    class ReadingElement(Element):
-        """Reading element."""
+    def reading(s):
+        """Return the update of `out` to the sum of the first coordinates of the neighbours relative to the member."""
+        member = s.target
+        return [UpdateLaw(member.out, neighbors(member.other.x[0] - member.x[0], over=RadiusNeighborhood(1.0)))]
 
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            out: Annotated[object, StateSpec()] = 0.0,
-            x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.out = out
-            self.x = x
-
-        def _get_laws(self, s):
-            """Return the laws of the reading element."""
-            return [UpdateLaw(s.out, neighbors(s.other.x[0] - s.x[0], over=RadiusNeighborhood(1.0)))]
-
-    reading = ReadingElement
     positions = np.array([[0.2, 0.5], [9.9, 0.5]])
     space = ContinuousSpace(extent=(10.0, 10.0), boundary='periodic')
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=reading, size=2, values={'x': positions})],
-        space=space,
-    )
-    assert np.allclose(_outputs(system, backend), [-0.3, 0.3], atol=1e-12)
+    group = Element('g', values={'out': 0.0, 'x': positions}, size=2, space=space)
+    assert np.allclose(_outputs(_one_off(group, reading), backend), [-0.3, 0.3], atol=1e-12)
 
 
-def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
-    """Test that a vector state named `x` without a role gives a neighbourhood no position to measure from."""
-
-    class UnplacedElement(ReducingElement):
-        """Reducing element with a vector state `x` that has no role."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            out: Annotated[object, StateSpec()] = 0.0,
-            y: Annotated[object, StateSpec()] = 0.0,
-            over: object = None,
-            reduce: str = 'sum',
-            x: Annotated[object, StateSpec(vector=True)] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
-            self.x = x
-
-    group = GroupElement('g', element=UnplacedElement, size=2, values={'over': RadiusNeighborhood(1.0)})
+def test_neighbourhood_reads_a_place_from_a_value_named_after_an_axis():
+    """Test that a vector value not named after an axis gives a neighbourhood no position to measure from."""
+    given = {'out': 0.0, 'w': 0.0, 'r': np.zeros((2, 2))}
+    group = Element('g', values=given, size=2, space=ContinuousSpace(extent=(10.0, 10.0)))
     with pytest.raises(ValidationError, match='position'):
-        PassCompiler().prepare(CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)))).run()
+        PassCompiler().prepare(_reducing(group, over=RadiusNeighborhood(1.0))).run()
 
 
 def test_interaction_reduces_over_the_neighbours_of_its_group():
@@ -466,77 +369,34 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
     class BondExchangeInteraction(Interaction):
         """Diffusion interaction."""
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            target: Annotated[object, RoleSpec()],
-        ) -> None:
+        def __init__(self, label: str, *, target: Role) -> None:
             super().__init__(label)
             self.target = target
 
-        def _get_laws(self, s):
-            """Return the laws of the diffusion interaction."""
-            return [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))]
+        def _prepare(self, context: SimpleNamespace) -> None:
+            """Set the laws of the diffusion interaction."""
+            super()._prepare(context)
+            s = context
+            self.laws_ = [RateLaw(s.target.y, neighbors(s.target.other.y - s.target.y))]
 
-    diffusion = BondExchangeInteraction
-
-    class PlainElement(Element):
-        """Plain element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            y: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.y = y
-
-    plain = PlainElement
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=plain, size=3, values={'y': [0.0, 1.0, 4.0]})],
-        interactions=[diffusion('d', target='g')],
-        space=NetworkSpace(nx.path_graph(3)),
-    )
+    group = Element('g', values={'y': [0.0, 1.0, 4.0]}, space=NetworkSpace(nx.path_graph(3)))
+    system = System(elements=[group], interactions=[BondExchangeInteraction('d', target='g')])
     problem = PassCompiler().prepare(system).run().problem_
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [1.0, 2.0, -3.0]
 
 
 def test_neighbour_symbols_outside_a_reduction_are_rejected():
     """Test that a law reading `s.other` outside a neighbourhood reduction raises an error that names `neighbors`."""
-
-    class StrayElement(Element):
-        """Stray element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            y: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.y = y
-
-        def _get_laws(self, s):
-            """Return the laws of the stray element."""
-            return [RateLaw(s.y, s.other.y)]
-
-    stray = StrayElement
-    system = CompositeSystem(elements=[GroupElement('g', element=stray, size=3)], space=NetworkSpace(nx.path_graph(3)))
+    group = Element('g', values={'y': 0.0}, space=NetworkSpace(nx.path_graph(3)))
+    system = _one_off(group, lambda s: [RateLaw(s.target.y, s.target.other.y)])
     with pytest.raises(ValidationError, match='neighbors'):
         PassCompiler().prepare(system).run()
 
 
 def test_validate_reports_a_metric_neighbourhood_on_a_network():
     """Test that a law reducing over a radius in a system on a network space has a law-space issue."""
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=ReducingElement, size=5, values={'over': RadiusNeighborhood(1.0)})],
-        space=NetworkSpace(nx.cycle_graph(5)),
-        time=DiscreteTime(),
-    )
+    group = Element('g', values={'out': 0.0, 'w': 0.0}, space=NetworkSpace(nx.cycle_graph(5)))
+    system = _reducing(group, over=RadiusNeighborhood(1.0))
     issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'law-space']
     assert len(issues) == 1
     assert 'continuous space' in issues[0].fix
@@ -545,95 +405,44 @@ def test_validate_reports_a_metric_neighbourhood_on_a_network():
 
 def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
     """Test that a reduction over the neighbours of the space in a continuous space has a law-space issue."""
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=PositionedReducingElement, size=5)],
-        space=ContinuousSpace(extent=(2.0, 2.0)),
-        time=DiscreteTime(),
-    )
+    given = {'out': 0.0, 'w': 0.0, 'x': np.zeros((5, 2))}
+    system = _reducing(Element('g', values=given, size=5, space=ContinuousSpace(extent=(2.0, 2.0))))
     assert [issue.code for issue in PassCompiler().prepare(system).report_.issues] == ['law-space']
 
 
 def test_validate_reports_a_cone_without_a_heading():
     """Test that a cone over members without a velocity or heading state has a law-domain issue."""
-    over = RadiusNeighborhood(1.0, angle=1.0)
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=PositionedReducingElement, size=5, values={'over': over})],
-        space=ContinuousSpace(extent=(2.0, 2.0)),
-        time=DiscreteTime(),
-    )
-    issues = PassCompiler().prepare(system).report_.issues
+    given = {'out': 0.0, 'w': 0.0, 'x': np.zeros((5, 2))}
+    group = Element('g', values=given, size=5, space=ContinuousSpace(extent=(2.0, 2.0)))
+    issues = PassCompiler().prepare(_reducing(group, over=RadiusNeighborhood(1.0, angle=1.0))).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
-    assert 'order=2' in issues[0].fix
+    assert 'second derivative' in issues[0].fix
 
 
 def test_validate_accepts_a_cone_along_the_velocity():
-    """Test that a cone reads the first derivative of a position of order 2 as the heading of every member."""
-
-    class MovingElement(Element):
-        """Moving element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            out: Annotated[object, StateSpec()] = 0.0,
-            y: Annotated[object, StateSpec()] = 0.0,
-            x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
-            x_d1: object = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.out = out
-            self.y = y
-            self.x = x
-            self.x_d1 = x_d1
-
-        def _get_laws(self, s):
-            """Return the laws of the moving element."""
-            return [RateLaw(s.out, neighbors(s.other.y, over=RadiusNeighborhood(1.0, angle=1.0)))]
-
-    moving = MovingElement
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=moving, size=5)],
-        space=ContinuousSpace(extent=(2.0, 2.0)),
-    )
+    """Test that a cone reads the velocity `x'` of a moving position as the heading of every member."""
+    given = {'out': 0.0, 'w': 0.0, 'x': np.zeros((5, 2)), "x'": np.zeros((5, 2))}
+    group = Element('g', values=given, size=5, space=ContinuousSpace(extent=(2.0, 2.0)))
+    over = RadiusNeighborhood(1.0, angle=1.0)
+    system = _one_off(group, lambda s: [RateLaw(s.target.out, neighbors(s.target.other.w, over=over))])
     assert PassCompiler().prepare(system).report_.ok
 
 
-class OscillatorElement(Element):
-    """Oscillator element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        omega: Annotated[object, ParameterSpec()] = 0.0,
-        K: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.omega = omega
-        self.K = K
-
-    def _get_laws(self, s):
-        """Return the laws of the oscillator element."""
-        return [RateLaw(s.theta, s.omega + s.K * neighbors(sin(s.other.theta - s.theta), reduce='mean'))]
+def _oscillate(s):
+    """Return the Kuramoto rate of the phase of every oscillator, its frequency plus the mean pull of its neighbours."""
+    member = s.target
+    pull = neighbors(sin(member.other.theta - member.theta), reduce='mean')
+    return [RateLaw(member.theta, member.omega + member.K * pull)]
 
 
-def _kuramoto(coupling, size=1000):
+def _kuramoto(coupling, backend, size=1000):
     """Return oscillators with Lorentzian frequencies of half-width `GAMMA` on a complete graph."""
     quantiles = (np.arange(size) + 0.5) / size
     omega = GAMMA * np.tan(math.pi * (quantiles - 0.5))
     theta = np.random.default_rng(1).uniform(0, 2 * math.pi, size)
-    oscillators = GroupElement(
-        'oscillators',
-        element=OscillatorElement,
-        size=size,
-        values={'theta': theta, 'omega': omega, 'K': coupling},
-    )
-    return CompositeSystem(elements=[oscillators], space=NetworkSpace(nx.complete_graph(size)))
+    values = {'theta': theta, 'omega': omega, 'K': coupling}
+    oscillators = Element('oscillators', values=values, space=NetworkSpace(nx.complete_graph(size)))
+    return _one_off(oscillators, _oscillate, solver=RK4Solver(dt=0.1), backend=backend)
 
 
 def _order(phases):
@@ -644,8 +453,8 @@ def _order(phases):
 @pytest.mark.slow
 def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
-    below = simulate(_kuramoto(0.5 * CRITICAL), until=10.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-    above = simulate(_kuramoto(3 * CRITICAL), until=10.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
+    below = _kuramoto(0.5 * CRITICAL, NumbaBackend()).prepare().simulate(until=10.0, dt=0.5)
+    above = _kuramoto(3 * CRITICAL, NumbaBackend()).prepare().simulate(until=10.0, dt=0.5)
     weak, strong = _order(below.get_values('oscillators.theta')), _order(
         above.get_values('oscillators.theta'),
     )
@@ -656,10 +465,7 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
 
 def test_kuramoto_agrees_across_backends():
     """Test that the Kuramoto run on a complete graph gives the same phases on NumPy and Numba."""
-    runs = [
-        simulate(_kuramoto(3 * CRITICAL), until=2.0, dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
-        for backend in BACKENDS
-    ]
+    runs = [_kuramoto(3 * CRITICAL, backend).prepare().simulate(until=2.0, dt=0.5) for backend in BACKENDS]
     assert np.allclose(
         runs[0].get_values('oscillators.theta'),
         runs[1].get_values('oscillators.theta'),
@@ -669,58 +475,54 @@ def test_kuramoto_agrees_across_backends():
 
 
 class MoverElement(Element):
-    """Mover element."""
+    """Mover with a position, a periodic heading, a speed, and a noise amplitude."""
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
-        v0: Annotated[object, ParameterSpec()] = 0.03,
-        eta: Annotated[object, ParameterSpec()] = 0.1,
+        x: object = 0.0,
+        theta: Annotated[object, Period(2 * pi)] = 0.0,
+        v0: object = 0.03,
+        eta: object = 0.1,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.x = x
         self.theta = theta
         self.v0 = v0
         self.eta = eta
 
-    def _get_laws(self, s):
-        """Return the laws of the mover element."""
-        return [
-            UpdateLaw(
-                s.theta,
-                atan2(
-                    neighbors(sin(s.other.theta), over=RadiusNeighborhood(RADIUS, center=True)),
-                    neighbors(cos(s.other.theta), over=RadiusNeighborhood(RADIUS, center=True)),
-                )
-                + uniform('noise', -s.eta / 2, s.eta / 2),
-            ),
-            UpdateLaw(s.x, s.x + s.v0 * vector([cos(s.theta), sin(s.theta)])),
-        ]
+
+def _move(s):
+    """Return the Vicsek updates, the heading to the mean heading within a radius plus noise and a step along it."""
+    member = s.target
+    return [
+        UpdateLaw(
+            member.theta,
+            atan2(
+                neighbors(sin(member.other.theta), over=RadiusNeighborhood(RADIUS, center=True)),
+                neighbors(cos(member.other.theta), over=RadiusNeighborhood(RADIUS, center=True)),
+            )
+            + uniform('noise', -member.eta / 2, member.eta / 2),
+        ),
+        UpdateLaw(member.x, member.x + member.v0 * vector([cos(member.theta), sin(member.theta)])),
+    ]
 
 
-def _vicsek(size=400, side=5.0):
-    """Return the Vicsek system at high density in a periodic box under discrete time."""
+def _vicsek(backend, size=400, side=5.0):
+    """Return the Vicsek system at high density in a periodic box, stepped in discrete time by its updates."""
     rng = np.random.default_rng(3)
-    movers = GroupElement(
-        'movers',
-        element=MoverElement,
-        size=size,
-        values={'x': rng.uniform(0, side, (size, 2)), 'theta': rng.uniform(-math.pi, math.pi, size)},
-    )
-    return CompositeSystem(
-        elements=[movers],
-        space=ContinuousSpace(extent=(side, side), boundary='periodic'),
-        time=DiscreteTime(),
-    )
+    space = ContinuousSpace(extent=(side, side), boundary='periodic')
+    x, theta = rng.uniform(0, side, (size, 2)), rng.uniform(-math.pi, math.pi, size)
+    movers = MoverElement('movers', x=x, theta=theta, size=size, space=space)
+    return _one_off(movers, _move, backend=backend)
 
 
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek system exceeds 0.9 at low noise and high density."""
-    trajectory = simulate(_vicsek(), until=100, dt=1.0, random_state=0, backend=NumbaBackend())
+    trajectory = _vicsek(NumbaBackend()).prepare().simulate(until=100, dt=1.0, random_state=0)
     order = _order(trajectory.get_values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
@@ -728,43 +530,24 @@ def test_vicsek_flocks_at_low_noise_and_high_density():
 
 def test_vicsek_agrees_across_backends():
     """Test that the Vicsek system gives the same headings and positions on NumPy and Numba for one seed."""
-    runs = [simulate(_vicsek(), until=50, dt=1.0, random_state=0, backend=backend) for backend in BACKENDS]
+    runs = [_vicsek(backend).prepare().simulate(until=50, dt=1.0, random_state=0) for backend in BACKENDS]
     turns = np.angle(np.exp(1j * (runs[0].get_values('movers.theta') - runs[1].get_values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
     assert np.allclose(runs[0].get_values('movers.x'), runs[1].get_values('movers.x'), rtol=0, atol=1e-12)
 
 
-class PhaseElement(Element):
-    """Element with a phase."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-
-
 class PairwiseInteraction(Interaction):
     """Rate of every member given by a reduction over its group that reads the member and the other member."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        group: Annotated[object, RoleSpec()],
-        reduction: object = None,
-    ) -> None:
+    def __init__(self, label: str, *, group: Role, reduction: Callable[[SimpleNamespace], object]) -> None:
         super().__init__(label)
         self.group = group
         self.reduction = reduction
 
-    def _get_laws(self, s):
-        """Return the rate of every member."""
-        return [RateLaw(s.group.x, self.reduction(s.group))]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of every member."""
+        super()._prepare(context)
+        self.laws_ = [RateLaw(context.group.x, self.reduction(context.group))]
 
 
 def _pairwise_expected(name, values):
@@ -785,8 +568,8 @@ def _pairwise_expected(name, values):
 
 def _pairwise_drift(values, reduction, backend):
     """Return the rate of every member of a group whose rate is a reduction over the group."""
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=PhaseElement, size=len(values), values={'x': values})],
+    system = System(
+        elements=[Element('g', values={'x': np.asarray(values, dtype=float)}, size=len(values))],
         interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
     )
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
@@ -831,26 +614,10 @@ def test_reduction_of_the_other_member_weights_terms_that_factor(backend):
     np.testing.assert_allclose(drift, weights @ x - x * weights.sum(axis=1), atol=1e-12)
 
 
-class ImitatingElement(Element):
-    """Element whose `out` is the strategy of the neighbour with the largest payoff."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        out: Annotated[object, StateSpec()] = 0.0,
-        strategy: Annotated[object, StateSpec()] = 0.0,
-        payoff: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.out = out
-        self.strategy = strategy
-        self.payoff = payoff
-
-    def _get_laws(self, s):
-        """Return the update of `out` to the strategy of the best neighbour."""
-        return [UpdateLaw(s.out, neighbors(s.other.strategy, reduce='argmax', weight=s.other.payoff))]
+def _imitate(s):
+    """Return the update of `out` to the strategy of the neighbour with the largest payoff."""
+    member = s.target
+    return [UpdateLaw(member.out, neighbors(member.other.strategy, reduce='argmax', weight=member.other.payoff))]
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
@@ -863,11 +630,8 @@ def test_argmax_returns_the_strategy_of_the_neighbour_with_the_largest_payoff(sp
     """Test that the argmax reduction gives the strategy of the best paid neighbour on a ring and a network."""
     rng = np.random.default_rng(4)
     strategies, payoffs = rng.integers(0, 5, 12).astype(float), rng.normal(size=12)
-    values = {'strategy': strategies, 'payoff': payoffs}
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=ImitatingElement, space=space, values=values, on='sites')],
-        time=DiscreteTime(),
-    )
+    values = {'out': 0.0, 'strategy': strategies, 'payoff': payoffs}
+    system = _one_off(Element('g', values=values, space=space), _imitate)
     expected = [
         strategies[max(graph.neighbors(node), key=lambda other: payoffs[other])] if graph.degree(node) else 0.0
         for node in range(12)
@@ -875,28 +639,10 @@ def test_argmax_returns_the_strategy_of_the_neighbour_with_the_largest_payoff(sp
     assert np.array_equal(_outputs(system, backend), expected)
 
 
-class KeyedElement(Element):
-    """Element with a value and a key."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        k: Annotated[object, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.k = k
-
-
 def _keyed_drift(values, keys, reduction, backend):
     """Return the rate of every member of a group of keyed members whose rate is a reduction over the group."""
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=KeyedElement, size=len(values), values={'x': values, 'k': keys})],
-        interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
-    )
+    group = Element('g', values={'x': np.asarray(values), 'k': np.asarray(keys)}, size=len(values))
+    system = System(elements=[group], interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)])
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
 
@@ -946,14 +692,10 @@ def test_circular_mean_over_network_neighbours_matches_its_definition(backend):
     """Test that the circular mean over the neighbours of a network node is the direction of their unit vectors."""
     graph = nx.gnp_random_graph(12, 0.3, seed=1)
     values = np.random.default_rng(0).uniform(-math.pi, math.pi, 12)
-    given = {'y': values, 'reduce': 'circular-mean'}
-    system = CompositeSystem(
-        elements=[GroupElement('g', element=ReducingElement, size=12, values=given)],
-        space=NetworkSpace(graph),
-    )
+    group = Element('g', values={'out': 0.0, 'w': values}, space=NetworkSpace(graph))
     neighbours = [values[list(graph.neighbors(node))] for node in graph]
     expected = [np.arctan2(np.sin(item).sum(), np.cos(item).sum()) for item in neighbours]
-    assert np.allclose(_outputs(system, backend), expected, atol=1e-12)
+    assert np.allclose(_outputs(_reducing(group, reduce='circular-mean'), backend), expected, atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
@@ -972,23 +714,18 @@ def test_minimum_of_several_expressions_takes_no_group():
         minimum(x, 2 * x, where=x > 0)
 
 
-class AroundElement(Element):
-    """Element whose rate of `x` is a reduction over the hyperedges around it."""
+class AroundInteraction(Interaction):
+    """Interaction whose rate of `x` of every member is a reduction over the hyperedges around it."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        term: str = 'triad',
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
+    def __init__(self, label: str, *, target: Role, term: str = 'triad') -> None:
+        super().__init__(label)
+        self.target = target
         self.term = term
 
-    def _get_laws(self, s):
-        """Return the rate of `x`, a reduction over the hyperedges around the member."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of `x`, a reduction over the hyperedges around the member."""
+        super()._prepare(context)
+        s = context.target
         terms = {
             'triad': lambda: hyperedges(sin(s.others[0].x + s.others[1].x - 2 * s.x), size=3),
             'pull': lambda: hyperedges(total(s.members.x, over=s.members) - count(over=s.members) * s.x),
@@ -999,18 +736,19 @@ class AroundElement(Element):
             'missing': lambda: hyperedges(s.x, size=6),
             'count': lambda: hyperedges(s.x, reduce='count'),
         }
-        return [RateLaw(s.x, terms[self.term]())]
+        self.laws_ = [RateLaw(s.x, terms[self.term]())]
+
+
+def _around(label, space, term, values=0.0):
+    """Return the system of a group on the sites of a space whose rate is a reduction over hyperedges."""
+    group = Element(label, values={'x': values}, space=space)
+    return System(elements=[group], interactions=[AroundInteraction('around', target=label, term=term)])
 
 
 def _around_drift(term, values, backend):
     """Return the drift of the members of the network of the hyperedges under a reduction over hyperedges."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    system = CompositeSystem(
-        elements=[
-            GroupElement('nodes', element=AroundElement, space=space, values={'x': values, 'term': term}, on='sites'),
-        ],
-    )
-    problem = PassCompiler(backend=backend).prepare(system).run().problem_
+    problem = PassCompiler(backend=backend).prepare(_around('nodes', space, term, values)).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.x')
 
 
@@ -1076,20 +814,14 @@ def test_hyperedges_rejects_reads_its_hyperedges_do_not_have(term, match):
 def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
     """Test that a reduction over hyperedges of a size the network does not have gives a binding issue."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
-    system = CompositeSystem(
-        elements=[GroupElement('nodes', element=AroundElement, space=space, values={'term': 'missing'}, on='sites')],
-    )
+    system = _around('nodes', space, 'missing')
     (issue,) = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
     assert 'size 6' in issue.message
 
 
 def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     """Test that a reduction over hyperedges in a lattice space has a law-space issue."""
-    space = LatticeSpace((3, 3))
-    system = CompositeSystem(
-        elements=[GroupElement('sites', element=AroundElement, space=space, values={'term': 'count'}, on='sites')],
-    )
-    issues = PassCompiler().prepare(system).report_.issues
+    issues = PassCompiler().prepare(_around('sites', LatticeSpace((3, 3)), 'count')).report_.issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'hyperedges' in issues[0].message
 
@@ -1106,7 +838,7 @@ def test_hyperedges_over_a_neighbourhood_keeps_it():
     ('arguments', 'match'),
     [
         ({'over': RadiusNeighborhood(1.0)}, 'size of 2 or more'),
-        ({'size': 3, 'over': BallNeighborhood(metric='manhattan')}, 'continuous space'),
+        ({'size': 3, 'over': LatticeNeighborhood(((0, 1), (1, 0)))}, 'continuous space'),
     ],
 )
 def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood(arguments, match):
@@ -1115,34 +847,26 @@ def test_hyperedges_over_a_neighbourhood_needs_a_size_and_a_metric_neighbourhood
         hyperedges(var('x'), **arguments)
 
 
-class NeighbourSetElement(Element):
-    """Element in a continuous space whose rate of `y` is a reduction over its neighbour hyperedges."""
+class NeighbourSetInteraction(Interaction):
+    """Interaction whose rate of `w` of every member is a reduction over its neighbour hyperedges."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        term: str = 'flank',
-        radius: float = 1.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
+    def __init__(self, label: str, *, target: Role, term: str = 'flank', radius: float = 1.5) -> None:
+        super().__init__(label)
+        self.target = target
         self.term = term
         self.radius = radius
 
-    def _get_laws(self, s):
-        """Return the rate of `y`, a reduction over the sets of neighbours of the member."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of `w`, a reduction over the sets of neighbours of the member."""
+        super()._prepare(context)
+        s = context.target
         over = RadiusNeighborhood(self.radius)
         terms = {
             'flank': lambda: hyperedges(self._flank(s), size=3, over=over),
             'count': lambda: hyperedges(SR(1), reduce='count', size=4, over=over),
             'pairs': lambda: hyperedges(SR(1), size=3, over=over),
         }
-        return [RateLaw(s.y, terms[self.term]())]
+        self.laws_ = [RateLaw(s.w, terms[self.term]())]
 
     @staticmethod
     def _flank(s):
@@ -1151,13 +875,19 @@ class NeighbourSetElement(Element):
         return (1 - first * second / sqrt((first * first) * (second * second))) / 2
 
 
+def _neighbour_sets(positions, term, space, radius=1.5, backend=None):
+    """Return the system of members at positions whose rate of `w` is a reduction over neighbour hyperedges."""
+    group = Element('g', values={'x': positions, 'w': 0.0}, size=len(positions), space=space)
+    interaction = NeighbourSetInteraction('sets', target='g', term=term, radius=radius)
+    return System(elements=[group], interactions=[interaction], backend=backend or 'auto')
+
+
 def _neighbour_set_drift(positions, term, side, backend, radius=1.5):
-    """Return the drift of `y` of members at positions under a reduction over neighbour hyperedges."""
+    """Return the drift of `w` of members at positions under a reduction over neighbour hyperedges."""
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
-    values = {'x': positions, 'term': term, 'radius': radius}
-    group = GroupElement('g', element=NeighbourSetElement, size=len(positions), values=values)
-    problem = PassCompiler(backend=backend).prepare(CompositeSystem(elements=[group], space=space)).run().problem_
-    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.y')
+    system = _neighbour_sets(positions, term, space, radius)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.w')
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
@@ -1194,41 +924,24 @@ def test_neighbour_hyperedges_need_enough_neighbours(backend):
     assert drift.tolist() == [0.0, 0.0, 0.0]
 
 
-class DriftingSetElement(Element):
-    """Element that drifts along the first axis and counts the pairs of its neighbours every step."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        speed: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.speed = speed
-
-    def _get_laws(self, s):
-        """Return the drift of the position and the count of the pairs of neighbours within a unit radius."""
-        return [
-            UpdateLaw(s.x, s.x + vector([s.speed, 0])),
-            UpdateLaw(s.y, hyperedges(SR(1), size=3, over=RadiusNeighborhood(1.0))),
-        ]
+def _drift_and_count(s):
+    """Return the drift of the position and the count of the pairs of neighbours within a unit radius."""
+    member = s.target
+    return [
+        UpdateLaw(member.x, member.x + vector([member.speed, 0])),
+        UpdateLaw(member.w, hyperedges(SR(1), size=3, over=RadiusNeighborhood(1.0))),
+    ]
 
 
 @pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
 def test_neighbour_hyperedges_follow_a_neighbour_that_leaves(backend):
     """Test that the three-body term of a member is 0 from the step after one of its two neighbours left."""
-    values = {'x': np.array([[5.0, 5.0], [5.4, 5.0], [4.5, 5.0]]), 'speed': [0.0, 0.0, -0.2]}
-    group = GroupElement('g', element=DriftingSetElement, size=3, values=values)
-    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)), time=DiscreteTime())
-    trajectory = simulate(system, until=6, dt=1.0, backend=backend)
+    values = {'x': np.array([[5.0, 5.0], [5.4, 5.0], [4.5, 5.0]]), 'w': 0.0, 'speed': [0.0, 0.0, -0.2]}
+    group = Element('g', values=values, size=3, space=ContinuousSpace(extent=(10.0, 10.0)))
+    trajectory = _one_off(group, _drift_and_count, backend=backend).prepare().simulate(until=6, dt=1.0)
     distance = 5.0 - trajectory.get_values('g.x')[:, 2, 0]
     left = int(np.argmax(distance > 1.0))
-    counts = trajectory.get_values('g.y')[:, 0]
+    counts = trajectory.get_values('g.w')[:, 0]
     assert left == 3
     assert counts[1 : left + 1].tolist() == [1.0] * left
     assert counts[left + 1 :].tolist() == [0.0] * (len(counts) - left - 1)
@@ -1236,8 +949,8 @@ def test_neighbour_hyperedges_follow_a_neighbour_that_leaves(backend):
 
 def test_validate_reports_neighbour_hyperedges_on_a_network():
     """Test that a reduction over neighbour hyperedges in a network space has a law-space issue."""
-    group = GroupElement('g', element=NeighbourSetElement, size=5, values={'term': 'pairs'})
-    system = CompositeSystem(elements=[group], space=NetworkSpace(nx.cycle_graph(5)))
+    group = Element('g', values={'w': 0.0}, space=NetworkSpace(nx.cycle_graph(5)))
+    system = System(elements=[group], interactions=[NeighbourSetInteraction('sets', target='g', term='pairs')])
     issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'law-space']
     assert len(issues) == 1
     assert 'continuous space' in issues[0].message
@@ -1246,77 +959,42 @@ def test_validate_reports_neighbour_hyperedges_on_a_network():
 def test_validate_reports_neighbour_hyperedges_on_the_jax_backend():
     """Test that a reduction over neighbour hyperedges on the JAX backend names the backends that run it."""
     positions = np.array([[1.0, 1.0], [1.5, 1.0], [1.0, 1.5]])
-    group = GroupElement('g', element=NeighbourSetElement, size=3, values={'x': positions, 'term': 'pairs'})
-    system = CompositeSystem(elements=[group], space=ContinuousSpace(extent=(4.0, 4.0)))
+    system = _neighbour_sets(positions, 'pairs', ContinuousSpace(extent=(4.0, 4.0)))
     issues = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
     (issue,) = [issue for issue in issues if issue.code == 'backend-unsupported']
     assert 'NumpyBackend' in issue.fix
     assert 'NumbaBackend' in issue.fix
 
 
-class QuenchedEnergyElement(Element):
-    """Member with a quenched energy."""
-
-    def __init__(self, label: str, energy: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
-        self.energy = energy
-
-
-class LogPartitionElement(Element):
-    """Element holding the reduction of a group."""
-
-    def __init__(self, label: str, value: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
-        self.value = value
-
-
 class LogPartitionInteraction(Interaction):
     """Interaction that equates a state to the log-sum-exp of a group of energies."""
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        energies: Annotated[str, RoleSpec()],
-    ) -> None:
+    def __init__(self, label: str, *, target: Role, energies: Role) -> None:
         super().__init__(label)
         self.target = target
         self.energies = energies
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
-        """Return the equation of the reduction."""
-        return [EquationLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equation of the reduction."""
+        super()._prepare(context)
+        s = context
+        value = log_sum_exp(s.energies.energy, over=s.energies)
+        self.laws_ = [ConstraintLaw(s.target.value == value, target=s.target.value)]
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_log_sum_exp_large_values(backend: type) -> None:
     """Test that values of order 10^4 over 1000 members give the largest value plus at most `ln 1000`."""
     values = np.random.default_rng(0).uniform(1e4, 2e4, 1000)
-    group = GroupElement('energies', element=QuenchedEnergyElement, size=1000, values={'energy': values})
+    group = Element('energies', values={'energy': values}, size=1000)
     reader = LogPartitionInteraction('reader', target='reduced', energies='energies')
-    system = CompositeSystem(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
-    trajectory = simulate(system, until=1.0, backend=backend())
+    reduced = Element('reduced', values={'value': 0.0})
+    system = System(elements=[group, reduced], interactions=[reader], backend=backend())
+    trajectory = system.prepare().simulate(until=1.0)
     result = trajectory.get_values('reduced.value')[0]
     assert np.isfinite(result)
     assert values.max() <= result <= values.max() + math.log(1000)
     assert result == pytest.approx(scipy.special.logsumexp(values))
-
-
-class BoltzmannElement(Element):
-    """Element holding the log partition function, the mean energy, and the entropy per spin of a group of levels."""
-
-    def __init__(
-        self,
-        label: str,
-        log_partition: Annotated[float, StateSpec()] = 0.0,
-        energy: Annotated[float, StateSpec()] = 0.0,
-        entropy: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.log_partition = log_partition
-        self.energy = energy
-        self.entropy = entropy
 
 
 class BoltzmannInteraction(Interaction):
@@ -1326,10 +1004,10 @@ class BoltzmannInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        levels: Annotated[str, RoleSpec()],
-        n_spins: Annotated[float, ParameterSpec()] = 20.0,
-        temperature: Annotated[float, ParameterSpec()] = 1.0,
+        target: Role,
+        levels: Role,
+        n_spins: float = 20.0,
+        temperature: float = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -1337,26 +1015,29 @@ class BoltzmannInteraction(Interaction):
         self.n_spins = n_spins
         self.temperature = temperature
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
-        """Return the equations of the log partition function, the mean energy, and the entropy per spin."""
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equations of the log partition function, the mean energy, and the entropy per spin."""
+        super()._prepare(context)
+        s = context
         weight = -s.levels.energy / s.temperature
         log_partition = log_sum_exp(weight, over=s.levels)
         energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
         entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
-        return [
-            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-            EquationLaw(s.target.energy == energy, target=s.target.energy),
-            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+        self.laws_ = [
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
         ]
 
 
-def _random_levels(temperature: float = 1.0, random_state: int = 0) -> CompositeSystem:
+def _random_levels(temperature: float = 1.0, random_state: int = 0) -> System:
     """Return 2^20 quenched Gaussian energies of variance N/2 and their Boltzmann sums at a temperature."""
     n_spins = 20
     energies = np.random.default_rng(random_state).normal(0.0, np.sqrt(n_spins / 2), 2**n_spins)
-    levels = GroupElement('levels', element=QuenchedEnergyElement, size=2**n_spins, values={'energy': energies})
+    levels = Element('levels', values={'energy': energies}, size=2**n_spins)
+    sums = Element('sums', values={'log_partition': 0.0, 'energy': 0.0, 'entropy': 0.0})
     reader = BoltzmannInteraction('reader', target='sums', levels='levels', n_spins=n_spins, temperature=temperature)
-    return CompositeSystem(elements=[levels, BoltzmannElement('sums')], interactions=[reader], time=StaticTime())
+    return System(elements=[levels, sums], interactions=[reader])
 
 
 @pytest.mark.slow
@@ -1370,8 +1051,38 @@ def test_log_sum_exp_random_energy_system_entropy() -> None:
     assert entropies[2] < 0.1
 
 
-def test_the_public_law_namespace_leaves_out_the_compiler_helpers():
-    """Test that importing a compiler helper from the public law namespace raises an `ImportError`."""
-    law_utils = importlib.import_module('skcomplex.core.components.laws.utils')
-    assert 'reductions_in' not in law_utils.__all__
-    assert not hasattr(law_utils, 'reductions_in')
+def test_reduction_by_a_function_is_found_with_its_function():
+    """Test that a reduction by a Python function is found as a reduction of the kind `function`."""
+    (found,) = reductions_in(reduction(np.median, var('x')))
+    assert (found.kind, found.function) == ('function', np.median)
+
+
+def test_reductions_print_their_condition_and_key():
+    """Test that a condition prints as `where` and a key as a condition on the members that share its value."""
+    x = var('x')
+    members = SimpleNamespace(cell=var('cell'), other=SimpleNamespace(cell=var('cell_other')))
+    assert str(total(x, where=x > 0.5)) == 'total(x, where=x > 0.5)'
+    assert str(count(over=members, by='cell')) == 'count(over=cell, where=cell_other == cell)'
+
+
+def test_minimum_and_maximum_of_two_expressions_print_as_choices():
+    """Test that the minimum and maximum of two expressions are choices, and of one expression reductions."""
+    x, y = var('x y')
+    assert (str(maximum(x)), str(maximum(x, y))) == ('maximum(x)', 'where(y > x, y, x)')
+    assert (str(minimum(x)), str(minimum(x, y))) == ('minimum(x)', 'where(y < x, y, x)')
+
+
+def test_neighbors_print_their_weight_and_hyperedges_their_neighbourhood():
+    """Test that an argmax over neighbours prints its weight and a hyperedge reduction its neighbourhood."""
+    first, second = var('first second')
+    argmax = neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
+    assert str(argmax) == "neighbors(strategy_other, reduce='argmax', weight=payoff_other)"
+    assert str(hyperedges(var('x'), reduce='mean')) == "hyperedges(x, reduce='mean')"
+    assert str(hyperedges(first * second, size=3, over=RadiusNeighborhood(1.5))) == (
+        "hyperedges(first*second, reduce='sum', size=3, over=RadiusNeighborhood(radius=1.5))"
+    )
+
+
+def test_shift_member_by_zero_is_the_expression():
+    """Test that reading a member zero places along the group gives the expression itself."""
+    assert str(shift_member(var('x'), 0)) == 'x'

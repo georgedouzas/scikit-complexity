@@ -4,16 +4,19 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
@@ -35,9 +38,6 @@ class OncolyticVirusElement(Element):
     Args:
         label:
             The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AU:
             The initial uninfected tumour cells.
@@ -63,15 +63,14 @@ class OncolyticVirusElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        AU: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        AV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        AU: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        AV: Annotated[float, RealSet.closed_open(0, oo)] = 0.0001,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        d: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AU = AU
         self.AV = AV
         self.alpha = alpha
@@ -95,9 +94,6 @@ class OncolyticVirusDendriticElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         AU:
             The initial uninfected tumour volume.
@@ -174,32 +170,31 @@ class OncolyticVirusDendriticElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        AU: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
-        AV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        EN: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        D: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3198,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00100854,
-        a0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.954e-07,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3500.0,
-        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.3,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.6984,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        a4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.6754,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.35,
-        a5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.22,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.35,
-        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.35,
-        uv: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2500000000.0,
-        ud: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000000.0,
+        AU: Annotated[float, RealSet.closed_open(0, oo)] = 60.0,
+        AV: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        V: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        EN: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        D: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.3198,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.00100854,
+        a0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 5.954e-07,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 3500.0,
+        du1: Annotated[float, RealSet.closed_open(0, oo)] = 2.3,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 1.6984,
+        m: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        a4: Annotated[float, RealSet.closed_open(0, oo)] = 4.6754,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.35,
+        a5: Annotated[float, RealSet.closed_open(0, oo)] = 0.22,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 0.35,
+        du2: Annotated[float, RealSet.closed_open(0, oo)] = 0.35,
+        uv: Annotated[float, RealSet.closed_open(0, oo)] = 2500000000.0,
+        ud: Annotated[float, RealSet.closed_open(0, oo)] = 1000000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.AU = AU
         self.AV = AV
         self.V = V
@@ -239,9 +234,6 @@ class SirnaTgfBetaElement(Element):
     Args:
         label:
             The label of the tumour site.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial number of effector cells.
@@ -339,39 +331,38 @@ class SirnaTgfBetaElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        C1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.035,
-        gamma1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20000000.0,
-        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
-        rmax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1121,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2000000.0,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-09,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        g3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
-        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.27,
-        g4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20000000.0,
-        rho3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        g5: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
-        gamma2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        rho4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 300000000.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000000.0,
-        psi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.66,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        C1: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        C2: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        G: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.035,
+        gamma1: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        g1: Annotated[float, RealSet.open(0, oo)] = 20000000.0,
+        rho1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1245,
+        rmax: Annotated[float, RealSet.closed_open(0, oo)] = 0.1121,
+        g2: Annotated[float, RealSet.open(0, oo)] = 2000000.0,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1e-09,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        g3: Annotated[float, RealSet.open(0, oo)] = 100000.0,
+        rho2: Annotated[float, RealSet.closed_open(0, oo)] = 0.27,
+        g4: Annotated[float, RealSet.open(0, oo)] = 20000000.0,
+        rho3: Annotated[float, RealSet.closed_open(0, oo)] = 5.0,
+        g5: Annotated[float, RealSet.open(0, oo)] = 1000.0,
+        gamma2: Annotated[float, RealSet.closed_open(0, oo)] = 0.001,
+        d2: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        rho4: Annotated[float, RealSet.closed_open(0, oo)] = 300000000.0,
+        mu: Annotated[float, RealSet.open(0, oo)] = 1000000.0,
+        psi: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        gamma3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        d3: Annotated[float, RealSet.closed_open(0, oo)] = 10.0,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        du: Annotated[float, RealSet.closed_open(0, oo)] = 0.66,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.C1 = C1
@@ -418,9 +409,6 @@ class TcrGeneTherapyElement(Element):
         label:
             The label of the tumour site.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         E:
             The initial number of effector cells.
 
@@ -463,21 +451,20 @@ class TcrGeneTherapyElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
-        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
-        g1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.001,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-09,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        g2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100000.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 1000.0,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        alpha: Annotated[float, RealSet.closed_open(0, oo)] = 0.05,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 0.1245,
+        g1: Annotated[float, RealSet.open(0, oo)] = 0.001,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 0.18,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 1e-09,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        g2: Annotated[float, RealSet.open(0, oo)] = 100000.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.s = s
@@ -538,6 +525,12 @@ class TCRGeneTherapySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import TCRGeneTherapySystem
         >>> TCRGeneTherapySystem().prepare().system_.elements[0].g2
@@ -565,8 +558,10 @@ class TCRGeneTherapySystem(BaseSystem):
         a: float = 1.0,
         g2: float = 1e5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.s = s
@@ -579,11 +574,16 @@ class TCRGeneTherapySystem(BaseSystem):
         self.a = a
         self.g2 = g2
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the predator-prey system of a gene therapy.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the predator-prey system of a gene therapy.
 
         The therapy lets the T cells recognise the tumour.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         s = self.s
         site = TcrGeneTherapyElement(
             'site',
@@ -601,7 +601,11 @@ class TCRGeneTherapySystem(BaseSystem):
         )
         interactions = [
             DosingInteraction('influx', target='site', state='E', dose=lambda s: s.target.s),
-            RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha * s.target.A),
+            Interaction(
+                'stimulation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.alpha * s.target.A)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
@@ -616,11 +620,10 @@ class TCRGeneTherapySystem(BaseSystem):
                 vmax=lambda s: s.target.r1,
                 km=lambda s: s.target.g1,
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r2 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -632,7 +635,7 @@ class TCRGeneTherapySystem(BaseSystem):
                 modifiers={'E': 1},
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions)
 
 
 class SirnaTGFBetaSystem(BaseSystem):
@@ -677,6 +680,12 @@ class SirnaTGFBetaSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import SirnaTGFBetaSystem
         >>> SirnaTGFBetaSystem(u=1e6).prepare().system_.elements[0].u
@@ -701,8 +710,10 @@ class SirnaTGFBetaSystem(BaseSystem):
         u: float = 0.0,
         du: float = 0.66,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.E = E
         self.A = A
         self.alpha = alpha
@@ -712,8 +723,14 @@ class SirnaTGFBetaSystem(BaseSystem):
         self.u = u
         self.du = du
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Kirschner-Panetta system with TGF-beta."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Kirschner-Panetta system with TGF-beta.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = SirnaTgfBetaElement(
             'site',
             E=self.E,
@@ -726,11 +743,10 @@ class SirnaTGFBetaSystem(BaseSystem):
             du=self.du,
         )
         interactions = [
-            RateInteraction(
+            Interaction(
                 'stimulation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.alpha * s.target.A / (1 + s.target.gamma1 * s.target.C2),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.alpha * s.target.A / (1 + s.target.gamma1 * s.target.C2))],
             ),
             ReactionInteraction(
                 'effector_death',
@@ -738,20 +754,23 @@ class SirnaTGFBetaSystem(BaseSystem):
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction(
+            Interaction(
                 'effector_proliferation',
-                target='site',
-                state='E',
-                rate=lambda s: s.target.E
-                * s.target.C1
-                / (s.target.g1 + s.target.C1)
-                * (s.target.rho1 - s.target.rmax * s.target.C2 / (s.target.g2 + s.target.C2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.E,
+                        s.target.E
+                        * s.target.C1
+                        / (s.target.g1 + s.target.C1)
+                        * (s.target.rho1 - s.target.rmax * s.target.C2 / (s.target.g2 + s.target.C2)),
+                    ),
+                ],
             ),
-            RateInteraction(
+            Interaction(
                 'tumour_growth',
-                target='site',
-                state='A',
-                rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.A, s.target.r1 * s.target.A * (1 - s.target.b * s.target.A))],
             ),
             MichaelisMentenInteraction(
                 'kill',
@@ -771,14 +790,18 @@ class SirnaTGFBetaSystem(BaseSystem):
                 km=lambda s: s.target.g4,
                 modifiers={'A': 1},
             ),
-            RateInteraction(
+            Interaction(
                 'il2_production',
-                target='site',
-                state='C1',
-                rate=lambda s: s.target.rho3
-                * s.target.E
-                * s.target.A
-                / ((s.target.g5 + s.target.A) * (1 + s.target.gamma2 * s.target.C2)),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.C1,
+                        s.target.rho3
+                        * s.target.E
+                        * s.target.A
+                        / ((s.target.g5 + s.target.A) * (1 + s.target.gamma2 * s.target.C2)),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'il2_loss',
@@ -786,13 +809,17 @@ class SirnaTGFBetaSystem(BaseSystem):
                 reactants={'C1': 1},
                 propensity=lambda s: s.target.d2 * s.target.C1,
             ),
-            RateInteraction(
+            Interaction(
                 'tgf_beta_production',
-                target='site',
-                state='C2',
-                rate=lambda s: s.target.rho4
-                * s.target.A**2
-                / (s.target.mu**2 + (1 + s.target.psi * s.target.G**s.target.gamma3) * s.target.A**2),
+                roles={'target': 'site'},
+                laws=lambda s: [
+                    RateLaw(
+                        s.target.C2,
+                        s.target.rho4
+                        * s.target.A**2
+                        / (s.target.mu**2 + (1 + s.target.psi * s.target.G**s.target.gamma3) * s.target.A**2),
+                    ),
+                ],
             ),
             ReactionInteraction(
                 'tgf_beta_loss',
@@ -808,7 +835,7 @@ class SirnaTGFBetaSystem(BaseSystem):
                 propensity=lambda s: s.target.du * s.target.G,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(self.label, elements=[site], interactions=interactions)
 
 
 class OncolyticVirusSystem(BaseSystem):
@@ -841,6 +868,12 @@ class OncolyticVirusSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OncolyticVirusSystem
         >>> OncolyticVirusSystem(alpha=1.5).prepare().system_.elements[0].alpha
@@ -862,32 +895,37 @@ class OncolyticVirusSystem(BaseSystem):
         r: float = 0.5,
         d: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AU = AU
         self.AV = AV
         self.alpha = alpha
         self.r = r
         self.d = d
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of uninfected and infected tumour cells.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of uninfected and infected tumour cells.
 
         The cells share a carrying capacity.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         tumour = OncolyticVirusElement('tumour', AU=self.AU, AV=self.AV, alpha=self.alpha, r=self.r, d=self.d)
         interactions = [
-            RateInteraction(
+            Interaction(
                 'uninfected_growth',
-                target='tumour',
-                state='AU',
-                rate=lambda s: s.target.AU * (1 - s.target.AU - s.target.AV),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AU, s.target.AU * (1 - s.target.AU - s.target.AV))],
             ),
-            RateInteraction(
+            Interaction(
                 'infected_growth',
-                target='tumour',
-                state='AV',
-                rate=lambda s: s.target.r * s.target.AV * (1 - s.target.AU - s.target.AV),
+                roles={'target': 'tumour'},
+                laws=lambda s: [RateLaw(s.target.AV, s.target.r * s.target.AV * (1 - s.target.AU - s.target.AV))],
             ),
             ReactionInteraction(
                 'infection',
@@ -904,7 +942,7 @@ class OncolyticVirusSystem(BaseSystem):
                 propensity=lambda s: s.target.d * s.target.AV,
             ),
         ]
-        return CompositeSystem(self.label, elements=[tumour], interactions=interactions)
+        self.system_ = System(self.label, elements=[tumour], interactions=interactions)
 
 
 class OncolyticVirusDendriticSystem(BaseSystem):
@@ -943,6 +981,12 @@ class OncolyticVirusDendriticSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import OncolyticVirusDendriticSystem
         >>> OncolyticVirusDendriticSystem(ud=0.0).prepare().system_.elements[0].ud
@@ -954,7 +998,6 @@ class OncolyticVirusDendriticSystem(BaseSystem):
     references = (BOOK, 'Wares et al. 2015')
     until = 30.0
     dt = 0.1
-    solver = ScipyODESolver(method='LSODA')
 
     def __init__(
         self,
@@ -966,8 +1009,10 @@ class OncolyticVirusDendriticSystem(BaseSystem):
         m: float = 0.0,
         a5: float = 0.22,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.AU = AU
         self.uv = uv
         self.ud = ud
@@ -975,8 +1020,14 @@ class OncolyticVirusDendriticSystem(BaseSystem):
         self.m = m
         self.a5 = a5
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a tumour treated with an oncolytic adenovirus."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tumour treated with an oncolytic adenovirus.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         site = OncolyticVirusDendriticElement(
             'site',
             AU=self.AU,
@@ -987,7 +1038,11 @@ class OncolyticVirusDendriticSystem(BaseSystem):
             a5=self.a5,
         )
         interactions = [
-            RateInteraction('tumour_growth', target='site', state='AU', rate=lambda s: s.target.r1 * s.target.AU),
+            Interaction(
+                'tumour_growth',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.AU, s.target.r1 * s.target.AU)],
+            ),
             ReactionInteraction(
                 'infection',
                 target='site',
@@ -1025,11 +1080,10 @@ class OncolyticVirusDendriticSystem(BaseSystem):
                 reactants={'AV': 1},
                 propensity=lambda s: s.target.a2 * s.target.AV,
             ),
-            RateInteraction(
+            Interaction(
                 'virus_release',
-                target='site',
-                state='V',
-                rate=lambda s: s.target.r2 * s.target.a2 * s.target.AV,
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.V, s.target.r2 * s.target.a2 * s.target.AV)],
             ),
             DosingInteraction('virus_injection', target='site', state='V', dose=lambda s: s.target.uv),
             ReactionInteraction(
@@ -1038,16 +1092,32 @@ class OncolyticVirusDendriticSystem(BaseSystem):
                 reactants={'V': 1},
                 propensity=lambda s: s.target.du1 * s.target.V,
             ),
-            RateInteraction('effector_recruitment', target='site', state='E', rate=lambda s: s.target.a3 * s.target.AV),
-            RateInteraction('naive_activation', target='site', state='E', rate=lambda s: s.target.m * s.target.EN),
-            RateInteraction('dendritic_activation', target='site', state='E', rate=lambda s: s.target.a4 * s.target.D),
+            Interaction(
+                'effector_recruitment',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a3 * s.target.AV)],
+            ),
+            Interaction(
+                'naive_activation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.m * s.target.EN)],
+            ),
+            Interaction(
+                'dendritic_activation',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.E, s.target.a4 * s.target.D)],
+            ),
             ReactionInteraction(
                 'effector_death',
                 target='site',
                 reactants={'E': 1},
                 propensity=lambda s: s.target.d1 * s.target.E,
             ),
-            RateInteraction('naive_recruitment', target='site', state='EN', rate=lambda s: s.target.a5 * s.target.AV),
+            Interaction(
+                'naive_recruitment',
+                roles={'target': 'site'},
+                laws=lambda s: [RateLaw(s.target.EN, s.target.a5 * s.target.AV)],
+            ),
             ReactionInteraction(
                 'naive_death',
                 target='site',
@@ -1062,4 +1132,9 @@ class OncolyticVirusDendriticSystem(BaseSystem):
                 propensity=lambda s: s.target.du2 * s.target.D,
             ),
         ]
-        return CompositeSystem(self.label, elements=[site], interactions=interactions)
+        self.system_ = System(
+            self.label,
+            elements=[site],
+            interactions=interactions,
+            solver=ScipyODESolver(method='LSODA'),
+        )

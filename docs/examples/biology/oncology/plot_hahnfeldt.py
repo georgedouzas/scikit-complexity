@@ -13,14 +13,13 @@ vasculature that sets its carrying capacity.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import HahnfeldtSystem
 
 SYSTEM = 'hahnfeldt'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(HahnfeldtSystem(), dt=0.2, observers=[observer])
+trajectory = HahnfeldtSystem().prepare().simulate(dt=0.2, observers=[observer])
 
 # %%
 # Equilibrium and regression
@@ -28,7 +27,7 @@ trajectory = simulate(HahnfeldtSystem(), dt=0.2, observers=[observer])
 # Untreated, a small tumour and its vasculature should both approach `(xi_s / xi_i)^(3/2)`, about 17347 mm³. Under the
 # infusion, the inhibitor should settle at `dose / du`, and the vasculature and then the tumour should shrink.
 
-untreated = simulate(HahnfeldtSystem(A=200.0, Vb=625.0, dose=0.0), dt=1.0, until=100)
+untreated = HahnfeldtSystem(A=200.0, Vb=625.0, dose=0.0).prepare().simulate(dt=1.0, until=100)
 treated = trajectory
 equilibrium = (5.85 / 0.00873) ** 1.5
 fig, (growth, therapy) = plt.subplots(1, 2, figsize=(10, 4))

@@ -1,4 +1,4 @@
-"""Pass that adds the compiled renewal laws and their count symbols to the problem."""
+"""Add the renewal laws and their counts to the problem."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,16 +12,16 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....components.laws import DrawSpec
 from ....components.laws.utils._draws import DRAWS, draws_in
 from ....components.laws.utils._reductions import reductions_in
 from ....errors import PipelineError, ValidationError
-from ....specs import DrawSpec
 from ....types import Indices
 from ..._utils import components_of, symbol, symbols_of
+from ...enums import ReadKind
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._renewal_kernel import READ_SOURCES, MemberFunction, RenewalKernel, Sampler
-from ...types import ReadKind
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
 from .._compilation import Compilation
@@ -30,7 +30,23 @@ from .._renewal_law import RenewalLaw
 
 
 class RenewalProblemPass(BasePass):
-    """A pass that adds the compiled renewal laws and their counts to the problem."""
+    """A pass that adds the renewal laws and their counts to the problem.
+
+    It turns every renewal law into the functions that draw its waiting times and apply its reset, which the solver
+    calls member by member.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        RenewalLaw: Renews states after random waiting times.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> compilation = PassCompiler().prepare(ContinuousTimeRandomWalkSystem()).run().compilation_
+        >>> len(compilation.problem.renewals)
+        1
+    """
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""

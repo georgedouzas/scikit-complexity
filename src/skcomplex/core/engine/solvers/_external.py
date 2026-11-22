@@ -11,12 +11,23 @@ from ._solver import Solver
 
 
 class ExternalSolver(Solver):
-    """An abstract solver that translates a compiled problem for another program.
+    """An abstract solver that runs a compiled problem in another program.
 
-    They translate it into a third-party library. Subclasses implement the hooks `_get_name`, `_get_form`,
-    `_unsupported`, `_build`, and `_advance`, and list the other forms the library runs in `_get_forms`. Before the
-    first frame, `prepare` checks every element, interaction, and law, and raises one error that lists everything the
-    library cannot run.
+    It translates the problem for an outside library, such as Mesa for agents or LAMMPS for atoms. Before the first
+    frame `prepare` checks every element, interaction, and law, and raises one error that lists everything the library
+    cannot run. A subclass writes the private methods `_get_name`, `_get_form`, `_unsupported`, `_build`, and
+    `_advance`. It runs the traders of a market, the atoms of a liquid, and the birds of a flock in tools made for them.
+
+    Read more in the user guide, under Solvers.
+
+    See Also:
+        MesaSolver: Runs agents in Mesa.
+        LammpsSolver: Runs particles in LAMMPS.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import ExternalSolver, MesaSolver
+        >>> isinstance(MesaSolver(), ExternalSolver)
+        True
     """
 
     @classmethod
@@ -35,9 +46,9 @@ class ExternalSolver(Solver):
 
     @abstractmethod
     def _get_unsupported(self, problem: ProblemSpec) -> list[str]:
-        """Return a description of every part of a problem the library cannot run.
+        """Return a description of every component of a problem the library cannot run.
 
-        The parts are elements, interactions, or laws.
+        The components are elements, interactions, or laws.
 
         Args:
             problem:

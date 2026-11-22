@@ -1,4 +1,4 @@
-"""Read the degree of the groups on a cell complex and its sparse matrices."""
+"""Build the matrices of a cell complex that its operators apply."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,11 +6,12 @@
 import numpy as np
 import scipy.sparse
 
-from ....components.elements import GroupElement
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....errors import SpaceError
 from ....types import Array
 from ...problems._declarations_spec import DeclarationsSpec
+from ...problems._declared_element import _DeclaredElement
+from ...problems._group_element import _GroupElement
 
 DEGREES = {'sites': 0, 'edges': 1, 'hyperedges': 2}
 PARTS = tuple(DEGREES)
@@ -18,13 +19,32 @@ STAR_PARAMETER = 'weight'
 
 
 class CellTables:
-    """A table of the degrees of the groups on a cell complex and their matrices."""
+    """A table of the matrices of a cell complex, which its operators apply.
+
+    A cell complex is made of sites, edges, and faces, and the operators of exterior calculus, such as the change of a
+    value along every edge, are matrices between them. These methods build those matrices and find the group on the
+    cells of every degree. They serve the flows on a mesh, the phases of linked oscillators, and the prices around
+    cycles of trades.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        CellComplexSpace: A space of sites, edges, and faces.
+
+    Examples:
+        >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
+        >>> from skcomplex.core.engine.compile.passes._cells import CellTables
+        >>> square = CellComplexSpace(LatticeSpace((4, 4))).prepare()
+        >>> CellTables.get_exterior_derivative_of(square, 0).shape
+        (32, 16)
+    """
 
     @staticmethod
     def _get_star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
         """Return the diagonal of the Hodge star of a degree.
 
-        On a network complex, it holds the weights of the group.
+        On a network complex, it holds the weights of the group, a parameter of its class or a value of a plain
+        element.
         """
         if isinstance(space.space, LatticeSpace):
             return space.stars_[degree]
@@ -32,13 +52,18 @@ class CellTables:
             component = block.node.component
             if (
                 block.node.space is not space
-                or not isinstance(component, GroupElement)
+                or not isinstance(component, _GroupElement)
                 or component.on != PARTS[degree]
             ):
                 continue
-            if STAR_PARAMETER in component.element._get_specs():
-                member = component.element(component.label).set_params(**(component.values or {}))
-                return np.broadcast_to(np.asarray(getattr(member, STAR_PARAMETER), dtype=float), (block.rows,))
+            member = component.element(component.label).set_params(**(component.values or {}))
+            if STAR_PARAMETER in member._get_component_specs():
+                weights = (
+                    member.get_value(STAR_PARAMETER)
+                    if isinstance(member, _DeclaredElement)
+                    else getattr(member, STAR_PARAMETER)
+                )
+                return np.broadcast_to(np.asarray(weights, dtype=float), (block.rows,))
         return space.stars_[degree]
 
     @staticmethod

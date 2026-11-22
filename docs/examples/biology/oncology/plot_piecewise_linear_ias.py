@@ -12,14 +12,13 @@ without relapse.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import PiecewiseLinearIASSystem
 
 SYSTEM = 'piecewise_linear_ias'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(PiecewiseLinearIASSystem(), observers=[observer])
+trajectory = PiecewiseLinearIASSystem().prepare().simulate(observers=[observer])
 
 # %%
 # Three patient types
@@ -30,7 +29,7 @@ trajectory = simulate(PiecewiseLinearIASSystem(), observers=[observer])
 
 fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for patient, axis in zip((1, 2, 3), axes, strict=True):
-    run = trajectory if patient == 1 else simulate(PiecewiseLinearIASSystem(patient=patient))
+    run = trajectory if patient == 1 else PiecewiseLinearIASSystem(patient=patient).prepare().simulate()
     psa = run.get_values('tumour.AD') + run.get_values('tumour.AIR') + run.get_values('tumour.AII')
     axis.plot(run.times, psa)
     axis.fill_between(run.times, 0, 25, where=run.get_values('tumour.u') > 0.5, color='red', alpha=0.15)

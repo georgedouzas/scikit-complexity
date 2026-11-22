@@ -19,11 +19,39 @@ MODE_SPACING = 0.35
 
 
 class ConvolutionSolver(CaputoSolver):
-    """An abstract solver of explicit schemes that weigh past steps of the states.
+    """An abstract solver of explicit fractional schemes that weigh past steps.
 
-    The displacements are taken from the start of a run. A step sets `g dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k c_j
-    (x_(k-j) - x_0)` with `c_0 = 1`. With a memory window, the displacements older than the window enter through
-    exponential modes fitted to the weights.
+    A step sets `g dt^alpha f(t_(k-1), x_(k-1)) = sum_(j=0)^k c_j (x_(k-j) - x_0)` with `c_0 = 1`, a weighted sum of the
+    moves of the state since the start of the run, such as the slow fall of a relaxing polymer. With a memory window,
+    moves older than the window enter through a few decaying terms fitted to the weights, so long runs stay cheap. It is
+    the base of the solvers of subdiffusion, materials with memory, and fractional chaotic flows.
+
+    Read more in the user guide, under Solvers.
+
+    Args:
+        dt:
+            The fixed step. Frames must fall on multiples of it.
+
+        memory:
+            The length of time over which the history enters with its exact weights, or `None` for the whole run. The
+            history older than the window enters through exponential modes fitted to the weights, so a step costs
+            the same however long the run.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
+    See Also:
+        L1Solver: Weighs the past steps by the L1 scheme.
+        GrunwaldLetnikovSolver: Weighs the past steps by Grünwald-Letnikov.
+
+    Examples:
+        >>> from skcomplex.core.engine.solvers import GrunwaldLetnikovSolver
+        >>> from skcomplex.core.engine.solvers._convolution import ConvolutionSolver
+        >>> isinstance(GrunwaldLetnikovSolver(dt=0.01), ConvolutionSolver)
+        True
     """
 
     def __init__(

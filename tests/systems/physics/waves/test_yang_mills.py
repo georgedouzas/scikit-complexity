@@ -3,10 +3,9 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.components import MatrixGroupSpec
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.core.specs import MatrixGroupSpec
 from skcomplex.systems.physics.waves import LatticeYangMillsSystem, gauge_observables
 
 ISOSPIN = MatrixGroupSpec('SU', 2)
@@ -32,7 +31,7 @@ def _gauge_transform(links, space, group, seed=1):
 
 def test_four_dimensional_su2_plaquette_is_near_the_known_value():
     """Test that SU(2) at `beta = 2.3` on a 4^4 lattice has a mean plaquette within 0.03 of 0.60."""
-    series = simulate(LatticeYangMillsSystem(size=4), until=100, random_state=0)
+    series = LatticeYangMillsSystem(size=4).prepare().simulate(until=100, random_state=0)
     assert abs(series.get_values('mean_plaquette')[30:].mean() - 0.60) < 0.03
 
 
@@ -40,7 +39,7 @@ def test_polyakov_loop_orders_above_the_deconfinement_coupling():
     """Test that the SU(2) Polyakov loop with two time slices is three times larger at `beta = 2.6` than at 1.5."""
     loops = []
     for beta in (1.5, 2.6):
-        trajectory = simulate(LatticeYangMillsSystem(size=4, extent=2, beta=beta), until=100, random_state=0)
+        trajectory = LatticeYangMillsSystem(size=4, extent=2, beta=beta).prepare().simulate(until=100, random_state=0)
         loops.append(trajectory.get_values('polyakov_loop')[30:].mean())
     assert loops[1] > 3 * loops[0]
 
@@ -50,7 +49,7 @@ def test_su3_links_stay_in_the_group_and_order_from_a_cold_start():
     space = _space((4, 4, 4))
     cold = np.broadcast_to(np.eye(3), (space.incidences_[0].shape[0], 3, 3))
     system = LatticeYangMillsSystem(4, dimension=3, colors=3, beta=1.0, links=cold)
-    trajectory = simulate(system, until=10, dt=1, random_state=0)
+    trajectory = system.prepare().simulate(until=10, dt=1, random_state=0)
     plaquettes = trajectory.get_values('mean_plaquette')
     assert plaquettes[0] == pytest.approx(1.0)
     assert plaquettes[-1] < 0.5
@@ -92,7 +91,7 @@ def test_polyakov_loop_of_a_uniform_field_is_its_trace():
 def test_gauge_observables_reads_matrix_links_from_a_trajectory():
     """Test that a trajectory of matrix links gives one loop per frame."""
     system = LatticeYangMillsSystem(3, dimension=2)
-    trajectory = simulate(system, until=3, dt=1, random_state=0)
+    trajectory = system.prepare().simulate(until=3, dt=1, random_state=0)
     result = gauge_observables(trajectory, kind='wilson', space=_space((3, 3)), variables='links.U', group=ISOSPIN)
     assert result.value.shape == (4,)
 

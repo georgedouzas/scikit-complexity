@@ -3,28 +3,30 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import lru_cache
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
-class CoevolvingSpeciesView(AgentView):
+class CoevolvingSpeciesView(AgentViewProtocol, Protocol):
     """View of a coevolving species, with its states as attributes.
 
-    `CoevolvingSpeciesElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `CoevolvingSpeciesElement` read them with checked types.
     """
 
     genome: float
@@ -44,9 +46,6 @@ class CoevolvingSpeciesElement(Element):
         label:
             The label of the species or of the group of species.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         genome:
             The bits of the genome, as an integer.
 
@@ -55,6 +54,9 @@ class CoevolvingSpeciesElement(Element):
 
         moves:
             Whether the species accepted a mutation in the last step.
+
+        size:
+            The number of members, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.evolution import CoevolvingSpeciesElement
@@ -65,21 +67,16 @@ class CoevolvingSpeciesElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        genome: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        moves: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        genome: Annotated[float | Array, NN] = 0.0,
+        fitness: Annotated[float | Array, RealSet.closed_open(0, oo)] = 0.0,
+        moves: Annotated[float | Array, NN] = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.genome = genome
         self.fitness = fitness
         self.moves = moves
-
-    @classmethod
-    def _get_view(cls) -> type[CoevolvingSpeciesView]:
-        """Return the view of a species, `CoevolvingSpeciesView`."""
-        return CoevolvingSpeciesView
 
 
 class CoevolutionaryClimbingInteraction(Interaction):
@@ -123,13 +120,13 @@ class CoevolutionaryClimbingInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        species: Annotated[str, RoleSpec()],
+        species: Role,
         n: int = 12,
         k: int = 2,
         c: int = 1,
@@ -144,18 +141,15 @@ class CoevolutionaryClimbingInteraction(Interaction):
         self.s = s
         self.seed = seed
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the climbing rule.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the climbing rule.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.climb)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.climb)]
 
     def climb(self, system: SystemView) -> None:
         """Let every species in turn try one point mutation, and update the fitness of all.
@@ -164,7 +158,7 @@ class CoevolutionaryClimbingInteraction(Interaction):
             system:
                 The system.
         """
-        species = system.get_agents(self.species, CoevolvingSpeciesView)
+        species = cast(list[CoevolvingSpeciesView], system.get_agents(self.species))
         genomes = [int(item.genome) for item in species]
         for index, item in enumerate(species):
             mutant = genomes[index] ^ (1 << int(system.rng.integers(self.n)))
@@ -246,9 +240,15 @@ class NKCSSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.evolution import NKCSSystem
-        >>> NKCSSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> NKCSSystem(5).prepare().system_.elements[0].size
         5
     """
 
@@ -268,8 +268,10 @@ class NKCSSystem(BaseSystem):
         seed: int = 0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_species = n_species
         self.n = n
         self.k = k
@@ -278,15 +280,16 @@ class NKCSSystem(BaseSystem):
         self.seed = seed
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the NKCS model of Kauffman and Johnsen."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the NKCS model of Kauffman and Johnsen.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.n_species).astype(float)
-        species = GroupElement(
-            'species',
-            element=CoevolvingSpeciesElement,
-            size=self.n_species,
-            values={'genome': genomes},
-        )
+        species = CoevolvingSpeciesElement('species', genome=genomes, size=self.n_species)
         climbing = CoevolutionaryClimbingInteraction(
             'climbing',
             species='species',
@@ -296,4 +299,4 @@ class NKCSSystem(BaseSystem):
             s=self.s,
             seed=self.seed,
         )
-        return CompositeSystem(self.label, elements=[species], interactions=[climbing], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[species], interactions=[climbing])

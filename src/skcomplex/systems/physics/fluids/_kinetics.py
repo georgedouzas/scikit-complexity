@@ -7,6 +7,7 @@ The module covers wave-number conservation with breaking, and discrete-velocity 
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -14,16 +15,19 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import divergence
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SSPRKSolver
+from ....core.systems import BaseSystem, System
 
 
 class CarlemanGasElement(Element):
-    """Site of the Carleman discrete-velocity gas.
+    """Cells of the Carleman discrete-velocity gas.
 
     The densities `f_plus` and `f_minus` move at the speeds `c` and `-c`.
 
@@ -33,22 +37,22 @@ class CarlemanGasElement(Element):
 
     Args:
         label:
-            The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the gas.
 
         f_plus:
-            The initial density of right-moving particles.
+            The initial density of right-moving particles, one value per cell or one for all.
 
         f_minus:
-            The initial density of left-moving particles.
+            The initial density of left-moving particles, one value per cell or one for all.
 
         c:
             The particle speed.
 
         kappa:
             The collision rate.
+
+        space:
+            The lattice of the cells, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import CarlemanGasElement
@@ -59,14 +63,14 @@ class CarlemanGasElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        f_plus: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        f_minus: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        f_plus: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        f_minus: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        c: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        kappa: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.f_plus = f_plus
         self.f_minus = f_minus
         self.c = c
@@ -74,7 +78,7 @@ class CarlemanGasElement(Element):
 
 
 class WaveNumberElement(Element):
-    """Local wave number of deep-water waves.
+    """Cells of the local wave number of deep-water waves.
 
     The wave number is conserved as `dk/dt + d omega(k)/dx = 0` with `omega = sqrt(g k)`.
 
@@ -83,16 +87,16 @@ class WaveNumberElement(Element):
 
     Args:
         label:
-            The label of the site or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the wave train.
 
         k:
-            The initial wave number.
+            The initial wave number, one value per cell or one for all.
 
         g:
             The gravitational acceleration.
+
+        space:
+            The lattice of the cells, or `None` for one cell.
 
     Examples:
         >>> from skcomplex.systems.physics.fluids import WaveNumberElement
@@ -103,12 +107,12 @@ class WaveNumberElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        k: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        g: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.k = k
         self.g = g
 
@@ -138,9 +142,15 @@ class WaveBreakingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for strong stability preserving Runge-Kutta steps.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import WaveBreakingSystem
-        >>> WaveBreakingSystem(16).prepare().system_.elements[0].prepare().size_
+        >>> WaveBreakingSystem(16).prepare().system_.elements[0].space.prepare().size_
         16
     """
 
@@ -149,7 +159,6 @@ class WaveBreakingSystem(BaseSystem):
     references = ('Whitham 1974', 'Forrest 2018')
     until = 20.0
     dt = 0.5
-    solver = SSPRKSolver()
 
     def __init__(
         self,
@@ -159,41 +168,38 @@ class WaveBreakingSystem(BaseSystem):
         amplitude: float = 0.5,
         g: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.k0 = k0
         self.amplitude = amplitude
         self.g = g
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the kinematic wave equation of deep-water wave trains.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a modulated wave train on a periodic interval of length 2 pi.
 
-        The interval is periodic of length 2 pi.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = 2 * math.pi / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
-        values = {'k': self.k0 * (1 + self.amplitude * np.sin(centers)), 'g': self.g}
-        space = LatticeSpace(self.n, spacing=spacing)
-        return CompositeSystem(
+        space = LatticeSpace(self.n, spacing=spacing, discretization='finite-volume')
+        train = WaveNumberElement('train', k=self.k0 * (1 + self.amplitude * np.sin(centers)), g=self.g, space=space)
+        self.system_ = System(
             self.label,
-            elements=[
-                FieldElement(
-                    'train',
-                    element=WaveNumberElement,
-                    space=space,
-                    values=values,
-                    discretization='finite-volume',
-                ),
-            ],
+            elements=[train],
             interactions=[
-                ConservationInteraction(
+                Interaction(
                     'action',
-                    target='train',
-                    state='k',
-                    flux=lambda s: sqrt(s.target.g * s.target.k),
+                    roles={'target': 'train'},
+                    laws=lambda s: [RateLaw(s.target.k, -divergence([sqrt(s.target.g * s.target.k)]))],
                 ),
             ],
+            solver=SSPRKSolver(),
         )
 
 
@@ -222,9 +228,15 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for strong stability preserving Runge-Kutta steps.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.fluids import DiscreteVelocityBoltzmannSystem
-        >>> DiscreteVelocityBoltzmannSystem(16).prepare().system_.elements[0].prepare().size_
+        >>> DiscreteVelocityBoltzmannSystem(16).prepare().system_.elements[0].space.prepare().size_
         16
     """
 
@@ -233,7 +245,6 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
     references = ('Carleman 1957', 'Gatignol 1975', 'Bellomo et al. 2017')
     until = 5.0
     dt = 0.1
-    solver = SSPRKSolver()
 
     def __init__(
         self,
@@ -243,8 +254,10 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         kappa: float = 1.0,
         length: float = 10.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.c = c
         self.kappa = kappa
@@ -258,41 +271,46 @@ class DiscreteVelocityBoltzmannSystem(BaseSystem):
         """
         return s.target.kappa * (s.target.f_minus**2 - s.target.f_plus**2)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the Carleman discrete-velocity Boltzmann equation on a periodic line.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a gas on a periodic line that starts from a pulse of right movers.
 
-        The gas starts from a pulse of right movers.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / self.n
         centers = (np.arange(self.n) + 0.5) * spacing
         pulse = np.exp(-((centers - self.length / 2) ** 2))
-        values = {'f_plus': 0.5 + pulse, 'f_minus': np.full(self.n, 0.5), 'c': self.c, 'kappa': self.kappa}
-        space = LatticeSpace(self.n, spacing=spacing)
-        return CompositeSystem(
+        space = LatticeSpace(self.n, spacing=spacing, discretization='finite-volume')
+        gas = CarlemanGasElement(
+            'gas',
+            f_plus=0.5 + pulse,
+            f_minus=np.full(self.n, 0.5),
+            c=self.c,
+            kappa=self.kappa,
+            space=space,
+        )
+        self.system_ = System(
             self.label,
-            elements=[
-                FieldElement(
-                    'gas',
-                    element=CarlemanGasElement,
-                    space=space,
-                    values=values,
-                    discretization='finite-volume',
-                ),
-            ],
+            elements=[gas],
             interactions=[
-                ConservationInteraction(
+                Interaction(
                     'right_movers',
-                    target='gas',
-                    state='f_plus',
-                    flux=lambda s: s.target.c * s.target.f_plus,
-                    source=self._get_collisions,
+                    roles={'target': 'gas'},
+                    laws=lambda s: [
+                        RateLaw(s.target.f_plus, -divergence([s.target.c * s.target.f_plus])),
+                        RateLaw(s.target.f_plus, self._get_collisions(s)),
+                    ],
                 ),
-                ConservationInteraction(
+                Interaction(
                     'left_movers',
-                    target='gas',
-                    state='f_minus',
-                    flux=lambda s: -s.target.c * s.target.f_minus,
-                    source=lambda s: -self._get_collisions(s),
+                    roles={'target': 'gas'},
+                    laws=lambda s: [
+                        RateLaw(s.target.f_minus, -divergence([-s.target.c * s.target.f_minus])),
+                        RateLaw(s.target.f_minus, -self._get_collisions(s)),
+                    ],
                 ),
             ],
+            solver=SSPRKSolver(),
         )

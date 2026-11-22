@@ -1,4 +1,4 @@
-"""Declare the states and parameters of every component of a system."""
+"""Find the states and parameters of every component of a system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,8 +6,9 @@
 import itertools
 import re
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Sized
 from dataclasses import replace
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,32 +16,52 @@ from sage.all__sagemath_symbolics import CC, RR, ZZ, Expression, I, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....components.elements import FieldElement, GroupElement
-from ....components.interactions import BaseInteraction
-from ....components.laws import LinearProgramLaw
+from ....components import EntrySpec, PowerSeriesSpec, TensorSpec
+from ....components.interactions import BaseInteraction, WienerProcessSpec
+from ....components.laws._linear_program import _LinearProgramLaw
 from ....components.laws.utils import coordinate
 from ....components.laws.utils._phase import COORDINATE_PREFIX
-from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
-from ....components.specs import CensusRecordSpec, NodeSpec
+from ....components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace, PhaseSpace
+from ....enums import VariableKind
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, WienerProcessSpec
-from ....types import Array, VariableKind
-from ..._utils import components_of, declarations_of, default_of, symbol, vector
+from ....types import Array
+from ..._utils import binding_of, components_of, declarations_of, default_of, symbol, vector
+from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
+from ...problems._field_element import _FieldElement
+from ...problems._group_element import _GroupElement
+from ...problems._node_spec import _NodeSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...types import ReadKind
+from ...problems._variable_spec import _VariableSpec
 from .._base import BasePass
+from .._census_record_spec import _CensusRecordSpec
 from .._compilation import Compilation
 
 HIDDEN_MEMBERS = '~members'
+MATRIX_AXES = 2
 MAX_SHOWN_COMPONENTS = 10
 
 
 class LayoutPass(BasePass):
-    """A pass that declares every component in tree order.
+    """A pass that finds the states and parameters of every component.
 
-    It checks that no two variables share a symbol.
+    A state is a value that a law changes and a parameter is a value that no law changes. The pass gives every value its
+    place in the vector of states or of parameters, in the order of the tree, and checks that no two values share a
+    name.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        SpecsPass: Ties the symbols of the laws to these places.
+        Compilation: Holds the layout in `layout`.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+        >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
+        >>> [entry.name for entry in compilation.layout.parameters]
+        ['growth.r', 'predation.a', 'predation.b', 'death.d']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -57,8 +78,9 @@ class LayoutPass(BasePass):
         declarations = DeclarationsSpec(time=symbol('t'))
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
         groups = LayoutPass._get_group_sizes(nodes)
+        trained = frozenset(compilation.trained)
         for node in nodes:
-            declarations, _ = self._declare_component(declarations, node, groups)
+            declarations, _ = self._declare_component(declarations, node, groups, trained)
         self._check_symbol_names(declarations.blocks)
         compilation.layout = self._copy_with_program_values(
             declarations,
@@ -68,7 +90,7 @@ class LayoutPass(BasePass):
     @staticmethod
     def _copy_with_program_values(
         declarations: DeclarationsSpec,
-        records: Sequence[CensusRecordSpec],
+        records: Sequence[_CensusRecordSpec],
     ) -> DeclarationsSpec:
         """Return the declarations with the hidden states of linear programs.
 
@@ -89,7 +111,7 @@ class LayoutPass(BasePass):
         counts: Counter[tuple[str, str]] = Counter()
         for record in records:
             law = record.law
-            if not isinstance(law, LinearProgramLaw):
+            if not isinstance(law, _LinearProgramLaw):
                 continue
             kinds = [('objective', len(law.objectives)), ('dual', len(law.constraints) if law.duals else 0)]
             for kind, count in kinds:
@@ -121,19 +143,21 @@ class LayoutPass(BasePass):
                 seen[name] = reference.entry.name
 
     @staticmethod
-    def _get_group_sizes(nodes: list[NodeSpec]) -> dict[str, int]:
+    def _get_group_sizes(nodes: list[_NodeSpec]) -> dict[str, int]:
         """Return the number of members of every group of a system tree, by path."""
         return {node.path: node.members for node in nodes if node.members is not None and not node.interaction}
 
     @staticmethod
     def _declare_component(
         declarations: DeclarationsSpec,
-        node: NodeSpec,
+        node: _NodeSpec,
         groups: Mapping[str, int],
+        trained: frozenset[str] = frozenset(),
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations with a component added, and the block of the component.
 
-        The states and parameters of the component are added.
+        The states and parameters of the component are added. A parameter that a training trains is adaptive, a state
+        that no law of the component changes and the training sets.
 
         Args:
             declarations:
@@ -146,6 +170,9 @@ class LayoutPass(BasePass):
                 The number of members of every group of the system tree, by path, which give the shapes of shaped
                 parameters.
 
+            trained:
+                The dotted paths of the parameters a training trains, such as `recurrence.A`.
+
         Returns:
             declarations:
                 The declarations with the component.
@@ -155,7 +182,15 @@ class LayoutPass(BasePass):
         """
         block = BlockSpec(node)
         states = {} if node.is_agent else declarations_of(node.component_type, VariableKind.STATE)
-        parameters = declarations_of(node.component_type, VariableKind.PARAMETER)
+        shaped = LayoutPass._get_member_shaped(node, groups)
+        parameters = {**declarations_of(node.component_type, VariableKind.PARAMETER), **shaped}
+        adaptive = {
+            variable: replace(declaration, kind=VariableKind.STATE, adaptive=True)
+            for variable, declaration in parameters.items()
+            if f'{node.path}.{variable}' in trained
+        }
+        states = {**states, **adaptive}
+        parameters = {variable: item for variable, item in parameters.items() if variable not in adaptive}
         for variable, declaration in states.items():
             if declaration.shape is None:
                 declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=True)
@@ -171,12 +206,32 @@ class LayoutPass(BasePass):
         declarations, block = LayoutPass._declare_coordinates(declarations, block)
         if isinstance(node.component, BaseInteraction):
             declarations = LayoutPass._declare_processes(declarations, node)
-        if node.active is not None:
-            declarations, block = LayoutPass._declare_topology(declarations, block)
+        declarations, block = LayoutPass._declare_activity(declarations, block)
         return replace(declarations, blocks={**declarations.blocks, node.path: block}), block
 
     @staticmethod
-    def _declare_processes(declarations: DeclarationsSpec, node: NodeSpec) -> DeclarationsSpec:
+    def _declare_activity(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
+        """Return the declarations and block with the activity of a growing or bare group."""
+        node = block.node
+        if node.active is not None:
+            return LayoutPass._declare_topology(declarations, block)
+        if LayoutPass._is_bare_group(node, block):
+            return LayoutPass._declare_hidden(declarations, block, ACTIVE, np.ones(node.members or 0))
+        return declarations, block
+
+    @staticmethod
+    def _is_bare_group(node: _NodeSpec, block: BlockSpec) -> bool:
+        """Return whether a block is a group with no values, such as network nodes.
+
+        Such a group gets the activity of its members, so a law can count them with `count(over=s.target)`, such as
+        the nodes of a network before the laws that add nodes make it a growing group, or the agents of a village.
+        """
+        group = node.component
+        on_nodes = isinstance(group, _GroupElement) and group.on not in {'edges', 'hyperedges'}
+        return on_nodes and node.members is not None and not block.symbols
+
+    @staticmethod
+    def _declare_processes(declarations: DeclarationsSpec, node: _NodeSpec) -> DeclarationsSpec:
         """Return the declarations with a block of Wiener process handles.
 
         The block holds the handle `dW` of every Wiener process an interaction binds.
@@ -191,7 +246,7 @@ class LayoutPass(BasePass):
                 if wiener.dimension == 1
                 else vector(symbol(f'{base}_{index}') for index in range(wiener.dimension))
             )
-            process = NodeSpec(path, node.scope, wiener, node.space, WienerProcessSpec, interaction=True)
+            process = _NodeSpec(path, node.scope, wiener, node.space, WienerProcessSpec, interaction=True)
             processes[path] = BlockSpec(process, {'dW': handle})
             for index, item in enumerate(components_of(handle)):
                 handles[item] = (path, index)
@@ -225,7 +280,7 @@ class LayoutPass(BasePass):
         declarations: DeclarationsSpec,
         block: BlockSpec,
         variable: str,
-        declaration: VariableSpec,
+        declaration: _VariableSpec,
         is_state: bool,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with one variable of a component added."""
@@ -243,7 +298,7 @@ class LayoutPass(BasePass):
             name,
             LayoutPass._get_value_of(node, variable),
             member_shape,
-            declaration.domain,
+            declaration.domain if declaration.bounds is None else RR,
             members,
             period=declaration.period,
         )
@@ -274,9 +329,9 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _get_role_shape(
-        node: NodeSpec,
+        node: _NodeSpec,
         variable: str,
-        declaration: VariableSpec,
+        declaration: _VariableSpec,
         groups: Mapping[str, int],
     ) -> tuple[int, ...]:
         """Return the shape of a shaped parameter.
@@ -307,7 +362,7 @@ class LayoutPass(BasePass):
         roles = declarations_of(node.component_type, VariableKind.ROLE)
         shape = []
         for role in declaration.shape or ():
-            label = getattr(node.component, role, None) if role in roles else None
+            label = binding_of(node.component, role) if role in roles else None
             size = groups.get(f'{node.scope}{label}') if isinstance(label, str) else None
             if size is None:
                 error_msg = (
@@ -319,21 +374,62 @@ class LayoutPass(BasePass):
         return tuple(shape)
 
     @staticmethod
+    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, _VariableSpec]:
+        """Return the matrix arguments of an interaction shaped by the sizes of its groups.
+
+        An argument given as an array of two or more axes, each as long as a group bound to a role of the interaction,
+        is a parameter with one entry per combination of members, such as the interaction matrix `a_ij` of the species
+        of a community or the coupling tensor `a_ijk` of their triplets. Each axis takes the first role whose group has
+        its length.
+        """
+        component = node.component
+        if not isinstance(component, BaseInteraction):
+            return {}
+        roles = declarations_of(node.component_type, VariableKind.ROLE)
+        bound = {role: binding_of(component, role) for role in roles}
+        sizes = {
+            role: groups[f'{node.scope}{label}']
+            for role, label in bound.items()
+            if isinstance(label, str) and f'{node.scope}{label}' in groups
+        }
+        allowed = component._get_allowed()
+        shaped = {}
+        for name, value in component.get_params(deep=False).items():
+            if name in roles or not isinstance(value, list | np.ndarray):
+                continue
+            try:
+                array = np.asarray(value)
+            except ValueError:
+                continue
+            if array.ndim < MATRIX_AXES or not np.issubdtype(array.dtype, np.number):
+                continue
+            axes = [next((role for role, size in sizes.items() if size == length), None) for length in array.shape]
+            if None not in axes:
+                domain = allowed.get(name, RR)
+                shaped[name] = _VariableSpec(VariableKind.PARAMETER, domain, shape=tuple(str(role) for role in axes))
+        return shaped
+
+    @staticmethod
     def _declare_shaped(
         declarations: DeclarationsSpec,
         block: BlockSpec,
         variable: str,
         shape: tuple[int, ...],
-        declaration: VariableSpec,
+        declaration: _VariableSpec,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with a shaped parameter added.
 
         The parameter is one of a component. The parameter takes one block of the vector in row-major order, which laws
-        read as `s.<variable>`, one symbol that the reductions taking it lower to the reshaped block.
+        read as `s.<variable>`, one symbol that the reductions taking it lower to the reshaped block. A matrix given as
+        its entries row after row takes its shape back.
         """
         node = block.node
         name = f'{node.path}.{variable}'
-        value = LayoutPass._coerce_value(name, LayoutPass._get_value_of(node, variable), shape, declaration.domain)
+        given = LayoutPass._get_value_of(node, variable)
+        entries = np.asarray(given, dtype=object)
+        if len(shape) >= MATRIX_AXES and entries.ndim == 1 and entries.size == np.prod(shape):
+            given = entries.astype(float).reshape(shape)
+        value = LayoutPass._coerce_value(name, given, shape, declaration.domain)
         is_state = declaration.adaptive
         entry = EntrySpec(name, declarations.ends[is_state], shape, declaration.domain)
         handle = symbol(f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}', declaration.domain)
@@ -355,7 +451,7 @@ class LayoutPass(BasePass):
         There is a parameter of every class coordinate at every site.
         """
         component = block.node.component
-        space = component.space if isinstance(component, FieldElement) else None
+        space = component.space if isinstance(component, _FieldElement) else None
         if not isinstance(space, PhaseSpace):
             return declarations, block
         space.prepare()
@@ -441,8 +537,8 @@ class LayoutPass(BasePass):
         """
         node = block.node
         group = node.component
-        if not isinstance(group, GroupElement):
-            error_msg = f'{node.path} has a capacity layout, but it is not a group.'
+        if not isinstance(group, _GroupElement):
+            error_msg = f'{node.path} has a capacity, but it is not a group.'
             raise ValidationError(error_msg)
         rows, active = node.members or 0, node.active or 0
         declarations, block = LayoutPass._declare_hidden(
@@ -470,7 +566,7 @@ class LayoutPass(BasePass):
         return declarations, block
 
     @staticmethod
-    def _get_members(node: NodeSpec, space: NetworkSpace) -> Array:
+    def _get_members(node: _NodeSpec, space: NetworkSpace) -> Array:
         """Return the member nodes of every row of a variable group on hyperedges.
 
         The free rows hold zeros. A group with a rank holds a column per member of its largest hyperedge, and a smaller
@@ -497,8 +593,7 @@ class LayoutPass(BasePass):
         if rank is None and len(sizes) != 1:
             error_msg = (
                 f'The variable group {node.path} lies on the hyperedges of a network whose hyperedges have the sizes '
-                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has, or give the '
-                'group the rank of its largest hyperedge, `GroupElement(..., rank=k)`.'
+                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has.'
             )
             raise ValidationError(error_msg)
         width = int(rank) if rank is not None else sizes[0]
@@ -514,7 +609,18 @@ class LayoutPass(BasePass):
         return members
 
     @staticmethod
-    def _get_value_of(node: NodeSpec, variable: str) -> object:
+    def _get_plain_value_of(component: object, variable: str) -> object:
+        """Return the value of a variable of a component that is no group, or its default.
+
+        An interaction gives the value it declares, such as the entries of a square matrix of weights.
+        """
+        declared = component._get_declared() if isinstance(component, BaseInteraction) else {}
+        if variable in declared:
+            return declared[variable].value
+        return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
+
+    @staticmethod
+    def _get_value_of(node: _NodeSpec, variable: str) -> object:
         """Return the value of a variable of a component.
 
         For a group without it, it is the default of the element type.
@@ -531,8 +637,8 @@ class LayoutPass(BasePass):
                 The value given by the user or the default.
         """
         component = node.component
-        if not isinstance(component, GroupElement):
-            return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
+        if not isinstance(component, _GroupElement):
+            return LayoutPass._get_plain_value_of(component, variable)
         values = component.values_
         default = default_of(node.component_type, variable)
         if variable not in values:
@@ -545,14 +651,14 @@ class LayoutPass(BasePass):
         space = getattr(component, 'space', None)
         if isinstance(space, LatticeSpace) and shape == space.shape_:
             return np.ravel(np.asarray(value))
-        if node.active is not None and shape and shape[0] == node.active:
+        if node.active is not None and shape and shape[0] == node.active and (node.members or 0) > node.active:
             rows = (node.members or 0) - node.active
             padding = np.broadcast_to(np.asarray(default, dtype=float), (rows, *shape[1:]))
             return np.concatenate([np.asarray(value, dtype=float), padding])
         return value
 
     @staticmethod
-    def _get_per_entry_shape(node: NodeSpec, variable: str, declaration: VariableSpec) -> tuple[int, ...]:
+    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: _VariableSpec) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role.
 
         It first checks its length.
@@ -565,7 +671,7 @@ class LayoutPass(BasePass):
                 f'{type(node.component).__name__}. Declare the role with `role(variadic=True)`.'
             )
             raise ValidationError(error_msg)
-        entries = len(getattr(node.component, role))
+        entries = len(cast(Sized, binding_of(node.component, role)))
         value = LayoutPass._get_value_of(node, variable)
         given = len(value) if isinstance(value, list | tuple | np.ndarray) and np.ndim(value) else None
         if given is not None and given != entries:
@@ -577,19 +683,24 @@ class LayoutPass(BasePass):
         return (entries,)
 
     @staticmethod
-    def _get_tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
+    def _get_tensor_of(declaration: _VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
         """Return the independent components of a declared tensor state in its space.
 
-        It is `None` for any other state.
+        It is `None` for any other state. A tensor of a given number of rows, such as a matrix value, needs no space.
         """
-        if declaration.tensor is None or space is None:
+        if declaration.tensor is None:
             return None
-        tensor = TensorSpec(declaration.tensor, int(space.n_dim_))
+        if declaration.n_dim is not None:
+            tensor = TensorSpec(declaration.tensor, declaration.n_dim)
+        elif space is not None:
+            tensor = TensorSpec(declaration.tensor, int(space.n_dim_))
+        else:
+            return None
         tensor._check()
         return tensor
 
     @staticmethod
-    def _get_shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
+    def _get_shape_of(name: str, declaration: _VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
         """Return the shape of a declared variable in its space.
 
         Args:
@@ -613,7 +724,7 @@ class LayoutPass(BasePass):
                 A vector or a tensor variable has no enclosing space.
 
             ValidationError:
-                The space dimension is not a positive integer.
+                The space dimension is not a positive integer, or a position has another number of components.
         """
         if declaration.group is not None:
             return (declaration.group.size,)
@@ -621,6 +732,10 @@ class LayoutPass(BasePass):
             return (declaration.domain.order,)
         if not declaration.vector and declaration.tensor is None:
             return ()
+        if declaration.n_dim is not None:
+            LayoutPass._check_position_shape(name, declaration, space)
+            tensor = LayoutPass._get_tensor_of(declaration, space)
+            return (declaration.n_dim,) if tensor is None else (len(tensor.indices),)
         if space is None:
             error_msg = (
                 f'{name} is a vector or a tensor, so the system that holds it or one of its parents must have a space.'
@@ -631,6 +746,22 @@ class LayoutPass(BasePass):
             raise ValidationError(error_msg)
         tensor = LayoutPass._get_tensor_of(declaration, space)
         return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
+
+    @staticmethod
+    def _check_position_shape(name: str, declaration: _VariableSpec, space: BaseSpace | None) -> None:
+        """Raise an error for a position without one component per axis of its space.
+
+        A position `[1, 2, 3]` in a plane has the wrong shape, since the plane has 2 axes.
+        """
+        if declaration.role != 'position' or not declaration.vector or not isinstance(space, ContinuousSpace):
+            return
+        n_dim = space.prepare().n_dim_
+        if declaration.n_dim != n_dim:
+            error_msg = (
+                f'{name} is a position of shape ({declaration.n_dim},) in a space of {n_dim} dimensions. Give it the '
+                f'shape ({n_dim},), one component per axis.'
+            )
+            raise ValidationError(error_msg)
 
     @staticmethod
     def _describe(value: object) -> str:
@@ -736,15 +867,14 @@ class LayoutPass(BasePass):
             if EntrySpec._contains(CC, value) and not EntrySpec._contains(RR, value):
                 error_msg = (
                     f'{name} = {LayoutPass._describe(value)} has a nonzero imaginary part, which its domain {domain} '
-                    f'does not hold. Declare {name.rpartition(".")[2]} with `StateSpec(domain=CC)` to give it complex '
-                    'values.'
+                    f'does not hold. Give {name.rpartition(".")[2]} a complex starting value to give it complex values.'
                 )
             raise ValidationError(error_msg)
         flat = LayoutPass._get_flat_value(name, value, EntrySpec._encode(domain, value, period), shape, members)
         return np.ascontiguousarray(flat).view(float) if domain is CC else np.asarray(flat, dtype=float)
 
     @staticmethod
-    def _get_noise_processes(nodes: list[NodeSpec]) -> dict[str, WienerProcessSpec]:
+    def _get_noise_processes(nodes: list[_NodeSpec]) -> dict[str, WienerProcessSpec]:
         """Return the Wiener processes bound by the noise roles of a tree, by path.
 
         The noise roles are those of the interactions of a system tree. Interactions of one system that bind processes
@@ -762,8 +892,8 @@ class LayoutPass(BasePass):
         for node in nodes:
             if not isinstance(node.component, BaseInteraction):
                 continue
-            for name, declaration in declarations_of(type(node.component), VariableKind.ROLE).items():
-                value = getattr(node.component, name)
+            for name, declaration in declarations_of(node.component, VariableKind.ROLE).items():
+                value = binding_of(node.component, name)
                 if declaration.noise and isinstance(value, WienerProcessSpec):
                     processes.setdefault(f'{node.scope}{value.label}', value)
         return processes

@@ -7,36 +7,32 @@ The cells form adaptive networks of oscillators.
 # License: MIT
 
 import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo, pi, sin
+from sage.all__sagemath_symbolics import oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import NeighborInteraction
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.spaces import BaseSpace, LayerSpec, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 
 class CellOscillatorElement(Element):
-    """Functional unit of a tissue layer, a cell oscillator `phi' = omega`.
-
-    The unit is reduced to a phase.
-
-    Healthy and pathological cells differ by their metabolism, which the natural frequency `omega` stands for.
-    Couplings to other cells add to the rate of the phase.
+    """Cell oscillators, functional units of a tissue layer reduced to a phase `phi` and a natural frequency `omega`.
 
     Args:
         label:
             The label of the cell or of the group of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         phi:
             The initial phase.
@@ -44,38 +40,63 @@ class CellOscillatorElement(Element):
         omega:
             The natural frequency.
 
+        space:
+            The network whose nodes hold one cell each, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import CellOscillatorElement
         >>> CellOscillatorElement('cell', omega=0.2).omega
         0.2
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        phi: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 0.0,
+        phi: Annotated[float | Array, Period(2 * math.pi)] = 0.0,
+        omega: float | Array = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.phi = phi
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rotation of the phase.
+
+class CellRotationInteraction(Interaction):
+    """Rotation of the phase of cell oscillators at their natural frequency, `phi' = omega`.
+
+    Healthy and pathological cells differ by their metabolism, which the natural frequency `omega` stands for.
+    Couplings to other cells add to the rate of the phase.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cells, whose values are `phi` and `omega`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import CellRotationInteraction
+        >>> CellRotationInteraction('rotation', target='cells').target
+        'cells'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rotation of the phase.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RateLaw(s.phi, s.omega)]
+        super()._prepare(context)
+        s = context.target
+        self.laws_ = [RateLaw(s.phi, s.omega)]
 
 
 class CytokineLinkElement(Element):
@@ -87,14 +108,17 @@ class CytokineLinkElement(Element):
         label:
             The label of the link or of the group on the edges.
 
-        visual:
-            How the link is drawn, or `None` for `default_visual_`.
-
         kappa:
             The initial adaptive coupling, between -1 and 1.
 
         a:
             The fixed connectivity, between 0 and 1.
+
+        space:
+            The network whose edges hold one link each, or `None` for one link.
+
+        on:
+            The edges of the network that hold the links, `'edges'` for those of its graph or the name of a layer.
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import CytokineLinkElement
@@ -105,34 +129,36 @@ class CytokineLinkElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        kappa: Annotated[float, StateSpec(domain=RealSet.closed(-1, 1))] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        kappa: Annotated[float | Array, RealSet.closed(-1, 1)] = 0.0,
+        a: Annotated[float | Array, RealSet.closed(0, 1)] = 0.0,
+        space: BaseSpace | None = None,
+        on: str | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space, on=on)
         self.kappa = kappa
         self.a = a
 
 
-class AdaptivePhaseCouplingInteraction(NeighborInteraction):
+class AdaptivePhaseCouplingInteraction(Interaction):
     """Phase coupling of the cells of a layer through adaptive links.
 
     The links adapt to the phase differences they carry.
 
     Along the link from cell `j` to cell `i`, `dphi_i/dt += -(a_ij + kappa_ij) sin(phi_i - phi_j + alpha) / N` and
     `dkappa_ij/dt = -epsilon (kappa_ij + sin(phi_i - phi_j - beta))`. The phase lag `alpha` sets the preferred phase
-    difference of the coupling, and the age parameter `beta` the rule of the adaptation.
+    difference of the coupling, and the age parameter `beta` the rule of the adaptation. The links are the element on
+    the edges the coupling runs along.
 
     Args:
         label:
             The label of the interaction.
 
-        cells:
+        among:
             The path of the group of cells on the nodes.
 
-        links:
-            The path of the group of links on the edges of the layer.
+        along:
+            The edges of the layer, `True` for those of the graph of the network or the name of a layer.
 
         N:
             The number of cells of the layer, which normalizes the coupling.
@@ -148,51 +174,45 @@ class AdaptivePhaseCouplingInteraction(NeighborInteraction):
 
     Examples:
         >>> from skcomplex.systems.biology.physiology import AdaptivePhaseCouplingInteraction
-        >>> AdaptivePhaseCouplingInteraction('coupling', cells='cells', links='links', epsilon=0.3).epsilon
+        >>> AdaptivePhaseCouplingInteraction('coupling', among='cells', along='immune', epsilon=0.3).epsilon
         0.3
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        cells: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        N: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.0,
-        beta: Annotated[float, ParameterSpec()] = 0.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        among: Role,
+        along: bool | str = True,
+        N: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        alpha: float = 0.0,
+        beta: float = 0.0,
+        epsilon: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
     ) -> None:
-        super().__init__(label)
-        self.cells = cells
-        self.links = links
+        super().__init__(label, among=among, along=along)
         self.N = N
         self.alpha = alpha
         self.beta = beta
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the coupling of the receiving cell and the adaptation of the link.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the coupling of the receiving cell and the adaptation of the link.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the two cells of an edge, its link, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         difference = s.target.phi - s.source.phi
         kappa = s.edge.kappa
-        return [
+        self.laws_ = [
             RateLaw(s.target.phi, -(s.edge.a + kappa) * sin(difference + s.alpha) / s.N),
             RateLaw(kappa, -s.epsilon * (kappa + sin(difference - s.beta))),
         ]
 
 
-class LayerCouplingInteraction(NeighborInteraction):
+class LayerCouplingInteraction(Interaction):
     """Coupling of every cell to its partner in another layer.
 
     It adds `dphi_i/dt += -sigma sin(phi_i - phi_j)`.
@@ -203,47 +223,42 @@ class LayerCouplingInteraction(NeighborInteraction):
         label:
             The label of the interaction.
 
-        cells:
+        among:
             The path of the group of cells on the nodes.
+
+        along:
+            The layer of the network whose edges join the partners.
 
         sigma:
             The strength of the coupling between the layers.
 
-        layer:
-            The layer of the network whose edges join the partners.
-
     Examples:
         >>> from skcomplex.systems.biology.physiology import LayerCouplingInteraction
-        >>> LayerCouplingInteraction('interlayer', cells='cells', sigma=0.5, layer='partners').layer
+        >>> LayerCouplingInteraction('interlayer', among='cells', along='partners', sigma=0.5).along
         'partners'
     """
-
-    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        cells: Annotated[str, RoleSpec()],
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        layer: str | None = None,
+        among: Role,
+        along: bool | str = True,
+        sigma: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, layer=layer)
-        self.cells = cells
+        super().__init__(label, among=among, along=along)
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pull of the receiving cell towards its partner.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the pull of the receiving cell towards its partner.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the two cells of an edge and the parameters.
         """
-        return [RateLaw(s.target.phi, -s.sigma * sin(s.target.phi - s.source.phi))]
+        super()._prepare(context)
+        s = context
+        self.laws_ = [RateLaw(s.target.phi, -s.sigma * sin(s.target.phi - s.source.phi))]
 
 
 class TwoLayerSepsisSystem(BaseSystem):
@@ -304,9 +319,15 @@ class TwoLayerSepsisSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import TwoLayerSepsisSystem
-        >>> TwoLayerSepsisSystem(5).prepare().system_.elements[0].prepare().size_
+        >>> TwoLayerSepsisSystem(5).prepare().system_.elements[0].phi.size
         10
     """
 
@@ -333,8 +354,10 @@ class TwoLayerSepsisSystem(BaseSystem):
         connectivity: float = 0.5,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_cells = n_cells
         self.beta = beta
         self.sigma = sigma
@@ -349,8 +372,14 @@ class TwoLayerSepsisSystem(BaseSystem):
         self.connectivity = connectivity
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the two-layer model of tumour disease and sepsis."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the two-layer model of tumour disease and sepsis.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.seed)
         n = self.n_cells
         parenchyma = nx.complete_graph(range(n), create_using=nx.DiGraph)
@@ -365,37 +394,24 @@ class TwoLayerSepsisSystem(BaseSystem):
         frequencies = np.full(2 * n, self.omega_immune)
         sick = rng.random(n) < self.pathological
         frequencies[:n] = np.where(sick, self.omega_pathological, self.omega_healthy)
-        cells = GroupElement(
-            'cells',
-            element=CellOscillatorElement,
-            space=space,
-            values={'phi': rng.uniform(0, 2 * math.pi, 2 * n), 'omega': frequencies},
-            on='sites',
-        )
+        cells = CellOscillatorElement('cells', phi=rng.uniform(0, 2 * math.pi, 2 * n), omega=frequencies, space=space)
         edges = n * (n - 1)
-        parenchymal_links = GroupElement(
+        parenchymal_links = CytokineLinkElement(
             'parenchymal_links',
-            element=CytokineLinkElement,
+            kappa=rng.uniform(-1, 1, edges),
+            a=(rng.random(edges) < self.connectivity).astype(float),
             space=space,
             on='edges',
-            values={'kappa': rng.uniform(-1, 1, edges), 'a': (rng.random(edges) < self.connectivity).astype(float)},
         )
-        immune_links = GroupElement(
-            'immune_links',
-            element=CytokineLinkElement,
-            space=space,
-            on='edges',
-            layer='immune',
-            values={'kappa': rng.uniform(-1, 1, edges)},
-        )
-        return CompositeSystem(
+        immune_links = CytokineLinkElement('immune_links', kappa=rng.uniform(-1, 1, edges), space=space, on='immune')
+        self.system_ = System(
             self.label,
             elements=[cells, parenchymal_links, immune_links],
             interactions=[
+                CellRotationInteraction('rotation', target='cells'),
                 AdaptivePhaseCouplingInteraction(
                     'parenchymal_coupling',
-                    cells='cells',
-                    links='parenchymal_links',
+                    among='cells',
                     N=n,
                     alpha=self.alpha_p,
                     beta=self.beta,
@@ -403,13 +419,13 @@ class TwoLayerSepsisSystem(BaseSystem):
                 ),
                 AdaptivePhaseCouplingInteraction(
                     'immune_coupling',
-                    cells='cells',
-                    links='immune_links',
+                    among='cells',
+                    along='immune',
                     N=n,
                     alpha=self.alpha_s,
                     beta=self.beta,
                     epsilon=self.epsilon_s,
                 ),
-                LayerCouplingInteraction('interlayer', cells='cells', sigma=self.sigma, layer='partners'),
+                LayerCouplingInteraction('interlayer', among='cells', along='partners', sigma=self.sigma),
             ],
         )

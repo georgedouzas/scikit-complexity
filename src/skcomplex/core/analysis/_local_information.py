@@ -10,12 +10,13 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import AnyArray, Array, DataKind
+from ..types import AnyArray, Array
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._information import _row_codes
-from .types import Source
+from .types import DataSource
 
 KINDS = ('entropy', 'mutual', 'transfer')
 SETTINGS = {
@@ -31,6 +32,12 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class LocalInformationResult:
     """A result of `local_information`, the information sample by sample.
 
+    It holds the series and the information of every sample, such as 2 bits for the rare 1 of `[0, 0, 0, 1]` and
+    less for each common 0. It reports the moments when information moves in a flock, in a cellular automaton, and in
+    the spikes of neurons.
+
+    Read more in the user guide, under Analyse.
+
     Args:
         values:
             The series, one per column.
@@ -42,6 +49,14 @@ class LocalInformationResult:
             One row of local entropies per series for `'entropy'`, and for `'mutual'` and `'transfer'` one row of
             local values from the series of every first index to the series of every second index, `nan` from a series
             to itself.
+
+    See Also:
+        local_information: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import local_information
+        >>> local_information([0, 0, 0, 1]).information.round(3).tolist()
+        [[0.415, 0.415, 0.415, 2.0]]
     """
 
     values: Array
@@ -50,7 +65,7 @@ class LocalInformationResult:
 
 
 def local_information(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'entropy',
     variables: Sequence[str] | None = None,
@@ -61,27 +76,23 @@ def local_information(
 ) -> LocalInformationResult:
     """Return the local information of every series or every pair of series.
 
-    The series are those of a source. The information is of one kind.
+    Local information splits an average such as the entropy or the mutual information into one value per sample, so a
+    rare value carries more bits than a common one, such as 2 bits for the 1 of `[0, 0, 0, 1]`. The probabilities are
+    the frequencies of symbols, or the densities of a fitted Gaussian. It finds the moments when information moves in
+    a flock, in a cellular automaton, and in the spikes of neurons.
 
-    The kinds measure every series or every pair of series:
-
-    - `'entropy'`: the local entropy `-log p(x)` of every sample of every series.
-    - `'mutual'`: the local mutual information `log p(x, y) / (p(x) p(y))` of every sample of every pair of series,
-      negative where the series mislead about each other.
-    - `'transfer'`: the local transfer entropy `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` from every series
-      to every series at every time from `max(history, lag)` on.
-
-    The probabilities are the frequencies of symbols, or the densities of a fitted Gaussian.
-
-    It appears in many fields. It finds the moments when information moves in a flock, in a cellular automaton, and in
-    the spikes of neurons.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, or an array with one row per time and one column per series.
 
         kind:
-            The local information to compute, one of the kinds above.
+            What to return. `'entropy'` gives the local entropy `-log p(x)` of every sample of every series.
+            `'mutual'` gives the local mutual information `log p(x, y) / (p(x) p(y))` of every sample of every pair of
+            series, negative where the series mislead about each other. `'transfer'` gives the local transfer entropy
+            `log p(y_t | y_past, x_{t-lag}) / p(y_t | y_past)` from every series to every series at every time from
+            `max(history, lag)` on.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
@@ -105,6 +116,10 @@ def local_information(
     Raises:
         AnalysisError:
             A choice is unknown, a setting the kind does not read is changed, or a setting is out of range.
+
+    See Also:
+        information: Gives the average information among series.
+        entropy: Measures how unpredictable a series is.
 
     Examples:
         >>> from skcomplex.core.analysis import local_information

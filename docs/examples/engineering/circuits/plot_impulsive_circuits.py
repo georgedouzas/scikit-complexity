@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.circuits import ImpulsiveCircuitsSystem
 
@@ -36,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = ImpulsiveCircuitsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
-trajectory = simulate(system, until=150, dt=0.1, observers=[observer])
+trajectory = system.prepare().simulate(until=150, dt=0.1, observers=[observer])
 
 # %%
 # The periodic response
@@ -44,7 +43,7 @@ trajectory = simulate(system, until=150, dt=0.1, observers=[observer])
 # Right before every impulse the state should converge to the fixed point of the map over one period, so the values of
 # `x` and `x'` sampled once per period should settle, and the last periods of the response should lie on each other.
 
-x, rate = trajectory.get_values('circuit.x'), trajectory.get_values('circuit.x_d1')
+x, rate = trajectory.get_values('circuit.x'), trajectory.get_values("circuit.x'")
 per_period = round(2.0 / 0.1)
 starts = np.arange(1, len(x) // per_period) * per_period - 1
 fig, (strobe, shape) = plt.subplots(1, 2, figsize=(10, 4))

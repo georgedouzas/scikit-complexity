@@ -17,7 +17,6 @@ step with the earliest at the top, a chaotic pattern of ridges that split, merge
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
 
@@ -25,7 +24,7 @@ SYSTEM = 'kuramoto_sivashinsky'
 
 system = KuramotoSivashinskySystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=149.5, dt=0.5, observers=[observer])
+trajectory = system.prepare().simulate(until=149.5, dt=0.5, observers=[observer])
 
 # %%
 # The cell size set by the linear instability
@@ -35,7 +34,7 @@ trajectory = simulate(system, until=149.5, dt=0.5, observers=[observer])
 # wavenumber, set the cell size near `2 pi sqrt 2 = 8.9`, and fall off exponentially above `q = 1`, where the modes
 # decay.
 
-run = simulate(KuramotoSivashinskySystem(), until=1000)
+run = KuramotoSivashinskySystem().prepare().simulate(until=1000)
 field = run.get_values('line.u')[200:]
 length = 32 * np.pi
 wavenumbers = 2 * np.pi * np.fft.rfftfreq(field.shape[1], d=length / field.shape[1])

@@ -14,7 +14,6 @@ switch day, so the tumour grows slowly first and fast after the switch.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.oncology import OffLatticeTumourGrowthSystem
@@ -22,7 +21,7 @@ from skcomplex.systems.biology.oncology import OffLatticeTumourGrowthSystem
 SYSTEM = 'off_lattice_tumour_growth'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=24)
-trajectory = simulate(OffLatticeTumourGrowthSystem(), until=480, dt=24, observers=[observer], random_state=0)
+trajectory = OffLatticeTumourGrowthSystem().prepare().simulate(until=480, dt=24, observers=[observer], random_state=0)
 
 # %%
 # Tumour area and the tissue at the end
@@ -55,7 +54,7 @@ plt.show()
 # short ages.
 
 small = {'side': 8.0, 'tau': 4.0}
-truth = simulate(OffLatticeTumourGrowthSystem(**small, g_age2=5.0), until=288, dt=24, random_state=1)
+truth = OffLatticeTumourGrowthSystem(**small, g_age2=5.0).prepare().simulate(until=288, dt=24, random_state=1)
 times = np.arange(0.0, 289.0, 48.0)
 data = {'tumour_area': (times, np.interp(times, truth.times, truth.get_values('tumour_area')))}
 posterior = calibrate(

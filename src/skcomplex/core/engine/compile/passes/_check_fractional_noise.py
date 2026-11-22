@@ -1,4 +1,4 @@
-"""Pass that checks the Hurst index and amplitude of noise laws with one."""
+"""Check the Hurst index and amplitude of fractional noise laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, NoiseLaw
+from ....components.laws._ordered_noise import _OrderedNoiseLaw
 from ....errors import ValidationError
 from ..._utils import components_of, symbols_of
 from ...problems._declarations_spec import DeclarationsSpec
@@ -21,9 +22,23 @@ BROWNIAN_HURST = 0.5
 
 
 class CheckFractionalNoisePass(BasePass):
-    """A pass that checks the Hurst index and amplitude of noise laws with one.
+    """A pass that checks the Hurst index and amplitude of fractional noise laws.
 
-    Laws of Hurst index 1/2 become noise laws without one.
+    A noise law with a Hurst index `H` drives a state with fractional Brownian motion, such as the walk of a molecule in
+    a crowded cell. The pass checks that `H` lies in `(0, 1)`, and a law of `H = 1/2`, plain Brownian motion, becomes a
+    noise law without an index.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        FractionalProblemPass: Adds the fractional noise to the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.soft_matter import FractionalBrownianMotionSystem
+        >>> compilation = PassCompiler().prepare(FractionalBrownianMotionSystem()).compilation_
+        >>> [law.hurst for _, laws, _ in compilation.lowered for law in laws]
+        [H_noise]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -87,7 +102,9 @@ class CheckFractionalNoisePass(BasePass):
             description = CheckFractionalNoisePass._get_fractional_description(spec, law)
             CheckFractionalNoisePass._get_checked_hurst(spec, law, declarations, description)
             if SR(law.hurst).is_numeric() and float(SR(law.hurst)) == BROWNIAN_HURST:
-                result.append(NoiseLaw(law._get_targets()[0], law.value, law.order, convention=law.convention))
+                result.append(
+                    _OrderedNoiseLaw(law._get_targets()[0], law.value, law._get_order(), convention=law.convention),
+                )
                 continue
             values = [item for item in components_of(law.value) if isinstance(item, Expression)]
             if not isinstance(law.value, Expression | FreeModuleElement) and not SR(law.value).is_numeric():

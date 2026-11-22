@@ -28,7 +28,7 @@ function over the whole soup, it takes milliseconds.
 
 ### Placement
 
-| Part | Placement step | Where | Domains that use it |
+| Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `ArrayUpdateLaw` on groups without a space | 2, a law kind the engine handles | `core/components/laws/_array_update.py`, NumPy and Numba backends | artificial chemistries and digital evolution in computer science, well-mixed populations of genomes in biology, bags of molecules in chemistry, urn models in mathematics |
 | `entropy(kind='high-order')` | 2, an analysis that reads series and groups by their tags | `core/analysis/_entropy.py` | origin of life and digital evolution, DNA and protein sequences in biology, configurations of cellular automata, texts and languages in social systems |

@@ -12,21 +12,22 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import SCHEDULES, NeighborInteraction
-from ....core.components.laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
+from ....core.base import BaseSpec
+from ....core.components import Tags
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, neighbors, uniform, where
-from ....core.components.spaces import AdjacencyNeighborhood, BaseSpace
+from ....core.components.spaces import AdjacencyNeighborhood
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.enums import ScheduleKind
 from ....core.errors import ValidationError
-from ....core.specs import BaseSpec, ParameterSpec, RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.types import Role
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')
-FORMS = ('rate', 'probability', 'agent')
 TIES = ('first', 'random')
 
 
-class ImitationInteraction(NeighborInteraction):
+class ImitationInteraction(Interaction):
     """An interaction by which members copy a discrete state from their neighbours.
 
     The `rule` says whom a member copies:
@@ -34,22 +35,24 @@ class ImitationInteraction(NeighborInteraction):
     - `'random'`: a random neighbour.
     - `'majority'`: the option that more of its neighbours hold than any other.
     - `'best'`: the neighbour with the largest payoff, when it beats its own.
-    - `'better'`: a random neighbour, when its payoff beats its own, in the agent form only.
+    - `'better'`: a random neighbour, when its payoff beats its own, with a schedule only.
     - `'fermi'`: a random neighbour, with probability `1 / (1 + exp(-beta (P_j - P_i)))`, where `P_j` and `P_i` are the
       payoffs of the neighbour and the member.
 
-    The `form` says when: at the rate `rate` in continuous time, with the probability `probability` per step for every
-    member at once, or by agents in the order of `schedule`. A member without such a neighbour keeps its state.
+    Without a `schedule` it sets symbolic laws: jumps at the rate `rate` in continuous time, or, when `probability` is
+    given, updates with that probability per step for every member at once. With a `schedule` it sets one rule of the
+    whole system that walks the agents in that order with its own draws. A member without such a neighbour keeps its
+    state.
 
-    Unlike `CouplingInteraction`, which averages numeric states of neighbours, it copies one discrete value from them.
-    Choose it when members adopt the choices of those around them.
+    Unlike a sum of `neighbors` in a `RateLaw`, which averages numeric states of neighbours, it copies one discrete
+    value from them. Choose it when members adopt the choices of those around them.
 
     It appears in many fields. Voters copy their friends in the voter model, players copy successful strategies in
     evolutionary games on networks, and farmers adopt the crops of their neighbours.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the nodes or sites.
@@ -64,7 +67,7 @@ class ImitationInteraction(NeighborInteraction):
             The values the state takes.
 
         rate:
-            The rate at which every member imitates, in the rate form.
+            The rate at which every member imitates in continuous time.
 
         rule:
             `'random'`, `'majority'`, `'best'`, or `'fermi'`.
@@ -72,54 +75,52 @@ class ImitationInteraction(NeighborInteraction):
         intensity:
             The intensity `beta` of the Fermi rule.
 
-        form:
-            `'rate'` for imitation in continuous time, `'probability'` for imitation in discrete time, or `'agent'`
-            for imitation of the neighbours of the agents of an agent group.
-
         probability:
-            The probability that a member imitates in a step, in the probability form.
+            The probability that a member imitates in a step, or `None` for imitation in continuous time without a
+            schedule and for every agent in every step with one.
 
         layer:
             The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
 
         phase:
-            The phase of the step the agent and the probability forms run in, or `None` for the default phase.
+            The phase of the step the updates of a probability or the rule of a schedule run in, or `None` for the
+            default phase.
 
         schedule:
-            The order of the agents in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
-            `'member'`.
+            The order in which a rule walks the agents, `'synchronous'` for every agent at once, `'sequential'` or
+            `'random-sequential'` for one agent after the other, or `'member'` for every agent in its own activation,
+            or `None` for symbolic laws.
 
         ties:
-            The neighbour the rule `'best'` of the agent form copies among ties, `'first'` or `'random'`.
+            The neighbour the rule `'best'` copies among ties with a schedule, `'first'` or `'random'`.
 
     Raises:
         ValidationError:
-            The rule, the form, the schedule, or the ties are unknown, a schedule or ties other than the defaults are
-            given outside the agent form, or the options are not distinct.
+            The rule, the schedule, or the ties are unknown, the rule `'better'` or ties other than `'first'` are given
+            without a schedule, or the options are not distinct.
 
     Examples:
         >>> from skcomplex.systems.general.agents import ImitationInteraction
         >>> ImitationInteraction('imitation', target='voters', rule='majority').options
         (0.0, 1.0)
-        >>> ImitationInteraction('imitation', target='players', rule='fermi', form='probability').form
-        'probability'
-        >>> ImitationInteraction('imitation', target='traders', rule='better', form='agent', phase='learn').rule
+        >>> ImitationInteraction('imitation', target='players', rule='fermi', probability=0.5).probability
+        0.5
+        >>> ImitationInteraction('imitation', target='traders', rule='better', schedule='synchronous').rule
         'better'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, RuleLaw, UpdateLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
 
     draws = True
 
     def _get_tags(self) -> Tags:
-        """Return the tags of the rules, the updates, or the jumps of the rate form.
+        """Return the tags of the rule, the updates, or the jumps of the imitation.
 
-        The updates draw with a probability.
+        A schedule sets the rule, and a probability sets updates that draw.
         """
-        form = self._get_argument('form')
-        if form == 'agent':
-            return self._get_variant_tags((RuleLaw,))
-        if form == 'probability':
+        if self._get_argument('schedule') is not None:
+            return self._get_variant_tags((UpdateLaw,))
+        if self._get_argument('probability') is not None:
             return self._get_variant_tags((UpdateLaw,), stochastic=True)
         return self._get_variant_tags((JumpLaw,))
 
@@ -127,21 +128,20 @@ class ImitationInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str = 'state',
         payoff: str = 'payoff',
         options: Sequence[float] = (0.0, 1.0),
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
         rule: str = 'random',
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        form: str = 'rate',
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        intensity: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        probability: Annotated[float, RealSet.closed(0, 1)] | None = None,
         layer: str | None = None,
         phase: str | None = None,
-        schedule: str = 'synchronous',
+        schedule: str | None = None,
         ties: str = 'first',
     ) -> None:
-        super().__init__(label, layer=layer)
+        super().__init__(label)
         self.target = target
         self.state = state
         self.payoff = payoff
@@ -149,50 +149,61 @@ class ImitationInteraction(NeighborInteraction):
         self.rate = rate
         self.rule = rule
         self.intensity = intensity
-        self.form = form
         self.probability = probability
         self.phase = phase
         self.schedule = schedule
         self.ties = ties
+        self.layer = layer
+
+    def _runs_on_edges(self) -> bool:
+        """Return that the laws run once for every edge of the network or lattice."""
+        return True
+
+    def _get_layer(self) -> str | None:
+        """Return the layer whose edges the laws run on, or `None` for the space."""
+        return self.layer
 
     def _check_agent_options(self) -> None:
-        """Raise an error for an unknown schedule or ties, or non-default ones off agents.
+        """Raise an error for unknown schedule or ties.
 
-        It also raises it for either of them not default outside the agent form.
+        It also raises it for ties other than first without a schedule.
         """
-        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('schedule', self.schedule, (None, *ScheduleKind))
         self._check_variant('ties', self.ties, TIES)
-        if self.form != 'agent' and (self.schedule != 'synchronous' or self.ties != 'first'):
+        if self.schedule is None and self.ties != 'first':
             error_msg = (
-                f'The imitation {self.label!r} has the schedule {self.schedule!r} and the ties {self.ties!r}, which '
-                'only the agent form runs. Use form="agent", or schedule="synchronous" and ties="first".'
+                f'The imitation {self.label!r} has the ties {self.ties!r}, which only a rule of a schedule runs. Give '
+                'a schedule, such as schedule="synchronous", or ties="first".'
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for unknown rule, form, schedule, or ties, or repeated options.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for unknown rule, schedule, or ties, or repeated options.
 
         Raises:
             ValidationError:
-                The rule, the form, the schedule, or the ties are unknown, a schedule or ties other than the defaults
-                are given outside the agent form, or the options are not distinct.
+                The rule, the schedule, or the ties are unknown, the rule `'better'` or ties other than `'first'` are
+                given without a schedule, or the options are not distinct.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('rule', self.rule, RULES, (BaseSpec,))
-        if self.form not in FORMS:
-            error_msg = f'The form of imitation is {self.form!r}. Use one of {", ".join(FORMS)}.'
-            raise ValidationError(error_msg)
-        if self.rule == 'better' and self.form != 'agent':
-            error_msg = f'The rule of imitation {self.rule!r} runs in the agent form only. Use form `agent`.'
+        if self.rule == 'better' and self.schedule is None:
+            error_msg = f'The rule of imitation {self.rule!r} runs with a schedule only, such as `"synchronous"`.'
             raise ValidationError(error_msg)
         self._check_agent_options()
         if len(set(self.options)) < max(len(self.options), 2):
             error_msg = f'The options of imitation are {self.options!r}. Give at least two distinct values.'
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws of a binding.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_imitation_laws(context)
 
     def _get_neighborhood(self) -> AdjacencyNeighborhood | None:
         """Return the neighbourhood of the layer.
@@ -278,6 +289,15 @@ class ImitationInteraction(NeighborInteraction):
         source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
         return [*self._get_copies(target, source, namespace), *self._get_copies(source, target, namespace)]
 
+    @staticmethod
+    def _get_draw_name(state: Expression, kind: str) -> str:
+        """Return the name of a draw of a state, such as `x_activity`.
+
+        A state read as a function of time, `x(t)`, names its draws after `x`.
+        """
+        name = str(state.operator()) if state.operator() is not None else str(state)
+        return f'{name}_{kind}'
+
     def _draw_copy(self, namespace: SimpleNamespace) -> Expression:
         """Return the next state of the target by the random or the Fermi rule.
 
@@ -297,7 +317,7 @@ class ImitationInteraction(NeighborInteraction):
         else:
             weights = [probability * counts[option] for option in self.options]
         stay = degree - sum(weights, SR(0)) + where(degree == 0, 1, 0)
-        index = categorical(f'{value}_imitation', [stay, *weights])
+        index = categorical(self._get_draw_name(value, 'imitation'), [stay, *weights])
         return value + sum(
             (where(index == position + 1, option - value, 0) for position, option in enumerate(self.options)),
             SR(0),
@@ -323,7 +343,8 @@ class ImitationInteraction(NeighborInteraction):
             UpdateLaw(
                 value,
                 where(
-                    uniform(f'{value}_imitation') < self._get_parameter_symbol('probability', namespace),
+                    uniform(self._get_draw_name(value, 'imitation'))
+                    < self._get_parameter_symbol('probability', namespace),
                     imitated,
                     value,
                 ),
@@ -331,7 +352,7 @@ class ImitationInteraction(NeighborInteraction):
             ),
         ]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_imitation_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the jumps or the update of the state by the rule of the imitation.
 
         Args:
@@ -342,11 +363,11 @@ class ImitationInteraction(NeighborInteraction):
             laws:
                 The jumps of the state between every pair of options, or the update of the state of every member.
         """
-        if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._imitate_member, phase=self.phase, members=self._get_role('target'))]
-        if self.form == 'agent':
-            return [RuleLaw(self._imitate, phase=self.phase)]
-        if self.form == 'probability':
+        if self.schedule == 'member':
+            return [UpdateLaw(self._get_member(namespace, 'target'), self._imitate_member, phase=self.phase)]
+        if self.schedule is not None:
+            return [UpdateLaw(namespace, self._imitate, phase=self.phase)]
+        if self._get_argument('probability') is not None:
             return self._get_update(namespace)
         return self._get_jumps(namespace)
 
@@ -388,7 +409,9 @@ class ImitationInteraction(NeighborInteraction):
         """
         groups = set(system.get_groups(self._get_role('target')))
         neighbours = [other for other in agent.get_neighbors(layer=self.layer) if other.group in groups]
-        if not neighbours or system.rng.random() >= self._get_parameter_value('probability', system):
+        given = self._get_argument('probability') is not None
+        probability = self._get_parameter_value('probability', system) if given else 1.0
+        if not neighbours or system.rng.random() >= probability:
             return None
         return self._choose(agent, neighbours, system)
 
@@ -408,6 +431,6 @@ class ImitationInteraction(NeighborInteraction):
     def _imitate(self, system: SystemViewProtocol) -> None:
         """Let every agent imitate its neighbours with the probability of imitation.
 
-        The agents follow the schedule.
+        The agents follow the schedule, or imitate at once without one.
         """
-        self._update_agents(system, self.schedule, self._get_choice, self._set_choice)
+        self._update_agents(system, self.schedule or 'synchronous', self._get_choice, self._set_choice)

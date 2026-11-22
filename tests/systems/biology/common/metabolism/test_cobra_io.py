@@ -4,10 +4,9 @@ import multiprocessing
 
 import pytest
 
-from skcomplex.core.components.spaces import StaticTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.elements import Element
 from skcomplex.core.errors import ValidationError
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.common.metabolism import (
     from_cobra,
     load_network,
@@ -29,15 +28,20 @@ sys.meta_path.insert(0, Blocker())
 """
 
 
+def _get_system(network, **values):
+    """Return the system of a network whose cell starts with some values replaced."""
+    return System(elements=[Element(network.cell, values=network.get_values() | values)], interactions=[network])
+
+
 def _core_system(**values):
     """Return the system of the E. coli core system."""
-    return CompositeSystem(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
+    return _get_system(load_network('textbook', 'cell'), **values)
 
 
 def _objective(system):
-    """Return the objective of the only program of a static system."""
-    trajectory = simulate(system, until=0.0)
-    return float(trajectory.get_values('cell.objective_0')[0])
+    """Return the greatest growth of the only program of a static system."""
+    trajectory = system.prepare().simulate(until=0.0)
+    return -float(trajectory.get_values('cell.objective_0')[0])
 
 
 def test_bundled_core_system_grows_with_and_without_oxygen():
@@ -62,7 +66,7 @@ def test_round_trip_keeps_the_network(tmp_path, suffix):
         )
         for metabolite, value in spec.coefficients.items():
             assert other.coefficients[metabolite] == pytest.approx(value)
-    optimum = _objective(CompositeSystem(elements=[copy], time=StaticTime()))
+    optimum = _objective(_get_system(copy))
     assert optimum == pytest.approx(AEROBIC, abs=1e-6)
 
 
@@ -87,12 +91,11 @@ def test_load_network_downloads_a_bigg_system():
 def test_default_install_stays_importable():
     """Test that the systems import and list without the extra, and that the toy network runs."""
     code = HIDE_EXTRA + (
-        'from skcomplex.core.engine.runtime import simulate\n'
         'from skcomplex.systems import all_systems\n'
         'from skcomplex.systems.biology.systems_biology import DynamicFBASystem, FluxBalanceSystem\n'
         "names = {name for field in ('biology/systems_biology', 'biology/ecology') for name, _ in all_systems(field)}\n"
         "assert {'DynamicFBASystem', 'CometsSystem', 'CommunityFBASystem'} <= names\n"
-        "trajectory = simulate(FluxBalanceSystem(), until=0.0)\n"
+        "trajectory = FluxBalanceSystem().prepare().simulate(until=0.0)\n"
         "assert abs(float(trajectory.get_values('cell.v_vbio')[0]) - 50) < 1e-9\n"
         "assert not {'cobra', 'straindesign', 'micom'} & set(sys.modules)\n"
         'from skcomplex.core.errors import MissingExtraError\n'
@@ -112,7 +115,7 @@ def test_default_install_stays_importable():
 def test_network_loads_after_gap_has_run():
     """Test that reading a network in a process that has already run GAP does not crash it."""
     code = (
-        'from skcomplex.core.components.spaces import CayleySpace\n'
+        'from skcomplex.systems.computer_science.common.automata import CayleySpace\n'
         'from skcomplex.systems.biology.common.metabolism import load_network\n'
         'from skcomplex.systems.computer_science.automata import free_group\n'
         'CayleySpace(free_group(2), ball=2).prepare()\n'

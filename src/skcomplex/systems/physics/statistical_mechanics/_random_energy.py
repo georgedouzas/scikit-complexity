@@ -11,14 +11,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.base import BasePart
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import EquationLaw
+from ....core.components.laws import ConstraintLaw
 from ....core.components.laws.utils import log_sum_exp, total
-from ....core.components.spaces import StaticTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class BoltzmannAverageElement(Element):
@@ -46,9 +47,9 @@ class BoltzmannAverageElement(Element):
     def __init__(
         self,
         label: str,
-        log_partition: Annotated[float, StateSpec()] = 0.0,
-        energy: Annotated[float, StateSpec()] = 0.0,
-        entropy: Annotated[float, StateSpec()] = 0.0,
+        log_partition: float = 0.0,
+        energy: float = 0.0,
+        entropy: float = 0.0,
     ) -> None:
         super().__init__(label)
         self.log_partition = log_partition
@@ -66,14 +67,19 @@ class EnergyLevelElement(Element):
         energy:
             The energy of the level.
 
+        size:
+            The number of levels, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import EnergyLevelElement
         >>> EnergyLevelElement('level', energy=-1.5).energy
         -1.5
     """
 
-    def __init__(self, label: str, energy: Annotated[float, StateSpec()] = 0.0) -> None:
-        super().__init__(label)
+    visual = VisualSpec('histograms', {'color_by': 'energy'})
+
+    def __init__(self, label: str, energy: object = 0.0, *, size: int | None = None) -> None:
+        super().__init__(label, size=size)
         self.energy = energy
 
 
@@ -108,16 +114,16 @@ class BoltzmannSumInteraction(Interaction):
         0.5
     """
 
-    law_classes = (EquationLaw,)
+    law_classes = (ConstraintLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        levels: Annotated[str, RoleSpec()],
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n_spins: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        target: Role,
+        levels: Role,
+        temperature: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        n_spins: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -125,25 +131,23 @@ class BoltzmannSumInteraction(Interaction):
         self.temperature = temperature
         self.n_spins = n_spins
 
-    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the log partition function, mean energy, and entropy per spin equations.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the equations of the log partition function, the mean energy, and the entropy per spin.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The three equations.
+            context:
+                The namespace of the target, the levels, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         weight = -s.levels.energy / s.temperature
         log_partition = log_sum_exp(weight, over=s.levels)
         energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
         entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
-        return [
-            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
-            EquationLaw(s.target.energy == energy, target=s.target.energy),
-            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+        self.laws_ = [
+            ConstraintLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            ConstraintLaw(s.target.energy == energy, target=s.target.energy),
+            ConstraintLaw(s.target.entropy == entropy, target=s.target.entropy),
         ]
 
 
@@ -170,11 +174,15 @@ class RandomEnergySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = RandomEnergySystem(12, temperature=2.0).prepare().system_
-        >>> trajectory = simulate(system, until=1.0)
+        >>> trajectory = RandomEnergySystem(12, temperature=2.0).prepare().simulate(until=1.0)
         >>> bool(abs(trajectory.get_values('ensemble.entropy')[0] - (np.log(2) - 1 / 16)) < 0.05)
         True
     """
@@ -190,27 +198,25 @@ class RandomEnergySystem(BaseSystem):
         temperature: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_spins = n_spins
         self.temperature = temperature
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the random energy system.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the quenched levels and the Boltzmann sums over them.
 
-        It has `2^N` quenched Gaussian energies of variance `N / 2` at a temperature.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         size = 2**self.n_spins
         energies = np.random.default_rng(self.random_state).normal(0.0, np.sqrt(self.n_spins / 2), size)
-        visual = VisualSpec('histograms', {'color_by': 'energy'})
-        levels = GroupElement(
-            'levels',
-            element=EnergyLevelElement,
-            size=size,
-            values={'energy': energies},
-            visual=visual,
-        )
+        levels = EnergyLevelElement('levels', energy=energies, size=size)
         sums = BoltzmannSumInteraction(
             'sums',
             target='ensemble',
@@ -218,9 +224,4 @@ class RandomEnergySystem(BaseSystem):
             temperature=self.temperature,
             n_spins=float(self.n_spins),
         )
-        return CompositeSystem(
-            self.label,
-            elements=[levels, BoltzmannAverageElement('ensemble')],
-            interactions=[sums],
-            time=StaticTime(),
-        )
+        self.system_ = System(self.label, elements=[levels, BoltzmannAverageElement('ensemble')], interactions=[sums])

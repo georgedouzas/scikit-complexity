@@ -13,14 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.pattern_formation import SchnakenbergSystem
 
 SYSTEM = 'schnakenberg'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/u')
-trajectory = simulate(SchnakenbergSystem(random_state=0), dt=2.0, observers=[observer])
+trajectory = SchnakenbergSystem(random_state=0).prepare().simulate(dt=2.0, observers=[observer])
 
 # %%
 # Pattern wavelength against the linear instability

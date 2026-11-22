@@ -2,13 +2,12 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.physiology import CardiovascularSystem
 
 
 def test_cardiovascular_conserves_blood_and_pulses():
     """Test that the circulation conserves the volume of blood and gives an arterial pressure near 120/80 mmHg."""
-    trajectory = simulate(CardiovascularSystem(), dt=0.02, until=6.4)
+    trajectory = CardiovascularSystem().prepare().simulate(dt=0.02, until=6.4)
     total = (
         trajectory.get_values('ventricle.V') + trajectory.get_values('arteries.V') + trajectory.get_values('veins.V')
     )

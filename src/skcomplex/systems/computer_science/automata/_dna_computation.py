@@ -11,18 +11,20 @@ Random ligation of edge oligos into paths solves the problem.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Protocol, cast
 
 import numpy as np
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import AnyArray, IntArray
+from ....core.systems import BaseSystem, System
+from ....core.types import AnyArray, IntArray, Role
 
 ADLEMAN_EDGES = (
     (0, 1),
@@ -43,7 +45,7 @@ ADLEMAN_EDGES = (
 EMPTY = -1
 
 
-class StrandView(AgentView):
+class StrandView(AgentViewProtocol, Protocol):
     """View of a strand of DNA, with its path as an attribute."""
 
     path: IntArray
@@ -58,11 +60,11 @@ class StrandElement(Element):
         label:
             The label of the strand or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         path:
-            The initial nodes of the path, padded with -1 to the longest path the tube holds.
+            The initial nodes of the path, padded with -1 to the longest path the tube holds, one row per strand.
+
+        size:
+            The number of strands, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import StrandElement
@@ -73,20 +75,12 @@ class StrandElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        path: Annotated[object, StateSpec()] = EMPTY,
+        path: object = EMPTY,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.path = path
-
-    @classmethod
-    def _get_view(cls) -> type[StrandView]:
-        """Return the view of the strands.
-
-        It types their path.
-        """
-        return StrandView
 
 
 class LigationInteraction(Interaction):
@@ -116,38 +110,35 @@ class LigationInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Role,
         edges: Sequence[tuple[int, int]] = ADLEMAN_EDGES,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.edges = edges
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the ligations of a step.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of the ligations of a step, once for the whole tube.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rule of the ligations.
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self._ligate)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self._ligate)]
 
     def _ligate(self, system: SystemView) -> None:
         """Join the strands of random pairs whose ends meet.
 
         Every consumed strand is replaced with a fresh oligo.
         """
-        strands = system.get_agents('target', StrandView)
+        strands = cast(list[StrandView], system.get_agents('target'))
         rng = system.rng
         order = rng.permutation(len(strands))
         for first, second in zip(order[::2], order[1::2], strict=False):
@@ -225,13 +216,19 @@ class DNAComputationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The graph has no links, or the start or the end is not a node of it.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import DNAComputationSystem
-        >>> DNAComputationSystem(10).prepare().system_.elements[0].values['path'].shape
+        >>> DNAComputationSystem(10).prepare().system_.elements[0].path.shape
         (10, 7)
     """
 
@@ -239,7 +236,7 @@ class DNAComputationSystem(BaseSystem):
     topics = ('dna computing', 'molecular computation', 'hamiltonian path', 'agents', 'stochastic')
     references = ('Adleman 1994', 'Raman 2021')
     until = 60
-    observables = (ObservableSpec('solutions', group='strands', variable='path', reduce=_get_adleman_solutions),)
+    observables = (Observable('solutions', group='strands', variable='path', reduce=_get_adleman_solutions),)
 
     def __init__(
         self,
@@ -250,19 +247,19 @@ class DNAComputationSystem(BaseSystem):
         end: int = 6,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_strands = n_strands
         self.edges = edges
         self.start = start
         self.end = end
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return Adleman's DNA computation of a Hamiltonian path.
-
-        It runs by random ligation of edge oligos in a test tube.
-        """
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a tube of random edge oligos and their ligation."""
+        super()._prepare(context)
         nodes = {node for edge in self.edges for node in edge}
         if not self.edges or self.start not in nodes or self.end not in nodes:
             error_msg = f'The start {self.start!r} and the end {self.end!r} need to be nodes of a graph with links.'
@@ -270,8 +267,8 @@ class DNAComputationSystem(BaseSystem):
         rng = np.random.default_rng(self.random_state)
         paths = np.full((self.n_strands, len(nodes)), EMPTY)
         paths[:, :2] = np.asarray(self.edges)[rng.integers(len(self.edges), size=self.n_strands)]
-        strands = GroupElement('strands', element=StrandElement, size=self.n_strands, values={'path': paths})
-        return CompositeSystem(
+        strands = StrandElement('strands', path=paths, size=self.n_strands)
+        self.system_ = System(
             self.label,
             elements=[strands],
             interactions=[LigationInteraction('ligation', target='strands', edges=self.edges)],

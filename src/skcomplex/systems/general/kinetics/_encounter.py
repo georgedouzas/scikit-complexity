@@ -5,18 +5,16 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, BilinearLaw, RateLaw
-from ....core.components.laws.utils import collision_integral
-from ....core.components.spaces import BaseSpace
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import bilinear, collision_integral
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, Tags
-from ....core.types import ElementKind
+from ....core.types import Role
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
 
@@ -38,15 +36,16 @@ class EncounterInteraction(Interaction):
     theory, evaluated by a fast spectral method, which keeps the density exactly and the momentum and energy to spectral
     accuracy.
 
-    Unlike `BilinearLaw`, the law it lowers to, it names the outcomes of an encounter and builds the rates and kernels
-    from them. Choose it when the change of a population comes from binary meetings of its members.
+    Unlike the `bilinear` form of the core, which its rate laws hold, it names the outcomes of an encounter and builds
+    the rates and kernels from them. Choose it when the change of a population comes from binary meetings of its
+    members.
 
     It appears in many fields. Traders exchange wealth when they meet, people shift their opinion after a conversation,
     immune cells destroy tumour cells they meet, and gas molecules change velocity when they collide.
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         candidate:
             The path of the group of the candidate density.
@@ -97,23 +96,14 @@ class EncounterInteraction(Interaction):
         True
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (BilinearLaw, RateLaw)
-
-    def _get_tags(self) -> Tags:
-        """Return the tags of a collision rate, or of a linear or bilinear encounter.
-
-        The arguments choose which.
-        """
-        if self._get_argument('cross_section') is not None:
-            return self._get_variant_tags((RateLaw,))
-        return self._get_variant_tags((BilinearLaw,))
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
-        field: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,), states=('state',))] = None,
+        candidate: Role,
+        field: Role | None = None,
         rate: Callable[[SimpleNamespace], object] | None = None,
         kernel: Callable[[SimpleNamespace], object] | None = None,
         outcome: str = 'conservative',
@@ -147,12 +137,8 @@ class EncounterInteraction(Interaction):
             error_msg = f'The cross-section of {self.label!r} sets the rate. Give no rate, kernel, field, or outcome.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an unknown outcome, a bad function, or a missing kernel.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
@@ -160,7 +146,21 @@ class EncounterInteraction(Interaction):
                 no kernel, an encounter without a field is not conservative, an encounter has neither a rate nor a
                 cross-section, or a cross-section comes with a rate, a kernel, a field, or an outcome.
         """
+        super()._check_arguments()
+        self._check_encounter()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate law of the candidate for a binding.
+
+        Args:
+            context:
+                The namespace of the candidate and the field.
+        """
         super()._prepare(context)
+        self.laws_: list[BaseLaw] = self._get_encounter_laws(context)
+
+    def _check_encounter(self) -> None:
+        """Raise an error for an unknown outcome, a bad function, or a missing kernel."""
         if not isinstance(self.state, str) or not self.state.isidentifier():
             error_msg = f'{type(self).__name__} {self.label!r} reads the state {self.state!r}, which is no name.'
             raise ValidationError(error_msg)
@@ -186,7 +186,9 @@ class EncounterInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _get_linear_laws(self, candidate: Expression, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conserved bilinear law of a redistribution without a field.
+        """Return the rate law of a redistribution without a field.
+
+        Its rate is a conserved bilinear form.
 
         It uses one field class of value one.
         """
@@ -195,23 +197,15 @@ class EncounterInteraction(Interaction):
         rates = rate if rate.ndim == 0 else rate.reshape(-1, 1)
         kernel = np.asarray(self.kernel(namespace) if self.kernel is not None else (), dtype=object)
         outcomes = np.expand_dims(kernel, axis=1)
-        return [BilinearLaw(candidate, candidate, None, rates[()], outcomes, conserved=True, label=self.label)]
+        form = bilinear(rates[()], outcomes, candidate, conserved=True)
+        return [RateLaw(candidate, form)]
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter, bilinear, or collision law of the candidate density.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with `namespace.candidate` and `namespace.field`.
-
-        Returns:
-            laws:
-                The law of the encounters.
-        """
+    def _get_encounter_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate law of the encounters or the collisions of the candidate."""
         candidate = getattr(self._get_member(namespace, 'candidate'), self.state)
         if self.cross_section is not None:
             factor = SR(1 if self.factor is None else self.factor(namespace))
-            return [RateLaw(candidate, factor * collision_integral(candidate, self.cross_section), label=self.label)]
+            return [RateLaw(candidate, factor * collision_integral(candidate, self.cross_section))]
         if self.field is None:
             return self._get_linear_laws(candidate, namespace)
         field = getattr(self._get_member(namespace, 'field'), self.state)
@@ -220,7 +214,9 @@ class EncounterInteraction(Interaction):
         kernel = None if self.kernel is None else self.kernel(namespace)
         if self.outcome == 'destructive':
             loss = -np.asarray(rate, dtype=object)
-            return [BilinearLaw(candidate, candidate, field, loss, label=self.label)]
-        if self.outcome == 'proliferative':
-            return [BilinearLaw(candidate, candidate, field, rate, kernel, label=self.label)]
-        return [BilinearLaw(candidate, candidate, field, rate, kernel, conserved=True, label=self.label)]
+            form = bilinear(loss, None, candidate, field)
+        elif self.outcome == 'proliferative':
+            form = bilinear(rate, kernel, candidate, field)
+        else:
+            form = bilinear(rate, kernel, candidate, field, conserved=True)
+        return [RateLaw(candidate, form)]

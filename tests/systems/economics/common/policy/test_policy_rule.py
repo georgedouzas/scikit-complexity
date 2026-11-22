@@ -1,35 +1,29 @@
 """Test the `_policy_rule` module of `skcomplex.systems.economics.common.policy`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.laws import RuleLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components import Observable
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.errors import SimulationError, ValidationError
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.systems import System
+from skcomplex.core.types import Role
 from skcomplex.systems.economics.common.policy import PolicyRuleInteraction
 
 
-class CounterElement(Element):
-    """Counter whose level rises by one every step."""
+class CountInteraction(Interaction):
+    """Counting of counters whose level rises by one every step."""
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        level: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.level = level
+    def __init__(self, label: str, *, target: Role = 'counters') -> None:
+        super().__init__(label)
+        self.target = target
 
-    def _get_laws(self, s):
-        """Return the counting rule."""
-        return [RuleLaw(self.count)]
+    def _prepare(self, context=None):
+        """Set the counting rule."""
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.count)]
 
     def count(self, agent, system):
         """Raise the level by one."""
@@ -47,7 +41,7 @@ class ControllerInteraction(PolicyRuleInteraction):
         *,
         rule=None,
         phase: str | None = None,
-        rate: Annotated[float, ParameterSpec()] = 0.0,
+        rate: float = 0.0,
         target: float = 5.0,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
@@ -69,12 +63,12 @@ def _report_total(system):
 
 def test_act_changes_a_parameter_only_above_the_target():
     """Test that the rate changes only at the rounds where the observable exceeds the target."""
-    system = CompositeSystem(
-        elements=[GroupElement('counters', element=CounterElement, size=1)],
-        interactions=[ControllerInteraction('controller')],
+    system = System(
+        elements=[Element('counters', values={'level': 0.0}, size=1)],
+        interactions=[CountInteraction('count'), ControllerInteraction('controller')],
     )
-    observables = [ObservableSpec('total', group='counters', variable='level', reduce='sum')]
-    trajectory = simulate(system, until=10, random_state=0, observables=observables)
+    observables = [Observable('total', group='counters', variable='level', reduce='sum')]
+    trajectory = system.prepare().simulate(until=10, random_state=0, observables=observables)
     totals = trajectory.get_values('controller.total')[1:]
     changes = np.diff(trajectory.get_values('controller.rate'))
     np.testing.assert_array_equal(changes, (totals > 5.0).astype(float))
@@ -82,19 +76,22 @@ def test_act_changes_a_parameter_only_above_the_target():
 
 def test_act_raises_for_an_undeclared_report():
     """Test that reporting a name the feedback does not declare raises an error."""
-    system = CompositeSystem(
-        elements=[GroupElement('participants', element=CounterElement, size=1)],
-        interactions=[PolicyRuleInteraction('reader', rule=_report_total)],
+    system = System(
+        elements=[Element('participants', values={'level': 0.0}, size=1)],
+        interactions=[
+            CountInteraction('count', target='participants'),
+            PolicyRuleInteraction('reader', rule=_report_total),
+        ],
     )
     with pytest.raises(SimulationError, match='declare'):
-        simulate(system, until=1)
+        system.prepare().simulate(until=1)
 
 
 def test_act_raises_without_a_rule():
     """Test that a feedback with neither a rule nor its own `act` raises an error."""
-    system = CompositeSystem(
-        elements=[GroupElement('participants', element=CounterElement, size=1)],
-        interactions=[PolicyRuleInteraction('reader')],
+    system = System(
+        elements=[Element('participants', values={'level': 0.0}, size=1)],
+        interactions=[CountInteraction('count', target='participants'), PolicyRuleInteraction('reader')],
     )
     with pytest.raises(ValidationError, match='no rule'):
-        simulate(system, until=1)
+        system.prepare().simulate(until=1)

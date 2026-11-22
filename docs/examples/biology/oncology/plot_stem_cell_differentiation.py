@@ -13,14 +13,13 @@ a steady state in which the mutation of normal progenitors feeds a small maligna
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import StemCellDifferentiationSystem
 
 SYSTEM = 'stem_cell_differentiation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(StemCellDifferentiationSystem(seed=0), observers=[observer])
+trajectory = StemCellDifferentiationSystem(seed=0).prepare().simulate(observers=[observer])
 
 # %%
 # Mutation feeds the malignant lineage
@@ -40,7 +39,7 @@ rates, finals = [], []
 for seed in range(8):
     run = StemCellDifferentiationSystem(seed=seed).prepare().system_
     rates.append(run.elements[0].m1)
-    finals.append(simulate(run, dt=10.0, until=2000).get_values('tissue.AD')[-1])
+    finals.append(run.prepare().simulate(dt=10.0, until=2000).get_values('tissue.AD')[-1])
 mutation.plot(rates, finals, 'o')
 mutation.set_xlabel('mutation rate m1')
 mutation.set_ylabel('final malignant differentiated cells')

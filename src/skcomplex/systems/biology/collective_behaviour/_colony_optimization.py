@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import networkx as nx
 import numpy as np
@@ -16,22 +16,23 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 from scipy.spatial import Delaunay
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 CUTS = 2
 
 
-class TrailSegmentView(AgentView):
+class TrailSegmentView(AgentViewProtocol, Protocol):
     """View of a trail segment, with its states as attributes.
 
-    `TrailSegmentElement` names this class with `_get_view`, so its rules read them with checked types.
+    The rules of `TrailSegmentElement` read them with checked types.
     """
 
     tau: float
@@ -47,14 +48,14 @@ class TrailSegmentElement(Element):
         label:
             The label of the segment or of the group of segments.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         tau:
             The pheromone level.
 
         passable:
             1 while the segment can be walked and 0 once it is cut.
+
+        size:
+            The number of members, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import TrailSegmentElement
@@ -65,19 +66,14 @@ class TrailSegmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        tau: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        passable: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        tau: Annotated[float | Array, RealSet.closed_open(0, oo)] = 1.0,
+        passable: Annotated[float | Array, FiniteEnumeratedSet([0, 1])] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.tau = tau
         self.passable = passable
-
-    @classmethod
-    def _get_view(cls) -> type[TrailSegmentView]:
-        """Return the view of a segment, `TrailSegmentView`."""
-        return TrailSegmentView
 
 
 class ColonySearchInteraction(Interaction):
@@ -142,7 +138,7 @@ class ColonySearchInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('shortest',)
 
@@ -150,7 +146,7 @@ class ColonySearchInteraction(Interaction):
         self,
         label: str,
         *,
-        segments: Annotated[str, RoleSpec()],
+        segments: Role,
         edges: Sequence[tuple[int, int]] = (),
         lengths: Sequence[float] = (),
         start: int = 0,
@@ -177,18 +173,15 @@ class ColonySearchInteraction(Interaction):
         self.Q = Q
         self.cut = cut
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of a round.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rule of a round.
 
         Args:
-            s:
+            context:
                 The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
         """
-        return [RuleLaw(self.search)]
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context, self.search)]
 
     def search(self, system: SystemView) -> None:
         """Run one round of ants and update the pheromone.
@@ -199,7 +192,7 @@ class ColonySearchInteraction(Interaction):
             system:
                 The system.
         """
-        segments = system.get_agents(self.segments, TrailSegmentView)
+        segments = cast(list[TrailSegmentView], system.get_agents(self.segments))
         tau = np.array([item.tau for item in segments])
         is_open = np.array([item.passable for item in segments]) > 0
         best = system.storage.get('best')
@@ -333,6 +326,12 @@ class AntColonyOptimizationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.collective_behaviour import AntColonyOptimizationSystem
         >>> AntColonyOptimizationSystem(10).prepare().system_.interactions[0].ants
@@ -357,8 +356,10 @@ class AntColonyOptimizationSystem(BaseSystem):
         cut: int | None = None,
         seed: int | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_points = n_points
         self.ants = ants
         self.steps = steps
@@ -369,11 +370,14 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.cut = cut
         self.seed = seed
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of ants that find the shortest path on a Delaunay road network.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of ants that find the shortest path on a Delaunay road network.
 
-        The path joins two points of the network.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         points = np.random.default_rng(self.seed).random((self.n_points, 2))
         triangles = Delaunay(points).simplices
         pairs = {
@@ -383,7 +387,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         lengths = [float(np.linalg.norm(points[a] - points[b])) for a, b in edges]
         start = int(np.argmin(np.linalg.norm(points, axis=1)))
         target = int(np.argmin(np.linalg.norm(points - 1.0, axis=1)))
-        roads = GroupElement('roads', element=TrailSegmentElement, size=len(edges))
+        roads = TrailSegmentElement('roads', size=len(edges))
         search = ColonySearchInteraction(
             'search',
             segments='roads',
@@ -399,4 +403,4 @@ class AntColonyOptimizationSystem(BaseSystem):
             Q=self.Q,
             cut=self.cut,
         )
-        return CompositeSystem(self.label, elements=[roads], interactions=[search], time=DiscreteTime())
+        self.system_ = System(self.label, elements=[roads], interactions=[search])

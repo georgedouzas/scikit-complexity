@@ -6,6 +6,7 @@ A union of Erdős-Rényi subgraphs has drawn linking probabilities.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 import networkx as nx
@@ -13,31 +14,33 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.spaces import BaseSpace, NetworkSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
 from ....core.types import Array
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
 
 class SuperposedNodeElement(Element):
-    """Node of a superposed network, with its degree and its clustering.
+    """Nodes of a superposed network, each with its degree and its clustering.
 
     Args:
         label:
-            The label of the node group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the nodes.
 
         degree:
-            The number of edges of the node.
+            The number of edges of every node, one per node or shared.
 
         clustering:
-            The share of the pairs of neighbours of the node that are joined.
+            The share of the pairs of neighbours of every node that are joined, one per node or shared.
+
+        space:
+            The network with one node per site, or `None` for one node.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import SuperposedNodeElement
@@ -45,15 +48,17 @@ class SuperposedNodeElement(Element):
         0.0
     """
 
+    visual = DEGREE_VISUAL
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = DEGREE_VISUAL,
         *,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        clustering: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        degree: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        clustering: Annotated[object, RealSet.closed(0, 1)] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.degree = degree
         self.clustering = clustering
 
@@ -93,6 +98,12 @@ class NetworkSuperpositionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ValidationError:
             The bounds of the linking probabilities are not `0 < low <= high <= 1`.
@@ -100,7 +111,7 @@ class NetworkSuperpositionSystem(BaseSystem):
     Examples:
         >>> from skcomplex.systems.mathematics.networks import NetworkSuperpositionSystem
         >>> system = NetworkSuperpositionSystem(10, n_subgraphs=3).prepare().system_
-        >>> system.elements[0].values['degree'].size
+        >>> system.elements[0].degree.size
         30
     """
 
@@ -120,8 +131,10 @@ class NetworkSuperpositionSystem(BaseSystem):
         high: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_nodes = n_nodes
         self.n_subgraphs = n_subgraphs
         self.exponent = exponent
@@ -147,8 +160,18 @@ class NetworkSuperpositionSystem(BaseSystem):
         power = 1 - exponent
         return (low**power + uniform * (high**power - low**power)) ** (1 / power)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the nodes of the union of the subgraphs.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The bounds of the linking probabilities are not `0 < low <= high <= 1`.
+        """
+        super()._prepare(context)
         if not 0 < self.low <= self.high <= 1:
             error_msg = (
                 f'The linking probabilities lie in [{self.low}, {self.high}]. Give bounds with 0 < low <= high <= 1.'
@@ -162,14 +185,10 @@ class NetworkSuperpositionSystem(BaseSystem):
             subgraph = nx.fast_gnp_random_graph(self.n_nodes, float(chance), seed=rng)
             graph.update(nx.relabel_nodes(subgraph, {node: index * self.n_nodes + node for node in subgraph}))
         clustering = nx.clustering(graph)
-        nodes = GroupElement(
+        nodes = SuperposedNodeElement(
             'nodes',
-            element=SuperposedNodeElement,
-            size=graph.number_of_nodes(),
-            values={
-                'degree': np.asarray([graph.degree(node) for node in graph], dtype=float),
-                'clustering': np.asarray([clustering[node] for node in graph], dtype=float),
-            },
-            location=list(graph),
+            degree=np.asarray([graph.degree(node) for node in graph], dtype=float),
+            clustering=np.asarray([clustering[node] for node in graph], dtype=float),
+            space=NetworkSpace(graph),
         )
-        return CompositeSystem(self.label, elements=[nodes], space=NetworkSpace(graph))
+        self.system_ = System(self.label, elements=[nodes])

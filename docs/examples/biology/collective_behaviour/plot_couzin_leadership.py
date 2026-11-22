@@ -18,13 +18,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components import Observable
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.specs import ObservableSpec
 from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
 
 SYSTEM = 'couzin_leadership'
-SIZE = 50.0
+SIDE = 50.0
 
 
 def mean_heading(trajectory, frame):
@@ -36,7 +35,7 @@ def mean_heading(trajectory, frame):
 shoal = rrb.Spatial2DView(
     origin='/shoal',
     name='shoal',
-    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, SIZE), y_range=(-SIZE, 0.0)),
+    visual_bounds=rrb.VisualBounds2D(x_range=(0.0, SIDE), y_range=(-SIDE, 0.0)),
     overrides={'shoal': rr.Points2D.from_fields(radii=0.6).visualizer()},
 )
 # The view shows the whole run, not the default window that follows the latest frame.
@@ -50,14 +49,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-heading_x = ObservableSpec('heading_x', group='shoal', variable='vx')
-trajectory = simulate(
-    CouzinLeadershipSystem(n_fish=50, informed=0.1, size=SIZE, random_state=0),
-    until=150,
-    dt=1,
-    observers=[observer],
-    observables=[heading_x],
-    random_state=0,
+heading_x = Observable('heading_x', group='shoal', variable='vx')
+trajectory = (
+    CouzinLeadershipSystem(n_fish=50, informed=0.1, side=SIDE, random_state=0)
+    .prepare()
+    .simulate(until=150, dt=1, observers=[observer], observables=[heading_x], random_state=0)
 )
 
 # %%
@@ -74,11 +70,10 @@ accuracy = []
 for fraction in fractions:
     cosines = []
     for seed in range(3):
-        run = simulate(
-            CouzinLeadershipSystem(n_fish=20, informed=fraction, random_state=seed),
-            until=120,
-            dt=1,
-            random_state=seed,
+        run = (
+            CouzinLeadershipSystem(n_fish=20, informed=fraction, random_state=seed)
+            .prepare()
+            .simulate(until=120, dt=1, random_state=seed)
         )
         cosines.extend(np.cos(mean_heading(run, frame)) for frame in range(80, 121))
     accuracy.append(np.mean(cosines))

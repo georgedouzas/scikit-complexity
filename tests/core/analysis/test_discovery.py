@@ -2,13 +2,13 @@
 
 import numpy as np
 
+from skcomplex.core import analysis
 from skcomplex.core.analysis import ApplicableAnalysesResult, applicable_analyses, markov
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem, PoissonProcessSystem
 from skcomplex.systems.physics.active_matter import VicsekSystem
-from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, QuantumHeisenbergSystem
 
 
 def _discover(source: object) -> ApplicableAnalysesResult:
@@ -37,7 +37,7 @@ def test_discovery_of_a_lattice_system():
 
 def test_discovery_of_a_system_with_several_kinds():
     """Test that an agent system on a lattice that records reporters lists agent, field, and series analyses."""
-    discovery = _discover(simulate(PheromoneForagingSystem(), until=2, random_state=0))
+    discovery = _discover(PheromoneForagingSystem().prepare().simulate(until=2, random_state=0))
     assert discovery.kinds == ['agents', 'field', 'series']
     assert ('spectrum', 'structure-factor') in _names(discovery.analyses['field'])
     assert ('spectrum', 'power') in _names(discovery.analyses['series'])
@@ -45,7 +45,7 @@ def test_discovery_of_a_system_with_several_kinds():
 
 def test_discovery_of_an_agent_system():
     """Test that a Vicsek trajectory lists the alignment, nearest-neighbour, and displacement analyses under agents."""
-    discovery = _discover(simulate(VicsekSystem(), until=3, random_state=0))
+    discovery = _discover(VicsekSystem().prepare().simulate(until=3, random_state=0))
     agents = discovery.analyses['agents']
     assert {('alignment', 'mean-vector'), ('neighbors', 'distances'), ('displacement', None)} <= _names(agents)
 
@@ -74,7 +74,7 @@ def test_discovered_analyses_run_on_arrays_without_a_simulation():
 
 def test_discovery_of_a_jump_path():
     """Test that a jump path lists Markov analyses, which run on its states."""
-    trajectory = simulate(PoissonProcessSystem(n_processes=1), until=30.0, random_state=0)
+    trajectory = PoissonProcessSystem(n_processes=1).prepare().simulate(30.0, random_state=0)
     discovery = _discover(trajectory)
     assert 'path' in discovery.kinds
     assert any(item.func is markov for item in discovery.analyses['path'])
@@ -85,8 +85,19 @@ def test_discovery_of_a_jump_path():
 
 def test_discovery_leaves_out_analyses_whose_tags_the_system_lacks():
     """Test that the Lyapunov exponents are listed for a deterministic system and left out for a stochastic one."""
-    deterministic = applicable_analyses(simulate(LogisticGrowthSystem(), until=5.0))
-    stochastic = applicable_analyses(simulate(OnOffIntermittencySystem(), until=5.0, random_state=0))
+    deterministic = applicable_analyses(LogisticGrowthSystem().prepare().simulate(until=5.0))
+    stochastic = applicable_analyses(OnOffIntermittencySystem().prepare().simulate(5.0, random_state=0))
     assert ('lyapunov', 'largest') in _names(deterministic.analyses['series'])
     assert ('lyapunov', 'largest') not in _names(stochastic.analyses['series'])
     assert ('entropy', 'permutation') in _names(stochastic.analyses['series'])
+
+
+def test_discovery_lists_only_core_analyses():
+    """Test that a quantum spin chain lists only public analyses of the core."""
+    discovery = applicable_analyses(QuantumHeisenbergSystem(n_sites=4).prepare().simulate(until=1.0, dt=0.1))
+    functions = [item.func for analyses in discovery.analyses.values() for item in analyses]
+    assert functions
+    assert all(
+        function.__name__ in analysis.__all__ and getattr(analysis, function.__name__) is function
+        for function in functions
+    )

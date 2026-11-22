@@ -14,7 +14,6 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 
@@ -33,11 +32,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(
-    BoidsSystem(n_boids=150, size=40.0, random_state=0),
-    observers=[observer],
-    random_state=0,
-    until=200,
+trajectory = (
+    BoidsSystem(n_boids=150, size=40.0, random_state=0)
+    .prepare()
+    .simulate(observers=[observer], random_state=0, until=200)
 )
 
 # %%
@@ -50,7 +48,7 @@ trajectory = simulate(
 polarization = []
 for frame in range(len(trajectory.times)):
     boids = trajectory.get_agents('flock', frame)
-    headings = np.column_stack([boids.values['vx'], boids.values['vy']])
+    headings = np.column_stack([boids.values["x'"], boids.values["y'"]])
     headings /= np.linalg.norm(headings, axis=1, keepdims=True)
     polarization.append(np.linalg.norm(headings.mean(axis=0)))
 fig, ax = plt.subplots(figsize=(6, 4))

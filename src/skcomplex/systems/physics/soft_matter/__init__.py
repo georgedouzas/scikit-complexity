@@ -3,35 +3,45 @@
 The package covers Brownian particles, optical and hydrodynamically coupled traps, anomalous diffusion, and transitions.
 """
 
-from ..common.particles import BrownianParticleElement, DoubleWellElement, ThermalNoiseInteraction
+from ..common.particles import DoubleWellElement
 from ._anomalous import (
     AnnealedTransientTimeMotionSystem,
     ContinuousTimeRandomWalkSystem,
     ContinuousTimeWalkerElement,
     FractionalBrownianMotionSystem,
+    FractionalNoiseInteraction,
     FractionalWalkerElement,
     LevyFlierElement,
     LevyFlightSystem,
+    LevyFlightTimeInteraction,
+    LevyJumpInteraction,
     LevyWalkerElement,
     LevyWalkSystem,
+    TransientDiffusionInteraction,
     TransientWalkerElement,
+    WaitingJumpInteraction,
 )
-from ._brownian import BrownianNearWallSystem, StochasticResonanceSystem, WallParticleElement
-from ._colored_noise import ColoredNoiseLangevinSystem, ColoredNoiseParticleElement
+from ._brownian import BrownianNearWallSystem, StochasticResonanceSystem, WallMobilityInteraction, WallParticleElement
+from ._colored_noise import ColoredNoiseInteraction, ColoredNoiseLangevinSystem, ColoredNoiseParticleElement
 from ._coupled_traps import BlinkingTrapsInteraction, HydrodynamicallyCoupledTrapsSystem, TrappedSphereElement
 from ._diffusion import (
+    BeadElement,
     BrownianMotionSystem,
+    BrownianParticleElement,
     DiffusionInASpeckleFieldSystem,
     KramersEscapeSystem,
+    ModulatedNoiseInteraction,
     ModulatedParticleElement,
     MultiplicativeNoiseSystem,
     OpticalTrapInteraction,
     OpticalTrapSystem,
     ScaledBrownianMotionSystem,
+    ScaledNoiseInteraction,
     ScaledWalkerElement,
     SpeckleFieldInteraction,
+    ThermalNoiseInteraction,
 )
-from ._friction import FrictionalBlockElement, ShakenSpringBlockSystem
+from ._friction import FrictionalBlockElement, ShakenFrictionInteraction, ShakenSpringBlockSystem
 from ._ratchets import (
     FlashingRatchetSystem,
     FlashingSawtoothInteraction,
@@ -40,21 +50,27 @@ from ._ratchets import (
 )
 from ._rigid_bodies import (
     AnisotropicBrownianParticlesSystem,
+    AnisotropicDiffusionInteraction,
     AnisotropicParticleElement,
     DimerElement,
     RigidDimersSystem,
+    RigidRodInteraction,
 )
-from ._traps import BiasedTrapWalkSystem, TrapSiteElement
+from ._traps import BiasedHopInteraction, BiasedTrapWalkSystem, TrapSiteElement
 
 __all__: list[str] = [
     'AnisotropicBrownianParticlesSystem',
+    'AnisotropicDiffusionInteraction',
     'AnisotropicParticleElement',
     'AnnealedTransientTimeMotionSystem',
+    'BeadElement',
+    'BiasedHopInteraction',
     'BiasedTrapWalkSystem',
     'BlinkingTrapsInteraction',
     'BrownianMotionSystem',
     'BrownianNearWallSystem',
     'BrownianParticleElement',
+    'ColoredNoiseInteraction',
     'ColoredNoiseLangevinSystem',
     'ColoredNoiseParticleElement',
     'ContinuousTimeRandomWalkSystem',
@@ -65,29 +81,39 @@ __all__: list[str] = [
     'FlashingRatchetSystem',
     'FlashingSawtoothInteraction',
     'FractionalBrownianMotionSystem',
+    'FractionalNoiseInteraction',
     'FractionalWalkerElement',
     'FrictionalBlockElement',
     'HydrodynamicallyCoupledTrapsSystem',
     'KramersEscapeSystem',
     'LevyFlierElement',
     'LevyFlightSystem',
+    'LevyFlightTimeInteraction',
+    'LevyJumpInteraction',
     'LevyWalkSystem',
     'LevyWalkerElement',
+    'ModulatedNoiseInteraction',
     'ModulatedParticleElement',
     'MultiplicativeNoiseSystem',
     'OpticalTrapInteraction',
     'OpticalTrapSystem',
     'RigidDimersSystem',
+    'RigidRodInteraction',
     'ScaledBrownianMotionSystem',
+    'ScaledNoiseInteraction',
     'ScaledWalkerElement',
+    'ShakenFrictionInteraction',
     'ShakenSpringBlockSystem',
     'SpeckleFieldInteraction',
     'StochasticResonanceSystem',
     'ThermalNoiseInteraction',
     'TiltedPeriodicPotentialSystem',
     'TiltedWashboardInteraction',
+    'TransientDiffusionInteraction',
     'TransientWalkerElement',
     'TrapSiteElement',
     'TrappedSphereElement',
+    'WaitingJumpInteraction',
+    'WallMobilityInteraction',
     'WallParticleElement',
 ]

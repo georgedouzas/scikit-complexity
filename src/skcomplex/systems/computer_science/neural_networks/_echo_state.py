@@ -6,7 +6,7 @@ It is a reservoir of leaky tanh units driven by an input.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import functools
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -16,11 +16,14 @@ from reservoirpy import mat_gen
 from sage.all__sagemath_symbolics import Expression, oo, sin, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import total
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class ReservoirUnitElement(Element):
@@ -34,9 +37,6 @@ class ReservoirUnitElement(Element):
     Args:
         label:
             The label of the unit or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         r:
             The initial activity.
@@ -53,6 +53,9 @@ class ReservoirUnitElement(Element):
         frequency:
             The angular frequency `f` of the input, per step.
 
+        size:
+            The number of units, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import ReservoirUnitElement
         >>> ReservoirUnitElement('unit').leak
@@ -62,15 +65,15 @@ class ReservoirUnitElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        r: Annotated[float, StateSpec()] = 0.0,
-        w_in: Annotated[float, ParameterSpec()] = 1.0,
-        leak: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        amplitude: Annotated[float, ParameterSpec()] = 1.0,
-        frequency: Annotated[float, ParameterSpec()] = 0.2,
+        r: object = 0.0,
+        w_in: object = 1.0,
+        leak: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        amplitude: float = 1.0,
+        frequency: float = 0.2,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.r = r
         self.w_in = w_in
         self.leak = leak
@@ -114,9 +117,15 @@ class EchoStateNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.computer_science.neural_networks import EchoStateNetworkSystem
-        >>> EchoStateNetworkSystem(50).prepare().system_.elements[0].prepare().size_
+        >>> EchoStateNetworkSystem(50).prepare().system_.elements[0].size
         50
     """
 
@@ -138,8 +147,10 @@ class EchoStateNetworkSystem(BaseSystem):
         frequency: float = 0.2,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_units = n_units
         self.spectral_radius = spectral_radius
         self.leak = leak
@@ -170,26 +181,23 @@ class EchoStateNetworkSystem(BaseSystem):
         drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
         return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         weights = self._get_recurrent_weights(self.n_units, self.connectivity, self.spectral_radius, rng)
-        units = GroupElement(
+        units = ReservoirUnitElement(
             'units',
-            element=ReservoirUnitElement,
+            r=rng.uniform(-1.0, 1.0, self.n_units),
+            w_in=rng.uniform(-self.input_scaling, self.input_scaling, self.n_units),
+            leak=self.leak,
+            amplitude=self.amplitude,
+            frequency=self.frequency,
             size=self.n_units,
-            values={
-                'r': rng.uniform(-1.0, 1.0, self.n_units),
-                'w_in': rng.uniform(-self.input_scaling, self.input_scaling, self.n_units),
-                'leak': self.leak,
-                'amplitude': self.amplitude,
-                'frequency': self.frequency,
-            },
         )
-        reservoir = MapInteraction(
+        reservoir = Interaction(
             'reservoir',
-            target='units',
-            state='r',
-            function=functools.partial(self._get_leaky_tanh, weights=weights),
+            roles={'target': 'units'},
+            laws=lambda s: [UpdateLaw(s.target.r, self._get_leaky_tanh(s, weights=weights))],
         )
-        return CompositeSystem(self.label, elements=[units], interactions=[reservoir])
+        self.system_ = System(self.label, elements=[units], interactions=[reservoir])

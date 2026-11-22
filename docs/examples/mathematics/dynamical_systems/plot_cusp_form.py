@@ -14,7 +14,6 @@ fold: a hysteresis loop, the catastrophe of the cusp.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.mathematics.dynamical_systems import CuspFormSystem
 
@@ -36,8 +35,8 @@ observer = RerunObserver(
     parameters=True,
     interval=3,
 )
-schedule = {'form.beta1': beta1_at}
-trajectory = simulate(system.prepare().system_, until=PERIOD, dt=1.0, observers=[observer], schedule=schedule)
+schedule = {'cusp_form.beta1': beta1_at}
+trajectory = system.prepare().simulate(PERIOD, dt=1.0, observers=[observer], schedule=schedule)
 
 # %%
 # Hysteresis loop
@@ -46,11 +45,14 @@ trajectory = simulate(system.prepare().system_, until=PERIOD, dt=1.0, observers=
 # up near the fold at `beta1 = +0.385` and down near `beta1 = -0.385`, a little past the folds, a delay of slow passage
 # that shrinks with the sweep rate, and never visit the unstable middle branch.
 
-fine = simulate(
-    CuspFormSystem(x=-1.0, beta1=-0.6, beta2=1.0).prepare().system_,
-    until=PERIOD,
-    dt=0.1,
-    schedule={'form.beta1': beta1_at},
+fine = (
+    CuspFormSystem(x=-1.0, beta1=-0.6, beta2=1.0)
+    .prepare()
+    .simulate(
+        PERIOD,
+        dt=0.1,
+        schedule={'cusp_form.beta1': beta1_at},
+    )
 )
 x = np.linspace(-1.3, 1.3, 400)
 branch = x**3 - x

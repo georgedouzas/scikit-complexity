@@ -3,17 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction, TransferInteraction
-from ....core.components.laws import Sink, Source
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
 class FirmsElement(Element):
@@ -24,9 +28,6 @@ class FirmsElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         deposits:
             The deposits of the firms, which are money.
@@ -55,16 +56,15 @@ class FirmsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 20.0,
-        loans: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
-        sales: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        wage_share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        distribution: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        deposits: Annotated[object, RealSet.closed_open(0, oo), Quantity('money')] = 20.0,
+        loans: Annotated[object, RealSet.closed_open(0, oo)] = 50.0,
+        sales: Annotated[object, RealSet.closed_open(0, oo)] = 40.0,
+        wage_share: Annotated[float, RealSet.closed_open(0, oo)] = 0.7,
+        distribution: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        repayment: Annotated[float, RealSet.closed_open(0, oo)] = 0.08,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.deposits = deposits
         self.loans = loans
         self.sales = sales
@@ -81,9 +81,6 @@ class HouseholdsElement(Element):
     Args:
         label:
             The label of the sector.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         deposits:
             The deposits of the households.
@@ -103,13 +100,12 @@ class HouseholdsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 60.0,
-        alpha_income: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        alpha_wealth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        deposits: Annotated[object, RealSet.closed_open(0, oo), Quantity('money')] = 60.0,
+        alpha_income: Annotated[float, RealSet.closed_open(0, oo)] = 0.6,
+        alpha_wealth: Annotated[float, RealSet.closed_open(0, oo)] = 0.4,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.deposits = deposits
         self.alpha_income = alpha_income
         self.alpha_wealth = alpha_wealth
@@ -123,9 +119,6 @@ class MonetaryBankElement(Element):
     Args:
         label:
             The label of the bank.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         deposits:
             The own funds of the bank.
@@ -148,26 +141,25 @@ class MonetaryBankElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 10.0,
-        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        payout: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        credit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        deposits: Annotated[object, RealSet.closed_open(0, oo), Quantity('money')] = 10.0,
+        interest: Annotated[float, RealSet.closed_open(0, oo)] = 0.03,
+        payout: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        credit: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.deposits = deposits
         self.interest = interest
         self.payout = payout
         self.credit = credit
 
 
-class CircuitInteraction(TransferInteraction):
+class CircuitInteraction(Interaction):
     """Circuit of money between households, firms, and a bank, one period per step.
 
-    The flows of a period are the legs of one transfer between the deposits of the sectors, consumption, wages,
-    interest, dividends, and profits, lending from the environment, and repayments to it, each reading the parameters
-    of the sectors. Every leg is named by its flow, so the reporters `<label>.<flow>` record it.
+    The flows of a period between the deposits of the sectors are consumption, wages, interest, dividends, and profits,
+    lending from the environment, and repayments to it, each reading the parameters of the sectors. Every flow is
+    labelled, so the trajectory records it.
 
     Args:
         label:
@@ -188,51 +180,37 @@ class CircuitInteraction(TransferInteraction):
         'bank'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        households: Annotated[str, RoleSpec()],
-        firms: Annotated[str, RoleSpec()],
-        bank: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(
-            label,
-            source=households,
-            target=firms,
-            state='households.deposits',
-            into='firms.deposits',
-            amount=lambda s: CircuitInteraction._get_consumption(s.households, s.firms),
-            flow='consumption',
-            legs=[
-                ('firms.deposits', 'households.deposits', lambda s: s.firms.wage_share * s.firms.sales, 'wages'),
-                ('firms.deposits', 'bank.deposits', lambda s: s.bank.interest * s.firms.loans, 'interest'),
-                ('bank.deposits', 'households.deposits', lambda s: s.bank.payout * s.bank.deposits, 'dividends'),
-                (
-                    'firms.deposits',
-                    'households.deposits',
-                    lambda s: s.firms.distribution * s.firms.deposits,
-                    'profits',
-                ),
-                (
-                    Source('lending'),
-                    'firms.deposits',
-                    lambda s: CircuitInteraction._get_lending(s.firms, s.bank),
-                    'lending',
-                ),
-                ('firms.deposits', Sink('repayment'), lambda s: s.firms.repayment * s.firms.loans, 'repayments'),
-            ],
-        )
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, households: Role, firms: Role, bank: Role) -> None:
+        super().__init__(label)
         self.households = households
         self.firms = firms
         self.bank = bank
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the households and the firms, the first pair of the circuit.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flows of a period between the deposits of the sectors as the laws.
 
-        The other legs name their roles.
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
         """
-        return [(namespace.households, namespace.firms)]
+        super()._prepare(context)
+        households, firms, bank = context.households, context.firms, context.bank
+        flows = [
+            (
+                {households.deposits: -1, firms.deposits: +1},
+                self._get_consumption(households, firms),
+                'consumption',
+            ),
+            ({firms.deposits: -1, households.deposits: +1}, firms.wage_share * firms.sales, 'wages'),
+            ({firms.deposits: -1, bank.deposits: +1}, bank.interest * firms.loans, 'interest'),
+            ({bank.deposits: -1, households.deposits: +1}, bank.payout * bank.deposits, 'dividends'),
+            ({firms.deposits: -1, households.deposits: +1}, firms.distribution * firms.deposits, 'profits'),
+            ({firms.deposits: +1}, self._get_lending(firms, bank), 'lending'),
+            ({firms.deposits: -1}, firms.repayment * firms.loans, 'repayments'),
+        ]
+        self.laws_: list[BaseLaw] = [RateLaw(target, amount, label=flow) for target, amount, flow in flows]
 
     @staticmethod
     def _get_consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
@@ -259,12 +237,12 @@ class StockFlowConsistentEconomySystem(BaseSystem):
     repayment destroys it, the only flows with the environment, so the total money changes exactly by lending minus
     repayment, in the spirit of the systems of Godley and Lavoie (2007) and the balance sheets of Caiani et al. (2016).
     Loans approach `credit * sales / repayment` and sales settle where the stocks stop growing. The circuit moves the
-    money of a period, and the maps `loans` and `sales` set the loans and the sales of the firms.
+    money of a period, and the interactions `loans` and `sales` set the loans and the sales of the firms.
 
     The system has the deposits `households.deposits`, `firms.deposits`, and `bank.deposits`, the loans `firms.loans`,
     the sales `firms.sales`, the flows `circuit.consumption`, `circuit.wages`, `circuit.interest`, `circuit.dividends`,
-    `circuit.profits`, `circuit.lending`, and `circuit.repayments`, the maps `loans` and `sales`, and the net money
-    created `__boundary.money`.
+    and `circuit.profits` between the sectors, the flows `firms.lending` and `firms.repayments` with the environment,
+    and the net money created `__boundary.money`.
 
     Args:
         household_deposits:
@@ -309,6 +287,13 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the Euler rule with a step of one period, so every flow moves
+            the money of one period.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
         >>> [element.label for element in StockFlowConsistentEconomySystem().prepare().system_.elements]
@@ -338,8 +323,10 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         credit: float = 0.1,
         repayment: float = 0.08,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.household_deposits = household_deposits
         self.firm_deposits = firm_deposits
         self.bank_deposits = bank_deposits
@@ -355,22 +342,28 @@ class StockFlowConsistentEconomySystem(BaseSystem):
         self.repayment = repayment
 
     @staticmethod
-    def _get_next_loans(s: SimpleNamespace) -> Expression:
+    def _get_next_loans(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the loans of the firms after a period.
 
         The new loans are added and the repayments taken.
         """
-        firms, bank = s.target, s.sources[0]
-        return firms.loans + CircuitInteraction._get_lending(firms, bank) - firms.repayment * firms.loans
+        firms, bank = s.target, s.bank
+        return [
+            UpdateLaw(
+                firms.loans,
+                firms.loans + CircuitInteraction._get_lending(firms, bank) - firms.repayment * firms.loans,
+            ),
+        ]
 
     @staticmethod
-    def _get_next_sales(s: SimpleNamespace) -> Expression:
+    def _get_next_sales(s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sales of the firms of a period, the consumption of the households."""
-        return CircuitInteraction._get_consumption(s.sources[0], s.target)
+        return [UpdateLaw(s.target.sales, CircuitInteraction._get_consumption(s.households, s.target))]
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[
                 HouseholdsElement(
@@ -398,13 +391,8 @@ class StockFlowConsistentEconomySystem(BaseSystem):
             ],
             interactions=[
                 CircuitInteraction('circuit', households='households', firms='firms', bank='bank'),
-                MapInteraction('loans', target='firms', state='loans', function=self._get_next_loans, sources=['bank']),
-                MapInteraction(
-                    'sales',
-                    target='firms',
-                    state='sales',
-                    function=self._get_next_sales,
-                    sources=['households'],
-                ),
+                Interaction('loans', roles={'target': 'firms', 'bank': 'bank'}, laws=self._get_next_loans),
+                Interaction('sales', roles={'target': 'firms', 'households': 'households'}, laws=self._get_next_sales),
             ],
+            solver=EulerSolver(dt=1.0),
         )

@@ -3,14 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.reactions import ReactionInteraction
 
 
@@ -24,9 +27,6 @@ class TwoCompartmentElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         Uc:
             The initial central concentration.
@@ -43,12 +43,11 @@ class TwoCompartmentElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        Uc: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        Up: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Uc: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        Up: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.Uc = Uc
         self.Up = Up
 
@@ -81,6 +80,12 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.physiology import TwoCompartmentPharmacokineticsSystem
         >>> TwoCompartmentPharmacokineticsSystem(c0=5.0).prepare().system_.elements[0].Uc
@@ -101,15 +106,23 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
         k12: float = 0.0475,
         k21: float = 0.00125,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.c0 = c0
         self.k10 = k10
         self.k12 = k12
         self.k21 = k21
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the two-compartment pharmacokinetics of a bolus dose.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         reactions = [
             ReactionInteraction(
                 'distribution',
@@ -125,7 +138,7 @@ class TwoCompartmentPharmacokineticsSystem(BaseSystem):
             ),
             ReactionInteraction('elimination', reactants={('patient', 'Uc'): 1}, k=self.k10),
         ]
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[TwoCompartmentElement('patient', Uc=self.c0)],
             interactions=reactions,

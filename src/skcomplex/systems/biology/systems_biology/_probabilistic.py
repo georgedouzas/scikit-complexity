@@ -14,15 +14,16 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.base import BasePart
+from ....core.components import Observable
 from ....core.components.elements import Element
-from ....core.components.interactions import MapInteraction
-from ....core.components.laws import UpdateLaw
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import categorical, where
-from ....core.components.spaces import BaseSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
-from ....core.specs import RoleSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -42,9 +43,6 @@ class ProbabilisticNodeElement(Element):
         label:
             The label of the node.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         x:
             The initial value, 0 or 1.
 
@@ -60,17 +58,16 @@ class ProbabilisticNodeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        function: Annotated[float, StateSpec(domain=NN)] = 0,
+        x: Annotated[float, FiniteEnumeratedSet([0, 1])] = 0,
+        function: Annotated[float, NN] = 0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.x = x
         self.function = function
 
 
-class ProbabilisticFunctionInteraction(MapInteraction):
+class ProbabilisticFunctionInteraction(Interaction):
     """Synchronous map of a node by one of several truth tables.
 
     The table is drawn with given probabilities at every step.
@@ -116,12 +113,13 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
+        target: Role,
+        inputs: tuple[Role, ...],
         tables: Sequence[Sequence[int]] = ((0,),),
         probabilities: Sequence[float] = (1.0,),
     ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_drawn_value)
+        super().__init__(label)
+        self.target = target
         self.inputs = inputs
         self.tables = tables
         self.probabilities = probabilities
@@ -138,20 +136,14 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         """Return the value of one truth table of the inputs."""
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for invalid tables and probabilities.
-
-        They are invalid when they differ in number, or a table has the wrong size.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for an argument the interaction cannot take.
 
         Raises:
             ValidationError:
                 The tables and the probabilities differ in number, or a table does not have one entry per pattern.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         if len(self.tables) != len(self.probabilities):
             error_msg = (
                 f'ProbabilisticFunction {self.label} has {len(self.tables)} tables and {len(self.probabilities)} '
@@ -165,6 +157,21 @@ class ProbabilisticFunctionInteraction(MapInteraction):
                 'patterns, but one of its tables has another number of entries.'
             )
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the map of the target by the drawn table and the record of the drawn index.
+
+        The tables and the probabilities are invalid when they differ in number, or a table has the wrong size.
+
+        Args:
+            context:
+                The namespace of the target and its inputs.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [
+            UpdateLaw(context.target.x, self._get_drawn_value(context)),
+            UpdateLaw(context.target.function, self._get_draw()),
+        ]
 
     def _get_draw(self) -> Expression:
         """Return the index of the table drawn in a step.
@@ -182,21 +189,6 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         for index in range(len(values) - 2, -1, -1):
             value = where(chosen == index, values[index], value)
         return value
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the map of the target by the drawn table.
-
-        It also returns the record of the drawn index.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update of the value and the update of the index of the drawn table.
-        """
-        return [*super()._get_laws(namespace), UpdateLaw(namespace.target.function, self._get_draw())]
 
 
 class ProbabilisticBooleanNetworkSystem(BaseSystem):
@@ -224,6 +216,12 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import ProbabilisticBooleanNetworkSystem
         >>> ProbabilisticBooleanNetworkSystem().prepare().system_.interactions[0].probabilities
@@ -243,24 +241,32 @@ class ProbabilisticBooleanNetworkSystem(BaseSystem):
         inputs: Sequence[str] = SHMULEVICH_INPUTS,
         active: Sequence[str] = ('x1',),
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.network = network
         self.inputs = inputs
         self.active = active
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of a probabilistic Boolean network."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a probabilistic Boolean network.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         chosen = SHMULEVICH_NETWORK if self.network is None else self.network
         nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
         functions = [
             ProbabilisticFunctionInteraction(
                 f'functions_{name}',
                 target=name,
-                inputs=list(self.inputs),
+                inputs=tuple(self.inputs),
                 tables=tuple(tuple(table) for table, _ in candidates),
                 probabilities=tuple(probability for _, probability in candidates),
             )
             for name, candidates in chosen.items()
         ]
-        return CompositeSystem(self.label, elements=nodes, interactions=functions)
+        self.system_ = System(self.label, elements=nodes, interactions=functions)

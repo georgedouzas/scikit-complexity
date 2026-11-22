@@ -1,4 +1,4 @@
-"""Pass that compiles the topology changes."""
+"""Compile the changes of the shape of networks."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,33 +8,50 @@ from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR
 
-from ....components.laws import BaseLaw, JumpLaw, UpdateLaw
+from ....components import EntrySpec
+from ....components.laws import BaseLaw, JumpLaw, TopologyRequestSpec, UpdateLaw
 from ....components.spaces import NetworkSpace
+from ....enums import VariableKind
 from ....errors import PipelineError, ValidationError
-from ....specs import CapacityRowsSpec, EntrySpec, LayoutSpec, NetworkRowsSpec, TopologyRequestSpec
-from ....specs._weight_spec import _WeightSpec
-from ....types import Array, VariableKind
+from ....types import Array
 from ..._utils import declarations_of, declared_variables, default_of
+from ...problems import LayoutSpec
 from ...problems._block_spec import BlockSpec
+from ...problems._capacity_rows_spec import _CapacityRowsSpec
 from ...problems._compiled_request_spec import CompiledRequestSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._network_rows_spec import _NetworkRowsSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws
+from .._weight_spec import _WeightSpec
 from ._layout import LayoutPass
 from ._specs import SpecsPass
 
 
 class TopologyFunctionsPass(BasePass):
-    """A pass that compiles the topology changes.
+    """A pass that compiles the changes of the shape of networks.
 
-    It leaves out the compiled stepper loops when laws request them.
+    It compiles every request for a new or removed node or edge into the functions that apply it during a run, such as
+    the newcomer of a growing network who links to popular nodes.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        TopologyProblemPass: Adds the changes to the problem.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> compilation = PassCompiler().prepare(BarabasiAlbertSystem()).run().compilation_
+        >>> [request.owner for request in compilation.topology.requests]
+        ['growth']
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -86,7 +103,7 @@ class TopologyFunctionsPass(BasePass):
     def _get_compiled_request(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        networks: dict[int, NetworkRowsSpec],
+        networks: dict[int, _NetworkRowsSpec],
         weights: dict[tuple[int, bool], LawKernel],
         declarations: DeclarationsSpec,
     ) -> CompiledRequestSpec:
@@ -102,13 +119,13 @@ class TopologyFunctionsPass(BasePass):
         if TopologyKernel._changes_edges(request) and request.layer not in network.edges:
             error_msg = (
                 f'{spec.owner} requests {request!r}, which changes the edges of the layer {request.layer!r}, but the '
-                'layer has no variable edge group. Add `GroupElement(..., on="edges", variable=True)` on the layer.'
+                'layer has no variable edge group. Add `Element(..., on="edges")` on the layer.'
             )
             raise ValidationError(error_msg)
         if request.hyperedge is not None and network.hyperedges is None:
             error_msg = (
                 f'{spec.owner} requests {request!r}, which forms a hyperedge, but the network has no variable group '
-                'on its hyperedges. Add `GroupElement(..., on="hyperedges", variable=True)`.'
+                'on its hyperedges. Add `Element(..., on="hyperedges")`.'
             )
             raise ValidationError(error_msg)
         if request.hyperedge is not None and network.hyperedges is not None:
@@ -145,7 +162,7 @@ class TopologyFunctionsPass(BasePass):
     def _check_hyperedge_size(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        hyperedges: CapacityRowsSpec,
+        hyperedges: _CapacityRowsSpec,
         declarations: DeclarationsSpec,
     ) -> None:
         """Raise an error for a request that forms hyperedges of the wrong size.
@@ -218,7 +235,7 @@ class TopologyFunctionsPass(BasePass):
             for law in laws:
                 request = TopologyKernel._request_of(law)
                 if request is None or not isinstance(law, UpdateLaw):
-                    error_msg = f'A law of {spec.owner} set apart for the networks requests no topology change.'
+                    error_msg = f'A law of {spec.owner} set apart as a change of a network requests no change.'
                     raise PipelineError(error_msg)
                 item = TopologyFunctionsPass._get_compiled_request(spec, request, networks, weights, declarations)
                 requests.append(
@@ -247,7 +264,7 @@ class TopologyFunctionsPass(BasePass):
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).prepare()
 
     @staticmethod
-    def _get_capacity_rows(block: BlockSpec) -> CapacityRowsSpec:
+    def _get_capacity_rows(block: BlockSpec) -> _CapacityRowsSpec:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
@@ -271,10 +288,10 @@ class TopologyFunctionsPass(BasePass):
             default = 0.0 if default is dataclasses.MISSING else default
             defaults[name] = LayoutPass._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target, members = (block.entries.get(name) for name in (*ENDS, MEMBERS))
-        return CapacityRowsSpec(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
+        return _CapacityRowsSpec(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
 
     @staticmethod
-    def _get_networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
+    def _get_networks(declarations: DeclarationsSpec) -> dict[int, _NetworkRowsSpec]:
         """Return the variable groups of every network whose groups are variable.
 
         They are keyed by the identity of the space.
@@ -312,7 +329,7 @@ class TopologyFunctionsPass(BasePass):
                 ),
                 None,
             )
-            networks[key] = NetworkRowsSpec(nodes, edges, directed, hyperedges)
+            networks[key] = _NetworkRowsSpec(nodes, edges, directed, hyperedges)
         return networks
 
     @staticmethod

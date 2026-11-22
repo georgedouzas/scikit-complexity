@@ -6,7 +6,8 @@ They choose by their past satisfaction.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Mapping, Sequence
+from typing import Annotated, Protocol, runtime_checkable
 
 import networkx as nx
 import numpy as np
@@ -14,14 +15,16 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
-from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
 from ...general.agents import ChoiceInteraction, MovementInteraction
 from ..common.learning import PayoffLearningInteraction
 
@@ -29,7 +32,8 @@ N_SHOPS = 2
 PHASE = 'visit'
 
 
-class CustomerView(AgentView):
+@runtime_checkable
+class CustomerView(AgentViewProtocol, Protocol):
     """Customer as its rules see it.
 
     It holds its satisfactions `s1` and `s2`, its `shop`, `freshness`, and temperature `T`.
@@ -52,9 +56,6 @@ class CustomerElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         s1:
             The satisfaction with the first shop.
 
@@ -70,38 +71,32 @@ class CustomerElement(Element):
         T:
             The temperature of the choice, the randomness of the customer.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import CustomerElement
-        >>> GroupElement('customers', element=CustomerElement, size=10, values={'s1': 0.5, 's2': 0.5}).size
+        >>> CustomerElement('customers', s1=0.5, s2=0.5, size=10).size
         10
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        s1: Annotated[float, StateSpec()] = 0.5,
-        s2: Annotated[float, StateSpec()] = 0.5,
-        shop: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        freshness: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        s1: object = 0.5,
+        s2: object = 0.5,
+        shop: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        freshness: Annotated[object, RealSet.closed(0, 1)] = 1.0,
+        T: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.s1 = s1
         self.s2 = s2
         self.shop = shop
         self.freshness = freshness
         self.T = T
-
-    @classmethod
-    def _get_view(cls) -> type[CustomerView]:
-        """Return the view of a customer.
-
-        It holds its satisfactions, shop, freshness, and temperature.
-        """
-        return CustomerView
 
     @staticmethod
     def get_utility(agent: CustomerView, system: SystemView, option: float) -> float:
@@ -179,7 +174,8 @@ class CustomerElement(Element):
         return float(np.tanh((agent.s1 - agent.s2) / (2 * agent.T)))
 
 
-class ProductView(AgentView):
+@runtime_checkable
+class ProductView(AgentViewProtocol, Protocol):
     """Product as the purchase sees it.
 
     It holds the time it was `shelved` and the time `tau_a` over which it ages.
@@ -198,82 +194,40 @@ class ProductElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         shelved:
             The time at which the product was put on the shelf.
 
         tau_a:
             The time over which the product ages.
 
+        values:
+            Further values by name, such as the `node` of the shop of every member.
+
+        size:
+            The number of members, or `None` for one.
+
+        space:
+            The network whose nodes are the shops, or `None` for none.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import ProductElement
-        >>> GroupElement('products', element=ProductElement, size=4, location=[0, 0, 1, 1]).size
+        >>> ProductElement('products', values={'node': [0, 0, 1, 1]}, size=4).size
         4
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        shelved: Annotated[float, StateSpec()] = 0.0,
-        tau_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        shelved: object = 0.0,
+        tau_a: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        values: Mapping[str, object] | None = None,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values, size=size, space=space)
         self.shelved = shelved
         self.tau_a = tau_a
-
-    @classmethod
-    def _get_view(cls) -> type[ProductView]:
-        """Return the view of a product, with its shelving time and ageing time."""
-        return ProductView
-
-    @staticmethod
-    def restock(product: ProductView, customer: CustomerView, system: SystemView) -> float:
-        """Return the amount `shelved - t` that resets the shelving time of a sold product.
-
-        The shelving time is reset to the time of the sale.
-
-        Args:
-            product:
-                The product sold.
-
-            customer:
-                The customer who buys it.
-
-            system:
-                The system view of the purchase.
-
-        Returns:
-            amount:
-                The amount taken from the shelving time.
-        """
-        return product.shelved - system.time
-
-    @staticmethod
-    def sell(product: ProductView, customer: CustomerView, system: SystemView) -> float:
-        """Return the amount that sets the freshness the customer holds.
-
-        The freshness becomes `exp(-(t - shelved) / tau_a)`.
-
-        Args:
-            product:
-                The product sold.
-
-            customer:
-                The customer who buys it.
-
-            system:
-                The system view of the purchase.
-
-        Returns:
-            amount:
-                The change of the freshness the customer holds.
-        """
-        return float(np.exp(-(system.time - product.shelved) / product.tau_a)) - customer.freshness
 
 
 class PerishableGoodsDuopolySystem(BaseSystem):
@@ -314,9 +268,15 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
-        >>> PerishableGoodsDuopolySystem(20).prepare().system_.elements[0].prepare().size_
+        >>> PerishableGoodsDuopolySystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -324,7 +284,7 @@ class PerishableGoodsDuopolySystem(BaseSystem):
     topics = ('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail')
     references = ('Bertin 2021', 'Bouchaud 2013')
     until = 300
-    observables = (ObservableSpec('m', group='customers', expression=CustomerElement.get_preference),)
+    observables = (Observable('m', group='customers', expression=CustomerElement.get_preference),)
 
     def __init__(
         self,
@@ -336,8 +296,10 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         tau_a: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.customers = customers
         self.stock = stock
         self.T = T
@@ -345,10 +307,30 @@ class PerishableGoodsDuopolySystem(BaseSystem):
         self.tau_a = tau_a
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _buy(customer: CustomerView, system: SystemView) -> None:
+        """Buy a random product of the shop of a customer, which the shop replaces with a fresh one.
+
+        The customer takes the freshness `exp(-(t - shelved) / tau_a)` of the product, and the shelving time of the
+        product is reset to the time of the sale.
+        """
+        groups = set(system.get_groups('products'))
+        products = [other for other in customer.get_agents_here() if other.group in groups]
+        if len(products) > 1:
+            products = [products[int(index)] for index in system.rng.permutation(len(products))[:1]]
+        for product in products:
+            if customer.alive and product.alive and isinstance(product, ProductView):
+                restock = float(product.shelved - system.time)
+                fresh = float(np.exp(-(system.time - product.shelved) / product.tau_a)) - customer.freshness
+                product.shelved -= restock
+                customer.freshness += fresh
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         shelf = max(round(self.stock * self.customers), 1)
+        space = NetworkSpace(nx.empty_graph(N_SHOPS))
         satisfaction = 0.5 + 0.01 * rng.standard_normal((N_SHOPS, self.customers))
         choice = ChoiceInteraction(
             'choice',
@@ -357,7 +339,6 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             options=tuple(float(shop) for shop in range(N_SHOPS)),
             utility=CustomerElement.get_utility,
             schedule='member',
-            form='agent',
             phase=PHASE,
         )
         movement = MovementInteraction(
@@ -367,20 +348,10 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             schedule='member',
             phase=PHASE,
         )
-        purchase = TransferInteraction(
+        purchase = Interaction(
             'purchase',
-            source='products',
-            target='customers',
-            state='shelved',
-            into=Sink(),
-            amount=ProductElement.restock,
-            legs=[(Source(), 'freshness', ProductElement.sell)],
-            pairing='cell',
-            form='agent',
-            schedule='member',
-            actor='target',
-            partners=1,
-            phase=PHASE,
+            roles={'target': 'customers', 'products': 'products'},
+            laws=lambda s: [UpdateLaw(s.target, PerishableGoodsDuopolySystem._buy, phase=PHASE)],
         )
         satisfaction_update = PayoffLearningInteraction(
             'satisfaction',
@@ -390,29 +361,21 @@ class PerishableGoodsDuopolySystem(BaseSystem):
             rate=1 - self.alpha,
             chosen='shop',
             schedule='member',
-            form='agent',
             phase=PHASE,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
-                    'customers',
-                    element=CustomerElement,
-                    size=self.customers,
-                    values={'s1': satisfaction[0], 's2': satisfaction[1], 'T': self.T},
-                ),
-                GroupElement(
+                CustomerElement('customers', s1=satisfaction[0], s2=satisfaction[1], T=self.T, size=self.customers),
+                ProductElement(
                     'products',
-                    element=ProductElement,
+                    tau_a=self.tau_a,
+                    values={'node': np.repeat(np.arange(N_SHOPS), shelf)},
                     size=N_SHOPS * shelf,
-                    values={'tau_a': self.tau_a},
-                    location=np.repeat(np.arange(N_SHOPS), shelf).tolist(),
+                    space=space,
                 ),
             ],
             interactions=[choice, movement, purchase, satisfaction_update],
-            space=NetworkSpace(nx.empty_graph(N_SHOPS)),
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('customers',))]),
-            ),
+            space=space,
+            solver=MesaSolver(phases=[PhaseSpec(PHASE, activation='visits', groups=('customers',))]),
         )

@@ -8,11 +8,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import _read_series
-from .types import Source
+from .types import DataSource
 
 ALTERNATIVES = ('greater', 'less', 'two-sided')
 TAGS = AnalysisTags(DataKind.SERIES)
@@ -22,7 +23,11 @@ TAGS = AnalysisTags(DataKind.SERIES)
 class SurrogateTestResult:
     """A result of `surrogate_test`, a measure tested against surrogates.
 
-    The surrogates shuffle every variable independently.
+    It holds the data, the measure on the data and on every surrogate, where every variable is shuffled on its own, and
+    the p-value, such as 0.05 for three copies of one coin flip tested against 19 surrogates. It reports whether a
+    coupling between brain regions, markets, or climate indices is more than chance.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -36,6 +41,17 @@ class SurrogateTestResult:
 
         p_value:
             The p-value of the data against the surrogates.
+
+    See Also:
+        surrogate_test: Returns this result.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.analysis import bind_analysis, information, surrogate_test
+        >>> bits = np.column_stack([np.random.default_rng(0).integers(0, 2, 500)] * 3)
+        >>> measure = bind_analysis(information, kind='o-information')
+        >>> surrogate_test(bits, analysis=measure, attribute='information', n=19).surrogates.shape
+        (19,)
     """
 
     values: Array
@@ -45,7 +61,7 @@ class SurrogateTestResult:
 
 
 def surrogate_test(
-    source: Source,
+    source: DataSource,
     *,
     analysis: Callable[[Array], object],
     attribute: str,
@@ -56,12 +72,13 @@ def surrogate_test(
 ) -> SurrogateTestResult:
     """Return the test of an analysis of many variables against surrogates.
 
-    The surrogates shuffle every variable independently. The analysis runs on the data and on `n` surrogates, and the
-    field of its result gives the value of each. The p-value is the fraction of surrogates, with the data counted among
-    them, at least as extreme as the data.
+    The surrogates shuffle every variable on its own, which keeps the values of each variable and breaks any link
+    between them. The analysis runs on the data and on `n` surrogates, and the field of its result gives the value of
+    each. The p-value is the fraction of surrogates, with the data counted among them, at least as extreme as the
+    data, such as 0.05 for three copies of one coin flip tested against 19 surrogates. It tests whether a coupling
+    between brain regions, markets, or climate indices is more than chance.
 
-    It appears in many fields. It tests whether a coupling between brain regions, between markets, or between climate
-    indices is more than chance.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
@@ -94,15 +111,17 @@ def surrogate_test(
         AnalysisError:
             The alternative is unknown, the number of surrogates is below 1, or the analysis is not callable.
 
+    See Also:
+        information: Gives the information among series.
+        correlation: Gives the correlation of series, of an ensemble, or of a field.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.analysis import bind_analysis, information, surrogate_test
-        >>> bit = np.random.default_rng(0).integers(0, 2, 500)
+        >>> bits = np.column_stack([np.random.default_rng(0).integers(0, 2, 500)] * 3)
         >>> measure = bind_analysis(information, kind='o-information')
-        >>> data = np.column_stack([bit, bit, bit])
-        >>> test = surrogate_test(data, analysis=measure, attribute='information', n=19, random_state=0)
-        >>> round(test.value, 1), test.p_value
-        (1.0, 0.05)
+        >>> surrogate_test(bits, analysis=measure, attribute='information', n=19, random_state=0).p_value
+        0.05
     """
     if alternative not in ALTERNATIVES:
         error_msg = f'Unknown alternative {alternative!r}. Use one of {", ".join(ALTERNATIVES)}.'

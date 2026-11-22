@@ -5,10 +5,10 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import BaseObserver, simulate
+from skcomplex.core.components.elements import VisualSpec
+from skcomplex.core.engine.runtime import BaseObserver
 from skcomplex.core.engine.viz import BodiesVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import VisualSpec
 from skcomplex.systems.physics.celestial_mechanics import StormerProblemSystem
 from skcomplex.systems.physics.mechanics import CircularBilliardSystem, DoublePendulumSystem
 
@@ -32,7 +32,7 @@ class Logs:
 
 
 def _frames(system, steps, dt):
-    """Return the problem and the frames of a run of a system."""
+    """Return the problem and the frames of a run of a prepared system."""
     frames = []
 
     class KeepObserver(BaseObserver):
@@ -43,7 +43,7 @@ def _frames(system, steps, dt):
             if inputs is not None:
                 frames.append(inputs)
 
-    trajectory = simulate(system, until=steps * dt, dt=dt, observers=[KeepObserver()])
+    trajectory = system.simulate(until=steps * dt, dt=dt, observers=[KeepObserver()])
     return trajectory.problem, frames
 
 
@@ -60,7 +60,7 @@ def _points(archetype, field):
 
 def test_bodies_visual_draws_double_pendulum():
     """Test that bobs, a rod strip from the pivot, a fading trail of the lower bob, and the angles are logged."""
-    problem, frames = _frames(DoublePendulumSystem().prepare().system_, steps=20, dt=0.01)
+    problem, frames = _frames(DoublePendulumSystem().prepare(), steps=20, dt=0.01)
     logs = Logs()
     visual = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1], path=problem.elements[0].path, recording=logs)
     visual.prepare(problem)
@@ -85,7 +85,7 @@ def test_bodies_visual_draws_double_pendulum():
 
 def test_bodies_visual_logs_outline_once():
     """Test that the outline of a billiard table is logged once as a static line strip."""
-    problem, frames = _frames(CircularBilliardSystem().prepare().system_, steps=3, dt=0.05)
+    problem, frames = _frames(CircularBilliardSystem().prepare(), steps=3, dt=0.05)
     circle = np.column_stack([np.cos(np.linspace(0, 2 * np.pi, 50)), np.sin(np.linspace(0, 2 * np.pi, 50))])
     logs = Logs()
     visual = BodiesVisual(('x', 'y'), outline=[circle], path=problem.elements[0].path, recording=logs).prepare(problem)
@@ -97,14 +97,14 @@ def test_bodies_visual_logs_outline_once():
 
 def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
-    problem = simulate(DoublePendulumSystem().prepare().system_, until=0.0).problem
+    problem = DoublePendulumSystem().prepare().simulate(until=0.0).problem
     views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path).prepare(problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
 def test_bodies_visual_is_registered():
     """Test that a Rerun observer draws an element whose visual spec names `bodies` with the bodies visual."""
-    problem = simulate(CircularBilliardSystem().prepare().system_, until=0).problem
+    problem = CircularBilliardSystem().prepare().simulate(until=0).problem
     element = replace(problem.elements[0], visual=VisualSpec('bodies', {'positions': ('x', 'y')}))
     problem = replace(problem, elements=(element, *problem.elements[1:]))
     assert isinstance(RerunObserver().prepare(problem).visuals_[0], BodiesVisual)
@@ -112,7 +112,7 @@ def test_bodies_visual_is_registered():
 
 def test_bodies_visual_rejects_positions_of_wrong_shape():
     """Test that positions that are not pairs of coordinates raise a named error."""
-    problem, frames = _frames(CircularBilliardSystem().prepare().system_, steps=1, dt=0.05)
+    problem, frames = _frames(CircularBilliardSystem().prepare(), steps=1, dt=0.05)
     visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]), path=problem.elements[0].path, recording=Logs())
     with pytest.raises(ValidationError, match='pairs of coordinates'):
         visual.prepare(problem).run(frames[0])
@@ -120,7 +120,7 @@ def test_bodies_visual_rejects_positions_of_wrong_shape():
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
-    problem, frames = _frames(StormerProblemSystem().prepare().system_, steps=5, dt=0.02)
+    problem, frames = _frames(StormerProblemSystem().prepare(), steps=5, dt=0.02)
     logs = Logs()
     visual = BodiesVisual(('x', 'y', 'z'), path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:

@@ -13,8 +13,9 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.types import Role
 
 
 class TumourImmuneChemotherapyElement(Element):
@@ -30,9 +31,6 @@ class TumourImmuneChemotherapyElement(Element):
     Args:
         label:
             The label of the patient.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         E:
             The initial immune cells.
@@ -103,36 +101,33 @@ class TumourImmuneChemotherapyElement(Element):
         1.0
     """
 
-    law_classes = (RateLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.33,
-        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        E: Annotated[float, RealSet.closed_open(0, oo)] = 0.15,
+        A: Annotated[float, RealSet.closed_open(0, oo)] = 0.25,
+        N: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        U: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        s: Annotated[float, RealSet.closed_open(0, oo)] = 0.33,
+        rho: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        alpha: Annotated[float, RealSet.open(0, oo)] = 0.3,
+        c1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        c2: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        c3: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        c4: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        d1: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        r1: Annotated[float, RealSet.closed_open(0, oo)] = 1.5,
+        r2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b1: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        b2: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        a1: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        a2: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
+        a3: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        k: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        u: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.E = E
         self.A = A
         self.N = N
@@ -155,20 +150,43 @@ class TumourImmuneChemotherapyElement(Element):
         self.k = k
         self.u = u
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of the immune, tumour, and normal cells and of the drug.
+
+class TumourImmuneChemotherapyInteraction(Interaction):
+    """The balances of the immune, tumour, and normal cells and of the drug.
+
+    The laws read the values of the target, a `TumourImmuneChemotherapyElement`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element whose values the laws change.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import TumourImmuneChemotherapyInteraction
+        >>> TumourImmuneChemotherapyInteraction('tumour_immune_chemotherapy', target='target').target
+        'target'
+    """
+
+    law_classes = (RateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the balances of the immune, tumour, and normal cells and of the drug.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target.
         """
+        super()._prepare(context)
+        s = context.target
         E, A, N, U = s.E, s.A, s.N, s.U
         kill = 1 - exp(-U)
-        return [
+        self.laws_: list[BaseLaw] = [
             RateLaw(E, s.s + s.rho * E * A / (s.alpha + A) - s.d1 * E - s.c1 * E * A - s.a1 * kill * E),
             RateLaw(A, s.r1 * A * (1 - s.b1 * A) - s.c2 * E * A - s.c3 * N * A - s.a2 * kill * A),
             RateLaw(N, s.r2 * N * (1 - s.b2 * N) - s.c4 * N * A - s.a3 * kill * N),

@@ -4,12 +4,7 @@ The systems are compartmental, network, metapopulation, and agent-based.
 """
 
 from ..common.networks import HostElement, SpreadingInteraction
-from ._adaptive import (
-    ActiveHostElement,
-    ActivityDrivenEpidemicsSystem,
-    AdaptiveSISSystem,
-    QuenchedMeanFieldSISSystem,
-)
+from ._adaptive import ActiveHostElement, ActivityDrivenEpidemicsSystem, AdaptiveSISSystem, QuenchedMeanFieldSISSystem
 from ._agents import (
     AgentBasedSIRSystem,
     NetworkSIRSystem,
@@ -19,7 +14,12 @@ from ._agents import (
     WalkerElement,
 )
 from ._cities import ColocationInteraction, CommuterElement, EpisimsCitySystem
-from ._concurrency import PairFormationSISSystem, PartnershipEpidemicElement, WattsMayConcurrencySystem
+from ._concurrency import (
+    PairFormationSISSystem,
+    PartnershipEpidemicElement,
+    PartnershipInfectionInteraction,
+    WattsMayConcurrencySystem,
+)
 from ._differentiable_covid import (
     CaseCountElement,
     CaseCountInteraction,
@@ -38,7 +38,13 @@ from ._factories import (
 )
 from ._networks import DegreeClassElement, HeterogeneousMeanFieldSISSystem, MetapopulationSystem
 from ._outbreaks import HeterogeneousMeanFieldSIRSystem, ImmunizingDegreeClassElement
-from ._records import PathogenElement, RecordDynamicsEpidemicSystem, ResidentElement, ResistanceInfectionInteraction
+from ._records import (
+    PathogenElement,
+    RecordDynamicsEpidemicSystem,
+    ResidentElement,
+    ResistanceInfectionInteraction,
+    StrainDrawInteraction,
+)
 from ._recurrent import DelayedSIRSSystem, EpidemicCenterElement
 from ._vaccination import SIRVaccinationSystem
 
@@ -68,6 +74,7 @@ __all__: list[str] = [
     'NetworkSIRSystem',
     'PairFormationSISSystem',
     'PartnershipEpidemicElement',
+    'PartnershipInfectionInteraction',
     'PathogenElement',
     'PersonElement',
     'QuenchedMeanFieldSISSystem',
@@ -81,6 +88,7 @@ __all__: list[str] = [
     'SIRVaccinationSystem',
     'SISSystem',
     'SpreadingInteraction',
+    'StrainDrawInteraction',
     'TravellerElement',
     'WalkerElement',
     'WattsMayConcurrencySystem',

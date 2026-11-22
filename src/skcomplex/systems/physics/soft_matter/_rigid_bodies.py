@@ -9,65 +9,107 @@ vector along the axis.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, cos, oo, pi, sin, sqrt, vector
+from sage.all__sagemath_symbolics import SR, cos, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
+from ....core.components import Observable
+from ....core.components.elements import Element, Period
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, EulerMaruyamaSolver
 from ....core.errors import ParameterError
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 AXES = ('x', 'y', 'z')
 DIRECTIONS = ('ux', 'uy', 'uz')
 
 
 class AnisotropicParticleElement(Element):
-    """Axisymmetric Brownian particle in three dimensions.
+    """Axisymmetric particles in three dimensions, with a position, a unit axis, and a spin about the axis.
 
-    Its diffusion tensor turns with its axis.
+    Args:
+        label:
+            The label of the particles.
+
+        x:
+            The initial first coordinate, one per particle or shared.
+
+        y:
+            The initial second coordinate, one per particle or shared.
+
+        z:
+            The initial third coordinate, one per particle or shared.
+
+        ux:
+            The initial first component of the axis, one per particle or shared.
+
+        uy:
+            The initial second component of the axis, one per particle or shared.
+
+        uz:
+            The initial third component of the axis, one per particle or shared.
+
+        psi:
+            The initial spin angle about the axis, one per particle or shared.
+
+        size:
+            The number of particles, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import AnisotropicParticleElement
+        >>> AnisotropicParticleElement('janus').uz
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        x: object = 0.0,
+        y: object = 0.0,
+        z: object = 0.0,
+        ux: object = 0.0,
+        uy: object = 0.0,
+        uz: object = 1.0,
+        psi: object = 0.0,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.ux = ux
+        self.uy = uy
+        self.uz = uz
+        self.psi = psi
+
+
+class AnisotropicDiffusionInteraction(Interaction):
+    """Diffusion of axisymmetric particles whose diffusion tensor turns with their axis.
 
     The position `r = (x, y, z)` diffuses with `D_par` along the unit axis `u = (ux, uy, uz)` and with `D_perp` across
     it, `dr = (sqrt(2 D_par) u u + sqrt(2 D_perp) (I - u u)) dW`. The axis diffuses on the unit sphere,
     `du = -2 D_r u dt + sqrt(2 D_r) (I - u u) dW_r` in the Itô form, and a boundary rescales it to unit length after
     every step against the drift of the discrete steps. The spin `psi` about the axis diffuses with `D_spin`, and its
     noise is correlated with the displacement along the axis through the coupling `D_c` of a chiral body, so that
-    `<dr_par dpsi> = 2 D_c dt`, which needs `D_c² <= D_par D_spin`.
+    `<dr_par dpsi> = 2 D_c dt`, which needs `D_c² <= D_par D_spin`. It is a Janus colloid, an ellipsoid, or a
+    bacterium shaped as a spiral.
 
     Args:
         label:
-            The label of the particle or the group.
+            The label of the interaction.
 
-        visual:
-            How the particle is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial first coordinate.
-
-        y:
-            The initial second coordinate.
-
-        z:
-            The initial third coordinate.
-
-        ux:
-            The initial first component of the axis.
-
-        uy:
-            The initial second component of the axis.
-
-        uz:
-            The initial third component of the axis.
-
-        psi:
-            The initial spin angle about the axis.
+        target:
+            The path of the particles.
 
         D_par:
             The translational diffusion coefficient along the axis.
@@ -84,115 +126,125 @@ class AnisotropicParticleElement(Element):
         D_c:
             The coupling of the translation along the axis and the rotation about it.
 
-    Attributes:
-        default_visual_:
-            The visual of the particle when it sets none.
-
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import AnisotropicParticleElement
-        >>> AnisotropicParticleElement('janus').uz
-        1.0
+        >>> from skcomplex.systems.physics.soft_matter import AnisotropicDiffusionInteraction
+        >>> AnisotropicDiffusionInteraction('diffusion', target='particles', D_perp=0.5).D_perp
+        0.5
     """
 
-    law_classes = (
-        BoundaryLaw,
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (UpdateLaw, NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        y: Annotated[float, StateSpec()] = 0.0,
-        z: Annotated[float, StateSpec()] = 0.0,
-        ux: Annotated[float, StateSpec()] = 0.0,
-        uy: Annotated[float, StateSpec()] = 0.0,
-        uz: Annotated[float, StateSpec()] = 1.0,
-        psi: Annotated[float, StateSpec()] = 0.0,
-        D_par: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D_perp: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
-        D_spin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
-        D_c: Annotated[float, ParameterSpec()] = 0.0,
+        target: Role,
+        D_par: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        D_perp: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        D_r: Annotated[float, RealSet.closed_open(0, oo)] = 0.75,
+        D_spin: Annotated[float, RealSet.closed_open(0, oo)] = 0.75,
+        D_c: float = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.ux = ux
-        self.uy = uy
-        self.uz = uz
-        self.psi = psi
+        super().__init__(label)
+        self.target = target
         self.D_par = D_par
         self.D_perp = D_perp
         self.D_r = D_r
         self.D_spin = D_spin
         self.D_c = D_c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the translation and the rotation with their correlated noises.
-
-        The laws also hold the boundary of the axis.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the translation and the rotation with their correlated noises, and the boundary of the axis.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        axis = [getattr(s, name) for name in DIRECTIONS]
-        position = [getattr(s, name) for name in AXES]
+        super()._prepare(context)
+        s, t = context, context.t
+        axis = [getattr(s.target, name) for name in DIRECTIONS]
+        position = [getattr(s.target, name) for name in AXES]
         length = sqrt(sum(component**2 for component in axis))
         laws: list[BaseLaw] = []
         for i, (coordinate, component) in enumerate(zip(position, axis, strict=True)):
-            laws.append(RateLaw(component, -2 * s.D_r * component))
+            laws.append(RateLaw(component.diff(t), -2 * s.D_r * component))
             for j, other in enumerate(axis):
                 projector = (1 if i == j else 0) - component * other
                 laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f'translation_{j}'))
                 laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f'translation_{j}'))
                 laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f'rotation_{j}'))
-            laws.append(BoundaryLaw(component, component / length))
+            laws.append(UpdateLaw(component, component / length))
         coupling = s.D_c / sqrt(s.D_par)
         for j, other in enumerate(axis):
-            laws.append(NoiseLaw(s.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))
-        laws.append(NoiseLaw(s.psi, sqrt(2 * (s.D_spin - coupling**2)), process='spin'))
-        return laws
+            laws.append(NoiseLaw(s.target.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))
+        laws.append(NoiseLaw(s.target.psi, sqrt(2 * (s.D_spin - coupling**2)), process='spin'))
+        self.laws_ = laws
 
 
 class DimerElement(Element):
-    """Two Brownian or active spheres joined by a rigid rod.
+    """Dimers of two spheres joined by a rigid rod, described by the centre `c` and the angle `phi` of the rod.
 
-    The dimer is described by the centre and the angle of the rod.
+    The spheres have the orientations `theta1` and `theta2`, along which active spheres swim, and which wrap around the
+    circle.
+
+    Args:
+        label:
+            The label of the dimers.
+
+        c:
+            The initial centre, one row per dimer or shared.
+
+        phi:
+            The initial angle of the rod, one per dimer or shared.
+
+        theta1:
+            The initial orientation of the first sphere, one per dimer or shared.
+
+        theta2:
+            The initial orientation of the second sphere, one per dimer or shared.
+
+        size:
+            The number of dimers, or `None` for one.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import DimerElement
+        >>> DimerElement('molecule', phi=1.0).phi
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        c: object = (0.0, 0.0),
+        phi: object = 0.0,
+        theta1: Annotated[object, Period(2 * math.pi)] = 0.0,
+        theta2: Annotated[object, Period(2 * math.pi)] = 0.0,
+        size: int | None = None,
+    ) -> None:
+        super().__init__(label, size=size)
+        self.c = c
+        self.phi = phi
+        self.theta1 = theta1
+        self.theta2 = theta2
+
+
+class RigidRodInteraction(Interaction):
+    """Motion of two Brownian or active spheres joined by a rigid rod of length `L`.
 
     Each sphere diffuses with `D_t` and swims at the speed `v0` along its own orientation, `theta1` or `theta2`, which
     diffuse with `D_r`, and the rod keeps them at the distance `L`. Moving both spheres freely and then restoring
     their distance moves the centre `c` by the mean of their displacements and turns the rod by the part of their
     relative displacement across it, so in the limit of small steps `dc = v0 (n1 + n2) / 2 dt + sqrt(D_t) dW` and
-    `dphi = v0 (n1 - n2) . e / L dt + 2 sqrt(D_t) / L dW`, with `e = (-sin phi, cos phi)` across the rod.
+    `dphi = v0 (n1 - n2) . e / L dt + 2 sqrt(D_t) / L dW`, with `e = (-sin phi, cos phi)` across the rod. It is a
+    colloidal molecule, or a pair of swimming bacteria stuck together.
 
     Args:
         label:
-            The label of the dimer or the group.
+            The label of the interaction.
 
-        visual:
-            How the dimer is drawn, or `None` for `default_visual_`.
-
-        c:
-            The initial centre.
-
-        phi:
-            The initial angle of the rod.
-
-        theta1:
-            The initial orientation of the first sphere.
-
-        theta2:
-            The initial orientation of the second sphere.
+        target:
+            The path of the dimers.
 
         L:
             The length of the rod.
@@ -206,68 +258,51 @@ class DimerElement(Element):
         D_r:
             The rotational diffusion coefficient of the orientation of each sphere.
 
-    Attributes:
-        default_visual_:
-            The visual of the dimer when it sets none.
-
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import DimerElement
-        >>> DimerElement('molecule').L
-        1.0
+        >>> from skcomplex.systems.physics.soft_matter import RigidRodInteraction
+        >>> RigidRodInteraction('rod', target='dimers', L=2.0).L
+        2.0
     """
 
-    law_classes = (
-        NoiseLaw,
-        RateLaw,
-    )
+    law_classes = (NoiseLaw, RateLaw)
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        c: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
-        phi: Annotated[float, StateSpec(role='direction')] = 0.0,
-        theta1: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        theta2: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Role,
+        L: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        v0: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        D_t: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        D_r: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.c = c
-        self.phi = phi
-        self.theta1 = theta1
-        self.theta2 = theta2
+        super().__init__(label)
+        self.target = target
         self.L = L
         self.v0 = v0
         self.D_t = D_t
         self.D_r = D_r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the motion of the centre, the turning of the rod, and the diffusion.
-
-        The diffusion is that of the orientations.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the motion of the centre, the turning of the rod, and the diffusion of the orientations.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        first = vector(SR, [cos(s.theta1), sin(s.theta1)])
-        second = vector(SR, [cos(s.theta2), sin(s.theta2)])
-        across = vector(SR, [-sin(s.phi), cos(s.phi)])
-        return [
-            RateLaw(s.c, s.v0 * (first + second) / 2),
-            NoiseLaw(s.c, sqrt(s.D_t)),
-            RateLaw(s.phi, s.v0 * (first - second).dot_product(across) / s.L),
-            NoiseLaw(s.phi, 2 * sqrt(s.D_t) / s.L),
-            NoiseLaw(s.theta1, sqrt(2 * s.D_r)),
-            NoiseLaw(s.theta2, sqrt(2 * s.D_r)),
+        super()._prepare(context)
+        s, t = context, context.t
+        c, phi, theta1, theta2 = s.target.c, s.target.phi, s.target.theta1, s.target.theta2
+        first = vector(SR, [cos(theta1), sin(theta1)])
+        second = vector(SR, [cos(theta2), sin(theta2)])
+        across = vector(SR, [-sin(phi), cos(phi)])
+        self.laws_ = [
+            RateLaw(c, s.v0 * (first + second) / 2),
+            NoiseLaw(c, sqrt(s.D_t)),
+            RateLaw(phi.diff(t), s.v0 * (first - second).dot_product(across) / s.L),
+            NoiseLaw(phi, 2 * sqrt(s.D_t) / s.L),
+            NoiseLaw(theta1, sqrt(2 * s.D_r)),
+            NoiseLaw(theta2, sqrt(2 * s.D_r)),
         ]
 
 
@@ -312,13 +347,19 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Raises:
         ParameterError:
             The coupling exceeds `sqrt(D_par D_spin)`.
 
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import AnisotropicBrownianParticlesSystem
-        >>> AnisotropicBrownianParticlesSystem(5, D_par=1.5, D_perp=0.8).prepare().system_.elements[0].values['D_perp']
+        >>> AnisotropicBrownianParticlesSystem(5, D_par=1.5, D_perp=0.8).prepare().system_.interactions[0].D_perp
         0.8
     """
 
@@ -327,7 +368,6 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
     references = ('Perrin 1934', 'Han et al. 2006', 'Argun et al. 2021')
     until = 10.0
     dt = 0.05
-    solver = EulerMaruyamaSolver(dt=0.001)
 
     def __init__(
         self,
@@ -340,8 +380,10 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         D_c: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_particles = n_particles
         self.D_par = D_par
         self.D_perp = D_perp
@@ -350,11 +392,18 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
         self.D_c = D_c
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return overdamped axisymmetric Brownian particles in three dimensions.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of overdamped axisymmetric Brownian particles in three dimensions.
 
-        The particles translate and rotate.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ParameterError:
+                The coupling exceeds `sqrt(D_par D_spin)`.
         """
+        super()._prepare(context)
         if self.D_c**2 > self.D_par * self.D_spin:
             error_msg = (
                 f'The coupling {self.D_c!r} exceeds sqrt(D_par D_spin), so the diffusion tensor is not positive.'
@@ -362,18 +411,28 @@ class AnisotropicBrownianParticlesSystem(BaseSystem):
             raise ParameterError(error_msg)
         axes = np.random.default_rng(self.random_state).normal(size=(self.n_particles, 3))
         axes /= np.linalg.norm(axes, axis=1, keepdims=True)
-        values = {
-            'ux': axes[:, 0],
-            'uy': axes[:, 1],
-            'uz': axes[:, 2],
-            'D_par': self.D_par,
-            'D_perp': self.D_perp,
-            'D_r': self.D_r,
-            'D_spin': self.D_spin,
-            'D_c': self.D_c,
-        }
-        particles = GroupElement('particles', element=AnisotropicParticleElement, size=self.n_particles, values=values)
-        return CompositeSystem(self.label, elements=[particles])
+        particles = AnisotropicParticleElement(
+            'particles',
+            ux=axes[:, 0],
+            uy=axes[:, 1],
+            uz=axes[:, 2],
+            size=self.n_particles,
+        )
+        diffusion = AnisotropicDiffusionInteraction(
+            'diffusion',
+            target='particles',
+            D_par=self.D_par,
+            D_perp=self.D_perp,
+            D_r=self.D_r,
+            D_spin=self.D_spin,
+            D_c=self.D_c,
+        )
+        self.system_ = System(
+            self.label,
+            elements=[particles],
+            interactions=[diffusion],
+            solver=EulerMaruyamaSolver(dt=0.001),
+        )
 
 
 class RigidDimersSystem(BaseSystem):
@@ -413,9 +472,15 @@ class RigidDimersSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.soft_matter import RigidDimersSystem
-        >>> RigidDimersSystem(5, L=2.0).prepare().system_.elements[0].values['L']
+        >>> RigidDimersSystem(5, L=2.0).prepare().system_.interactions[0].L
         2.0
     """
 
@@ -424,7 +489,6 @@ class RigidDimersSystem(BaseSystem):
     references = ('Argun et al. 2021',)
     until = 20.0
     dt = 0.1
-    solver = EulerMaruyamaSolver(dt=0.005)
 
     def __init__(
         self,
@@ -436,8 +500,10 @@ class RigidDimersSystem(BaseSystem):
         D_r: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_dimers = n_dimers
         self.L = L
         self.v0 = v0
@@ -445,22 +511,29 @@ class RigidDimersSystem(BaseSystem):
         self.D_r = D_r
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return colloidal molecules.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of pairs of Brownian or active spheres joined by rigid rods.
 
-        Pairs of Brownian or active spheres are joined by rigid rods, free in the plane.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         angles = rng.uniform(0.0, 2 * np.pi, (3, self.n_dimers))
-        values = {
-            'c': np.zeros((self.n_dimers, 2)),
-            'phi': angles[0],
-            'theta1': angles[1],
-            'theta2': angles[2],
-            'L': self.L,
-            'v0': self.v0,
-            'D_t': self.D_t,
-            'D_r': self.D_r,
-        }
-        dimers = GroupElement('dimers', element=DimerElement, size=self.n_dimers, values=values)
-        return CompositeSystem(self.label, elements=[dimers], space=ContinuousSpace(n_dim=2))
+        dimers = DimerElement(
+            'dimers',
+            c=np.zeros((self.n_dimers, 2)),
+            phi=angles[0],
+            theta1=angles[1],
+            theta2=angles[2],
+            size=self.n_dimers,
+        )
+        rod = RigidRodInteraction('rod', target='dimers', L=self.L, v0=self.v0, D_t=self.D_t, D_r=self.D_r)
+        self.system_ = System(
+            self.label,
+            elements=[dimers],
+            interactions=[rod],
+            space=ContinuousSpace(n_dim=2),
+            solver=EulerMaruyamaSolver(dt=0.005),
+        )

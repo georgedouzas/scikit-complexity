@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import neighbors
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.segregation import SchellingSystem
 
@@ -24,7 +23,7 @@ SIDE, STEPS = 50, 50
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 system = SchellingSystem(width=SIDE, height=SIDE, minority=0.5, threshold=0.4, random_state=0)
-trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Mild preferences, strong segregation
@@ -48,7 +47,7 @@ thresholds = np.linspace(0.1, 0.8, 8)
 finals = []
 for threshold in thresholds:
     system = SchellingSystem(width=SIDE, height=SIDE, minority=0.5, threshold=threshold, random_state=0)
-    trajectory = simulate(system, until=STEPS, random_state=0)
+    trajectory = system.prepare().simulate(until=STEPS, random_state=0)
     finals.append(like_share(trajectory, STEPS))
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, [like_share(trajectory, frame) for frame in range(STEPS + 1)])
@@ -77,7 +76,7 @@ choices = [1, 2, 4, 8, 16]
 sorted_shares = []
 for count in choices:
     system = SchellingSystem(width=SIDE, height=SIDE, minority=0.5, choices=count, random_state=0)
-    trajectory = simulate(system, until=STEPS, random_state=0)
+    trajectory = system.prepare().simulate(until=STEPS, random_state=0)
     sorted_shares.append(like_share(trajectory, STEPS))
 fig, axis = plt.subplots(figsize=(5, 4))
 axis.plot(choices, sorted_shares, 'o-')

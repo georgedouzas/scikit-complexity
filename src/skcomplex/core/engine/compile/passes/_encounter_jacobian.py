@@ -1,4 +1,4 @@
-"""Pass that drops the exact Jacobian of a problem with encounter laws."""
+"""Drop the exact Jacobian of a problem with encounter laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +9,19 @@ from .._base import BasePass
 class EncounterJacobianPass(BasePass):
     """A pass that drops the exact Jacobian of a problem with encounter laws.
 
-    It does not derive their rates.
+    The pass derives no Jacobian of the rates of encounters, so a solver of such a problem estimates it if it needs one.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        JacobianPass: Derives the Jacobian of other problems.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> compilation = PassCompiler().prepare(KineticOpinionSystem()).run().compilation_
+        >>> compilation.jacobian is None
+        True
     """
 
     def _get_reads(self) -> tuple[str, ...]:

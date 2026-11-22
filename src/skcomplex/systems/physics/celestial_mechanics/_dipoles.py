@@ -7,22 +7,24 @@ The module holds a charge in the magnetic dipole field of a planet.
 # License: MIT
 
 
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, sqrt
 
-from ....core.components.elements import Element
-from ....core.components.interactions import EulerLagrangeInteraction
-from ....core.components.laws.utils import derivative
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
+from ..common.mechanics import LagrangianInteraction
 
 
 class DipoleChargeElement(Element):
     """Charge in the magnetic dipole field of a planet.
 
-    The charge is at the position `(x, y, z)` with coordinates of order 2.
+    The charge is at the position `(x, y, z)`, and its velocities are `x'`, `y'`, and `z'`.
 
     The parameter `alpha` is the product of the charge and the dipole moment, divided by the mass.
 
@@ -30,29 +32,20 @@ class DipoleChargeElement(Element):
         label:
             The label of the charge.
 
-        visual:
-            How the charge is drawn, or `None` for its class visual.
-
         x:
             The initial first coordinate.
-
-        x_d1:
-            The initial first velocity.
 
         y:
             The initial second coordinate.
 
-        y_d1:
-            The initial second velocity.
-
         z:
             The initial third coordinate, along the dipole.
 
-        z_d1:
-            The initial third velocity.
-
         alpha:
             The product of the charge and the dipole moment, divided by the mass.
+
+        values:
+            Further values by name, such as initial velocities named with a prime, or `None`.
 
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import DipoleChargeElement
@@ -65,24 +58,75 @@ class DipoleChargeElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(order=2)] = 1.0,
-        x_d1: float = 0.0,
-        y: Annotated[float, StateSpec(order=2)] = 0.0,
-        y_d1: float = 0.0,
-        z: Annotated[float, StateSpec(order=2)] = 0.0,
-        z_d1: float = 0.0,
-        alpha: Annotated[float, ParameterSpec()] = 1.0,
+        x: float = 1.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        alpha: float = 1.0,
+        values: Mapping[str, object] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, values=values)
         self.x = x
-        self.x_d1 = x_d1
         self.y = y
-        self.y_d1 = y_d1
         self.z = z
-        self.z_d1 = z_d1
         self.alpha = alpha
+
+
+class DipoleLorentzInteraction(LagrangianInteraction):
+    """Motion of a charge in the magnetic dipole field of a planet.
+
+    The motion is the Euler-Lagrange equations of `|x'|² / 2 + alpha (x y' - y x') / r³`, the kinetic energy and the
+    coupling of the velocity to the vector potential of a dipole along the `z` axis, with the value `alpha` of the
+    target. It is a proton trapped in the radiation belts, a cosmic ray deflected by the Earth, or an electron in a
+    magnetic bottle.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the charge.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import DipoleLorentzInteraction
+        >>> DipoleLorentzInteraction('lorentz', target='charge').target
+        'charge'
+    """
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _get_coordinates(self, context: SimpleNamespace) -> list[Expression]:
+        """Return the coordinates of the charge."""
+        return [context.target.x, context.target.y, context.target.z]
+
+    def _get_lagrangian(
+        self,
+        context: SimpleNamespace,
+        positions: list[Expression],
+        velocities: list[Expression],
+    ) -> Expression:
+        """Return the Lagrangian `|x'|² / 2 + alpha (x y' - y x') / r³` of the charge.
+
+        Args:
+            context:
+                The namespace of the charge and the time `t`.
+
+            positions:
+                The symbols of the coordinates.
+
+            velocities:
+                The symbols of the velocities.
+
+        Returns:
+            lagrangian:
+                The Lagrangian.
+        """
+        x, y, z = positions
+        radius = sqrt(x**2 + y**2 + z**2)
+        kinetic = sum(item**2 for item in velocities) / 2
+        return kinetic + context.target.alpha * (x * velocities[1] - y * velocities[0]) / radius**3
 
 
 class StormerProblemSystem(BaseSystem):
@@ -96,7 +140,7 @@ class StormerProblemSystem(BaseSystem):
     y' x) / r⁵`, with `alpha = q M / m` for a dipole of moment `M` along the `z` axis. The magnetic force does no work,
     so the speed is conserved, and the symmetry about the axis conserves `x y' - y x' + alpha (x² + y²) / r³`. Bounded
     orbits near the planet trace the radiation belts, and many of them are chaotic. The system has the coordinates
-    `charge.x`, `charge.y`, and `charge.z`, all of order 2.
+    `charge.x`, `charge.y`, and `charge.z`, and the velocities `charge.x'`, `charge.y'`, and `charge.z'`.
 
     Args:
         x:
@@ -123,6 +167,12 @@ class StormerProblemSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.celestial_mechanics import StormerProblemSystem
         >>> StormerProblemSystem(alpha=2.0).prepare().system_.elements[0].alpha
@@ -146,8 +196,10 @@ class StormerProblemSystem(BaseSystem):
         vz: float = 0.1,
         alpha: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.x = x
         self.y = y
         self.z = z
@@ -156,43 +208,24 @@ class StormerProblemSystem(BaseSystem):
         self.vz = vz
         self.alpha = alpha
 
-    @staticmethod
-    def _get_dipole_lagrangian(s: SimpleNamespace) -> Expression:
-        """Return the Lagrangian of a charge in a magnetic dipole field.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of a charged particle moving in the magnetic dipole field of a planet.
 
-        The Lagrangian is `|x'|² / 2 + alpha (x y' - y x') / r³`.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        charge = s.target
-        velocity = [derivative(item, 1) for item in (charge.x, charge.y, charge.z)]
-        radius = sqrt(charge.x**2 + charge.y**2 + charge.z**2)
-        kinetic = sum(item**2 for item in velocity) / 2
-        return kinetic + charge.alpha * (charge.x * velocity[1] - charge.y * velocity[0]) / radius**3
-
-    def _build_system(self) -> CompositeSystem:
-        """Return a charged particle moving in the magnetic dipole field of a planet.
-
-        This is the Störmer problem.
-        """
-        return CompositeSystem(
+        super()._prepare(context)
+        charge = DipoleChargeElement(
+            'charge',
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            alpha=self.alpha,
+            values={"x'": self.vx, "y'": self.vy, "z'": self.vz},
+        )
+        self.system_ = System(
             self.label,
-            elements=[
-                DipoleChargeElement(
-                    'charge',
-                    x=self.x,
-                    y=self.y,
-                    z=self.z,
-                    x_d1=self.vx,
-                    y_d1=self.vy,
-                    z_d1=self.vz,
-                    alpha=self.alpha,
-                ),
-            ],
-            interactions=[
-                EulerLagrangeInteraction(
-                    'lorentz',
-                    target='charge',
-                    states=('x', 'y', 'z'),
-                    lagrangian=self._get_dipole_lagrangian,
-                ),
-            ],
+            elements=[charge],
+            interactions=[DipoleLorentzInteraction('lorentz', target='charge')],
         )

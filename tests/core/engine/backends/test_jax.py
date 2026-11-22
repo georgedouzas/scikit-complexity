@@ -1,23 +1,21 @@
 """Test the `_jax` module of `skcomplex.core.engine.backends`."""
 
-from typing import Annotated
+import warnings
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
 from skcomplex.core.engine.backends import JaxBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
-from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import BackendError, SolverError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec
-from skcomplex.core.types import FormKind
+from skcomplex.core.enums import FormKind
+from skcomplex.core.errors import BackendError, SolverError, ValidationError, ValidationWarning
+from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
@@ -28,7 +26,7 @@ KEY = jax.random.PRNGKey(0)
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
-    trajectory = simulate(system, until=until, backend=backend, random_state=0)
+    trajectory = system.set_params(backend=backend).prepare().simulate(until, random_state=0)
     return np.array([trajectory.get_values(name)[-1] for name in trajectory.names])
 
 
@@ -44,7 +42,7 @@ def test_jax_weights_of_a_shaped_parameter(reduce):
     """Test that a reduction weighted by a matrix parameter gives every reading member its row times the members."""
     weights = np.random.default_rng(0).normal(size=(4, 2))
     inputs = np.array([1.5, -0.5])
-    problem = PassCompiler(backend=JaxBackend()).prepare(_weighted(weights, inputs, reduce=reduce)).run().problem_
+    problem = _weighted(weights, inputs, reduce=reduce).set_params(backend=JaxBackend()).prepare()._problem
     rate = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = weights @ inputs / (len(inputs) if reduce == 'mean' else 1)
     np.testing.assert_allclose(problem.states.read(rate, 'hidden.x'), expected, atol=1e-12)
@@ -53,43 +51,32 @@ def test_jax_weights_of_a_shaped_parameter(reduce):
 def test_jax_rejects_noise():
     """Test that stochastic differential equations, which the JAX backend does not write, raise an error."""
     with pytest.raises(SolverError, match='noise-unsupported'):
-        PassCompiler(backend=JaxBackend()).prepare(_correlated(None)).run()
+        _correlated(None).set_params(backend=JaxBackend()).prepare()
 
 
 def test_jax_rejects_a_callable_law():
     """Test that a law given as a Python callable, which has no JAX form, raises an error."""
-    system = CompositeSystem(
+    system = System(
         elements=[HoldingElement('a', n=1.0)],
         interactions=[CallableGrowthInteraction('g', target='a')],
+        backend=JaxBackend(),
     )
     with pytest.raises(BackendError, match='Python function'):
-        PassCompiler(backend=JaxBackend()).prepare(system).run()
+        system.prepare()
 
 
 def _relaxed_run(size, temperature=None, hard=False, kind='bernoulli', key=KEY):
     """Return the JAX run of a group whose members draw a relaxed value, and the probability of 1."""
 
-    class DrawnElement(Element):
-        """Element whose state is a relaxed draw of a probability."""
+    def laws(s):
+        """Return the update of every member to a relaxed draw of its probability."""
+        b, p = s.target.b, s.target.p
+        if kind == 'bernoulli':
+            return [UpdateLaw(b, bernoulli('b', p, temperature=temperature, hard=hard))]
+        return [UpdateLaw(b, categorical('b', [1 - p, p], temperature=temperature, hard=hard))]
 
-        def __init__(
-            self,
-            label: str,
-            *,
-            b: Annotated[float, StateSpec()] = 0.0,
-            p: Annotated[float, ParameterSpec()] = 0.3,
-        ) -> None:
-            super().__init__(label)
-            self.b = b
-            self.p = p
-
-        def _get_laws(self, s):
-            """Return the drawn update."""
-            if kind == 'bernoulli':
-                return [UpdateLaw(s.b, bernoulli('b', s.p, temperature=temperature, hard=hard))]
-            return [UpdateLaw(s.b, categorical('b', [1 - s.p, s.p], temperature=temperature, hard=hard))]
-
-    system = CompositeSystem(elements=[GroupElement('g', element=DrawnElement, size=size)], time=DiscreteTime())
+    drawn = Element('g', values={'b': np.zeros(size), 'p': np.full(size, 0.3)}, size=size)
+    system = System(elements=[drawn], interactions=[Interaction('draw', roles={'target': 'g'}, laws=laws)])
     backend = JaxBackend()
     problem = PassCompiler(backend=backend).prepare(system).run().problem_
     run = JaxBackend.unroll(backend.traced_, FormKind.DISCRETE, np.array([1.0]), draws=problem.draws)
@@ -143,20 +130,14 @@ def test_jax_run_of_a_drawing_map_needs_a_key():
 def test_jax_reports_discrete_draws_without_a_temperature():
     """Test that a Bernoulli draw without a temperature gives a `not-differentiable` issue naming it on JAX."""
 
-    class FlipElement(Element):
-        """Element whose state is an exact Bernoulli draw."""
-
-        def __init__(self, label: str, *, b: Annotated[float, StateSpec()] = 0.0) -> None:
-            super().__init__(label)
-            self.b = b
-
-        def _get_laws(self, s):
-            """Return the drawn update."""
-            return [UpdateLaw(s.b, bernoulli('flip', 0.4))]
-
-    system = CompositeSystem(elements=[FlipElement('a')], time=DiscreteTime())
-    (issue,) = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
-    assert issue.code == 'not-differentiable'
-    assert "'flip'" in issue.message
-    assert 'temperature' in issue.fix
-    assert not PassCompiler(backend=NumpyBackend()).prepare(system).report_.issues
+    flip = Interaction('flip', roles={'target': 'a'}, laws=lambda s: [UpdateLaw(s.target.b, bernoulli('flip', 0.4))])
+    system = System(elements=[Element('a', values={'b': 0.0})], interactions=[flip])
+    with pytest.warns(ValidationWarning) as caught:
+        system.set_params(backend=JaxBackend()).prepare()
+    (issue,) = {str(item.message) for item in caught}
+    assert issue.endswith('[not-differentiable]')
+    assert "'flip'" in issue
+    assert 'temperature' in issue
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', ValidationWarning)
+        system.set_params(backend=NumpyBackend()).prepare()

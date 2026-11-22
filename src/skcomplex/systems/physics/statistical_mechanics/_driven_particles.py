@@ -6,23 +6,24 @@ The module covers zero-range processes, the energy cascade on a tree, and exclus
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import BaseInteraction, TransferInteraction
-from ....core.components.laws import Source
-from ....core.components.laws.utils import where
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import JumpLaw
+from ....core.components.laws.utils import shift_member, where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.backends import NumbaBackend
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.engine.backends import BaseBackend, NumbaBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 TREE_ASPECT = 0.7
 
@@ -33,9 +34,6 @@ class ParticleSiteElement(Element):
     Args:
         label:
             The label of the site or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         n:
             The initial number of particles.
@@ -49,31 +47,30 @@ class ParticleSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        n: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        n: Annotated[float, NN] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.n = n
 
 
-class TreeNodeElement(ParticleSiteElement):
-    """Node of a tree that holds a number `n` of energy quanta.
+class TreeNodeElement(Element):
+    """Nodes of a tree that hold a number `n` of energy quanta each.
 
-    The node is drawn at a fixed position.
+    Every node is drawn at a fixed position.
 
     Args:
         label:
             The label of the node or the group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         n:
-            The initial number of quanta.
+            The initial number of quanta, or one number per node.
 
         x:
-            The position of the node in the drawing of the tree.
+            The position of the node in the drawing of the tree, or one position per node.
+
+        size:
+            The number of nodes, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import TreeNodeElement
@@ -81,28 +78,25 @@ class TreeNodeElement(ParticleSiteElement):
         0.0
     """
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec(
-            'points',
-            {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
-        ),
-        *,
-        n: float = 0.0,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual, n=n)
+    visual = VisualSpec(
+        'points',
+        {'position': 'x', 'radius': 0.04, 'color_by': 'n', 'color_range': (0.0, 2.0), 'states': (), 'trail': 0},
+    )
+
+    def __init__(self, label: str, *, n: object = 0.0, x: object = 0.0, size: int | None = None) -> None:
+        super().__init__(label, size=size)
+        self.n = n
         self.x = x
 
 
-class ExclusionHopsInteraction(TransferInteraction):
+class ExclusionHopsInteraction(Interaction):
     """Hops of a particle from every site of a line to an empty neighbour.
 
     The particle hops to the right at rate `p` and to the left at `q`.
 
-    No particle hops past the ends of the line. It is a transfer of one particle along every edge of the line, to the
-    right and back, from an occupied site to an empty one.
+    No particle hops past the ends of the line, where the site on the right reads as full. Every site moves one
+    particle to the site on its right, `JumpLaw(p n (1 - n'), {n: -1, n': 1})` with `n'` the site on the right, and
+    back.
 
     Args:
         label:
@@ -127,41 +121,33 @@ class ExclusionHopsInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        sites: Annotated[str, RoleSpec()],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sites: Role,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
-        super().__init__(
-            label,
-            source=sites,
-            target=sites,
-            state='n',
-            amount=1.0,
-            rate=self._get_right_rate,
-            reverse_rate=self._get_left_rate,
-            offset=1,
-            boundary='fixed',
-        )
+        super().__init__(label)
         self.sites = sites
         self.p = p
         self.q = q
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the sites, whose every member hops to the next one and back."""
-        return [(namespace.sites, namespace.sites)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the hops of a particle to the empty site on the right and back.
 
-    @staticmethod
-    def _get_right_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `p` of a hop to the right from an occupied site to an empty one."""
-        return s.p * s.source.n * (1 - s.target.n)
+        Args:
+            context:
+                The namespace of the sites, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        n = context.sites.n
+        right = shift_member(n, 1, boundary='fixed')
+        full = shift_member(n, 1, boundary='fixed', fill=1.0)
+        self.laws_ = [
+            JumpLaw(context.p * n * (1 - full), {n: -1, right: 1}),
+            JumpLaw(context.q * right * (1 - n), {right: -1, n: 1}),
+        ]
 
-    @staticmethod
-    def _get_left_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate of a hop to the left, `q` from an occupied site to an empty one."""
-        return s.q * s.target.n * (1 - s.source.n)
 
-
-class ReservoirInteraction(TransferInteraction):
+class ReservoirInteraction(Interaction):
     """Reservoir that adds and removes particles at its sites.
 
     The reservoir adds one particle to each of its sites at rate `inflow` and removes one at rate `outflow`.
@@ -187,7 +173,7 @@ class ReservoirInteraction(TransferInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ReservoirInteraction
-        >>> ReservoirInteraction('bath', sites=['lane[0]'], inflow=0.5).outflow
+        >>> ReservoirInteraction('bath', sites=('lane[0]',), inflow=0.5).outflow
         0.0
     """
 
@@ -195,44 +181,37 @@ class ReservoirInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        sites: Annotated[list[str], RoleSpec(variadic=True)],
-        inflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        outflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        sites: tuple[Role, ...],
+        inflow: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        outflow: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         exclusion: bool = False,
     ) -> None:
-        super().__init__(
-            label,
-            source='',
-            target='',
-            state=Source(),
-            into='n',
-            amount=1.0,
-            rate=self._get_entry_rate,
-            reverse_rate=self._get_exit_rate,
-        )
+        super().__init__(label)
         self.sites = sites
         self.inflow = inflow
         self.outflow = outflow
         self.exclusion = exclusion
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return every site as the target of its own entries."""
-        return [(site, site) for site in namespace.sites]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the entries and the exits of a particle at every site.
 
-    def _get_entry_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate at which a particle enters a site.
+        Under exclusion a particle enters only an empty site, and a particle leaves only an occupied one.
 
-        Under exclusion a particle enters only an empty site.
+        Args:
+            context:
+                The namespace of the sites, the time `t`, and the parameters.
         """
-        return s.inflow * (1 - s.target.n if self.exclusion else 1)
+        super()._prepare(context)
+        self.laws_ = []
+        for site in context.sites:
+            entry = context.inflow * (1 - site.n if self.exclusion else 1)
+            self.laws_ += [
+                JumpLaw(entry, {site.n: 1}),
+                JumpLaw(context.outflow * where(site.n > 0, 1, 0), {site.n: -1}),
+            ]
 
-    @staticmethod
-    def _get_exit_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate at which a particle leaves an occupied site."""
-        return s.outflow * where(s.target.n > 0, 1, 0)
 
-
-class ZeroRangeHopInteraction(TransferInteraction):
+class ZeroRangeHopInteraction(Interaction):
     """Hop of one particle along a link.
 
     The particle hops forward at rate `p u(n)` and backward at rate `q u(n')`.
@@ -266,42 +245,30 @@ class ZeroRangeHopInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        link: Annotated[list[str], RoleSpec(variadic=True)],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        link: tuple[Role, ...],
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
     ) -> None:
-        super().__init__(
-            label,
-            source='',
-            target='',
-            state='n',
-            amount=1.0,
-            rate=self._get_forward_rate,
-            reverse_rate=self._get_backward_rate,
-        )
+        super().__init__(label)
         self.link = link
         self.p = p
         self.q = q
         self.b = b
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the two sites of the link.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the hops forward from the first site of the link and back from the second.
 
-        They are the departure and the arrival of a forward hop.
+        Args:
+            context:
+                The namespace of the two sites, the time `t`, and the parameters.
         """
-        first, second = namespace.link
-        return [(first, second)]
-
-    @staticmethod
-    def _get_forward_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `p u(n)` of a hop from the first site."""
-        return s.p * ZeroRangeHopInteraction._get_departure_rate(s.source.n, s.b)
-
-    @staticmethod
-    def _get_backward_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `q u(n')` of a hop from the second site."""
-        return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
+        super()._prepare(context)
+        first, second = context.link
+        self.laws_ = [
+            JumpLaw(context.p * self._get_departure_rate(first.n, context.b), {first.n: -1, second.n: 1}),
+            JumpLaw(context.q * self._get_departure_rate(second.n, context.b), {second.n: -1, first.n: 1}),
+        ]
 
     @staticmethod
     def _get_departure_rate(n: Expression, b: Expression) -> Expression:
@@ -312,13 +279,14 @@ class ZeroRangeHopInteraction(TransferInteraction):
         return where(n > 0, 1 + b / where(n > 0, n, 1), 0)
 
 
-class ZeroRangeHopsInteraction(TransferInteraction):
+class ZeroRangeHopsInteraction(Interaction):
     """Hops of one particle from every site of a ring.
 
     The particle hops to the right at rate `p u(n)` and to the left at rate `q u(n)`.
 
-    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`. It is a transfer of
-    one particle along every edge of the ring, to the right and back.
+    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`. Every site moves one
+    particle to the site on its right, `JumpLaw(p u(n), {n: -1, n': 1})` with `n'` the site on the right, and the site
+    on the right moves one back at the rate `q u(n')`.
 
     Args:
         label:
@@ -346,39 +314,31 @@ class ZeroRangeHopsInteraction(TransferInteraction):
         self,
         label: str,
         *,
-        sites: Annotated[str, RoleSpec()],
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        sites: Role,
+        p: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        q: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        b: Annotated[float, RealSet.closed_open(0, oo)] = 4.0,
     ) -> None:
-        super().__init__(
-            label,
-            source=sites,
-            target=sites,
-            state='n',
-            amount=1.0,
-            rate=self._get_right_rate,
-            reverse_rate=self._get_left_rate,
-            offset=1,
-        )
+        super().__init__(label)
         self.sites = sites
         self.p = p
         self.q = q
         self.b = b
 
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the sites, whose every member hops to the next one and back."""
-        return [(namespace.sites, namespace.sites)]
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the hops of a particle to the site on the right and back.
 
-    @staticmethod
-    def _get_right_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `p u(n)` of a hop to the right."""
-        return s.p * ZeroRangeHopInteraction._get_departure_rate(s.source.n, s.b)
-
-    @staticmethod
-    def _get_left_rate(s: SimpleNamespace) -> Expression:
-        """Return the rate `q u(n)` of a hop to the left, from the site on the right."""
-        return s.q * ZeroRangeHopInteraction._get_departure_rate(s.target.n, s.b)
+        Args:
+            context:
+                The namespace of the sites, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        n = context.sites.n
+        right = shift_member(n, 1)
+        self.laws_ = [
+            JumpLaw(context.p * ZeroRangeHopInteraction._get_departure_rate(n, context.b), {n: -1, right: 1}),
+            JumpLaw(context.q * ZeroRangeHopInteraction._get_departure_rate(right, context.b), {right: -1, n: 1}),
+        ]
 
 
 class ZeroRangeProcessSystem(BaseSystem):
@@ -413,6 +373,12 @@ class ZeroRangeProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ZeroRangeProcessSystem
         >>> system = ZeroRangeProcessSystem(10, density=2.0).prepare().system_
@@ -425,7 +391,6 @@ class ZeroRangeProcessSystem(BaseSystem):
     references = ('Evans and Hanney 2005', 'Bertin 2021')
     until = 2000.0
     dt = 10.0
-    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -437,8 +402,10 @@ class ZeroRangeProcessSystem(BaseSystem):
         q: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.density = density
         self.b = b
@@ -455,20 +422,20 @@ class ZeroRangeProcessSystem(BaseSystem):
         sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
         return np.bincount(sites, minlength=n_sites).astype(float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the zero-range process on a ring, with the particles scattered on random sites, run on Numba.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
-        sites = GroupElement(
-            'sites',
-            element=ParticleSiteElement,
-            space=LatticeSpace(self.n_sites),
-            values={'n': occupations},
-            on='sites',
-        )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
-            elements=[sites],
+            elements=[Element('sites', values={'n': occupations}, space=LatticeSpace(self.n_sites))],
             interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=self.p, q=self.q, b=self.b)],
+            backend=NumbaBackend(),
         )
 
 
@@ -511,6 +478,12 @@ class DissipativeZeroRangeSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DissipativeZeroRangeSystem
         >>> system = DissipativeZeroRangeSystem(3, branches=3).prepare().system_
@@ -523,7 +496,6 @@ class DissipativeZeroRangeSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin 2005')
     until = 200.0
     dt = 1.0
-    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -536,8 +508,10 @@ class DissipativeZeroRangeSystem(BaseSystem):
         epsilon0: float = 1.0,
         dissipation: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_levels = n_levels
         self.branches = branches
         self.nu = nu
@@ -568,15 +542,16 @@ class DissipativeZeroRangeSystem(BaseSystem):
             rings.append(radius * np.column_stack([np.cos(angles), TREE_ASPECT * np.sin(angles)]))
         return np.concatenate(rings)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the nodes of the tree, the transfers between levels, the injection, and the dissipation.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         n_nodes = self._get_level_start(self.n_levels + 1, self.branches)
-        nodes = GroupElement(
-            'nodes',
-            element=TreeNodeElement,
-            size=n_nodes,
-            values={'x': self._get_tree_layout(self.n_levels, self.branches)},
-        )
+        nodes = TreeNodeElement('nodes', x=self._get_tree_layout(self.n_levels, self.branches), size=n_nodes)
         interactions: list[BaseInteraction] = []
         for level in range(1, self.n_levels):
             rate = self.nu * float(self.branches ** (level - 1)) ** self.alpha
@@ -584,21 +559,29 @@ class DissipativeZeroRangeSystem(BaseSystem):
             for index in range(self.branches ** (level - 1)):
                 for branch in range(self.branches):
                     child = below + self.branches * index + branch
-                    link = [f'nodes[{start + index}]', f'nodes[{child}]']
+                    link = (f'nodes[{start + index}]', f'nodes[{child}]')
                     interactions.append(
                         ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
                     )
-        leaves = [f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)]
+        leaves = tuple(
+            f'nodes[{index}]' for index in range(self._get_level_start(self.n_levels, self.branches), n_nodes)
+        )
         interactions += [
             ReservoirInteraction(
                 'injection',
-                sites=['nodes[0]'],
+                sites=('nodes[0]',),
                 inflow=self.nu * np.exp(-self.beta_ext * self.epsilon0),
                 outflow=self.nu,
             ),
             ReservoirInteraction('dissipation', sites=leaves, outflow=self.dissipation),
         ]
-        return CompositeSystem(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
+        self.system_ = System(
+            self.label,
+            elements=[nodes],
+            interactions=interactions,
+            space=ContinuousSpace(n_dim=2),
+            backend=NumbaBackend(),
+        )
 
 
 class ASEPSystem(BaseSystem):
@@ -635,6 +618,12 @@ class ASEPSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ASEPSystem
         >>> len(ASEPSystem(10).prepare().system_.interactions)
@@ -659,8 +648,10 @@ class ASEPSystem(BaseSystem):
         density: float = 0.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.alpha = alpha
         self.gamma = gamma
@@ -669,22 +660,19 @@ class ASEPSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the asymmetric simple exclusion process on an open line.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the asymmetric simple exclusion process on an open line, in continuous time.
 
-        The process runs in continuous time.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
-        lane = GroupElement(
-            'lane',
-            element=ParticleSiteElement,
-            space=LatticeSpace(self.n_sites, boundary='fixed'),
-            values={'n': occupied},
-            on='sites',
-        )
+        lane = Element('lane', values={'n': occupied}, space=LatticeSpace(self.n_sites, boundary='fixed'))
         interactions = [
             ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
-            ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
-            ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
+            ReservoirInteraction('entry', sites=('lane[0]',), inflow=self.alpha, exclusion=True),
+            ReservoirInteraction('exit', sites=(f'lane[{self.n_sites - 1}]',), outflow=self.gamma, exclusion=True),
         ]
-        return CompositeSystem(self.label, elements=[lane], interactions=interactions)
+        self.system_ = System(self.label, elements=[lane], interactions=interactions)

@@ -7,7 +7,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import CorrelationResult, correlation
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
@@ -81,7 +80,7 @@ def test_autocorrelation_of_every_series():
 
 def test_autocorrelation_of_a_trajectory_is_in_its_time_units():
     """Test that the lags and the time of a trajectory sampled every 0.1 are in time units, as for its array."""
-    trajectory = simulate(LotkaVolterraSystem(), until=50, dt=STEP)
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=50, dt=STEP)
     analysis = _correlation('auto', trajectory, variables=['prey.x'])
     array = _correlation('auto', trajectory.get_values('prey.x'), dt=STEP)
     assert analysis.lags[:3] == pytest.approx([0.0, 0.1, 0.2])
@@ -120,8 +119,8 @@ def test_correlation_function_of_smoothed_noise():
 def test_correlation_length_ising_lattice_above_its_critical_temperature():
     """Test that 128 by 128 Ising lattices at temperatures 2.5 and 3 give the exact length within 15 percent."""
     for temperature in (2.5, 3.0):
-        system = IsingSystem(size=128, temperature=temperature, random_state=0).prepare().system_
-        trajectory = simulate(system, until=1500, dt=1, random_state=0)
+        system = IsingSystem(size=128, temperature=temperature, random_state=0).prepare()
+        trajectory = system.simulate(until=1500, dt=1, random_state=0)
         frames = np.asarray(trajectory.get_lattice('spins.spin'), dtype=float)[500::5]
         length = _correlation('length', frames, frames=True).length
         assert length == pytest.approx(_exact_correlation_length(temperature), rel=0.15)
@@ -136,7 +135,7 @@ def test_correlation_length_reaction_diffusion_field():
 
 def test_correlation_length_of_a_trajectory_reads_the_last_frame():
     """Test that a field trajectory gives the length of its last frame, or of every frame."""
-    trajectory = simulate(IsingSystem(size=32, temperature=3.0).prepare().system_, until=20, dt=1, random_state=0)
+    trajectory = IsingSystem(size=32, temperature=3.0).prepare().simulate(until=20, dt=1, random_state=0)
     frames = np.asarray(trajectory.get_lattice('spins.spin'), dtype=float)
     assert _correlation('length', trajectory).length == _correlation('length', frames[-1]).length
     assert _correlation('length', trajectory, frames=True).length == _correlation('length', frames, frames=True).length
@@ -147,8 +146,9 @@ def test_overlap_of_ising_replicas():
     overlaps = {}
     for temperature in (1.5, 5.0):
         replicas = [
-            simulate(
-                IsingSystem(size=32, temperature=temperature, initial='up').prepare().system_,
+            IsingSystem(size=32, temperature=temperature, initial='up')
+            .prepare()
+            .simulate(
                 until=500,
                 dt=1,
                 random_state=seed,

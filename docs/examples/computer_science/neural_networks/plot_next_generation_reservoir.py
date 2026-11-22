@@ -17,11 +17,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.components.interactions import RateInteraction
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.neural_networks import LorenzFlowElement, NextGenerationReservoirSystem
 
 SYSTEM = 'next_generation_reservoir'
@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 system = NextGenerationReservoirSystem()
-forecast = simulate(system, observers=[observer])
+forecast = system.prepare().simulate(observers=[observer])
 for name, color in zip(VARIABLES, ((31, 119, 180), (255, 127, 14), (44, 160, 44)), strict=True):
     observer.recording_.log(f'reservoir/{name}', rr.SeriesLines(colors=[color], names=name), static=True)
     observer.recording_.send_columns(
@@ -62,23 +62,23 @@ observer.recording_.flush()
 
 def lorenz_samples(samples):
     """Return samples of the Lorenz flow on its attractor."""
-    rates = {
-        'x': lambda s: 10.0 * (s.target.y - s.target.x),
-        'y': lambda s: s.target.x * (28.0 - s.target.z) - s.target.y,
-        'z': lambda s: s.target.x * s.target.y - 8.0 / 3.0 * s.target.z,
-    }
-    flow = CompositeSystem(
+
+    def lorenz(s):
+        x, y, z = s.target.x, s.target.y, s.target.z
+        return [RateLaw(x, 10.0 * (y - x)), RateLaw(y, x * (28.0 - z) - y), RateLaw(z, x * y - 8.0 / 3.0 * z)]
+
+    flow = System(
         elements=[LorenzFlowElement('flow')],
-        interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
+        interactions=[Interaction('lorenz', roles={'target': 'flow'}, laws=lorenz)],
+        solver=ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6),
     )
-    solver = ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6)
-    run = simulate(flow, until=5.0 + STEP * (samples - 1), solver=solver, dt=STEP)
+    run = flow.prepare().simulate(until=5.0 + STEP * (samples - 1), dt=STEP)
     return np.column_stack([run.get_values(f'flow.{name}') for name in VARIABLES])[-samples:]
 
 
 values = lorenz_samples(TRAINED + HORIZON + 1)
 trained = NextGenerationReservoirSystem(series=values[: TRAINED + 1])
-run = simulate(trained, until=HORIZON, dt=1)
+run = trained.prepare().simulate(until=HORIZON, dt=1)
 predicted = np.column_stack([run.get_values(f'reservoir.{name}') for name in VARIABLES])[1:]
 truth = values[TRAINED + 1 :]
 size = np.ptp(values, axis=0).max()

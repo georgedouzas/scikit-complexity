@@ -16,7 +16,6 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.engineering.traffic import IntelligentDriverSystem
 
@@ -38,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 system = IntelligentDriverSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = simulate(system, dt=0.5, observers=[observer])
+trajectory = system.prepare().simulate(dt=0.5, observers=[observer])
 
 # %%
 # The equilibrium speed of the ring
@@ -56,7 +55,10 @@ def equilibrium(gap):
 
 
 counts = np.arange(10, 61, 5)
-finals = [simulate(IntelligentDriverSystem(n_cars=int(n)), until=200).get_values('cars.v')[-1].mean() for n in counts]
+finals = [
+    IntelligentDriverSystem(n_cars=int(n)).prepare().simulate(until=200).get_values("cars.x'")[-1].mean()
+    for n in counts
+]
 grid = np.arange(10, 61)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(grid, [equilibrium(length / n - car_length) for n in grid], color='black', label='equilibrium of the IDM')

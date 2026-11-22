@@ -13,7 +13,6 @@ which scales with the volume.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.oncology import VonBertalanffySystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'von_bertalanffy'
 
 r, p, d = 2.32, 2 / 3, 0.808
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(VonBertalanffySystem(n=1.0, r=r, p=p, d=d), dt=0.2, observers=[observer], until=40)
+trajectory = VonBertalanffySystem(n=1.0, r=r, p=p, d=d).prepare().simulate(dt=0.2, observers=[observer], until=40)
 
 # %%
 # Closed-form solution

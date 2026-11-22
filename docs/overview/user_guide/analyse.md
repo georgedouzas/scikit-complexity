@@ -18,11 +18,10 @@ pelt records of the Hudson's Bay Company, run for a hundred years from the recor
 
 ```python
 from skcomplex.core.analysis import applicable_analyses
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 system = LotkaVolterraSystem(prey=30.0, predators=4.0, r=0.55, a=0.028, b=0.024, d=0.80)
-trajectory = simulate(system, until=100, dt=0.1)
+trajectory = system.prepare().simulate(until=100, dt=0.1)
 found = applicable_analyses(trajectory)
 found.kinds, found.readings['series'], len(found.analyses['series']) > 10
 ```
@@ -71,34 +70,27 @@ symbolic(system).equations
 The result holds one equation per [state](glossary.md#state), as Sage relations. The prey change at
 `r_growth*x_prey - a_predation*x_predators*x_prey`, and the predators at
 `b_predation*x_predators*x_prey - d_death*x_predators`. These are the equations of Lotka and Volterra, with each
-parameter named after the part that holds it.
+parameter named after the component that holds it.
 
 The kind `'solve'` solves the equations exactly where a closed form exists. The Lotka and Volterra equations have none,
 so a harmonic oscillator shows it, a particle on a spring whose acceleration is `-4 x`.
 
 ```python continuation
-from typing import Annotated
-
 from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import Element
-from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
 
-class AtomElement(Element):
-    def __init__(
-        self, label, *, x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0, x_d1: object = 0.0
-    ):
-        super().__init__(label)
-        self.x = x
-        self.x_d1 = x_d1
+def trap(s):
+    return [RateLaw(s.target.x.diff(s.t, 2), -4.0 * s.target.x)]
 
 
-oscillator = CompositeSystem(
-    elements=[AtomElement('p', x=1.0)],
-    interactions=[RateInteraction('trap', target='p', rate=lambda s: -4.0 * s.target.x)],
+oscillator = System(
+    elements=[Element('p', values={'x': [1.0]})],
+    interactions=[Interaction('trap', roles={'target': 'p'}, laws=trap)],
     space=ContinuousSpace(n_dim=1),
 )
 equation = symbolic(oscillator).equations['p.x[0]']
@@ -218,7 +210,7 @@ lynx = np.array(
     + [8.0, 12.3, 19.5, 45.7, 51.1, 29.7, 15.8, 9.7, 10.1, 8.6]
 )
 records = np.column_stack([hares, lynx])
-model = spectrum(simulate(system, until=200, dt=0.1), dt=0.1)
+model = spectrum(system.prepare().simulate(until=200, dt=0.1), dt=0.1)
 data = spectrum(records, dt=1.0)
 [round(float(1 / result.frequencies[result.power[0].argmax()]), 2) for result in (model, data)]
 ```
@@ -239,7 +231,7 @@ Two more series analyses describe the shape of the cycle.
 ```python continuation
 from skcomplex.core.analysis import embedding, entropy, recurrence
 
-prey = simulate(system, until=100, dt=0.1).get_values('prey.x')
+prey = system.prepare().simulate(until=100, dt=0.1).get_values('prey.x')
 delayed = embedding(prey)
 order = entropy(prey, kind='permutation', dimension=4).entropy
 delayed.delay, delayed.dimension, round(recurrence(delayed.points).determinism, 2), order.round(2).tolist()
@@ -305,31 +297,31 @@ Two more surrogates learn other forms. A decaying spiral shows them, since it is
 import numpy as np
 
 from skcomplex.core.analysis import mode_decomposition, reservoir, sparse_identification
-from skcomplex.core.engine.runtime import simulate
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)])
 decomposition = mode_decomposition(spiral, variables=['x', 'y'], dt=0.01)
-surrogate_run = simulate(decomposition.system, until=1.0, dt=0.1)
+surrogate_run = decomposition.system.prepare().simulate(until=1.0, dt=0.1)
 sparse = sparse_identification(spiral, variables=['x', 'y'], degree=1, threshold=0.05, horizon=50, dt=0.01)
 echo = reservoir(spiral, variables=['x', 'y'], horizon=50)
 (
     np.sort(decomposition.eigenvalues.imag).round(3).tolist(),
     len(surrogate_run.times),
     sparse.coefficients.round(2).tolist(),
-    type(echo.system.time).__name__,
+    echo.system.prepare().form_,
     echo.forecast.shape,
 )
 ```
 
 The decomposition finds the frequencies -1.0 and 1.0 of the spiral, and its surrogate runs for 11 frames. Sparse
-identification finds `dx/dt = -0.1 x - y` and `dy/dt = x - 0.1 y`. The reservoir runs under discrete time and
-forecasts 50 samples of both variables.
+identification finds `dx/dt = -0.1 x - y` and `dy/dt = x - 0.1 y`. The reservoir prepares as a discrete map, since
+its law is an update, and forecasts 50 samples of both variables.
 
 `mode_decomposition`, `sparse_identification`, and `reservoir` take one or more trajectories or arrays sampled at a
 uniform step `dt`. Their results hold these fields:
 
-- `system`, a `CompositeSystem` of one surrogate [element](glossary.md#element), which `simulate` runs like a hand-written system,
+- `system`, a `System` of one surrogate [element](glossary.md#element) and the interaction that holds its laws, which
+  `system.prepare().simulate(...)` runs like a hand-written system,
 - `training_error` and `validation_error`, the relative errors of the fit on the training samples and on the end of
   every series held out by `validation`,
 - `forecast`, the variables over `horizon` samples after the last one.
@@ -337,18 +329,18 @@ uniform step `dt`. Their results hold these fields:
 The three differ in what they fit:
 
 - `mode_decomposition` fits dynamic mode decomposition with PyDMD. It sets the continuous eigenvalues
-  `ln(mu) / dt` in `eigenvalues`, the modes, their amplitudes, and a surrogate under continuous time with the matrix
-  rate law `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
+  `ln(mu) / dt` in `eigenvalues`, the modes, their amplitudes, and a surrogate whose matrix rate law `dg/dt = L g`
+  flows in continuous time. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
   variables to [observables](glossary.md#observable) first, which is extended DMD. With `inputs`, the names of the variables that are control
   inputs, it fits dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, with the `DMDc` of PyDMD. It
-  then sets `operator` and `input_matrix`, and its surrogate takes every input as a bounded adaptive parameter, which
-  a `schedule` of `simulate` drives. The system `koopman_model_predictive_control` uses these matrices to predict.
+  then sets `operator` and `input_matrix`, and its surrogate takes every input as a parameter whose allowed values are
+  its range in the samples, which a `schedule` of `simulate` drives. The system `koopman_model_predictive_control` uses these matrices to predict.
 - `sparse_identification` fits sparse identification of nonlinear dynamics with PySINDy. It sets the monomials of
-  the variables in `features`, their coefficients in `coefficients`, and a surrogate under continuous time with one
-  symbolic rate law per variable.
+  the variables in `features`, their coefficients in `coefficients`, and a surrogate with one symbolic rate law per
+  variable.
 - `reservoir` fits a next-generation reservoir or an echo state network from ReservoirPy, with a ridge readout
   of the increments over one sample. It works on standardized variables unless `standardize` is false. Its surrogate
-  runs under discrete time, one step per sample, holds the memory of the reservoir as states, and starts at the last
+  is an update law that steps once per sample, holds the memory of the reservoir as states, and starts at the last
   sample. So a run of `system` is the autonomous forecast.
 
 ## Kinds of data
@@ -361,10 +353,9 @@ kind.
 import numpy as np
 
 from skcomplex.core.analysis import applicable_analyses, spectrum
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
-spins = simulate(IsingSystem(size=32), until=20)
+spins = IsingSystem(size=32).prepare().simulate(until=20)
 wavenumbers = spectrum(spins, kind='structure-factor').wavenumbers[:3].round(3).tolist()
 discovery = applicable_analyses(np.zeros((16, 16)))
 applicable_analyses(spins).kinds, wavenumbers, discovery.kinds
@@ -564,7 +555,7 @@ They take the `'plugin'` estimator of `dit` for symbols, `'gaussian'` for the cl
   variables are shuffled independently.
 
 A macro feature, such as the parity of several bits, may have a life of its own, predicting its own future beyond what
-the parts predict.
+the bits predict.
 
 ```python continuation
 from skcomplex.core.analysis import emergence, epsilon_machine
@@ -678,27 +669,16 @@ whose increment is counted, or a function of the trajectory of each interval. A 
 effective size collapses, a sign that the estimate is biased.
 
 ```python
-from typing import Annotated
-
 import numpy as np
 
 from skcomplex.core.analysis import irreversibility, large_deviations
 from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.systems import System
 
-
-class CounterElement(Element):
-    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 0.0):
-        super().__init__(label)
-        self.n = n
-
-    def _get_laws(self, s):
-        return [JumpLaw(1.0, {s.n: 1})]
-
-
-counter = CompositeSystem(elements=[CounterElement('counter')])
+tick = Interaction('tick', roles={'target': 'counter'}, laws=lambda s: [JumpLaw(1.0, {s.target.n: 1})])
+counter = System(elements=[Element('counter', values={'n': 0.0})], interactions=[tick])
 cloning = large_deviations(
     counter, kind='cloning', observable='counter.n', tilts=0.5, population=200, until=10.0, random_state=0
 )
@@ -824,10 +804,9 @@ Agents align, spread in [space](glossary.md#space), and segregate into groups, a
 import numpy as np
 
 from skcomplex.core.analysis import alignment, coarse_grain, neighbors
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 
-flock = simulate(BoidsSystem(), until=5)
+flock = BoidsSystem().prepare().simulate(until=5)
 positions = np.random.default_rng(4).random((1000, 2))
 ratio = neighbors(positions, kind='clark-evans', box=[1.0, 1.0]).ratio
 field = coarse_grain(positions, shape=[8, 8], box=[1.0, 1.0]).field
@@ -941,7 +920,7 @@ from a network snapshot or from chosen `frames` of a trajectory.
 import numpy as np
 
 from skcomplex.core.analysis import autocatalytic_sets
-from skcomplex.core.specs import NetworkSnapshotSpec
+from skcomplex.core.engine.problems import NetworkSnapshotSpec
 
 reactions = np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
 snapshot = NetworkSnapshotSpec(np.arange(5), np.array([3, 4, 0]), np.array([2, 3, 4]), np.arange(3), reactions)

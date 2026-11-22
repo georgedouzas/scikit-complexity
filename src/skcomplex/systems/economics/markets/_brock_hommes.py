@@ -6,20 +6,23 @@ Its traders switch between forecasting heuristics.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import BaseSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.base import BaseSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.compile import PhaseSpec
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
 from ..common.learning import PayoffLearningInteraction
@@ -47,7 +50,7 @@ class _MarketStateSpec(BaseSpec):
     forecasts: Array | None = None
 
 
-class HeuristicTraderView(AgentView):
+class HeuristicTraderView(AgentViewProtocol, Protocol):
     """Trader as the rules see it.
 
     It holds its heuristic `predictor` and the last fitness of every heuristic.
@@ -69,9 +72,6 @@ class HeuristicTraderElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         predictor:
             The index of the heuristic in use.
 
@@ -81,31 +81,28 @@ class HeuristicTraderElement(Element):
         trend_fitness:
             The last realised fitness of the trend heuristic.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.economics.markets import HeuristicTraderElement
-        >>> GroupElement('traders', element=HeuristicTraderElement, size=10, values={'predictor': 1.0}).size
+        >>> HeuristicTraderElement('traders', predictor=1.0, size=10).size
         10
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        predictor: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        fundamentalist_fitness: Annotated[float, StateSpec()] = 0.0,
-        trend_fitness: Annotated[float, StateSpec()] = 0.0,
+        predictor: Annotated[object, NN] = 0.0,
+        fundamentalist_fitness: object = 0.0,
+        trend_fitness: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.predictor = predictor
         self.fundamentalist_fitness = fundamentalist_fitness
         self.trend_fitness = trend_fitness
-
-    @classmethod
-    def _get_view(cls) -> type[HeuristicTraderView]:
-        """Return the view of a speculator, with its heuristic."""
-        return HeuristicTraderView
 
     @staticmethod
     def get_fitness(agent: HeuristicTraderView, system: SystemView, option: float) -> float:
@@ -205,13 +202,13 @@ class HeuristicPricingInteraction(PolicyRuleInteraction[SystemView]):
         *,
         rule: Callable[[SystemView], None] | None = None,
         phase: str | None = None,
-        traders: Annotated[str, RoleSpec()],
-        rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
-        strength: Annotated[float, ParameterSpec()] = 1.2,
-        cost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        risk: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        initial: Annotated[float, ParameterSpec()] = 0.1,
+        traders: Role,
+        rate: Annotated[float, RealSet.open(0, oo)] = 1.1,
+        strength: float = 1.2,
+        cost: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        risk: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        noise: Annotated[float, RealSet.closed_open(0, oo)] = 0.01,
+        initial: float = 0.1,
     ) -> None:
         super().__init__(label, rule=rule, phase=phase)
         self.traders = traders
@@ -239,7 +236,7 @@ class HeuristicPricingInteraction(PolicyRuleInteraction[SystemView]):
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
-        traders = system.get_agents('traders', HeuristicTraderView)
+        traders = cast(list[HeuristicTraderView], system.get_agents('traders'))
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = float(forecasts @ [1 - share, share] + system.rng.normal(0.0, system.get_parameter('noise'))) / rate
         previous = state.forecasts
@@ -298,9 +295,15 @@ class BrockHommesSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.markets import BrockHommesSystem
-        >>> BrockHommesSystem(100).prepare().system_.elements[0].prepare().size_
+        >>> BrockHommesSystem(100).prepare().system_.elements[0].size
         100
     """
 
@@ -321,8 +324,10 @@ class BrockHommesSystem(BaseSystem):
         noise: float = 0.01,
         initial: float = 0.1,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_traders = n_traders
         self.intensity = intensity
         self.rate = rate
@@ -332,16 +337,17 @@ class BrockHommesSystem(BaseSystem):
         self.noise = noise
         self.initial = initial
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
-        traders = GroupElement('traders', element=HeuristicTraderElement, size=self.n_traders)
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
+        traders = HeuristicTraderElement('traders', size=self.n_traders)
         learning = PayoffLearningInteraction(
             'learning',
             target='traders',
             scores=tuple(f'{name}_fitness' for name in PREDICTORS),
             payoff=HeuristicTraderElement.get_realised_fitness,
             rate=1.0,
-            form='agent',
+            schedule='synchronous',
             phase='learning',
         )
         choice = ChoiceInteraction(
@@ -351,7 +357,7 @@ class BrockHommesSystem(BaseSystem):
             options=(0, 1),
             utility=HeuristicTraderElement.get_fitness,
             intensity=self.intensity,
-            form='agent',
+            schedule='synchronous',
             phase='choice',
         )
         pricing = HeuristicPricingInteraction(
@@ -365,11 +371,9 @@ class BrockHommesSystem(BaseSystem):
             noise=self.noise,
             initial=self.initial,
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[traders],
             interactions=[learning, choice, pricing],
-            time=DiscreteTime(
-                schedule=PhasesScheduleSpec([PhaseSpec('learning'), PhaseSpec('choice'), PhaseSpec('pricing')]),
-            ),
+            solver=MesaSolver(phases=[PhaseSpec('learning'), PhaseSpec('choice'), PhaseSpec('pricing')]),
         )

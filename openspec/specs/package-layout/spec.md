@@ -6,7 +6,7 @@ the general interface and the interface never depends on a system.
 
 ## Requirements
 
-### Requirement: Dependencies run from formalisms to engine to core
+### Requirement: Dependencies run from experiments to analysis to engine to components
 The packages of `skcomplex.core` SHALL import downward in the order `experiments`, `analysis`, `engine`, `components`,
 and the modules `base`, `types`, `specs`, and `errors` of `skcomplex.core` below them, so `analysis` never imports
 `experiments`, `engine` imports neither, `components` imports none of them, and those modules import no package.
@@ -110,31 +110,32 @@ The package SHALL expose exactly two subpackages, `skcomplex.core` and `skcomple
 - **WHEN** a user imports `skcomplex.core.engine`, `skcomplex.core.analysis`, `skcomplex.core.errors`, or `skcomplex.systems`
 - **THEN** the import fails, since the old paths keep no alias
 
-### Requirement: The core problems package holds what a system compiles to
-`skcomplex.core.components.problems` SHALL hold the compiler's `Problem`, the kernels, reductions, neighbourhoods, and printing
-that a problem's numeric functions are written from, the `Lowering` a backend returns, and `BaseBackend` with the
-registry of backends. It SHALL import no package of `skcomplex.core.engine`, and the engine SHALL register the loader that
-imports its backends.
+### Requirement: The engine problems package holds what a system compiles to
+`skcomplex.core.engine.problems` SHALL hold `BaseProblemSpec`, the compiler's `ProblemSpec`, and the kernels, printers,
+and searches that a problem's numeric functions are written from. It SHALL import no other package of
+`skcomplex.core.engine` than `types`. A backend SHALL be passed to compilation as an instance, and without one the
+compiler SHALL choose `NumbaBackend` for large systems and `NumpyBackend` for the others.
 
-#### Scenario: Backend base
-- **WHEN** a user imports `BaseBackend`, `Lowering`, and `Problem` from `skcomplex.core.components.problems`
-- **THEN** every import succeeds, and `NumbaBackend` of `skcomplex.core.engine.backends` derives from `BaseBackend`
+#### Scenario: Problem bases
+- **WHEN** a user imports `BaseProblemSpec`, `ProblemSpec`, and `BaseKernel` from `skcomplex.core.engine.problems`
+- **THEN** every import succeeds
 
-#### Scenario: Backends load on demand
-- **WHEN** a system is compiled with the backend `'numba'` and `skcomplex.core.engine.backends` was never imported
-- **THEN** the registry of backends imports it through the loader the engine registered, and the compile succeeds
+#### Scenario: Backend chosen by size
+- **WHEN** a system whose groups hold 10 members in total is compiled without a backend
+- **THEN** the compiled problem runs on `NumpyBackend`
 
 ### Requirement: The runtime reads the base problem
-The runtime SHALL run any problem through what `BaseProblem` holds, and SHALL read the compiler's fields only of a
-`Problem`. The quantum and rewriting problems SHALL derive from `BaseProblem` alone, with the fields they use.
+The runtime SHALL run any problem through what `BaseProblemSpec` holds, and SHALL read the compiler's fields only of
+a `ProblemSpec`. The operator and rewriting problems SHALL derive from `BaseProblemSpec` alone, with the fields they
+use.
 
-#### Scenario: Problem of a formalism
+#### Scenario: Problems beyond the compiler's
 - **WHEN** a quantum system and a rewriting system are simulated and recorded
-- **THEN** both runs succeed, and neither problem is a subclass of `skcomplex.core.components.problems.Problem`
+- **THEN** both runs succeed, and neither problem is a subclass of `skcomplex.core.engine.problems.ProblemSpec`
 
 ### Requirement: A system compiler is not a pass
 `BaseCompiler` of `skcomplex.core.engine.compile` SHALL be the public base of the compilers that compile a whole system
-of one form to a problem, the private compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
+of one form to a problem, the compilers of the library's forms included, and SHALL be unrelated to `BasePass`,
 whose subclasses are steps of one compilation.
 
 #### Scenario: Quantum compiler
@@ -143,7 +144,7 @@ whose subclasses are steps of one compilation.
 
 ### Requirement: Every class derives from the base it is
 Every element and group SHALL derive from `BaseElement`, every interaction from `BaseInteraction`, every space from
-`BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblem`, every solver from `BaseSolver`, every backend
+`BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblemSpec`, every solver from `BaseSolver`, every backend
 from `BaseBackend`, and every spec from `BaseSpec`, and every one of these bases
 SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the domain.
 
@@ -152,38 +153,26 @@ SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the d
   `skcomplex.core.analysis`, `skcomplex.core.experiments`, and `skcomplex.core.specs` against `BaseConfig`
 - **THEN** every check holds
 
-#### Scenario: Formalism domain
+#### Scenario: Domain of a state
 - **WHEN** a quantum state declares a `HilbertDomain` and the system is validated
 - **THEN** validation reads its kind from the domain
 
 #### Scenario: Solver over a base problem
-- **WHEN** a solver is written against `BaseSolver` alone and prepared with a `BaseProblem` of its form
+- **WHEN** a solver is written against `BaseSolver` alone and prepared with a `BaseProblemSpec` of its form
 - **THEN** it advances the problem through `run`
 
-### Requirement: The core base holds the bases of a system's parts
-`skcomplex.core.base` SHALL hold seven modules: `_parts` with `BasePart`, `_elements` with `BaseElement`,
-`_interactions` with `BaseInteraction`, `_laws` with `BaseLaw`, and the shared `_types`, `_errors`, and `_utils`. It SHALL define no other
-base, and SHALL import no other package of `skcomplex`. The base of any other concept SHALL live in that concept's
-package.
-
-#### Scenario: Three bases
-- **WHEN** a user imports `BasePart`, `BaseElement`, `BaseInteraction`, and `BaseLaw` from `skcomplex.core.base`
-- **THEN** every import succeeds, and the modules of `skcomplex.core.base` are exactly `_parts`, `_elements`,
-  `_interactions`, `_laws`, `_types`, `_errors`, and `_utils`
-
-#### Scenario: Other bases
-- **WHEN** a user imports `BaseSpace` and `BaseTime` from `skcomplex.core.components.space`, and `Layout` and `BaseProblem` from
-  `skcomplex.core.components.problems`
-- **THEN** every import succeeds, and none of them imports from `skcomplex.core.base`
-
 ### Requirement: Bases are unrelated
-No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`, `BaseLaw`, and `CompositeSystem`
-SHALL derive from `BasePart`, which derives from scikit-learn's `BaseEstimator`. `BaseSpace`, `BaseTime`, `BaseSolver`,
-and `BaseBackend` SHALL derive from the framework's `BaseEstimator`, and `BaseDomain`, `BaseProblem`, and `BaseSystemCompiler` from no base.
+No base class SHALL derive from another, except that `BaseElement`, `BaseInteraction`,
+`BaseNeighborhood`, `BaseSpace`, `BaseTime`, and `BaseSystem` SHALL derive from `BaseComponent`, that `BaseLaw`
+SHALL derive from `BaseSpec`, and that every
+configurable base, such as `BaseComponent`, `BaseSolver`, `BaseBackend`, and `BaseCompiler`, SHALL derive from
+`BaseConfig`, which derives from scikit-learn's `BaseEstimator`. `BaseSpec` SHALL derive from no base.
 
 #### Scenario: Unrelated bases
 - **WHEN** a test checks every pair of base classes with `issubclass`
-- **THEN** no base is a subclass of another, except the bases of parts, which are subclasses of `BasePart`
+- **THEN** no base is a subclass of another, except the bases of components, which are subclasses of
+  `BaseComponent`, `BaseLaw`, which is a subclass of `BaseSpec`, and the configurable bases, which are subclasses of
+  `BaseConfig`
 
 #### Scenario: System and interaction
 - **WHEN** a test checks `CompositeSystem` and `BaseInteraction` against `BaseElement`
@@ -334,16 +323,18 @@ package SHALL NOT hold a component module that serves a single system.
 - **THEN** the layout test fails and names the module and the system that should hold it
 
 ### Requirement: Estimators for what is defined, functions for what is done
-The public API SHALL hold estimators for the parts a modeler defines and for calibration, and public functions for
-simulating, analysing, and running experiments. Every other helper SHALL be a method of the class that reads it, with
-only the module functions that the requirement on classes owning the functions they read lets stay. Compilers and
-problem forms SHALL be private, with one documented hook for a system package that brings its own form.
+The public API SHALL hold estimators for the components a modeler defines and for calibration, and public functions
+for simulating, analysing, and running experiments. Every other helper SHALL be a method of the class that reads it,
+with only the module functions that the requirement on classes owning the functions they read lets stay. Compilers and
+problem forms SHALL be private, with one documented hook for a system package that brings its own form, except the
+operator compiler and the operator problem, which SHALL be public so that the quantum analyses of a field package can
+compile an operator system and read its problem.
 
 #### Scenario: Public surface
 - **WHEN** a test lists the public names of `skcomplex.core.engine`
-- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler or `Simulation`,
-  and of compilation and problems only the bases a system package's own form builds on, the problem of the shared pass
-  core, and the frames observers read
+- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler but
+  `OperatorCompiler` and no `Simulation`, and of compilation and problems only the bases a system package's own form
+  builds on, the problems of the shared pass core and of the operator form, and the frames observers read
 
 #### Scenario: A system package brings its own form
 - **WHEN** a system class tunes the run setting `compiler` with a compiler its package defines on `BaseCompiler`
@@ -351,9 +342,9 @@ problem forms SHALL be private, with one documented hook for a system package th
   forms, are chosen from what the system holds
 
 ### Requirement: Systems of the core form a components package
-The systems of the core SHALL live in the package `skcomplex.core.components.systems`, laid out like the other parts
-of a system: a `_base` module with the base, one private module per class, and an `__init__` that re-exports the
-public names. The package SHALL re-export `BaseSystem`, `RunSettings`, and `CompositeSystem`.
+The systems of the core SHALL live in the package `skcomplex.core.components.systems`, laid out like the packages of
+the other components of a system: a `_base` module with the base, one private module per class, and an `__init__`
+that re-exports the public names. The package SHALL re-export `BaseSystem`, `RunSettings`, and `CompositeSystem`.
 `skcomplex.core.components` SHALL hold no module of systems outside this package.
 
 #### Scenario: Import the systems of the core
@@ -383,7 +374,8 @@ no other module of its package. A concrete system module SHALL import the base d
 - **THEN** none of them names `_composite`, `_reaction_network`, or any other module of the package
 
 #### Scenario: Building a system that is not a composite
-- **WHEN** a subclass of `BaseSystem` builds its parts as a `BaseSystem` that is not its own composite and is prepared
+- **WHEN** a subclass of `BaseSystem` builds its components as a `BaseSystem` that is not its own composite and is
+  prepared
 - **THEN** `prepare` raises `ValidationError` naming the class, as before the move
 
 #### Scenario: Composite of a ready-made system
@@ -420,12 +412,15 @@ its package, and no module SHALL import a private name of another package.
 - **WHEN** the operator compiler and the operator lowering name the subsystem of a tensor product
 - **THEN** both import the public `SubsystemSpec` from `skcomplex.core.components.specs`
 
-### Requirement: Every part has one place by the placement rule
-Every new part SHALL be placed by one ordered test. A structural base SHALL go to the core. A part the engine handles by
-type, or an operator generated from one function, SHALL go to the core under a mathematical name. Any other part is a
-recipe, placed by its users: `skcomplex.systems.general.<concept>` for several fields,
-`systems/<field>/common/<family>` for one field, its system's module for one system. The core SHALL never import
-`skcomplex.systems`.
+### Requirement: Every component has one place by the placement rule
+Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A law kind, an
+operator generated from one function, or numerics the engine handles by type SHALL go to the core under a mathematical
+name, and the engine SHALL key only on the seven law kinds. Any other component is a recipe of core components, placed
+by its users: `skcomplex.systems.general.<concept>` for several fields, `systems/<field>/common/<family>` for one
+field, its system's module for one system. Numerics that serve one field alone SHALL come as a solver or a compiler
+built on the public engine bases, in the package of that field. Every analysis SHALL be placed by its users too: an
+analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`, and an analysis of
+one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import `skcomplex.systems`.
 
 #### Scenario: Structural base
 - **WHEN** a contributor adds a base where laws run once per triangle of a cell complex
@@ -449,6 +444,15 @@ recipe, placed by its users: `skcomplex.systems.general.<concept>` for several f
 - **THEN** `DialectSpec` stays in `core/specs/_dialect_spec.py` as engine support, and `skcomplex.core.specs` does not
   re-export it, since nothing outside the package reads it
 
+#### Scenario: Analysis of several fields
+- **WHEN** a contributor adds an analysis of the winding defects of a field of angles, which liquid crystals, active
+  nematics, and spiral waves of heart tissue share
+- **THEN** it goes to `skcomplex.core.analysis`
+
+#### Scenario: Analysis of one field
+- **WHEN** a contributor adds an analysis of the entanglement of the subsystems of a quantum state
+- **THEN** it goes to `systems/physics/common/quantum`, and it imports only the public modules of the core
+
 #### Scenario: Source tests guard the rule
 - **WHEN** the source tests run
 - **THEN** every public class of `skcomplex.core.components` is a structural base, is named in the code of another core
@@ -458,7 +462,8 @@ recipe, placed by its users: `skcomplex.systems.general.<concept>` for several f
 
 #### Scenario: One text of the rule
 - **WHEN** a reviewer reads `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide
-- **THEN** each states the same ordered test as this requirement
+- **THEN** each states the same ordered test as this requirement, in the word component, and each says that analyses
+  follow it by their users
 
 ### Requirement: Module constants lead the module under public names
 Every module constant of a Python file of the sources, the tests, and the documents, without the generated pages,
@@ -563,3 +568,52 @@ function of an equation by its name. Expressions SHALL print and compile as befo
 #### Scenario: Printing unchanged
 - **WHEN** the printer and compile tests run after the conversion
 - **THEN** every expression prints, differentiates, and compiles as before
+
+### Requirement: The components package holds the base of every component
+`skcomplex.core.components.base` SHALL define `BaseComponent`, the base of every component, and SHALL import only the
+root modules of `skcomplex.core`. The base of each family of components SHALL live in the `_base` module of its
+package: `BaseElement` in `elements`, `BaseInteraction` in `interactions`, `BaseNeighborhood`, `BaseSpace`, and
+`BaseTime` in `spaces`, and `BaseSystem` in `systems`. The base of any other concept SHALL live in that concept's
+package, such as `BaseLaw`, the base of every law, in `laws`.
+
+#### Scenario: The bases of components
+- **WHEN** a user imports `BaseComponent` from `skcomplex.core.components.base`, and `BaseElement`,
+  `BaseInteraction`, `BaseLaw`, `BaseSpace`, `BaseTime`, and `BaseSystem` from their packages
+- **THEN** every import succeeds, and every base but `BaseComponent` and `BaseLaw` is a subclass of `BaseComponent`
+
+#### Scenario: Other bases
+- **WHEN** a user imports `BaseSolver` from `skcomplex.core.engine.solvers` and `BaseBackend` from
+  `skcomplex.core.engine.backends`
+- **THEN** every import succeeds, and neither is a subclass of `BaseComponent`
+
+### Requirement: One word names the building blocks of a system
+The building blocks of a system, which are its elements, interactions, spaces, neighbourhoods, times, and the
+system itself, SHALL be called components in names, messages, docstrings, documentation pages, specs, and plans. The
+laws that interactions hold SHALL be called laws, and are values, not components.
+Part SHALL keep only its other meanings. A mathematical component, such as a vector, tensor, or connected component,
+SHALL be qualified in prose, so that the bare word names a building block.
+
+#### Scenario: The base of every component
+- **WHEN** a user imports `BaseComponent` from `skcomplex.core.components.base`
+- **THEN** the import succeeds, and `BaseElement`, `BaseInteraction`, `BaseNeighborhood`, `BaseSpace`, `BaseTime`,
+  and `BaseSystem` are subclasses of it, and `BaseLaw` is not
+
+#### Scenario: Other meanings of part
+- **WHEN** a reader searches the library for part
+- **THEN** every match is a real or imaginary part, a part of a tensor or of the rates, a site, edge, or hyperedge of
+  a space, a piece of a delay, a word, a patch, or a string, a domain word of one model, or ordinary English
+
+### Requirement: The convention check keeps one word
+`openspec/scripts/check_conventions.py` SHALL flag part used for a building block of a system in the names of `src`
+and `tests`, in the docstrings and comments of `src`, and in the documentation pages, with an allow list of the kept
+meanings, and SHALL hold a self-check against planted files.
+
+#### Scenario: A planted part
+- **WHEN** the convention check runs on a planted module that defines `DoublingPart(BaseComponent)` with the docstring
+  `Return the parts of the system.` and calls `real_part`
+- **THEN** it names the class and the docstring, and does not name `real_part`
+
+#### Scenario: Kept meanings pass
+- **WHEN** the convention check runs on the repository
+- **THEN** `real_part`, `symmetric_part`, `PARTS` of a group, `delay_parts`, `_count_parts`, and the parts of the
+  watchmakers raise no finding

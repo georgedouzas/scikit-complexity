@@ -17,13 +17,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
+from .....core.components import Tags
 from .....core.components.interactions import Interaction
-from .....core.components.laws import BaseLaw, RateLaw, UpdateLaw
-from .....core.components.spaces import BaseSpace
+from .....core.components.laws import BaseLaw, CallSpec, RateLaw, UpdateLaw
 from .....core.components.types import NamespaceFunction, PairPotential, Target
 from .....core.errors import ValidationError
-from .....core.specs import CallSpec, ParameterSpec, RoleSpec, Tags
-from .....core.types import Array, ElementKind
+from .....core.types import Array, Role
 
 TENSORS = ('free-draining', 'oseen', 'rotne-prager-yamakawa')
 FORMS = ('rate', 'map')
@@ -227,7 +226,7 @@ class StokesianMobilityInteraction(Interaction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group of spheres.
@@ -292,22 +291,15 @@ class StokesianMobilityInteraction(Interaction):
 
     Examples:
         >>> import math
-        >>> from typing import Annotated
         >>> from sage.all__sagemath_symbolics import vector
-        >>> from skcomplex.core.components.elements import Element, GroupElement
-        >>> from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
+        >>> from skcomplex.core.components.elements import Element
         >>> from skcomplex.core.components.spaces import ContinuousSpace
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.specs import StateSpec
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> class SphereElement(Element):
-        ...     def __init__(self, label, *, x: Annotated[list, StateSpec(vector=True, role='position')] = 0.0):
-        ...         super().__init__(label)
-        ...         self.x = x
+        >>> from skcomplex.core.systems import System
+        >>> from skcomplex.systems.physics.common.particles import StokesianMobilityInteraction
         >>> pull = StokesianMobilityInteraction('stokes', target='spheres', force=lambda s: vector([1.0, 0.0, 0.0]))
-        >>> spheres = GroupElement('spheres', element=SphereElement, size=2, values={'x': [[0, 0, 0], [0, 4, 0]]})
-        >>> system = CompositeSystem(elements=[spheres], interactions=[pull], space=ContinuousSpace(n_dim=3))
-        >>> trajectory = simulate(system, until=1.0, dt=1.0)
+        >>> space = ContinuousSpace(n_dim=3)
+        >>> spheres = Element('spheres', values={'x': [[0, 0, 0], [0, 4, 0]]}, size=2, space=space)
+        >>> trajectory = System(elements=[spheres], interactions=[pull]).prepare().simulate(until=1.0, dt=1.0)
         >>> (trajectory.get_values('spheres.x')[-1, :, 0] * 6 * math.pi).round(4).tolist()
         [1.1953, 1.1953]
     """
@@ -324,7 +316,7 @@ class StokesianMobilityInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP,), states=('position', 'orientation'))],
+        target: Role,
         position: str = 'x',
         orientation: str | None = None,
         tensor: str = 'rotne-prager-yamakawa',
@@ -338,10 +330,10 @@ class StokesianMobilityInteraction(Interaction):
         cutoff: float | None = None,
         root: str = 'cholesky',
         tolerance: float = 1e-6,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        viscosity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        dt: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        radius: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        viscosity: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        temperature: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        dt: Annotated[float, RealSet.open(0, oo)] = 0.01,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -363,20 +355,14 @@ class StokesianMobilityInteraction(Interaction):
         self.temperature = temperature
         self.dt = dt
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for an unknown variant, a bad function, or continuous noise.
-
-        The noise may not run in continuous time.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 A variant is unknown, a function is not callable, or the rate form has a positive temperature.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('tensor', self.tensor, TENSORS)
         self._check_variant('form', self.form, FORMS)
         self._check_variant('root', self.root, ROOTS)
@@ -391,6 +377,16 @@ class StokesianMobilityInteraction(Interaction):
                 "which has no noise. Use `form='map'` in discrete time for Brownian displacements."
             )
             raise ValidationError(error_msg)
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the laws.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = self._get_motion_laws(context)
 
     def _get_vector(self, function: NamespaceFunction | None, namespace: SimpleNamespace, size: int) -> list[Target]:
         """Return the components of a vector function of the namespace.
@@ -434,7 +430,7 @@ class StokesianMobilityInteraction(Interaction):
         symbols = [item for item in slope.variables() if not item.is_trivially_equal(distance)]
         return fast_callable(slope, vars=[distance, *symbols], domain=float), symbols
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+    def _get_motion_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate or update laws of the positions and orientations of the members.
 
         Args:
@@ -466,7 +462,7 @@ class StokesianMobilityInteraction(Interaction):
             *self._get_vector(self.velocity, s, dimension),
             *self._get_stresslet(s, dimension),
             *self._get_vector(self.dipole, s, dimension),
-            *(self._get_parameter_symbol(name, s) for name in ('radius', 'viscosity', 'temperature', 'dt')),
+            *(self._get_parameter_symbol(name, s) for name in ("radius", "viscosity", "temperature", "dt")),
             SR(self._get_cutoff(s)),
             *symbols,
         )

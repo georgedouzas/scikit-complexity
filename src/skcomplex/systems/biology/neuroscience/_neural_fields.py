@@ -6,6 +6,7 @@ The neurons excite near and inhibit distant neighbours.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,12 +14,16 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import RateInteraction
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
 from ....core.components.laws.utils import convolve, displacement, where
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components.spaces import BaseSpace, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Array
 
 
 class NeuralFieldSiteElement(Element):
@@ -33,9 +38,6 @@ class NeuralFieldSiteElement(Element):
     Args:
         label:
             The label of the site or the field.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
 
         u:
             The initial membrane potential.
@@ -52,6 +54,9 @@ class NeuralFieldSiteElement(Element):
         sigma:
             The range of the kernel.
 
+        space:
+            The lattice whose sites hold one site of the field each, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import NeuralFieldSiteElement
         >>> NeuralFieldSiteElement('site').h
@@ -61,15 +66,15 @@ class NeuralFieldSiteElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        h: Annotated[float, ParameterSpec()] = -0.2,
-        A: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        u: float | Array = 0.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        h: float = -0.2,
+        A: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        sigma: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.u = u
         self.tau = tau
         self.h = h
@@ -113,9 +118,15 @@ class AmariNeuralFieldSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.neuroscience import AmariNeuralFieldSystem
-        >>> AmariNeuralFieldSystem(100).prepare().system_.elements[0].values['h']
+        >>> AmariNeuralFieldSystem(100).prepare().system_.elements[0].h
         -0.2
     """
 
@@ -136,8 +147,10 @@ class AmariNeuralFieldSystem(BaseSystem):
         sigma: float = 1.0,
         width: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.length = length
         self.tau = tau
@@ -158,25 +171,28 @@ class AmariNeuralFieldSystem(BaseSystem):
         rate: Expression = (-site.u + convolve(where(site.u > 0, 1, 0), kernel) + site.h) / site.tau
         return rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the Amari neural field.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the Amari neural field.
 
-        Its lateral inhibition holds a stationary bump of activity.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         spacing = self.length / self.n_sites
         positions = (np.arange(self.n_sites) + 0.5) * spacing - self.length / 2
-        values = {
-            'u': np.where(np.abs(positions) < self.width / 2, 1.0, self.h),
-            'tau': self.tau,
-            'h': self.h,
-            'A': self.A,
-            'sigma': self.sigma,
-        }
-        field = FieldElement(
+        field = NeuralFieldSiteElement(
             'field',
-            element=NeuralFieldSiteElement,
+            u=np.where(np.abs(positions) < self.width / 2, 1.0, self.h),
+            tau=self.tau,
+            h=self.h,
+            A=self.A,
+            sigma=self.sigma,
             space=LatticeSpace(self.n_sites, spacing=spacing),
-            values=values,
         )
-        rate = RateInteraction('rate', target='field', state='u', rate=self._get_amari_rate)
-        return CompositeSystem(self.label, elements=[field], interactions=[rate])
+        rate = Interaction(
+            'rate',
+            roles={'target': 'field'},
+            laws=lambda s: [RateLaw(s.target.u, self._get_amari_rate(s))],
+        )
+        self.system_ = System(self.label, elements=[field], interactions=[rate])

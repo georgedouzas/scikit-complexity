@@ -6,6 +6,7 @@ The theory describes the competition between tumour and immune cells.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
 
@@ -13,11 +14,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import GroupElement
+from ....core.components import Observable
 from ....core.components.laws.utils import moment
-from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem, RunSettings
-from ....core.specs import ObservableSpec
+from ....core.components.spaces import LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 from ...general.kinetics import EncounterInteraction
 from ..common.populations import PopulationDensityElement
 
@@ -109,7 +111,7 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
     return moment(s.x, 1, activities, normalized=True)
 
 
-def immune_observables(classes: int) -> list[ObservableSpec]:
+def immune_observables(classes: int) -> list[Observable]:
     """Return the tumour density, mean progression, and mean immune activation.
 
     The progression is the mean tumour progression of the system.
@@ -129,9 +131,9 @@ def immune_observables(classes: int) -> list[ObservableSpec]:
     """
     activities = activity_grid(classes)
     return [
-        ObservableSpec('tumour_density', partial(cell_density, activities=activities), group='tumour'),
-        ObservableSpec('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
-        ObservableSpec('immune_activation', partial(mean_activity, activities=activities), group='immune'),
+        Observable('tumour_density', partial(cell_density, activities=activities), group='tumour'),
+        Observable('tumour_progression', partial(mean_activity, activities=activities), group='tumour'),
+        Observable('immune_activation', partial(mean_activity, activities=activities), group='immune'),
     ]
 
 
@@ -175,6 +177,12 @@ class ImmuneCompetitionSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
         >>> [item.label for item in ImmuneCompetitionSystem().prepare().system_.elements]
@@ -188,12 +196,12 @@ class ImmuneCompetitionSystem(BaseSystem):
     dt = 0.5
 
     @staticmethod
-    def _get_classes_of(system: CompositeSystem) -> int:
+    def _get_classes_of(system: System) -> int:
         """Return the number of activity classes of a system.
 
         It is the size of its tumour distribution.
         """
-        return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
+        return int(np.size(next(item.x for item in system.elements if item.label == 'tumour')))
 
     def __init__(
         self,
@@ -207,8 +215,10 @@ class ImmuneCompetitionSystem(BaseSystem):
         kill: float = 1.0,
         inhibition: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.classes = classes
         self.activation = activation
         self.tumour = tumour
@@ -218,48 +228,34 @@ class ImmuneCompetitionSystem(BaseSystem):
         self.kill = kill
         self.inhibition = inhibition
 
-    def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the competition between tumour cells and immune cells.
 
-        They come with the tumour and immune observables of the built parts.
-
-        Returns:
-            settings:
-                The tuned run settings by name.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        settings = super().get_run_settings()
-        settings['observables'] = immune_observables(ImmuneCompetitionSystem._get_classes_of(self._build_system()))
-        return settings
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the kinetic system of tumour and immune cells.
-
-        The system is the competition between tumour cells and immune cells.
-        """
+        super()._prepare(context)
         activities = activity_grid(self.classes)
         activation_rates = np.tile(activities, (self.classes, 1))
         tumour_density = np.zeros(self.classes)
         tumour_density[0] = self.tumour
         immune_density = np.zeros(self.classes)
         immune_density[int(np.argmin(np.abs(activities - self.activation)))] = self.immune
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[
-                GroupElement(
+                PopulationDensityElement(
                     'tumour',
-                    element=PopulationDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': tumour_density},
+                    x=tumour_density,
+                    space=LatticeSpace(self.classes, boundary='fixed'),
                 ),
-                GroupElement(
+                PopulationDensityElement(
                     'immune',
-                    element=PopulationDensityElement,
-                    size=self.classes,
-                    on='sites',
-                    values={'x': immune_density},
+                    x=immune_density,
+                    space=LatticeSpace(self.classes, boundary='fixed'),
                 ),
-                GroupElement('host', element=PopulationDensityElement, size=1, values={'x': 1.0}),
+                PopulationDensityElement('host', x=[1.0], size=1),
             ],
             interactions=[
                 EncounterInteraction(
@@ -292,5 +288,5 @@ class ImmuneCompetitionSystem(BaseSystem):
                 ),
             ],
             space=LatticeSpace(self.classes, boundary='fixed'),
-            time=ContinuousTime(),
         )
+        self.observables_ = tuple(immune_observables(ImmuneCompetitionSystem._get_classes_of(self.system_)))

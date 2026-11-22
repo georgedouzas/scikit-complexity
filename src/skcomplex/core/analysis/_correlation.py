@@ -11,11 +11,13 @@ import numpy.typing as npt
 from scipy import optimize
 
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags, SeriesSpec
-from ..types import Array, DataKind
+from ..types import Array
+from ._analysis_tags import AnalysisTags
 from ._base import STEP_TOLERANCE, _check_choice, _check_settings, _read_fields, _read_real, _read_series, _step_of
-from .types import Source
+from ._series_spec import _SeriesSpec
+from .types import DataSource
 
 MIN_LINE_POINTS = 2
 MIN_FIT_POINTS = 3
@@ -41,7 +43,11 @@ KIND_TAGS = {
 class CorrelationResult:
     """A result of `correlation`, the correlation of series or of a field.
 
-    It covers every series of a source.
+    It holds the correlation at every lag, time, or distance, the correlation time or length, or the overlap of two
+    configurations, such as `[[1.0, -0.75]]` for a series that flips sign at every step. It reports how long a price
+    remembers, how far order reaches in a magnet, and how alike two states of a glass are.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         values:
@@ -68,6 +74,14 @@ class CorrelationResult:
 
         overlap:
             The overlap of the two configurations, one per frame for frames, for `'overlap'`.
+
+    See Also:
+        correlation: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import correlation
+        >>> correlation([1.0, -1.0, 1.0, -1.0], max_lag=1).correlation.round(2).tolist()
+        [[1.0, -0.75]]
     """
 
     values: Array
@@ -81,7 +95,7 @@ class CorrelationResult:
 
 
 def correlation(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'auto',
     variables: Sequence[str] | None = None,
@@ -97,33 +111,27 @@ def correlation(
 ) -> CorrelationResult:
     """Return the correlation of series, of an ensemble at two times, or of a field.
 
-    The correlation of a field is in space. It covers every series of a source.
+    A correlation says how much a value at one time or place moves with the value at another, from 1 for together to -1
+    for opposite, such as `-0.75` at lag 1 for a series that flips sign at every step. It reads series for the
+    correlation over time, an ensemble of runs for the correlation between two times, and a field for the correlation
+    over distance and how far it reaches. It finds how long a stock price remembers its past, how far order reaches in a
+    magnet, and how two regions of the brain move together.
 
-    The kinds read series, ensembles, or fields:
-
-    - `'auto'`: the autocorrelation of every series at lags 0 to `max_lag`, computed with the FFT, and its integrated
-      autocorrelation time `dt (1/2 + Σ r(k))`, summed to the first negative correlation.
-    - `'two-time'`: the two-time correlation `C(t_w + tau, t_w) = <x(t_w) x(t_w + tau)>` of an ensemble with one row
-      per run and one column per frame, any further axes, such as sites, averaged over.
-    - `'function'`: the radially averaged spatial correlation of a field on a periodic grid, 1 at distance 0.
-    - `'length'`: the correlation length of a field. The `'moment'` method fits the Ornstein-Zernike form
-      `1 / S(q) ∝ 1 + xi² Σ 4 sin²(q_i / 2)` over the modes with `q̂² xi² <= 1`, and the `'fit'` method fits
-      `C(r) ~ r^-a exp(-r / xi)`. Several frames are taken as fluctuations about their common mean.
-    - `'overlap'`: the overlap `q = <s_i t_i>` of two configurations `s` and `t` of the same sites, ±1 for identical or
-      reversed configurations of ±1 values and near 0 for independent ones, per frame for frames. It reads a pair of
-      trajectories, whose fields it compares at every frame, or two arrays stacked on the first axis.
-
-    The kinds `'function'` and `'length'` read the last frame of a trajectory, or every frame when `frames` is true.
-
-    It appears in many fields. It finds how far order reaches in a magnet, how long a stock price remembers its past,
-    and how two regions of the brain move together.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The trajectory, an array of series, an ensemble, a field, or a pair of replicas for `'overlap'`.
 
         kind:
-            The correlation to compute, one of the kinds above.
+            `'auto'` gives the correlation of every series with itself at lags 0 to `max_lag`, with the FFT, and the
+            correlation time `dt (1/2 + sum r(k))` up to the first negative value. `'two-time'` gives
+            `C(t_w + tau, t_w) = <x(t_w) x(t_w + tau)>` of an ensemble, one row per run and one column per frame.
+            `'function'` gives the correlation of a periodic field averaged over directions, 1 at distance 0. `'length'`
+            gives how far the correlation of a field reaches, by the `'moment'` fit of the Ornstein-Zernike form or the
+            `'fit'` of `C(r) ~ r^-a exp(-r / xi)`. `'overlap'` gives `q = <s_i t_i>` of two configurations of the same
+            sites, 1 for equal and near 0 for unrelated ones. The field kinds read the last frame of a trajectory, or
+            every frame when `frames` is true.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series, or the first field for a field.
@@ -164,13 +172,12 @@ def correlation(
             The kind or method is unknown, a setting the kind does not read is changed, a setting the kind needs is
             missing, a setting is not positive, or `dt` differs from the step of a trajectory.
 
+    See Also:
+        spectrum: Finds the frequencies of a series.
+        information: Measures shared information between series.
+
     Examples:
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import correlation
-        >>> correlation([1.0, -1.0, 1.0, -1.0], max_lag=1).correlation.round(2).tolist()
-        [[1.0, -0.75]]
-        >>> correlation(np.ones((4, 10)), kind='two-time', waiting=[2], lags=[0, 3]).correlation.tolist()
-        [[1.0, 1.0]]
         >>> correlation([[1, -1, 1, 1], [1, -1, -1, 1]], kind='overlap').overlap
         0.5
     """
@@ -231,12 +238,12 @@ def correlation(
     return CorrelationResult(field, labels, length=_correlation_length(grids, method, spacing))
 
 
-def _read_replicas(source: Source, name: str | None) -> Array:
+def _read_replicas(source: DataSource, name: str | None) -> Array:
     """Return the fields of two trajectories, or two configurations of an array.
 
     The two configurations are stacked on the first axis of the array.
     """
-    replicas: list[Source] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
+    replicas: list[DataSource] = list(source) if isinstance(source, list | tuple | np.ndarray) else [source]
     if len(replicas) != REPLICAS:
         error_msg = (
             f'An overlap reads {REPLICAS} replicas, a pair of trajectories or two arrays stacked on the first '
@@ -246,7 +253,7 @@ def _read_replicas(source: Source, name: str | None) -> Array:
     return np.stack([_read_fields(replica, name) for replica in replicas])
 
 
-def _read_step(source: Source, series: SeriesSpec, dt: float | None) -> float:
+def _read_step(source: DataSource, series: _SeriesSpec, dt: float | None) -> float:
     """Return the time between samples, read from a trajectory or given for an array.
 
     Args:

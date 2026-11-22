@@ -6,18 +6,21 @@ It is set against the food a growing population needs.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import Sink, Source
+from ....core.components import Observable
+from ....core.components.elements import Element, Quantity
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
+from ....core.systems import BaseSystem, System
 
 
 class RiceBalanceElement(Element):
@@ -25,14 +28,11 @@ class RiceBalanceElement(Element):
 
     It holds the land available for rice and the rice each person needs. The area cultivated grows towards the land
     available over a planning time and loses a fraction to housing, roads, and industry, and the population grows by
-    births and falls by deaths, through transfers of the system.
+    births and falls by deaths, through labelled flows of the system.
 
     Args:
         label:
             The label of the region.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         area_cultivated:
             The area under rice, in hectares.
@@ -70,19 +70,18 @@ class RiceBalanceElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        area_cultivated: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='land')] = 68000.0,
-        population: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 2800000.0,
-        total_land_available: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 120000.0,
-        planning_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
-        land_fraction_lost: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00085,
-        crop_yield: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.2,
-        birth_fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
-        life_expectancy: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 65.0,
-        food_per_capita: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
+        area_cultivated: Annotated[float, RealSet.closed_open(0, oo), Quantity('land')] = 68000.0,
+        population: Annotated[float, RealSet.closed_open(0, oo), Quantity('people')] = 2800000.0,
+        total_land_available: Annotated[float, RealSet.open(0, oo)] = 120000.0,
+        planning_time: Annotated[float, RealSet.open(0, oo)] = 15.0,
+        land_fraction_lost: Annotated[float, RealSet.closed_open(0, oo)] = 0.00085,
+        crop_yield: Annotated[float, RealSet.closed_open(0, oo)] = 3.2,
+        birth_fraction: Annotated[float, RealSet.closed_open(0, oo)] = 0.025,
+        life_expectancy: Annotated[float, RealSet.open(0, oo)] = 65.0,
+        food_per_capita: Annotated[float, RealSet.open(0, oo)] = 0.18,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label)
         self.area_cultivated = area_cultivated
         self.population = population
         self.total_land_available = total_land_available
@@ -156,6 +155,12 @@ class RiceFoodBalanceSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.resources import RiceFoodBalanceSystem
         >>> RiceFoodBalanceSystem(planning_time=10.0).prepare().system_.elements[0].planning_time
@@ -169,7 +174,7 @@ class RiceFoodBalanceSystem(BaseSystem):
     dt = 0.25
     observables = tuple(
         [
-            ObservableSpec(name, expression, element='region')
+            Observable(name, expression, element='region')
             for name, expression in (
                 ('food_available', _get_food_available),
                 ('food_required', _get_food_required),
@@ -191,8 +196,10 @@ class RiceFoodBalanceSystem(BaseSystem):
         life_expectancy: float = 65.0,
         food_per_capita: float = 0.18,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.area_cultivated = area_cultivated
         self.population = population
         self.total_land_available = total_land_available
@@ -209,11 +216,30 @@ class RiceFoodBalanceSystem(BaseSystem):
 
         It is `MAX((total_land_available - area_cultivated) / planning_time, 0)`.
         """
-        gap = (s.source.total_land_available - s.source.area_cultivated) / s.source.planning_time
+        gap = (s.target.total_land_available - s.target.area_cultivated) / s.target.planning_time
         return where(gap > 0, gap, 0)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _get_land_flows(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the increase of the area cultivated and the land lost to housing, roads, and industry."""
+        area = s.target.area_cultivated
+        return [
+            RateLaw({area: +1}, RiceFoodBalanceSystem._get_area_increase(s), label='area_increase_rate'),
+            RateLaw({area: -1}, area * s.target.land_fraction_lost, label='land_lost'),
+        ]
+
+    @staticmethod
+    def _get_people_flows(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the births and the deaths of the population."""
+        population = s.target.population
+        return [
+            RateLaw({population: +1}, population * s.target.birth_fraction, label='birth_rate'),
+            RateLaw({population: -1}, population / s.target.life_expectancy, label='death_rate'),
+        ]
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         region = RiceBalanceElement(
             'region',
             area_cultivated=self.area_cultivated,
@@ -226,33 +252,6 @@ class RiceFoodBalanceSystem(BaseSystem):
             life_expectancy=self.life_expectancy,
             food_per_capita=self.food_per_capita,
         )
-        land = TransferInteraction(
-            'land',
-            source='region',
-            target='region',
-            state=Source('suitable_land'),
-            into='area_cultivated',
-            amount=self._get_area_increase,
-            flow='area_increase_rate',
-            legs=[
-                (
-                    'area_cultivated',
-                    Sink('urban_land'),
-                    lambda s: s.source.area_cultivated * s.source.land_fraction_lost,
-                    'land_lost',
-                ),
-            ],
-        )
-        people = TransferInteraction(
-            'people',
-            source='region',
-            target='region',
-            state=Source('births'),
-            into='population',
-            amount=lambda s: s.source.population * s.source.birth_fraction,
-            flow='birth_rate',
-            legs=[
-                ('population', Sink('deaths'), lambda s: s.source.population / s.source.life_expectancy, 'death_rate'),
-            ],
-        )
-        return CompositeSystem(self.label, elements=[region], interactions=[land, people])
+        land = Interaction('land', roles={'target': 'region'}, laws=self._get_land_flows)
+        people = Interaction('people', roles={'target': 'region'}, laws=self._get_people_flows)
+        self.system_ = System(self.label, elements=[region], interactions=[land, people])

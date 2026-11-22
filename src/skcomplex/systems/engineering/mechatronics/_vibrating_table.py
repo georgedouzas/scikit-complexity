@@ -8,10 +8,10 @@ A supplied electromagnet pulls its table against a spring.
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, oo, sin, tan
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, sin, tan
 
-from ....core.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver
 from ...general.dynamics import DynamicalSystem
 from ...general.dynamics.types import Equations
 
@@ -69,6 +69,12 @@ class VibratingTableSystem(DynamicalSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.mechatronics import VibratingTableSystem
         >>> VibratingTableSystem(linear=True).get_params()['linear']
@@ -97,8 +103,10 @@ class VibratingTableSystem(DynamicalSystem):
         alpha: float = 2.5,
         linear: bool = False,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label=label)
+        super().__init__(label=label, solver=solver, backend=backend)
         self.U = U
         self.omega = omega
         self.R = R
@@ -116,24 +124,29 @@ class VibratingTableSystem(DynamicalSystem):
         """Return the label of the element that holds the states."""
         return 'shaker'
 
-    def _get_variables(self) -> dict[str, DeclaredVariableSpec]:
-        """Return the states and the parameters with their specs."""
+    def _get_states(self) -> dict[str, object]:
+        """Return the initial value of every state by name."""
         return {
-            'i2': DeclaredVariableSpec(0.0, StateSpec()),
-            'uC': DeclaredVariableSpec(0.0, StateSpec()),
-            'x': DeclaredVariableSpec(0.0, StateSpec()),
-            'v': DeclaredVariableSpec(0.0, StateSpec()),
-            'U': DeclaredVariableSpec(self.U, ParameterSpec()),
-            'omega': DeclaredVariableSpec(self.omega, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'R': DeclaredVariableSpec(self.R, ParameterSpec(domain=RealSet.open(0, oo))),
-            'L': DeclaredVariableSpec(self.L, ParameterSpec(domain=RealSet.open(0, oo))),
-            'C': DeclaredVariableSpec(self.C, ParameterSpec(domain=RealSet.open(0, oo))),
-            'K': DeclaredVariableSpec(self.K, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'm': DeclaredVariableSpec(self.m, ParameterSpec(domain=RealSet.open(0, oo))),
-            'B': DeclaredVariableSpec(self.B, ParameterSpec(domain=RealSet.closed_open(0, oo))),
-            'k1': DeclaredVariableSpec(self.k1, ParameterSpec()),
-            'k2': DeclaredVariableSpec(self.k2, ParameterSpec()),
-            'alpha': DeclaredVariableSpec(self.alpha, ParameterSpec(domain=RealSet.open(0, oo))),
+            'i2': 0.0,
+            'uC': 0.0,
+            'x': 0.0,
+            'v': 0.0,
+        }
+
+    def _get_parameters(self) -> dict[str, object]:
+        """Return the value of every parameter by name."""
+        return {
+            'U': self.U,
+            'omega': self.omega,
+            'R': self.R,
+            'L': self.L,
+            'C': self.C,
+            'K': self.K,
+            'm': self.m,
+            'B': self.B,
+            'k1': self.k1,
+            'k2': self.k2,
+            'alpha': self.alpha,
         }
 
     def _get_equations(self) -> Equations:

@@ -15,11 +15,12 @@ from scipy.spatial import cKDTree
 
 from ..components.spaces import ContinuousSpace
 from ..engine.runtime import Trajectory
+from ..enums import DataKind
 from ..errors import AnalysisError
-from ..specs import AnalysisTags
-from ..types import DataKind, IntArray
+from ..types import IntArray
+from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _get_missing_error, _read_fields
-from .types import Source
+from .types import DataSource
 
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
 SETTINGS = {
@@ -35,7 +36,12 @@ TAGS = AnalysisTags(DataKind.FIELD)
 class ClustersResult:
     """A result of `clusters`, the clusters of a grid, a graph, or points.
 
-    They are the occupied cells of a grid, the components of a graph, or the contacts of points.
+    It holds the label of every cell, the size of every cluster, largest first, and for percolation the share of the
+    largest cluster, the mean size, and whether a cluster joins two opposite edges, such as `[2, 1]` for a pair and a
+    single. It reports the flow paths of a porous rock, the burnt patches of a forest, and the groups of like-minded
+    voters.
+
+    Read more in the user guide, under Analyse.
 
     Args:
         points:
@@ -70,6 +76,14 @@ class ClustersResult:
 
         probability:
             The spanning probability of the ensemble, for `'spanning'`.
+
+    See Also:
+        clusters: Returns this result.
+
+    Examples:
+        >>> from skcomplex.core.analysis import clusters
+        >>> clusters([[1, 1, 0], [0, 0, 1]], kind='sizes').sizes.tolist()
+        [2, 1]
     """
 
     points: npt.NDArray[np.float64] | None = None
@@ -85,7 +99,7 @@ class ClustersResult:
 
 
 def clusters(
-    source: Source,
+    source: DataSource,
     *,
     kind: str = 'labels',
     variables: Sequence[str] | None = None,
@@ -96,31 +110,23 @@ def clusters(
 ) -> ClustersResult:
     """Return the clusters of a grid, a graph, or points.
 
-    They are the occupied cells of a grid, the components of a graph, or the contacts of points. The grid is a boolean
-    array of any dimension, the last frame of a field of a trajectory, or a graph, the last network of a trajectory.
-    Cells are connected through shared faces, or also corners with `diagonal=True`.
+    A cluster is a set of occupied cells of a grid that touch through faces, or corners with `diagonal=True`, the
+    connected nodes of a graph, or points closer than twice `radius`, such as the clusters of sizes 2 and 1 in
+    `[[1, 1, 0], [0, 0, 1]]`. A trajectory gives its last field, network, or positions. A cluster spans when it joins
+    two opposite edges along `axis`. It finds the path of water through a porous rock, the burnt patches of a forest
+    fire, and the groups of an opinion model.
 
-    With a `radius`, the source holds points instead, an array with one row per point, a stack of such arrays for the
-    kind `'spanning'`, or the positions of a group of a trajectory in its last frame. Points closer than twice the
-    radius are connected, and a cluster joins two opposite faces along `axis` when it holds points within the radius of
-    both. The faces are those of the space of a trajectory, and those of the bounding box of an array.
-
-    - `'labels'`: the label of every cell and the size of every cluster of a grid, in label order, and whether a
-      cluster joins the two opposite edges of `axis`.
-    - `'sizes'`: the size of every cluster of a grid or of every component of a graph, largest first.
-    - `'percolation'`: the cluster sizes, the strength of the largest cluster, the mean cluster size, and spanning.
-    - `'spanning'`: the share of the grids of an ensemble, stacked on the first axis or the frames of a trajectory,
-      with a cluster joining the opposite edges of `axis`.
-
-    It appears in many fields. It finds the percolating cluster of a porous rock, the burnt patches of a forest fire,
-    and the groups of an opinion model.
+    Read more in the user guide, under Analyse.
 
     Args:
         source:
             The grid or the grids, the graph, the points, or the trajectory.
 
         kind:
-            The measure to compute, one of the kinds above.
+            What to return. `'labels'` gives the label of every cell, the size of every cluster in label order, and
+            whether a cluster spans. `'sizes'` gives the sizes, largest first. `'percolation'` gives the sizes, the
+            share of the largest cluster, the mean size, and spanning. `'spanning'` gives the share of the grids of an
+            ensemble, stacked on the first axis, with a spanning cluster.
 
         variables:
             The field of a trajectory to read, or `None` for its first field.
@@ -146,18 +152,15 @@ def clusters(
             The kind is unknown, a setting the kind does not read is changed, the radius is not positive or comes with
             settings of grids, or a kind that reads grids gets a graph.
 
+    See Also:
+        domains: Finds the regions of equal value of a field.
+        defects: Finds the defects of a field of angles.
+
     Examples:
-        >>> import networkx as nx
         >>> from skcomplex.core.analysis import clusters
-        >>> clusters([[1, 1, 0], [0, 0, 1]], kind='sizes').sizes.tolist()
-        [2, 1]
-        >>> clusters(nx.path_graph(3), kind='sizes').sizes.tolist()
-        [3]
         >>> result = clusters([[1, 1, 0], [1, 0, 1]], kind='percolation')
         >>> result.strength, result.mean_size, result.spanning
         (0.5, 1.0, True)
-        >>> clusters([[0, 0], [1, 0], [5, 5]], kind='sizes', radius=0.6).sizes.tolist()
-        [2, 1]
     """
     _check_choice('clusters', 'kind', kind, KINDS)
     _check_settings(
@@ -233,7 +236,7 @@ def _strength(sizes: IntArray, total: int) -> tuple[float, float]:
 
 
 def _read_points(
-    source: Source,
+    source: DataSource,
     kind: str,
     variables: Sequence[str] | None,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64] | None]:

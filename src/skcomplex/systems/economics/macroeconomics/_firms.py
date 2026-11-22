@@ -3,22 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
-from typing import Annotated
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated, Protocol
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
-from ....core.components.spaces import DiscreteTime
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class InvestingFirmView(AgentView):
+class InvestingFirmView(AgentViewProtocol, Protocol):
     """Firm as its rule sees it.
 
     It holds its states `A`, `K`, `Z`, `B`, `Y`, `P` and parameters `gamma`, `phi`, `r`, `pbar`.
@@ -47,9 +51,6 @@ class InvestingFirmElement(Element):
     Args:
         label:
             The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
 
         A:
             The initial net worth.
@@ -81,31 +82,32 @@ class InvestingFirmElement(Element):
         pbar:
             The constant part of the price.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import InvestingFirmElement
-        >>> GroupElement('firms', element=InvestingFirmElement, size=10, values={'gamma': 1.2}).size
+        >>> InvestingFirmElement('firms', gamma=1.2, size=10).size
         10
     """
-
-    draws = True
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        A: Annotated[float, StateSpec()] = 1.0,
-        K: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        Z: Annotated[float, StateSpec()] = 0.0,
-        B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        Y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        pbar: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        A: object = 1.0,
+        K: Annotated[object, RealSet.closed_open(0, oo)] = 1.0,
+        Z: object = 0.0,
+        B: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        Y: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        P: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        gamma: Annotated[object, RealSet.open(0, oo)] = 1.1,
+        phi: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        r: Annotated[object, RealSet.open(0, oo)] = 0.1,
+        pbar: Annotated[object, RealSet.closed_open(0, oo)] = 0.01,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.A = A
         self.K = K
         self.Z = Z
@@ -117,52 +119,65 @@ class InvestingFirmElement(Element):
         self.r = r
         self.pbar = pbar
 
-    @classmethod
-    def _get_view(cls) -> type[InvestingFirmView]:
-        """Return the view of a firm, with its states and parameters."""
-        return InvestingFirmView
 
-    @staticmethod
-    def get_price(agent: InvestingFirmView, system: SystemView) -> float:
-        """Return a random price, `pbar + 2 U(0, 1)`.
+class InvestmentInteraction(Interaction):
+    """Investment rule of the firms of the toy business-cycle system.
+
+    Every period a firm invests `I = gamma * Z`, accumulates capital `K = K + I`, produces `Y = phi * K`, borrows
+    `B = max(K - A, 0)`, sells at the random price `P = pbar + 2 U(0, 1)`, earns `Z = P * Y - r * K`, and adds the
+    profit to its net worth `A`. A firm whose net worth turns negative is replaced by an entrant with `A = K = 1` and
+    `Z = 0`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of firms.
+
+    Examples:
+        >>> from skcomplex.systems.economics.macroeconomics import InvestmentInteraction
+        >>> InvestmentInteraction('investment', target='firms').target
+        'firms'
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the period of every firm as its rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self.invest)]
+
+    def invest(self, agent: InvestingFirmView, system: SystemView) -> None:
+        """Run one period of a firm, and replace it by an entrant when its net worth turns negative.
 
         Args:
             agent:
                 The firm.
 
             system:
-                The system view of the pricing.
-
-        Returns:
-            price:
-                The price of the period.
+                The system view of the rule.
         """
-        return agent.pbar + 2.0 * float(system.rng.random())
-
-    @staticmethod
-    def get_steps() -> tuple[tuple[str, str, Callable[[InvestingFirmView, SystemView], float]], ...]:
-        """Return the steps of a period in their order.
-
-        Each is a label, a state, and the function of its next value. A firm invests, produces, borrows, sells, earns,
-        adds the profit to its net worth, and, when the net worth turns negative, is replaced by an entrant, whose
-        profit, capital, and net worth the last three steps reset.
-
-        Returns:
-            steps:
-                The label of every step, the state it sets, and the function of its next value of the firm and the
-                system view.
-        """
-        return (
-            ('investment', 'K', lambda agent, system: agent.K + agent.gamma * agent.Z),
-            ('production', 'Y', lambda agent, system: agent.phi * agent.K),
-            ('borrowing', 'B', lambda agent, system: max(agent.K - agent.A, 0.0)),
-            ('pricing', 'P', InvestingFirmElement.get_price),
-            ('profit', 'Z', lambda agent, system: agent.P * agent.Y - agent.r * agent.K),
-            ('accumulation', 'A', lambda agent, system: agent.A + agent.Z),
-            ('entry_profit', 'Z', lambda agent, system: 0.0 if agent.A < 0 else agent.Z),
-            ('entry_capital', 'K', lambda agent, system: 1.0 if agent.A < 0 else agent.K),
-            ('entry_worth', 'A', lambda agent, system: 1.0 if agent.A < 0 else agent.A),
-        )
+        agent.K = agent.K + agent.gamma * agent.Z
+        agent.Y = agent.phi * agent.K
+        agent.B = max(agent.K - agent.A, 0.0)
+        agent.P = agent.pbar + 2.0 * float(system.rng.random())
+        agent.Z = agent.P * agent.Y - agent.r * agent.K
+        agent.A = agent.A + agent.Z
+        if agent.A < 0:
+            agent.Z = 0.0
+            agent.K = 1.0
+            agent.A = 1.0
 
 
 class ToyFirmInvestmentSystem(BaseSystem):
@@ -194,9 +209,15 @@ class ToyFirmInvestmentSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.economics.macroeconomics import ToyFirmInvestmentSystem
-        >>> ToyFirmInvestmentSystem(20).prepare().system_.elements[0].prepare().size_
+        >>> ToyFirmInvestmentSystem(20).prepare().system_.elements[0].size
         20
     """
 
@@ -204,7 +225,7 @@ class ToyFirmInvestmentSystem(BaseSystem):
     topics = ('business cycle', 'agents', 'firms')
     references = ('Caiani et al. 2016', 'Delli Gatti et al. 2010')
     until = 100
-    observables = (ObservableSpec('production', group='firms', reduce='sum', variable='Y'),)
+    observables = (Observable('production', group='firms', reduce='sum', variable='Y'),)
 
     def __init__(
         self,
@@ -216,8 +237,10 @@ class ToyFirmInvestmentSystem(BaseSystem):
         pbar: float = 0.01,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_firms = n_firms
         self.gamma = gamma
         self.phi = phi
@@ -225,17 +248,22 @@ class ToyFirmInvestmentSystem(BaseSystem):
         self.pbar = pbar
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of the components built from the model parameters."""
+        super()._prepare(context)
         profits = self.pbar + 2.0 * np.random.default_rng(self.random_state).random(self.n_firms)
-        firms = GroupElement(
+        firms = InvestingFirmElement(
             'firms',
-            element=InvestingFirmElement,
+            Z=profits,
+            gamma=self.gamma,
+            phi=self.phi,
+            r=self.r,
+            pbar=self.pbar,
             size=self.n_firms,
-            values={'Z': profits, 'gamma': self.gamma, 'phi': self.phi, 'r': self.r, 'pbar': self.pbar},
         )
-        steps = [
-            MapInteraction(label, target='firms', state=name, function=function, form='agent')
-            for label, name, function in InvestingFirmElement.get_steps()
-        ]
-        return CompositeSystem(self.label, elements=[firms], interactions=steps, time=DiscreteTime())
+        self.system_ = System(
+            self.label,
+            elements=[firms],
+            interactions=[InvestmentInteraction('investment', target='firms')],
+            solver=MesaSolver(activation='sequential'),
+        )

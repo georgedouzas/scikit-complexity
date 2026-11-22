@@ -1,17 +1,13 @@
 """Test the `_payoff_learning` module of `skcomplex.systems.economics.common.learning`."""
 
-from typing import Annotated
-
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element, GroupElement
-from skcomplex.core.components.spaces import DiscreteTime
-from skcomplex.core.components.systems import CompositeSystem
-from skcomplex.core.engine.runtime import Trajectory, simulate
+from skcomplex.core.components.elements import Element
+from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.engine.solvers import AgentView, SystemView
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec, VisualSpec
+from skcomplex.core.systems import System
 from skcomplex.systems.economics.common.learning import PayoffLearningInteraction
 from skcomplex.systems.general.agents import ChoiceInteraction
 
@@ -31,14 +27,14 @@ class LearnerElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        choice: Annotated[float, StateSpec()] = 0.0,
-        first: Annotated[float, StateSpec()] = 0.0,
-        second: Annotated[float, StateSpec()] = 0.0,
-        value: Annotated[float, StateSpec()] = 1.0,
+        choice: float = 0.0,
+        first: float = 0.0,
+        second: float = 0.0,
+        value: float = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.choice = choice
         self.first = first
         self.second = second
@@ -56,19 +52,19 @@ class PoolElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        scores: Annotated[object, StateSpec(vector=True)] = 0.0,
+        scores: object = 0.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.scores = scores
 
 
 def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
     """Return the trajectory of a group of learners bound to interactions."""
-    group = GroupElement('learners', element=LearnerElement, size=size, values=values)
-    system = CompositeSystem(elements=[group], interactions=interactions, time=DiscreteTime())
-    return simulate(system, until=until, random_state=0)
+    group = LearnerElement('learners', size=size, **values)
+    system = System(elements=[group], interactions=interactions)
+    return system.prepare().simulate(until=until, random_state=0)
 
 
 def _agent_payoff(agent: LearnerView, system: SystemView, index: int) -> float:
@@ -99,7 +95,7 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
         scores=('first', 'second'),
         payoff=_agent_payoff,
         rate=0.5,
-        form='agent',
+        schedule='synchronous',
     )
     choice = ChoiceInteraction(
         'choice',
@@ -108,7 +104,7 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
         options=(0, 1),
         utility=lambda agent, system, option: agent.second if option == 1 else agent.first,
         rule='best',
-        form='agent',
+        schedule='synchronous',
     )
     trajectory = _run([reinforcement, choice], {'value': np.array([0.5, 3.0])}, 2, 4)
     frame = trajectory.get_agents('learners', 4).values
@@ -130,18 +126,18 @@ def test_reinforcement_interaction_cumulative_rule_adds_the_payoffs():
 
 
 def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state():
-    """Test that the agent form reinforces every component of a vector state of scores, one per option."""
+    """Test that a rule of a schedule reinforces every component of a vector state of scores, one per option."""
     reinforcement = PayoffLearningInteraction(
         'reinforcement',
         target='pool',
         scores='scores',
         payoff=lambda agent, system, index: float(index),
         rate=0.5,
-        form='agent',
+        schedule='synchronous',
     )
-    group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
-    system = CompositeSystem(elements=[group], interactions=[reinforcement], time=DiscreteTime())
-    trajectory = simulate(system, until=2, random_state=0)
+    group = PoolElement('pool', scores=np.zeros((1, 4)), size=1)
+    system = System(elements=[group], interactions=[reinforcement])
+    trajectory = system.prepare().simulate(until=2, random_state=0)
     scores = np.array(trajectory.get_agents('pool', 2).values['scores'].tolist(), dtype=float)
     assert scores.ravel().tolist() == pytest.approx([0.0, 0.75, 1.5, 2.25])
 
@@ -149,18 +145,15 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
-        ({'form': 'table'}, 'The form of map'),
         ({'rule': 'median'}, 'Unknown rule'),
         ({'scores': 'first'}, 'sequence of state names'),
         ({'scores': ()}, 'sequence of state names'),
         ({'payoff': 1.0}, 'must be callable'),
-        ({'schedule': 'parallel'}, 'The schedule of map'),
-        ({'schedule': 'member'}, 'only the agent form'),
-        ({'schedule': 'sequential'}, 'runs agent rules'),
+        ({'schedule': 'parallel'}, 'Unknown schedule'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
-    """Test that an unknown form, missing scores, or a payoff that is not callable is rejected."""
+    """Test that an unknown rule or schedule, missing scores, or a payoff that is not callable is rejected."""
     values = {'target': 'learners', 'scores': ('first', 'second'), 'payoff': lambda s, k: k, **arguments}
     with pytest.raises(ValidationError, match=message):
         PayoffLearningInteraction('reinforcement', **values).prepare()
@@ -197,7 +190,6 @@ def test_reinforcement_interaction_sequential_schedule_reads_the_scores_set_befo
         payoff=_scarce_payoff,
         rule='cumulative',
         schedule=schedule,
-        form='agent',
     )
     assert _run([reinforcement], {}, 2, 1).get_agents('learners', 1).values['second'].tolist() == expected
 
@@ -212,7 +204,6 @@ def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_thei
         utility=lambda agent, system, option: float(option),
         rule='best',
         schedule='member',
-        form='agent',
     )
     reinforcement = PayoffLearningInteraction(
         'reinforcement',
@@ -222,7 +213,6 @@ def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_thei
         rate=0.5,
         chosen='choice',
         schedule='member',
-        form='agent',
     )
     frame = _run([choice, reinforcement], {'value': 4.0}, 3, 2).get_agents('learners', 2).values
     assert frame['choice'].tolist() == [1.0, 1.0, 1.0]

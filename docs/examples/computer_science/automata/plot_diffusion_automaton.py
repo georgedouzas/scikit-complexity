@@ -13,7 +13,6 @@ content stays exactly the same.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.computer_science.automata import DiffusionAutomatonSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'diffusion_automaton'
 R = 0.1
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(DiffusionAutomatonSystem(shape=(80, 80), r=R, width=10), until=200, observers=[observer])
+trajectory = DiffusionAutomatonSystem(shape=(80, 80), r=R, width=10).prepare().simulate(until=200, observers=[observer])
 
 # %%
 # Spreading and conservation

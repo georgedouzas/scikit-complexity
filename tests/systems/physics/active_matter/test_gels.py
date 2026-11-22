@@ -2,7 +2,6 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.physics.active_matter import ActiveViscoelasticGelSystem
 
 
@@ -19,7 +18,7 @@ def _force_balance_residual(density, displacement, velocity, spacing):
 
 def test_active_viscoelastic_gel_concentrates_above_the_contractile_threshold():
     """Test that the cells concentrate into peaks while the velocity solves the force balance at every step."""
-    trajectory = simulate(ActiveViscoelasticGelSystem(), random_state=0)
+    trajectory = ActiveViscoelasticGelSystem().prepare().simulate(random_state=0)
     density = np.asarray(trajectory.get_values('gel.c'))
     displacement = np.asarray(trajectory.get_values('gel.u'))
     velocity = np.asarray(trajectory.get_values('v'))
@@ -33,6 +32,6 @@ def test_active_viscoelastic_gel_concentrates_above_the_contractile_threshold():
 def test_active_viscoelastic_gel_stays_uniform_below_the_contractile_threshold():
     """Test that a perturbation decays when `c Ta'(c)` is below `gamma D`."""
     density = np.asarray(
-        simulate(ActiveViscoelasticGelSystem(T0=0.2), random_state=0).get_values('gel.c'),
+        ActiveViscoelasticGelSystem(T0=0.2).prepare().simulate(random_state=0).get_values('gel.c'),
     )
     assert np.ptp(density[-1]) < np.ptp(density[0])

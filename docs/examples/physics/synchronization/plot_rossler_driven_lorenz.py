@@ -13,7 +13,6 @@ synchronization.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.synchronization import RosslerDrivenLorenzSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'rossler_driven_lorenz'
 
 system = RosslerDrivenLorenzSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = simulate(system, dt=0.05, observers=[observer])
+simulation = system.prepare().simulate(dt=0.05, observers=[observer])
 
 # %%
 # Auxiliary system method
@@ -32,7 +31,7 @@ simulation = simulate(system, dt=0.05, observers=[observer])
 couplings = np.linspace(0.0, 12.0, 7)
 errors = []
 for k in couplings:
-    trajectory = simulate(RosslerDrivenLorenzSystem(k=k), dt=0.05)
+    trajectory = RosslerDrivenLorenzSystem(k=k).prepare().simulate(dt=0.05)
     squares = [
         (np.ravel(trajectory.get_values(f'response.{name}')) - np.ravel(trajectory.get_values(f'auxiliary.{name}')))
         ** 2

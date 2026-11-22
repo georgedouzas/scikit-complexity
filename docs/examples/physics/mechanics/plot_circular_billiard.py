@@ -11,7 +11,6 @@ that never enters an inner circle, the caustic. The circular billiard is integra
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.mechanics import CircularBilliardSystem
 
@@ -20,7 +19,7 @@ SYSTEM = 'circular_billiard'
 
 system = CircularBilliardSystem(x=0.3, y=0.0, vx=0.4, vy=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-trajectory = simulate(system, dt=0.02, observers=[observer])
+trajectory = system.prepare().simulate(dt=0.02, observers=[observer])
 
 # %%
 # The caustic

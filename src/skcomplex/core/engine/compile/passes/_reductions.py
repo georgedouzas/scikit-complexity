@@ -1,23 +1,37 @@
-"""Replace the reductions of laws by placeholders compiled once each."""
+"""Compute every sum, mean, or other reduction of the laws once per evaluation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from dataclasses import replace
 
+from ....components.laws import EventLaw
+from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
-from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from ._reduction_lowering import ReductionLowering
 
 
 class ReductionsPass(BasePass):
-    """A pass that lowers the reductions of the laws, the laws set apart, and events.
+    """A pass that makes every reduction of the laws computed once per evaluation.
 
-    They are lowered in that order.
+    A law may read a sum or a mean over a group, such as the mean phase of the oscillators that pulls every oscillator.
+    The pass replaces every reduction by a symbol, so it is computed once and then read by every member.
+
+    Read more in the user guide, under Extend the library.
+
+    See Also:
+        ReductionLowering: Rewrites the reductions.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> compilation = PassCompiler().prepare(KuramotoSystem()).run().compilation_
+        >>> [(reduction.group, reduction.kind) for reduction in compilation.reductions.reductions]
+        [('oscillators', 'count'), ('oscillators', 'sum'), ('oscillators', 'sum')]
     """
 
     def _get_reads(self) -> tuple[str, ...]:
@@ -40,7 +54,7 @@ class ReductionsPass(BasePass):
         events = reductions.run([(spec, [event]) for spec, event in crossings]).lowered_
         compilation.reduced = lowered[: len(specs)]
         compilation.reduced_apart = lowered[len(specs) :]
-        compilation.events = [(spec, laws[0]) for spec, laws in events]
+        compilation.events = [(spec, law) for spec, (law, *_) in events if isinstance(law, EventLaw)]
         reductions._apply_references()
         compilation._replace_specs(
             {

@@ -10,22 +10,25 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, solve
 
-from ...components.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
-from ...components.spaces import ContinuousTime
+from ...components.laws import ConstraintLaw, ObjectiveLaw, RateLaw
+from ...components.laws._boundary import _BoundaryLaw
+from ...components.spaces._continuous_time import _ContinuousTime
+from ...enums import OrderKind
 from ...errors import SolverError, ValidationError
-from ...specs import ControlSolutionSpec, SupportSpec
-from ...types import Array, OrderKind
+from ...types import Array
+from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
+from ._control_solution_spec import _ControlSolutionSpec
 from ._optimal_control import OptimalControlSolver
 
 MIN_RELAXATION = 1e-3
 MIN_NODES = 2
 CONTROL_SUPPORT = SupportSpec(
-    time={ContinuousTime},
+    time={_ContinuousTime},
     space={None},
-    laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
+    laws={RateLaw, ConstraintLaw, _BoundaryLaw, ObjectiveLaw},
     orders=frozenset({OrderKind.INTEGER}),
 )
 
@@ -33,17 +36,15 @@ CONTROL_SUPPORT = SupportSpec(
 class PontryaginSolver(OptimalControlSolver):
     """A solver of optimal control by the maximum principle of Pontryagin.
 
-    Its costates and the stationarity condition are derived symbolically. The solver builds the Hamiltonian `H = L + λ ·
-    f` from the running cost `L` and the rates `f` of the states, and derives the costate equations `λ' = -∂H/∂x` with
-    `λ(T) = ∂φ/∂x` at the horizon `T` for the terminal cost `φ`. The controls solve `∂H/∂u = 0`, projected onto their
-    bounds, or take the bound that minimises `H` where `H` is linear in them. A forward-backward sweep integrates the
-    states forward and the costates backward with fourth-order Runge-Kutta steps on a grid, and relaxes the controls
-    towards their update until they converge. The weight of the update halves whenever the distance of the controls to
-    their update stops falling, which breaks the cycles of the sweep. An objective to maximise is minimised with its
-    sign changed. The solution holds the costates.
+    It builds the Hamiltonian `H = L + λ · f` from the running cost `L` and the rates `f` of the states, and derives by
+    Sage the costate equations `λ' = -∂H/∂x` with `λ(T) = ∂φ/∂x` at the end time for the terminal cost `φ`. The controls
+    solve `∂H/∂u = 0` within their bounds, or take the bound that minimises `H` where `H` is linear in them. A forward
+    and backward sweep steps the states forward and the costates backward with Runge-Kutta steps, and moves the controls
+    towards their update until they settle, such as a vaccination rate of 0.153 at the start of an epidemic. Choose it
+    for smooth control problems with few states, such as the treatment of a tumour, the harvest of a fishery, and the
+    growth of an economy.
 
-    Choose it for smooth control problems with few states. It appears in many fields, such as optimal treatment in
-    medicine, optimal harvest in ecology, and optimal growth in economics.
+    Read more in the user guide, under Solvers.
 
     Args:
         objective:
@@ -86,31 +87,15 @@ class PontryaginSolver(OptimalControlSolver):
         ValidationError:
             The sense is unknown, the grid has fewer than 2 nodes, or the relaxation is not in `(0, 1]`.
 
+    See Also:
+        CollocationSolver: Solves the problem as one large optimisation.
+
     Examples:
-        >>> from typing import Annotated
-        >>> from skcomplex.core.components.elements import Element
-        >>> from skcomplex.core.components.laws import RateLaw
-        >>> from skcomplex.core.specs import ParameterSpec, StateSpec
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> from skcomplex.core.engine.solvers import PontryaginSolver
-        >>> class PlantElement(Element):
-        ...     def __init__(
-        ...         self,
-        ...         label,
-        ...         x: Annotated[float, StateSpec()] = 1.0,
-        ...         u: Annotated[float, ParameterSpec(adaptive=True, bounds=(-10, 10))] = 0.0,
-        ...     ):
-        ...         super().__init__(label)
-        ...         self.x = x
-        ...         self.u = u
-        ...
-        ...     def _get_laws(self, s):
-        ...         return [RateLaw(s.x, s.u)]
-        >>> solver = PontryaginSolver(objective=lambda s: (s.plant.x**2 + s.plant.u**2) / 2)
-        >>> trajectory = simulate(CompositeSystem(elements=[PlantElement('plant')]), until=1.0, solver=solver)
-        >>> float(round(trajectory.get_values('plant.u')[0], 3))
-        -0.762
+        >>> from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
+        >>> system = SIRVaccinationSystem().prepare()
+        >>> trajectory = system.simulate(until=5.0)
+        >>> type(system.system_.solver_).__name__, float(trajectory.get_values('population.u')[0].round(3))
+        ('PontryaginSolver', 0.153)
     """
 
     @classmethod
@@ -228,7 +213,7 @@ class PontryaginSolver(OptimalControlSolver):
         )
         self._law: GridFunction = self._get_function(control_problem, law, costates)
 
-    def _solve(self, x0: Array, p: Array, horizon: float) -> ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
         """Return the optimal solution by a forward-backward sweep.
 
         The sweep uses relaxed control updates.

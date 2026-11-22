@@ -18,14 +18,13 @@ tessellation of irregular points, whose contacts are weighted by the length of t
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.physiology import CellularPottsSystem
 
 SYSTEM = 'cellular_potts'
 SHAPE = (40, 40)
 
 system = CellularPottsSystem(shape=SHAPE)
-series = simulate(system, until=3000)
+series = system.prepare().simulate(until=3000)
 kinds = np.asarray(system.system_.interactions[0].kinds)
 cells = np.rint(series.get_values('tissue.cell')).astype(int).reshape(-1, *SHAPE)
 
@@ -46,7 +45,7 @@ plt.show()
 
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(series.get_values('homotypic_contacts'), label='differential adhesion')
-mixed = simulate(CellularPottsSystem(shape=SHAPE, adhesion=((1.5, 1.5), (1.5, 1.5))), until=3000)
+mixed = CellularPottsSystem(shape=SHAPE, adhesion=((1.5, 1.5), (1.5, 1.5))).prepare().simulate(until=3000)
 ax.plot(mixed.get_values('homotypic_contacts'), label='equal adhesion')
 ax.set_xlabel('sweep')
 ax.set_ylabel('share of homotypic contacts')
@@ -62,7 +61,7 @@ plt.show()
 # direction of the square lattice.
 
 system = CellularPottsSystem(shape=SHAPE, lattice='disordered')
-series = simulate(system, until=3000)
+series = system.prepare().simulate(until=3000)
 space = system.system_.elements[0].space
 kinds = np.asarray(system.system_.interactions[0].kinds)
 final = np.rint(series.get_values('tissue.cell')[-1]).astype(int).ravel()

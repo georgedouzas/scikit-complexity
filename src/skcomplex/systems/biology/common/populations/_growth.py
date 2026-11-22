@@ -9,17 +9,16 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.interactions import RateInteraction
-from .....core.components.laws.utils import delayed
-from .....core.components.spaces import BaseSpace
+from .....core.components.interactions import Interaction
+from .....core.components.laws import RateLaw
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.types import Role
 
 FORMS = ('exponential', 'logistic', 'gompertz', 'power', 'bertalanffy')
 LIMITED_FORMS = ('logistic', 'gompertz')
 
 
-class GrowthInteraction(RateInteraction):
+class GrowthInteraction(Interaction):
     """Growth or decay of a population `x` of a target by a growth law.
 
     The growth comes with a proportional harvest.
@@ -37,7 +36,7 @@ class GrowthInteraction(RateInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the element or group whose population grows.
@@ -71,31 +70,34 @@ class GrowthInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.systems.biology.common.kinetics import CompartmentElement
         >>> from skcomplex.systems.biology.common.populations import GrowthInteraction
-        >>> from skcomplex.core.components.systems import CompositeSystem
-        >>> from skcomplex.core.engine.runtime import simulate
-        >>> system = CompositeSystem(
+        >>> from skcomplex.core.systems import System
+        >>> system = System(
         ...     elements=[CompartmentElement('population', x=1.0)],
         ...     interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
         ... )
-        >>> trajectory = simulate(system, until=30, dt=1.0)
+        >>> trajectory = system.prepare().simulate(until=30, dt=1.0)
         >>> round(float(trajectory.get_values('population.x')[-1]), 2)
         100.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        p: Annotated[float, ParameterSpec()] = 1.0,
-        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Role,
+        r: float = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 1.0,
+        p: float = 1.0,
+        h: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        tau: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         form: str = 'exponential',
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state)
+        super().__init__(label)
+        self.target = target
+        self.state = state
         self.r = r
         self.K = K
         self.p = p
@@ -109,7 +111,7 @@ class GrowthInteraction(RateInteraction):
         It is delayed by `tau` when the delay is above 0.
         """
         population = getattr(namespace.target, self.state)
-        return delayed(population, namespace.tau) if self.tau else population
+        return population(t=namespace.t - namespace.tau) if self.tau else population
 
     def _get_capacity(self, namespace: SimpleNamespace) -> Expression:
         """Return the capacity `K`.
@@ -141,6 +143,15 @@ class GrowthInteraction(RateInteraction):
             return s.r * n**s.p * (1 - (n / self._get_capacity(s)) ** (1 - s.p))
         return s.r * n
 
+    def _check_state(self) -> None:
+        """Raise an error for a state that is not a name."""
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = (
+                f'{type(self).__name__} {self.label!r} changes the state {self.state!r}, which is not a name of a '
+                'state.'
+            )
+            raise ValidationError(error_msg)
+
     def _check_form(self) -> None:
         """Raise an error for an unknown form."""
         if self.form not in FORMS:
@@ -164,23 +175,28 @@ class GrowthInteraction(RateInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Raise an error for an unknown form or a state that is no name.
-
-        It also raises for a delay or exponent the form cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
+    def _check_arguments(self) -> None:
+        """Raise an error for a form, a delay, or an exponent it cannot take.
 
         Raises:
             ValidationError:
-                The type declares states, the form is unknown, the state is not a name, a delay is given to a form
-                without a limiting factor, or the von Bertalanffy exponent is 1.
+                The state is not a name, the form is unknown, a delay is given to a form without a limiting factor, or
+                the von Bertalanffy exponent is 1.
         """
-        super()._prepare(context)
+        super()._check_arguments()
+        self._check_state()
         self._check_form()
         self._check_settings()
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rate of the population.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [RateLaw(getattr(context.target, self.state), self._get_rate(context))]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the rate of the population, the growth of the form minus the harvest.

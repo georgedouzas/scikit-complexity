@@ -13,7 +13,6 @@ tree, or burning, with fire fronts sweeping through the older, denser stands.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import ForestFireSystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'forest_fire'
 
 system = ForestFireSystem(shape=(200, 200), growth=0.02, lightning=1e-5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(system, until=598, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=598, observers=[observer], random_state=0)
 
 # %%
 # Steady density of trees
@@ -30,7 +29,7 @@ trajectory = simulate(system, until=598, observers=[observer], random_state=0)
 # down, so after a transient of large boom-and-bust cycles the density of trees should hover around a steady value
 # well below that threshold, held there by the balance of growth and burning, with fluctuations from the fires.
 
-steady = simulate(ForestFireSystem(shape=(128, 128), growth=0.02, lightning=1e-5), until=5000, random_state=1)
+steady = ForestFireSystem(shape=(128, 128), growth=0.02, lightning=1e-5).prepare().simulate(until=5000, random_state=1)
 trees = (steady.get_values('forest.cover') == 1).mean(axis=1)
 
 fig, ax = plt.subplots(figsize=(7, 4))

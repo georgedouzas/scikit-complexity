@@ -13,7 +13,6 @@ larger camp, so a minority of 40% shrinks round after round until everyone holds
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import GalamMajoritySystem
 
@@ -21,7 +20,7 @@ SYSTEM = 'galam_majority'
 
 system = GalamMajoritySystem(share=0.4, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(system, until=10, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=10, observers=[observer], random_state=0)
 
 # %%
 # One round of discussions
@@ -33,7 +32,11 @@ trajectory = simulate(system, until=10, observers=[observer], random_state=0)
 
 def after_one_round(share, seed):
     """Return the share of opinion 1 after one round of discussions in a large population."""
-    run = simulate(GalamMajoritySystem(n_agents=3000, share=share, random_state=seed), until=1, random_state=seed)
+    run = (
+        GalamMajoritySystem(n_agents=3000, share=share, random_state=seed)
+        .prepare()
+        .simulate(until=1, random_state=seed)
+    )
     return run.get_values('citizens.opinion')[1].mean()
 
 

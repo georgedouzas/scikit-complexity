@@ -3,22 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Sequence
+from typing import Annotated, Protocol, cast, runtime_checkable
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ...general.agents import MovementInteraction
 
 
-class ResidentView(AgentView):
+@runtime_checkable
+class ResidentView(AgentViewProtocol, Protocol):
     """View of a resident of the Schelling system.
 
     Its states and parameters are attributes.
@@ -37,42 +41,35 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         kind:
             The kind of the resident, 0 or 1.
 
         threshold:
             The smallest share of neighbours of the same kind that keeps a resident in place.
 
+        size:
+            The number of members, or `None` for one.
+
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.social.segregation import ResidentElement
-        >>> group = GroupElement('residents', element=ResidentElement, size=10, values={'kind': 1.0})
-        >>> group.label, group.element.__name__, group.size
-        ('residents', 'ResidentElement', 10)
+        >>> group = ResidentElement('residents', kind=1.0, size=10)
+        >>> group.label, group.size
+        ('residents', 10)
     """
+
+    visual = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'kind', 'color_range': (0.0, 1.0)}),
         *,
-        kind: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        kind: Annotated[object, NN] = 0.0,
+        threshold: Annotated[object, RealSet.closed_open(0, oo)] = 0.5,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.kind = kind
         self.threshold = threshold
-
-    @classmethod
-    def _get_view(cls) -> type[ResidentView]:
-        """Return the class of the views of the agents.
-
-        Their attributes are the states and parameters.
-        """
-        return ResidentView
 
 
 class RelocationInteraction(MovementInteraction):
@@ -110,8 +107,8 @@ class RelocationInteraction(MovementInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        target: Role,
+        probability: Annotated[float, RealSet.closed(0, 1)] = 1.0,
         choices: int | None = None,
         phase: str | None = None,
     ) -> None:
@@ -141,7 +138,9 @@ class RelocationInteraction(MovementInteraction):
         storage = system.storage
         if storage.get('time') != system.time:
             storage['time'] = system.time
-            storage['kinds'] = {item.location_key: item.kind for item in system.get_agents(self.target, ResidentView)}
+            storage['kinds'] = {
+                item.location_key: item.kind for item in cast(list[ResidentView], system.get_agents(self.target))
+            }
         kinds = storage['kinds']
         if not isinstance(kinds, dict):
             return None
@@ -205,9 +204,15 @@ class SchellingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.segregation import SchellingSystem
-        >>> SchellingSystem(10, 10, density=0.5).prepare().system_.elements[0].prepare().size_
+        >>> SchellingSystem(10, 10, density=0.5).prepare().system_.elements[0].size
         50
     """
 
@@ -228,8 +233,10 @@ class SchellingSystem(BaseSystem):
         moving: float = 0.1,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.width = width
         self.height = height
         self.density = density
@@ -239,18 +246,14 @@ class SchellingSystem(BaseSystem):
         self.moving = moving
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         size = int(self.width * self.height * self.density)
         kinds = (rng.random(size) < self.minority).astype(float)
-        residents = GroupElement(
-            'residents',
-            element=ResidentElement,
-            size=size,
-            values={'kind': kinds, 'threshold': self.threshold},
-        )
-        return CompositeSystem(
+        residents = ResidentElement('residents', kind=kinds, threshold=self.threshold, size=size)
+        self.system_ = System(
             self.label,
             elements=[residents],
             interactions=[

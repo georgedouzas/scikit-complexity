@@ -6,24 +6,25 @@ A cascade drives a state and then relaxes every member at or above a threshold.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
-from .....core.components.interactions import NeighborInteraction
-from .....core.components.laws import ArrayUpdateLaw, BaseLaw, CascadeLaw, LocalRuleLaw
-from .....core.components.spaces import BallNeighborhood, BaseNeighborhood, BaseSpace, LatticeNeighborhood
+from .....core.base import BaseSpec
+from .....core.components.interactions import Interaction
+from .....core.components.laws import BaseLaw, UpdateLaw
+from .....core.components.laws.utils import relax
+from .....core.components.spaces import BaseNeighborhood, LatticeNeighborhood, RadiusNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import BaseSpec, RoleSpec
-from .....core.types import Array, ElementKind
+from .....core.types import Array, Role
 
 MODES = ('redistribute', 'reset', 'random')
 
 
-class TopplingInteraction(NeighborInteraction):
+class TopplingInteraction(Interaction):
     """Cascade of the members whose state reaches a threshold.
 
     These members relax and pass shares to their neighbours. At every step the drive changes the state, and then every
@@ -37,7 +38,7 @@ class TopplingInteraction(NeighborInteraction):
 
     Args:
         label:
-            The label of the interaction, unique among the parts of its system.
+            The label of the interaction, unique among the components of its system.
 
         target:
             The path of the group on the nodes or sites.
@@ -56,16 +57,14 @@ class TopplingInteraction(NeighborInteraction):
             `'redistribute'`, `'reset'`, or `'random'`.
 
         drive:
-            A function `f(values, *, random)` of the array of the states and the random generator of the simulation
-            that returns the states after the drive of a step, or `None` for no drive.
+            A function `f(values, *, random, **kwargs)` of the array of the states, the random generator of the
+            simulation, and the other keywords of a rule of an `UpdateLaw`, that returns the states after the drive of
+            a step, or `None` for no drive. A cascade with a drive draws numbers.
 
         neighborhood:
             The neighbourhood of the member itself first and its neighbours, or `None` for the von Neumann
             neighbourhood of a square lattice with its centre. A network takes `AdjacencyNeighborhood(center=True)`,
             and the mode `'random'` takes a lattice neighbourhood.
-
-        layer:
-            The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
 
     Raises:
         ValidationError:
@@ -79,30 +78,28 @@ class TopplingInteraction(NeighborInteraction):
         'redistribute'
     """
 
-    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, ArrayUpdateLaw, LocalRuleLaw)
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (UpdateLaw,)
 
     def _get_draws(self) -> bool:
         """Return whether the cascade draws.
 
-        It draws by parcels sent at random, or by a drive that names the generator.
+        It draws by parcels sent at random, or by a drive, which receives the generator.
         """
-        drive = self.drive is not None and 'random' in inspect.signature(self.drive).parameters
-        return super()._get_draws() or self.mode == 'random' or drive
+        return super()._get_draws() or self.mode == 'random' or self.drive is not None
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Role,
         state: str = 'x',
         threshold: float = 1.0,
         share: float = 0.0,
         mode: str = 'redistribute',
         drive: Callable[..., Array] | None = None,
         neighborhood: BaseNeighborhood | None = None,
-        layer: str | None = None,
     ) -> None:
-        super().__init__(label, layer=layer)
+        super().__init__(label)
         self.target = target
         self.state = state
         self.threshold = threshold
@@ -118,7 +115,10 @@ class TopplingInteraction(NeighborInteraction):
         """
         if self.mode != 'random':
             return
-        if self.neighborhood is not None and not isinstance(self.neighborhood, LatticeNeighborhood):
+        if self.neighborhood is not None and not isinstance(
+            self.neighborhood,
+            LatticeNeighborhood | RadiusNeighborhood,
+        ):
             error_msg = (
                 f'The random cascade reads the neighbourhood {self.neighborhood!r}. Give it a lattice neighbourhood.'
             )
@@ -131,19 +131,15 @@ class TopplingInteraction(NeighborInteraction):
             )
             raise ValidationError(error_msg)
 
-    def _prepare(self, context: BaseSpace | None = None) -> None:
+    def _check_arguments(self) -> None:
         """Raise an error for a mode, drive, neighbourhood, or parcels it cannot take.
-
-        Args:
-            context:
-                The space the interaction inherits from its system.
 
         Raises:
             ValidationError:
                 The mode is unknown, the drive is not callable, the neighbourhood leaves out the member itself, or the
                 mode `'random'` has no lattice neighbourhood or a threshold that is not a whole number of parcels.
         """
-        super()._prepare(context)
+        super()._check_arguments()
         self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         if self.drive is not None and not callable(self.drive):
             error_msg = f'The drive of the cascade must be callable, but it is {self.drive!r}.'
@@ -156,6 +152,17 @@ class TopplingInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
         self._check_random()
 
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the cascade.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        target = self._get_symbolic(self._get_member(context, 'target'), context.t)
+        self.laws_ = self._get_cascade(getattr(target, self.state))
+
     def _relax(self, threshold: float, share: float) -> Callable[..., Array]:
         """Return the rule of one relaxation of every member.
 
@@ -165,7 +172,7 @@ class TopplingInteraction(NeighborInteraction):
             raise self._get_variant_error(self.mode, 'mode', '_relax')
         reset = self.mode == 'reset'
 
-        def relax(value: Array, *around: Array) -> Array:
+        def relax(value: Array, *around: Array, **kwargs: object) -> Array:
             gains = sum((np.where(item >= threshold, share * (item if reset else 1.0), 0.0) for item in around), 0.0)
             relaxing = value >= threshold
             remaining = np.where(relaxing, 0.0, value) if reset else value - threshold * relaxing
@@ -173,15 +180,17 @@ class TopplingInteraction(NeighborInteraction):
 
         return relax
 
-    def _scatter(self, neighborhood: LatticeNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
+    def _scatter(self, neighborhood: BaseNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
         """Return the drive that passes parcels of relaxing members to random neighbours.
 
-        Every relaxing member passes its parcels to neighbours drawn at random.
+        Every relaxing member passes its parcels to neighbours drawn at random, among the offsets of the neighbourhood
+        in the dimensions of the lattice.
         """
-        steps = np.array([offset for offset in neighborhood.prepare().offsets_ if any(offset)])
         parcels = round(threshold / share)
 
-        def scatter(values: Array, *, random: np.random.Generator) -> Array:
+        def scatter(values: Array, *, random: np.random.Generator, **kwargs: object) -> Array:
+            offsets = neighborhood._get_offsets(values.ndim) or ()
+            steps = np.array([offset for offset in offsets if any(offset)])
             relaxing = np.argwhere(values >= threshold)
             following = values.copy()
             following[tuple(relaxing.T)] -= threshold
@@ -193,33 +202,24 @@ class TopplingInteraction(NeighborInteraction):
 
         return scatter
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cascade of the state of the target, with the drive.
-
-        Args:
-            namespace:
-                The namespace of an edge.
-
-        Returns:
-            laws:
-                The cascade of the state.
-        """
-        value = getattr(self._get_member(namespace, 'target'), self.state)
+    def _get_cascade(self, value: Expression) -> list[BaseLaw]:
+        """Return the update of the state of the target, driven and relaxed until stable."""
         threshold, share = self.threshold, self.share
-        drive = [] if self.drive is None else [ArrayUpdateLaw(value, self.drive)]
+        drive = [] if self.drive is None else [UpdateLaw(value, self.drive, arrays=True, stochastic=True)]
         neighborhood = self.neighborhood
         if neighborhood is None:
-            neighborhood = BallNeighborhood(metric='manhattan', center='first')
-        if self.mode == 'random' and isinstance(neighborhood, LatticeNeighborhood):
-            relax: list[BaseLaw] = [ArrayUpdateLaw(value, self._scatter(neighborhood, threshold, share))]
+            neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
+        if self.mode == 'random':
+            rules: list[BaseLaw] = [
+                UpdateLaw(value, self._scatter(neighborhood, threshold, share), arrays=True, stochastic=True),
+            ]
         else:
-            relax = [LocalRuleLaw(value, neighborhood, self._relax(threshold, share))]
-        return [
-            CascadeLaw(
-                drive=drive,
-                relax=relax,
-                stable=lambda values: bool((values < threshold).all()),
-                activity=lambda values: values >= threshold,
-                label=self.label,
-            ),
-        ]
+            rules = [UpdateLaw(value, self._relax(threshold, share), neighborhood=neighborhood)]
+        relaxation = relax(
+            value,
+            rules,
+            lambda values: bool((values < threshold).all()),
+            drive=drive,
+            activity=lambda values: values >= threshold,
+        )
+        return [UpdateLaw(value, relaxation, label=self.label)]

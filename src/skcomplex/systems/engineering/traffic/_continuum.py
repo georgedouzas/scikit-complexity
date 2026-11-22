@@ -6,6 +6,7 @@ The fields lie along a road.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,13 +14,15 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tanh
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, FieldElement
-from ....core.components.interactions import ConservationInteraction, RateInteraction
-from ....core.components.laws.utils import laplacian, shifted
-from ....core.components.spaces import LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import SSPRKSolver
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.components import Observable
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import RateLaw
+from ....core.components.laws.utils import divergence, laplacian, shifted
+from ....core.components.spaces import BaseSpace, FiniteVolumeSpec, LatticeSpace
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SSPRKSolver
+from ....core.systems import BaseSystem, System
 from ..common.traffic import SpeedAdaptationInteraction
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
@@ -36,9 +39,6 @@ class GasKineticTrafficElement(Element):
     Args:
         label:
             The label of the cell or the road.
-
-        visual:
-            How the cell is drawn, or `None` for `default_visual_`.
 
         rho:
             The initial density in vehicles per kilometre.
@@ -73,6 +73,9 @@ class GasKineticTrafficElement(Element):
         d_rho:
             The width of the transition of the variance prefactor.
 
+        space:
+            The lattice of the cells of the road, or `None` for one cell.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import GasKineticTrafficElement
         >>> GasKineticTrafficElement('cell').gamma
@@ -82,21 +85,21 @@ class GasKineticTrafficElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 20.0,
-        Q: Annotated[float, StateSpec()] = 1800.0,
-        V0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 110.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.8 / 3600,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 35 / 3600,
-        rho_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 160.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        A0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.008,
-        dA: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        rho_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.27 * 160,
-        d_rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05 * 160,
+        rho: Annotated[object, RealSet.open(0, oo)] = 20.0,
+        Q: object = 1800.0,
+        V0: Annotated[float, RealSet.open(0, oo)] = 110.0,
+        T: Annotated[float, RealSet.open(0, oo)] = 1.8 / 3600,
+        tau: Annotated[float, RealSet.open(0, oo)] = 35 / 3600,
+        rho_max: Annotated[float, RealSet.open(0, oo)] = 160.0,
+        gamma: Annotated[float, RealSet.open(0, oo)] = 1.2,
+        A0: Annotated[float, RealSet.open(0, oo)] = 0.008,
+        dA: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        rho_c: Annotated[float, RealSet.open(0, oo)] = 0.27 * 160,
+        d_rho: Annotated[float, RealSet.open(0, oo)] = 0.05 * 160,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rho = rho
         self.Q = Q
         self.V0 = V0
@@ -113,7 +116,7 @@ class GasKineticTrafficElement(Element):
 class KernerKonhauserElement(Element):
     """Cell of a road with the density and the flow of the Kerner-Konhäuser system.
 
-    The density is `rho` and the flow is `q`. The density and the flow are conserved by conservation interactions, the
+    The density is `rho` and the flow is `q`. The density and the flow are conserved by conservation laws, the
     flow relaxes to the equilibrium flow by a relaxation interaction, and the viscosity adds the rate `mu laplacian(q /
     rho)` to the flow.
     """
@@ -121,17 +124,17 @@ class KernerKonhauserElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        q: Annotated[object, StateSpec()] = 0.21,
-        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        c0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        q: object = 0.21,
+        V0: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        tau: Annotated[object, RealSet.open(0, oo)] = 0.5,
+        c0: Annotated[object, RealSet.open(0, oo)] = 0.3,
+        mu: Annotated[object, RealSet.closed_open(0, oo)] = 0.05,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rho = rho
         self.q = q
         self.V0 = V0
@@ -150,13 +153,13 @@ class LighthillWhithamRichardsElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        vmax: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rho = rho
         self.vmax = vmax
         self.rho_max = rho_max
@@ -165,22 +168,22 @@ class LighthillWhithamRichardsElement(Element):
 class PayneElement(Element):
     """Cell of a road with the density `rho` and the flow `q` of the Payne system.
 
-    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields flow
+    The density and the flow are conserved by conservation laws, and the flow relaxes to the Greenshields flow
     by a relaxation interaction.
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        q: Annotated[object, StateSpec()] = 0.21,
-        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        rho: Annotated[object, RealSet.closed_open(0, oo)] = 0.3,
+        q: object = 0.21,
+        vmax: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        rho_max: Annotated[object, RealSet.open(0, oo)] = 1.0,
+        tau: Annotated[object, RealSet.open(0, oo)] = 0.5,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.rho = rho
         self.q = q
         self.vmax = vmax
@@ -215,9 +218,15 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import LighthillWhithamRichardsSystem
-        >>> float(LighthillWhithamRichardsSystem(10).prepare().system_.elements[0].values['rho'][-1])
+        >>> float(LighthillWhithamRichardsSystem(10).prepare().system_.elements[0].rho[-1])
         0.8
     """
 
@@ -226,7 +235,6 @@ class LighthillWhithamRichardsSystem(BaseSystem):
     references = ('Lighthill and Whitham 1955', 'Richards 1956', 'Chowdhury, Santen, and Schadschneider 2000')
     until = 1.0
     dt = 0.05
-    solver = SSPRKSolver()
 
     def __init__(
         self,
@@ -237,8 +245,10 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         vmax: float = 1.0,
         rho_max: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.upstream = upstream
         self.downstream = downstream
@@ -251,22 +261,31 @@ class LighthillWhithamRichardsSystem(BaseSystem):
         road = s.target
         return road.vmax * road.rho * (1 - road.rho / road.rho_max)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = np.where(np.arange(self.n) < self.n // 2, self.upstream, self.downstream).astype(float)
-        values = {'rho': density, 'vmax': self.vmax, 'rho_max': self.rho_max}
-        space = LatticeSpace(self.n, spacing=1 / self.n)
-        road = FieldElement(
-            'road',
-            element=LighthillWhithamRichardsElement,
-            space=space,
+        space = LatticeSpace(
+            self.n,
+            spacing=1 / self.n,
             boundary={'rho': 'zero-flux'},
-            values=values,
             discretization='finite-volume',
+            scheme=FiniteVolumeSpec(riemann='godunov'),
+        )
+        road = LighthillWhithamRichardsElement(
+            'road',
+            rho=density,
+            vmax=self.vmax,
+            rho_max=self.rho_max,
+            space=space,
         )
         flux = self._get_lighthill_whitham_richards_flux
-        density = ConservationInteraction('density', target='road', state='rho', flux=flux, riemann='godunov')
-        return CompositeSystem(self.label, elements=[road], interactions=[density])
+        density = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([flux(s)]))],
+        )
+        self.system_ = System(self.label, elements=[road], interactions=[density], solver=SSPRKSolver())
 
 
 class PayneSystem(BaseSystem):
@@ -300,9 +319,15 @@ class PayneSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import PayneSystem
-        >>> PayneSystem(10).prepare().system_.elements[0].values['tau']
+        >>> PayneSystem(10).prepare().system_.elements[0].tau
         0.5
     """
 
@@ -311,7 +336,6 @@ class PayneSystem(BaseSystem):
     references = ('Payne 1971', 'Chowdhury, Santen, and Schadschneider 2000')
     until = 1.0
     dt = 0.05
-    solver = SSPRKSolver()
 
     @staticmethod
     def _get_density_bump(n: int, density: float, bump: float) -> np.ndarray:
@@ -332,8 +356,10 @@ class PayneSystem(BaseSystem):
         rho_max: float = 1.0,
         tau: float = 0.5,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.density = density
         self.bump = bump
@@ -341,31 +367,35 @@ class PayneSystem(BaseSystem):
         self.rho_max = rho_max
         self.tau = tau
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    @staticmethod
+    def _get_payne_flux(s: SimpleNamespace) -> Expression:
+        """Return the flux `q^2 / rho + P(rho)` of the flow with the anticipation pressure."""
+        road = s.target
+        return road.q**2 / road.rho + road.vmax * road.rho / (2 * road.tau * road.rho_max)
+
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
-        values = {
-            'rho': rho,
-            'q': rho * self.vmax * (1 - rho / self.rho_max),
-            'vmax': self.vmax,
-            'rho_max': self.rho_max,
-            'tau': self.tau,
-        }
-        road = FieldElement(
+        road = PayneElement(
             'road',
-            element=PayneElement,
-            space=LatticeSpace(self.n, spacing=1 / self.n),
-            values=values,
-            discretization='finite-volume',
+            rho=rho,
+            q=rho * self.vmax * (1 - rho / self.rho_max),
+            vmax=self.vmax,
+            rho_max=self.rho_max,
+            tau=self.tau,
+            space=LatticeSpace(self.n, spacing=1 / self.n, discretization='finite-volume'),
         )
-        density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
-        flow = ConservationInteraction(
+        density = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([s.target.q]))],
+        )
+        flow = Interaction(
             'flow',
-            target='road',
-            state='q',
-            flux=lambda s: s.target.q**2 / s.target.rho
-            + s.target.vmax * s.target.rho / (2 * s.target.tau * s.target.rho_max),
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.q, -divergence([self._get_payne_flux(s)]))],
         )
         relaxation = SpeedAdaptationInteraction(
             'relaxation',
@@ -374,7 +404,12 @@ class PayneSystem(BaseSystem):
             goal=lambda s: s.target.rho * s.target.vmax * (1 - s.target.rho / s.target.rho_max),
             time=lambda s: s.target.tau,
         )
-        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation])
+        self.system_ = System(
+            self.label,
+            elements=[road],
+            interactions=[density, flow, relaxation],
+            solver=SSPRKSolver(),
+        )
 
 
 class KernerKonhauserSystem(BaseSystem):
@@ -417,9 +452,15 @@ class KernerKonhauserSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import KernerKonhauserSystem
-        >>> KernerKonhauserSystem(10).prepare().system_.elements[0].values['mu']
+        >>> KernerKonhauserSystem(10).prepare().system_.elements[0].mu
         0.2
     """
 
@@ -428,7 +469,6 @@ class KernerKonhauserSystem(BaseSystem):
     references = ('Kerner and Konhäuser 1993', 'Chowdhury, Santen, and Schadschneider 2000')
     until = 100.0
     dt = 0.2
-    solver = SSPRKSolver(cfl=0.15)
 
     def __init__(
         self,
@@ -443,8 +483,10 @@ class KernerKonhauserSystem(BaseSystem):
         c0: float = 0.45,
         mu: float = 0.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.density = density
@@ -468,33 +510,33 @@ class KernerKonhauserSystem(BaseSystem):
         """Return the equilibrium speed of the Kerner-Konhäuser system."""
         return V0 * (1 / (1 + np.exp((rho / rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         density = self.density
         rho = PayneSystem._get_density_bump(self.n, density, self.bump)
-        values = {
-            'rho': rho,
-            'q': rho * self._compute_kerner_konhauser_speed(rho, self.V0, self.rho_max),
-            'V0': self.V0,
-            'rho_max': self.rho_max,
-            'tau': self.tau,
-            'c0': self.c0,
-            'mu': self.mu,
-        }
-        space = LatticeSpace(self.n, spacing=self.length / self.n)
-        road = FieldElement(
+        road = KernerKonhauserElement(
             'road',
-            element=KernerKonhauserElement,
-            space=space,
-            values=values,
-            discretization='finite-volume',
+            rho=rho,
+            q=rho * self._compute_kerner_konhauser_speed(rho, self.V0, self.rho_max),
+            V0=self.V0,
+            rho_max=self.rho_max,
+            tau=self.tau,
+            c0=self.c0,
+            mu=self.mu,
+            space=LatticeSpace(self.n, spacing=self.length / self.n, discretization='finite-volume'),
         )
-        density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
-        flow = ConservationInteraction(
+        density = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([s.target.q]))],
+        )
+        flow = Interaction(
             'flow',
-            target='road',
-            state='q',
-            flux=lambda s: s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho,
+            roles={'target': 'road'},
+            laws=lambda s: [
+                RateLaw(s.target.q, -divergence([s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho])),
+            ],
         )
         relaxation = SpeedAdaptationInteraction(
             'relaxation',
@@ -503,13 +545,17 @@ class KernerKonhauserSystem(BaseSystem):
             goal=lambda s: s.target.rho * self._get_kerner_konhauser_speed(s.target),
             time=lambda s: s.target.tau,
         )
-        viscosity = RateInteraction(
+        viscosity = Interaction(
             'viscosity',
-            target='road',
-            state='q',
-            rate=lambda s: s.target.mu * laplacian(s.target.q / s.target.rho),
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.q, s.target.mu * laplacian(s.target.q / s.target.rho))],
         )
-        return CompositeSystem(self.label, elements=[road], interactions=[density, flow, relaxation, viscosity])
+        self.system_ = System(
+            self.label,
+            elements=[road],
+            interactions=[density, flow, relaxation, viscosity],
+            solver=SSPRKSolver(cfl=0.15),
+        )
 
 
 class GktTrafficSystem(BaseSystem):
@@ -563,9 +609,15 @@ class GktTrafficSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.engineering.traffic import GktTrafficSystem
-        >>> GktTrafficSystem(10).prepare().system_.elements[0].values['gamma']
+        >>> GktTrafficSystem(10).prepare().system_.elements[0].gamma
         1.2
     """
 
@@ -574,7 +626,6 @@ class GktTrafficSystem(BaseSystem):
     references = ('Treiber, Hennecke, and Helbing 1999', 'arXiv:cond-mat/0012229')
     until = 1.0
     dt = 1 / 60
-    solver = SSPRKSolver(cfl=0.4)
 
     @staticmethod
     def _get_variance_prefactor(road: SimpleNamespace, rho: object) -> Expression:
@@ -598,8 +649,10 @@ class GktTrafficSystem(BaseSystem):
         rho_max: float = 160.0,
         gamma: float = 1.2,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n = n
         self.length = length
         self.density = density
@@ -659,14 +712,14 @@ class GktTrafficSystem(BaseSystem):
         squared = prefactors[1] / prefactors[0] * ((1 / rho - 1 / road.rho_max) / road.T) ** 2
         return np.asarray(squared / (2 * road.V0) * (np.sqrt(1 + 4 * road.V0**2 / squared) - 1))
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components of the system built from its model parameters."""
+        super()._prepare(context)
         centers = (np.arange(self.n) + 0.5) * self.length / self.n
         start, width, wake = 0.3 * self.length, 0.20125, 0.805
         rho = self.density + self.amplitude * (
             np.cosh((centers - start) / width) ** -2 - width / wake * np.cosh((centers - start - 1.00625) / wake) ** -2
         )
-        values = {'V0': self.V0, 'T': self.T, 'tau': self.tau, 'rho_max': self.rho_max, 'gamma': self.gamma}
         cell = GasKineticTrafficElement(
             'cell',
             V0=self.V0,
@@ -675,19 +728,33 @@ class GktTrafficSystem(BaseSystem):
             rho_max=self.rho_max,
             gamma=self.gamma,
         )
-        road = FieldElement(
+        road = GasKineticTrafficElement(
             'road',
-            element=GasKineticTrafficElement,
-            space=LatticeSpace(self.n, spacing=self.length / self.n),
-            values={'rho': rho, 'Q': rho * self._get_gkt_equilibrium_speed(rho, cell), **values},
-            discretization='finite-volume',
+            rho=rho,
+            Q=rho * self._get_gkt_equilibrium_speed(rho, cell),
+            V0=self.V0,
+            T=self.T,
+            tau=self.tau,
+            rho_max=self.rho_max,
+            gamma=self.gamma,
+            space=LatticeSpace(self.n, spacing=self.length / self.n, discretization='finite-volume'),
         )
-        vehicles = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.Q)
-        momentum = ConservationInteraction(
+        vehicles = Interaction(
+            'density',
+            roles={'target': 'road'},
+            laws=lambda s: [RateLaw(s.target.rho, -divergence([s.target.Q]))],
+        )
+        momentum = Interaction(
             'flow',
-            target='road',
-            state='Q',
-            flux=self._get_gkt_momentum_flux,
-            source=self._get_gkt_relaxation,
+            roles={'target': 'road'},
+            laws=lambda s: [
+                RateLaw(s.target.Q, -divergence([self._get_gkt_momentum_flux(s)])),
+                RateLaw(s.target.Q, self._get_gkt_relaxation(s)),
+            ],
         )
-        return CompositeSystem(self.label, elements=[road], interactions=[vehicles, momentum])
+        self.system_ = System(
+            self.label,
+            elements=[road],
+            interactions=[vehicles, momentum],
+            solver=SSPRKSolver(cfl=0.4),
+        )

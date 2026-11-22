@@ -13,25 +13,27 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sklearn.base import clone
 
+from ...components import EntrySpec, Observable
+from ...components._parameter_spec import _ParameterSpec
 from ...components.interactions import TrainingInteraction
-from ...components.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
-from ...components.spaces import DiscreteTime
-from ...components.systems import CompositeSystem
+from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
+from ...components.spaces._discrete_time import _DiscreteTime
+from ...enums import FormKind
 from ...errors import SkcomplexError, SolverError, ValidationError
-from ...specs import EntrySpec, IssueSpec, LayoutSpec, ObservableSpec, ParameterSpec
-from ...types import FormKind
 from .._utils import symbol, symbols_of
 from ..backends import BaseBackend, JaxBackend
-from ..problems import BaseProblemSpec, ProblemSpec
+from ..problems import BaseProblemSpec, LayoutSpec, ProblemSpec
+from ..problems._composite_system import _CompositeSystem
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseCompiler
 from ._compilation import Compilation
+from ._issue_spec import IssueSpec
 from ._observables import ObservableEvaluator
 from .passes._functions import FunctionsPass
 
-DIFFERENTIABLE = (EquationLaw, RateLaw, UpdateLaw)
+DIFFERENTIABLE = (ConstraintLaw, RateLaw, UpdateLaw)
 INNER_FORMS = (FormKind.DISCRETE, FormKind.ODE)
 REDUCTIONS = ('sum', 'mean', 'max', 'min', 'var', 'count')
 
@@ -64,9 +66,6 @@ class _LearningCompiler(BaseCompiler):
         training_:
             The training interaction of the prepared system.
 
-        law_:
-            The gradient-step law it returns.
-
         inner_:
             The problem of the nested system, or `None` before it compiles.
 
@@ -81,7 +80,6 @@ class _LearningCompiler(BaseCompiler):
     """
 
     training_: TrainingInteraction | None
-    law_: GradientStepLaw
     inner_: ProblemSpec | None
     backend_: JaxBackend
     step_: TracedFunction
@@ -92,13 +90,13 @@ class _LearningCompiler(BaseCompiler):
         inner: BaseCompiler,
         backend: BaseBackend | None = None,
         solver: object = None,
-        observables: Sequence[ObservableSpec] = (),
+        observables: Sequence[Observable] = (),
     ) -> None:
         super().__init__(backend, solver, observables)
         self.inner = inner
 
     @staticmethod
-    def _find_training(system: CompositeSystem) -> TrainingInteraction | None:
+    def _find_training(system: _CompositeSystem) -> TrainingInteraction | None:
         """Return the training interaction of a system.
 
         It is `None` for a system that does not train.
@@ -106,31 +104,30 @@ class _LearningCompiler(BaseCompiler):
         return next((item for item in system.interactions if isinstance(item, TrainingInteraction)), None)
 
     @staticmethod
-    def _find_system(system: CompositeSystem, path: str) -> CompositeSystem | None:
+    def _find_system(system: _CompositeSystem, path: str) -> _CompositeSystem | None:
         """Return the nested system at a path such as `net` or `forest/net`, or `None`."""
-        found: CompositeSystem | None = system
+        found: _CompositeSystem | None = system
         for label in path.split('/'):
             found = next((item for item in found.systems if item.label == label), None) if found is not None else None
         return found
 
-    def _get_setting_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_setting_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the issues of the time and the solver of a system that trains."""
         issues = []
-        if not isinstance(system.time, DiscreteTime):
-            given = type(system.time).__name__ if system.time is not None else 'no time'
-            message = f'The GradientStepLaw of {training.label} needs DiscreteTime, one step per epoch, not {given}.'
-            issues.append(IssueSpec('law-time', training.label, message, 'Declare `DiscreteTime()` for the system.'))
+        if system.time is not None and not isinstance(system.time, _DiscreteTime):
+            given = f'{system.time.time_tag} time'
+            message = f'The training {training.label} needs discrete time, one step per epoch, not {given}.'
+            fix = 'Train the system on laws that step, such as update laws.'
+            issues.append(IssueSpec('law-time', training.label, message, fix))
         if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:
-            message = (
-                f'The solver {type(self.solver).__name__} does not run GradientStepLaw. Use GradientDescentSolver.'
-            )
+            message = f'The solver {type(self.solver).__name__} does not train. Use GradientDescentSolver.'
             fix = 'Pass `solver=GradientDescentSolver()`, or no solver.'
             issues.append(IssueSpec('solver-unsupported', system.label, message, fix, error=SolverError))
         return issues
 
-    def _get_differentiable_issues(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _get_differentiable_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the laws of the nested system that the JAX backend cannot differentiate."""
-        compiler = clone(self.inner).prepare(system)
+        compiler = clone(self.inner).set_params(trained=tuple(training.trained)).prepare(system)
         compilation = getattr(compiler, 'compilation_', None)
         census = getattr(compilation, 'census', None)
         records = census.records if census is not None else ()
@@ -141,7 +138,7 @@ class _LearningCompiler(BaseCompiler):
             if isinstance(law, DIFFERENTIABLE) and not callable_values:
                 continue
             message = (
-                f'The {type(law).__name__} of {record.path} in the nested system {training.system} cannot be '
+                f'The {law._get_name()} of {record.path} in the nested system {training.system} cannot be '
                 'differentiated. Learning needs a discrete map or ordinary differential equations written as symbolic '
                 'laws.'
             )
@@ -149,10 +146,10 @@ class _LearningCompiler(BaseCompiler):
             issues.append(IssueSpec('learning-not-differentiable', training.label, message, fix))
         return issues
 
-    def _compile_inner(self, system: CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
+    def _compile_inner(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Compile the nested system into `inner_`, and return the issues that stop it."""
         self.inner_, self.backend_ = None, JaxBackend()
-        compiler = clone(self.inner).set_params(backend=self.backend_).prepare(system)
+        compiler = clone(self.inner).set_params(backend=self.backend_, trained=tuple(training.trained)).prepare(system)
         if not compiler.report_.ok:
             return list(compiler.report_.issues)
         try:
@@ -204,39 +201,30 @@ class _LearningCompiler(BaseCompiler):
         return phased
 
     @staticmethod
-    def _get_adaptive_names(problem: ProblemSpec) -> set[str]:
+    def _get_adaptive_names(problem: ProblemSpec, training: TrainingInteraction) -> set[str]:
         """Return the names of the adaptive parameters of a problem.
 
-        The parameters are those of its elements and interactions.
+        They are the adaptive parameters of its elements and the parameters the training names, which the compilation
+        makes adaptive states.
         """
-        names = set(problem.adaptive_parameters)
-        for compiled in problem.interactions:
-            for name, spec in compiled.interaction._get_specs().items():
-                if isinstance(spec, ParameterSpec) and spec.adaptive:
-                    names.add(f'{compiled.path}.{name}')
-        return names
+        return set(problem.adaptive_parameters) | (set(training.trained) & set(problem.states.names))
 
     def _get_trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the trained paths that are not adaptive parameters of the nested system.
 
         This includes the paths that are not parameters at all.
         """
-        adaptive = self._get_adaptive_names(problem)
+        adaptive = self._get_adaptive_names(problem, training)
         parameters = sorted(adaptive | set(problem.parameters.names))
         issues = []
         for path in training.trained:
             if path in adaptive:
                 continue
-            if path in problem.parameters.names:
-                message = f'The trained parameter {path} of {training.system} is not adaptive, so it cannot change.'
-                fix = f'Declare {path} `ParameterSpec(adaptive=True)`.'
-                issues.append(IssueSpec('learning-not-adaptive', training.label, message, fix))
-                continue
             message = (
                 f'{training.label} trains {path}, which is not a parameter of {training.system}. Its parameters are '
                 f'{", ".join(parameters)}.'
             )
-            fix = 'Name an adaptive parameter of the nested system by its dotted path.'
+            fix = 'Name a parameter of the nested system by its dotted path.'
             issues.append(IssueSpec('learning-trained-path', training.label, message, fix))
         return issues
 
@@ -336,7 +324,7 @@ class _LearningCompiler(BaseCompiler):
         return value
 
     @staticmethod
-    def _get_evaluated(observable: ObservableSpec, namespace: SimpleNamespace) -> object:
+    def _get_evaluated(observable: Observable, namespace: SimpleNamespace) -> object:
         """Return the expression of an observable in a namespace.
 
         It raises an error that names the variable it misses.
@@ -349,7 +337,7 @@ class _LearningCompiler(BaseCompiler):
             error_msg = f'The observable {observable.label} reads {error.name}, which the nested system does not have.'
             raise ValidationError(error_msg) from error
 
-    def _measure_of(self, problem: ProblemSpec, observable: ObservableSpec) -> TracedFunction:
+    def _measure_of(self, problem: ProblemSpec, observable: Observable) -> TracedFunction:
         """Return the pure JAX function of an observable of the nested system.
 
         The function is a value of its states and parameters.
@@ -402,7 +390,7 @@ class _LearningCompiler(BaseCompiler):
                 issues.append(IssueSpec('learning-unknown-observable', training.label, str(error), fix))
         return issues
 
-    def _get_issues(self, system: CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: _CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that trains.
 
         It compiles the nested system as far as it can.
@@ -424,7 +412,6 @@ class _LearningCompiler(BaseCompiler):
             training.prepare()
         except ValidationError as error:
             return [self._get_issue_of(error, training.label, 'value', 'Correct the training interaction.')]
-        self.law_ = next(item for item in training.run(SimpleNamespace()).laws_ if isinstance(item, GradientStepLaw))
         issues = self._get_setting_issues(system, training)
         trained = self._find_system(system, training.system)
         if trained is None:
@@ -454,7 +441,7 @@ class _LearningCompiler(BaseCompiler):
             states.append(dataclasses.replace(entry, name=f'{training.system}/{name}', start=start))
             start += entry.size
         hyperparameters = {
-            name: spec for name, spec in training._get_specs().items() if isinstance(spec, ParameterSpec)
+            name: spec for name, spec in training._get_specs().items() if isinstance(spec, _ParameterSpec)
         }
         parameters = tuple(
             EntrySpec(f'{training.label}.{name}', index, (), spec.domain)
@@ -495,7 +482,7 @@ class _LearningCompiler(BaseCompiler):
             inner=problem,
             trained_system=training.system,
             training=training.label,
-            law=self.law_,
+            interaction=training,
             trained=trained,
             hyperparameters=hyperparameters,
             step=step,

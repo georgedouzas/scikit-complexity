@@ -11,12 +11,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import Interaction, JumpInteraction, RateInteraction
+from ....core.components import Observable
+from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import ScipyODESolver
-from ....core.specs import ParameterSpec, RoleSpec
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, ScipyODESolver
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 from ..common.populations import (
     ExponentialGrowthInteraction,
     MortalityInteraction,
@@ -62,11 +64,11 @@ class ParasitismInteraction(Interaction):
         self,
         label: str,
         *,
-        host: Annotated[str, RoleSpec()],
-        parasitoid: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        host: Role,
+        parasitoid: Role,
+        k: Annotated[float, RealSet.open(0, oo)] = 2.0,
+        a: Annotated[float, RealSet.open(0, oo)] = 0.05,
+        c: Annotated[float, RealSet.open(0, oo)] = 1.0,
     ) -> None:
         super().__init__(label)
         self.host = host
@@ -75,20 +77,18 @@ class ParasitismInteraction(Interaction):
         self.a = a
         self.c = c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next generations `k H exp(-a P)` and `c H (1 - exp(-a P))`.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next generations `k H exp(-a P)` and `c H (1 - exp(-a P))`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         hosts, parasitoids = s.host.x, s.parasitoid.x
         escape = exp(-s.a * parasitoids)
-        return [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
+        self.laws_ = [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
 
 
 class PredatorPreyEventsInteraction(Interaction):
@@ -143,14 +143,14 @@ class PredatorPreyEventsInteraction(Interaction):
         self,
         label: str,
         *,
-        prey: Annotated[str, RoleSpec()],
-        predators: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        prey: Role,
+        predators: Role,
+        r: Annotated[float, RealSet.closed_open(0, oo)] = 1.0,
+        K: Annotated[float, RealSet.open(0, oo)] = 200.0,
+        a: Annotated[float, RealSet.closed_open(0, oo)] = 0.02,
+        h: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        e: Annotated[float, RealSet.closed_open(0, oo)] = 0.5,
+        m: Annotated[float, RealSet.closed_open(0, oo)] = 0.3,
         stochastic: bool = True,
     ) -> None:
         super().__init__(label)
@@ -164,41 +164,34 @@ class PredatorPreyEventsInteraction(Interaction):
         self.m = m
         self.stochastic = stochastic
 
-    def _get_change(self, member: SimpleNamespace, step: int, propensity: Expression) -> Sequence[BaseLaw]:
-        """Return the laws that change the population of a member.
-
-        The change is a step at a propensity.
+    def _get_change(self, member: SimpleNamespace, step: int, propensity: Expression) -> BaseLaw:
+        """Return the law that changes the population of a member by a step at a propensity.
 
         In stochastic mode the change is a jump of one individual, and otherwise a rate of the step times the
         propensity.
         """
-        change: Interaction = (
-            JumpInteraction(self.label, target='member', changes={'x': step}, rate=lambda _: propensity)
-            if self.stochastic
-            else RateInteraction(self.label, target='member', state='x', rate=lambda _: step * propensity)
-        )
-        return change.prepare().run(SimpleNamespace(target=member)).laws_
+        if self.stochastic:
+            return JumpLaw(propensity, {member.x: step})
+        return RateLaw(member.x, step * propensity)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the five channels of births and deaths.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the five channels of births and deaths.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         prey, predators = s.prey, s.predators
         x, y = prey.x, predators.x
         kills = s.a * x * y / (1 + s.a * s.h * x)
-        return [
-            *self._get_change(prey, 1, s.r * x),
-            *self._get_change(prey, -1, s.r * x**2 / s.K),
-            *self._get_change(prey, -1, kills),
-            *self._get_change(predators, 1, s.e * kills),
-            *self._get_change(predators, -1, s.m * y),
+        self.laws_ = [
+            self._get_change(prey, 1, s.r * x),
+            self._get_change(prey, -1, s.r * x**2 / s.K),
+            self._get_change(prey, -1, kills),
+            self._get_change(predators, 1, s.e * kills),
+            self._get_change(predators, -1, s.m * y),
         ]
 
 
@@ -248,13 +241,13 @@ class RosenzweigMacArthurInteraction(Interaction):
         self,
         label: str,
         *,
-        prey: Annotated[str, RoleSpec()],
-        predators: Annotated[str, RoleSpec()],
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        phi_end: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        prey: Role,
+        predators: Role,
+        kappa: Annotated[float, RealSet.open(0, oo)] = 0.01,
+        eta: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
+        phi: Annotated[float, RealSet.closed_open(0, oo)] = 0.1,
+        phi_end: Annotated[float, RealSet.closed_open(0, oo)] = 0.2,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
     ) -> None:
         super().__init__(label)
         self.prey = prey
@@ -265,21 +258,19 @@ class RosenzweigMacArthurInteraction(Interaction):
         self.phi_end = phi_end
         self.rate = rate
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the prey and the predators under the ramp of the crowding.
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the rates of the prey and the predators under the ramp of the crowding.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the bound elements, the time `t`, and the parameters.
         """
+        super()._prepare(context)
+        s = context
         x, y = s.prey.x, s.predators.x
         crowding = clip(s.phi + s.rate * s.t, high=s.phi_end)
         feeding = x * y / (1 + s.eta * x)
-        return [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
+        self.laws_ = [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
 
 
 class RosenzweigMacarthurSystem(BaseSystem):
@@ -321,6 +312,12 @@ class RosenzweigMacarthurSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import RosenzweigMacarthurSystem
         >>> round(RosenzweigMacarthurSystem().prepare().system_.elements[0].x, 6)
@@ -332,7 +329,6 @@ class RosenzweigMacarthurSystem(BaseSystem):
     references = ('Rosenzweig and MacArthur 1963', 'Datseris and Parlitz 2022')
     until = 150.0
     dt = 0.5
-    solver = ScipyODESolver(rtol=1e-8, atol=1e-300)
 
     def __init__(
         self,
@@ -345,8 +341,10 @@ class RosenzweigMacarthurSystem(BaseSystem):
         phi_end: float | None = None,
         rate: float = 0.002,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.prey = prey
         self.predators = predators
         self.kappa = kappa
@@ -355,11 +353,16 @@ class RosenzweigMacarthurSystem(BaseSystem):
         self.phi_end = phi_end
         self.rate = rate
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of fast prey and slow predators.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of fast prey and slow predators.
 
         Their carrying capacity shrinks at a rate.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
+        super()._prepare(context)
         prey = self.prey
         predators = self.predators
         phi = self.phi
@@ -368,7 +371,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
         phi_end = 1 - self.eta if phi_end is None else phi_end
         prey = 1 / (1 - self.eta) if prey is None else prey
         predators = (1 - phi * prey) * (1 + self.eta * prey) if predators is None else predators
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('prey', x=prey), PopulationElement('predators', x=predators)],
             interactions=[
@@ -383,6 +386,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
                     rate=self.rate,
                 ),
             ],
+            solver=ScipyODESolver(rtol=1e-8, atol=1e-300),
         )
 
 
@@ -413,6 +417,12 @@ class NicholsonBaileySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import NicholsonBaileySystem
         >>> NicholsonBaileySystem(k=3.0).prepare().system_.interactions[0].k
@@ -434,17 +444,25 @@ class NicholsonBaileySystem(BaseSystem):
         a: float = 0.05,
         c: float = 1.0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.hosts = hosts
         self.parasitoids = parasitoids
         self.k = k
         self.a = a
         self.c = c
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of hosts and parasitoids in discrete generations."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of hosts and parasitoids in discrete generations.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('hosts', x=self.hosts), PopulationElement('parasitoids', x=self.parasitoids)],
             interactions=[
@@ -497,6 +515,12 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraWithHarvestingSystem
         >>> system = LotkaVolterraWithHarvestingSystem().prepare().system_
@@ -522,8 +546,10 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         prey_harvest: float = 0.4,
         predator_harvest: float = 0.4,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.prey = prey
         self.predators = predators
         self.r = r
@@ -533,12 +559,17 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         self.prey_harvest = prey_harvest
         self.predator_harvest = predator_harvest
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of Lotka-Volterra predation with harvesting.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of Lotka-Volterra predation with harvesting.
 
         Both species are harvested with a constant effort.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return CompositeSystem(
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[
@@ -591,6 +622,12 @@ class StochasticPredatorPreySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.biology.ecology import StochasticPredatorPreySystem
         >>> StochasticPredatorPreySystem(K=1000.0).prepare().system_.interactions[0].K
@@ -616,8 +653,10 @@ class StochasticPredatorPreySystem(BaseSystem):
         m: float = 0.3,
         stochastic: bool = True,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.prey = prey
         self.predators = predators
         self.r = r
@@ -628,9 +667,15 @@ class StochasticPredatorPreySystem(BaseSystem):
         self.m = m
         self.stochastic = stochastic
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of prey and predators born and killed one at a time."""
-        return CompositeSystem(
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the system of prey and predators born and killed one at a time.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
+        self.system_ = System(
             self.label,
             elements=[PopulationElement('prey', x=self.prey), PopulationElement('predators', x=self.predators)],
             interactions=[

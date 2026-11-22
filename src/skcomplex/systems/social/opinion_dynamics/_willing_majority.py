@@ -6,22 +6,26 @@ The majority is that of opinions. They adopt it with their willingness.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
-from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Role
 
 
-class WillingVoterView(AgentView):
+class WillingVoterView(AgentViewProtocol, Protocol):
     """View of a voter of the majority rule with willingness.
 
     Its states are attributes.
@@ -40,14 +44,14 @@ class WillingVoterElement(Element):
         label:
             The label of the voter or the group.
 
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
         opinion:
             The opinion, 0 for `B` or 1 for `A`.
 
         willingness:
             The probability that the voter adopts the majority opinion of the group it consults.
+
+        size:
+            The number of members, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import WillingVoterElement
@@ -55,22 +59,19 @@ class WillingVoterElement(Element):
         1.0
     """
 
+    visual = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)})
+
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
         *,
-        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        willingness: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        opinion: Annotated[object, NN] = 0.0,
+        willingness: Annotated[object, RealSet.closed(0, 1)] = 1.0,
+        size: int | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size)
         self.opinion = opinion
         self.willingness = willingness
-
-    @classmethod
-    def _get_view(cls) -> type[WillingVoterView]:
-        """Return the class of the views of the agents, whose attributes are the states."""
-        return WillingVoterView
 
 
 class WillingMajorityInteraction(Interaction):
@@ -98,31 +99,28 @@ class WillingMajorityInteraction(Interaction):
 
     draws = True
 
-    law_classes = (RuleLaw,)
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        group_size: Annotated[int, ParameterSpec(domain=NN)] = 3,
+        target: Role,
+        group_size: Annotated[int, NN] = 3,
     ) -> None:
         super().__init__(label)
         self.target = target
         self.group_size = group_size
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the majority rule.
+    def _prepare(self, s: SimpleNamespace) -> None:
+        """Set the majority rule.
 
         Args:
             s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+                The namespace of the elements a binding of the roles names.
         """
-        return [RuleLaw(self.follow)]
+        super()._prepare(s)
+        self.laws_: list[BaseLaw] = [UpdateLaw(s, self.follow)]
 
     def follow(self, system: SystemView) -> None:
         """Update as many random agents as there are agents.
@@ -133,7 +131,7 @@ class WillingMajorityInteraction(Interaction):
             system:
                 The system.
         """
-        voters = system.get_agents(self.target, WillingVoterView)
+        voters = cast(list[WillingVoterView], system.get_agents(self.target))
         size = len(voters)
         group_size = int(self.group_size)
         if size <= group_size:
@@ -182,9 +180,15 @@ class WillingMajoritySystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.social.opinion_dynamics import WillingMajoritySystem
-        >>> WillingMajoritySystem(30).prepare().system_.elements[0].prepare().size_
+        >>> WillingMajoritySystem(30).prepare().system_.elements[0].size
         30
     """
 
@@ -203,8 +207,10 @@ class WillingMajoritySystem(BaseSystem):
         willingness: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.group_size = group_size
         self.zealots = zealots
@@ -212,18 +218,19 @@ class WillingMajoritySystem(BaseSystem):
         self.willingness = willingness
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the components built from the model parameters."""
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         opinions = rng.integers(2, size=self.n_agents).astype(float)
         stubborn = rng.random(self.n_agents) < self.zealots
         if self.zealot_opinion is not None:
             opinions[stubborn] = self.zealot_opinion
-        voters = GroupElement(
+        voters = WillingVoterElement(
             'voters',
-            element=WillingVoterElement,
+            opinion=opinions,
+            willingness=np.where(stubborn, 0.0, self.willingness),
             size=self.n_agents,
-            values={'opinion': opinions, 'willingness': np.where(stubborn, 0.0, self.willingness)},
         )
         majority = WillingMajorityInteraction('majority', target='voters', group_size=self.group_size)
-        return CompositeSystem(self.label, elements=[voters], interactions=[majority])
+        self.system_ = System(self.label, elements=[voters], interactions=[majority])

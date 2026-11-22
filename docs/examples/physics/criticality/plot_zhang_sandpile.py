@@ -12,14 +12,13 @@ organizes itself into a critical state with avalanches of all sizes.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import ZhangSandpileSystem
 
 SYSTEM = 'zhang_sandpile'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(ZhangSandpileSystem(), until=10000, observers=[observer], random_state=0)
+trajectory = ZhangSandpileSystem().prepare().simulate(until=10000, observers=[observer], random_state=0)
 
 # %%
 # Avalanches and energies

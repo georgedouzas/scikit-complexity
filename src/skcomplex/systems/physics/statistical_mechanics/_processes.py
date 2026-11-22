@@ -8,45 +8,42 @@ The module covers Q2R, percolation, contact process, exclusion, and aggregation.
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import LocalRuleInteraction, TransferInteraction
-from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
-from ....core.components.laws.utils import bernoulli
-from ....core.components.spaces import BallNeighborhood, DiscreteTime, LatticeSpace
-from ....core.components.systems import BaseSystem, CompositeSystem
-from ....core.engine.solvers import AgentView, SystemView
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.components import Observable
+from ....core.components.elements import Element, VisualSpec
+from ....core.components.interactions import Interaction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import bernoulli, shift_member
+from ....core.components.spaces import BaseSpace, LatticeSpace, RadiusNeighborhood
+from ....core.components.types import AgentViewProtocol
+from ....core.engine.backends import BaseBackend
+from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.systems import BaseSystem, System
+from ....core.types import Array, Role
 
 BURNING = 2
 BURNT = 3
+NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 
 class ContactSiteElement(Element):
-    """Site of the contact process.
+    """Sites of the contact process.
 
-    The site infects a neighbour at the rate `rate / 4` and recovers at rate 1.
-
-    One step is a time slice `tau`, in which an infected site recovers with probability `1 - exp(-tau)` and a
-    healthy site is infected with probability `1 - exp(-rate tau f)`, where `f` is the fraction of its infected
-    neighbours.
+    Every site is infected at 1 or healthy at 0, and holds the infection rate `rate` and the time slice `tau` of one
+    step, which `ContactInfectionInteraction` reads.
 
     Args:
         label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the site or the lattice of sites.
 
         infected:
-            The initial state, 1 for infected and 0 for healthy.
+            The initial state, 1 for infected and 0 for healthy, or one state per site.
 
         rate:
             The infection rate.
@@ -54,126 +51,263 @@ class ContactSiteElement(Element):
         tau:
             The time slice of one step.
 
+        space:
+            The lattice of the sites, or `None` for one site.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ContactSiteElement
         >>> ContactSiteElement('site').rate
         3.0
     """
 
-    draws = True
-
-    law_classes = (LocalRuleLaw,)
-
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        infected: object = 0.0,
+        rate: Annotated[float, RealSet.closed_open(0, oo)] = 3.0,
+        tau: Annotated[float, RealSet.open(0, oo)] = 0.1,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.infected = infected
         self.rate = rate
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic infection and recovery.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class ContactInfectionInteraction(Interaction):
+    """Infection and recovery of the contact process.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(
-                s.infected,
-                BallNeighborhood(metric='manhattan', center='first'),
-                ContactSiteElement._spread,
-                stochastic=True,
-            ),
-        ]
+    A site infects a neighbour at the rate `rate / 4` and recovers at rate 1. One step is a time slice `tau`, in which
+    an infected site recovers with probability `1 - exp(-tau)` and a healthy site is infected with probability
+    `1 - exp(-rate tau f)`, where `f` is the fraction of its infected neighbours. It is an epidemic on a grid of
+    villages, the spread of a plant across a field, or a rumour among neighbours.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose values are `infected`, `rate`, and `tau`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ContactInfectionInteraction
+        >>> ContactInfectionInteraction('infection', target='lattice').target
+        'lattice'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
     @staticmethod
-    def _spread(infected: Array, *around: Array, rate: float | Array, tau: float | Array, random: Array) -> Array:
+    def _spread(
+        infected: Array,
+        *around: Array,
+        rate: float | Array,
+        tau: float | Array,
+        random: Array,
+        **kwargs: object,
+    ) -> Array:
         """Return the next infections of the contact process over a time slice `tau`."""
         share = sum(around) / len(around)
         infects = random < -np.expm1(-rate * tau * share)
         recovers = random < -np.expm1(-tau)
         return np.where(infected == 1, np.where(recovers, 0.0, 1.0), np.where(infects, 1.0, 0.0))
 
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the stochastic infection and recovery of the sites.
+
+        Args:
+            context:
+                The namespace of the target and the time `t`.
+        """
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target.infected, self._spread, neighborhood=NEAREST, stochastic=True)]
+
 
 class ExclusionSiteElement(Element):
-    """Site of the totally asymmetric simple exclusion process.
+    """Sites of the totally asymmetric simple exclusion process.
 
-    The site is empty at 0 or holds one particle at 1.
-
-    It holds the probabilities of a hop, of an entry at the left end of an open line, and of an exit at its right end,
-    which the transfers of the process read.
+    Every site is empty at 0 or holds one particle at 1.
 
     Args:
         label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the site or the lane of sites.
 
         occupied:
-            The initial occupation.
+            The initial occupation, or one occupation per site.
 
-        p:
-            The probability of a hop.
-
-        alpha:
-            The probability of an entry at the left end of an open line.
-
-        beta:
-            The probability of an exit at the right end of an open line.
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ExclusionSiteElement
-        >>> ExclusionSiteElement('site').p
-        0.5
+        >>> ExclusionSiteElement('site').occupied
+        0.0
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        occupied: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.occupied = occupied
-        self.p = p
-        self.alpha = alpha
-        self.beta = beta
 
 
-class PercolationSiteElement(Element):
-    """Site of a percolation lattice.
+class ParallelHopInteraction(Interaction):
+    """Hops of particles to the next site of a lane, all at once.
 
-    The site is empty at 0, occupied at 1, burning at 2, or burnt at 3.
-
-    Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
-    edge burns exactly the clusters that touch that edge.
+    In one step every particle whose next site is empty hops to it with probability `p`. One draw decides the hop
+    between two sites, and both sites read it, so particles are never lost or doubled. On a fixed boundary the last
+    site has no next site. It is the parallel update of cars on a road, ribosomes on a messenger RNA, or molecular
+    motors on a filament.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the interaction.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+        target:
+            The path of the sites, whose value is `occupied`.
+
+        p:
+            The probability of a hop.
+
+        boundary:
+            `'periodic'` for a ring, or `'fixed'` for an open line.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ParallelHopInteraction
+        >>> ParallelHopInteraction('hops', target='lane', p=0.75).p
+        0.75
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role,
+        p: Annotated[float, RealSet.closed(0, 1)] = 0.5,
+        boundary: str = 'periodic',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.p = p
+        self.boundary = boundary
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flow `hops` of the particles to the next site in one step.
+
+        A particle leaves a site when it hops, and enters the next site with the draw of the site it left.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        occupied = context.target.occupied
+        ahead = shift_member(occupied, 1, boundary=self.boundary)
+        leaves = occupied * (1 - ahead) * bernoulli('hop', context.p)
+        self.laws_ = [UpdateLaw({occupied: -1, ahead: 1}, leaves, increment=True, label=self.label)]
+
+
+class LaneEntryInteraction(Interaction):
+    """Entry of particles at the first site of an open lane.
+
+    In one step a particle enters the empty first site with probability `alpha`, as cars join a road from a ramp.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the first site, whose value is `occupied`.
+
+        alpha:
+            The probability of an entry.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import LaneEntryInteraction
+        >>> LaneEntryInteraction('entry', target='lane[0]', alpha=0.4).alpha
+        0.4
+    """
+
+    def __init__(self, label: str, *, target: Role, alpha: Annotated[float, RealSet.closed(0, 1)] = 0.3) -> None:
+        super().__init__(label)
+        self.target = target
+        self.alpha = alpha
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the occupation of the first site after an entry.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        occupied = context.target.occupied
+        enters = (1 - occupied) * bernoulli('entry', context.alpha)
+        self.laws_ = [UpdateLaw({occupied: +1}, enters, increment=True, label=self.label)]
+
+
+class LaneExitInteraction(Interaction):
+    """Exit of particles at the last site of an open lane.
+
+    In one step the particle on the last site leaves with probability `beta`, as cars leave a road by an exit.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the last site, whose value is `occupied`.
+
+        beta:
+            The probability of an exit.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import LaneExitInteraction
+        >>> LaneExitInteraction('exit', target='lane[9]', beta=0.6).beta
+        0.6
+    """
+
+    def __init__(self, label: str, *, target: Role, beta: Annotated[float, RealSet.closed(0, 1)] = 0.7) -> None:
+        super().__init__(label)
+        self.target = target
+        self.beta = beta
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the occupation of the last site after an exit.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        occupied = context.target.occupied
+        leaves = occupied * bernoulli('exit', context.beta)
+        self.laws_ = [UpdateLaw({occupied: -1}, leaves, increment=True, label=self.label)]
+
+
+class PercolationSiteElement(Element):
+    """Sites of a percolation lattice.
+
+    Every site is empty at 0, occupied at 1, burning at 2, or burnt at 3.
+
+    Args:
+        label:
+            The label of the site or the lattice of sites.
 
         cover:
-            The initial cover, 0, 1, 2, or 3.
+            The initial cover, 0, 1, 2, or 3, or one cover per site.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import PercolationSiteElement
@@ -181,35 +315,38 @@ class PercolationSiteElement(Element):
         0.0
     """
 
-    law_classes = (LocalRuleLaw,)
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        cover: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
+    def __init__(self, label: str, *, cover: object = 0.0, space: BaseSpace | None = None) -> None:
+        super().__init__(label, space=space)
         self.cover = cover
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spread and burning out of the fire.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class FireSpreadInteraction(Interaction):
+    """Fire on a percolation lattice.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(s.cover, BallNeighborhood(metric='manhattan', center='first'), PercolationSiteElement._burn),
-        ]
+    Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
+    edge burns exactly the clusters that touch that edge.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose value `cover` is 0, 1, 2, or 3.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import FireSpreadInteraction
+        >>> FireSpreadInteraction('fire', target='lattice').target
+        'lattice'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
 
     @staticmethod
-    def _burn(cover: Array, *around: Array) -> Array:
+    def _burn(cover: Array, *around: Array, **kwargs: object) -> Array:
         """Return the next cover of a site.
 
         The site burns out, catches fire from a burning neighbour, or stays.
@@ -217,28 +354,34 @@ class PercolationSiteElement(Element):
         catches = (cover == 1) & np.any(np.stack(around) == BURNING, axis=0)
         return np.where(cover == BURNING, BURNT, np.where(catches, BURNING, cover))
 
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the spread and the burning out of the fire.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=NEAREST, label=self.label)]
+
 
 class Q2RSpinElement(Element):
-    """Site of the Q2R automaton.
+    """Sites of the Q2R automaton.
 
-    The site holds a spin and a phase that says whether the site updates in the current step.
-
-    The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
-    energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
-    reversible.
+    Every site holds a spin and a phase that says whether the site updates in the current step.
 
     Args:
         label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the site or the lattice of sites.
 
         spin:
-            The initial spin, 1 or -1.
+            The initial spin, 1 or -1, or one spin per site.
 
         phase:
-            The initial phase, 1 for updating and 0 for quiescent.
+            The initial phase, 1 for updating and 0 for quiescent, or one phase per site.
+
+        space:
+            The lattice of the sites, or `None` for one site.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import Q2RSpinElement
@@ -249,17 +392,68 @@ class Q2RSpinElement(Element):
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        phase: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        spin: object = 1.0,
+        phase: object = 0.0,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, space=space)
         self.spin = spin
         self.phase = phase
 
 
-class WalkerView(AgentView):
+class Q2RFlipInteraction(Interaction):
+    """Flips of the Q2R automaton.
+
+    The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
+    energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
+    reversible.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the sites, whose values are the spins `spin` and the phases `phase`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import Q2RFlipInteraction
+        >>> Q2RFlipInteraction('flip', target='spins').target
+        'spins'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    @staticmethod
+    def _flip_without_cost(*columns: Array, **kwargs: object) -> tuple[Array, Array]:
+        """Return the spins and phases after one Q2R step.
+
+        The step reads the spins and the phases of a centred neighbourhood.
+        """
+        half = len(columns) // 2
+        spin, around, phase = columns[0], columns[1:half], columns[half]
+        flips = (phase == 1) & (sum(around) == 0)
+        return np.where(flips, -spin, spin), 1 - phase
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the flips of the spins and the swap of the phases.
+
+        Args:
+            context:
+                The namespace of the target, the time `t`, and the parameters.
+        """
+        super()._prepare(context)
+        sites = context.target
+        spin_and_phase = (sites.spin, sites.phase)
+        self.laws_ = [UpdateLaw(spin_and_phase, self._flip_without_cost, neighborhood=NEAREST, label=self.label)]
+
+
+@runtime_checkable
+class WalkerView(AgentViewProtocol, Protocol):
     """Walker of diffusion-limited aggregation as rules see it.
 
     The walker holds whether it belongs to the aggregate.
@@ -276,19 +470,28 @@ class WalkerView(AgentView):
 
 
 class WalkerElement(Element):
-    """Random walker of diffusion-limited aggregation.
+    """Random walkers of diffusion-limited aggregation at the cells `(x, y)`.
 
-    The walker sticks when it reaches a stuck walker.
+    A `StickingWalkInteraction` moves the walkers and sticks them to the aggregate.
 
     Args:
         label:
             The label of the agent or group.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
         stuck:
             Whether the walker belongs to the aggregate.
+
+        x:
+            The first coordinate of the cell of the walker.
+
+        y:
+            The second coordinate of the cell of the walker.
+
+        size:
+            The number of walkers, or `None` for one.
+
+        space:
+            The grid of the walkers, or `None` for none.
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import WalkerElement
@@ -296,37 +499,59 @@ class WalkerElement(Element):
         0.0
     """
 
-    draws = True
-
-    law_classes = (RuleLaw,)
+    visual = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)}),
         *,
-        stuck: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        stuck: Annotated[object, FiniteEnumeratedSet([0, 1])] = 0.0,
+        x: object = 0,
+        y: object = 0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.stuck = stuck
+        self.x = x
+        self.y = y
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the walk-and-stick rule.
+
+class StickingWalkInteraction(Interaction):
+    """Random walk of walkers that stick when they reach the aggregate.
+
+    Every free walker joins the aggregate when a stuck walker is on a neighbouring cell, and otherwise steps to a
+    random neighbouring cell. It is a particle of soot that joins a cluster, a metal ion that deposits on an electrode,
+    or a bacterium that settles on a colony.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the walkers.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import StickingWalkInteraction
+        >>> StickingWalkInteraction('walk', target='walkers').target
+        'walkers'
+    """
+
+    law_classes = (UpdateLaw,)
+
+    def __init__(self, label: str, *, target: Role) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the walk of the walkers.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+            context:
+                The namespace of the target, the time `t`, and the parameters.
         """
-        return [RuleLaw(self.walk)]
-
-    @classmethod
-    def _get_view(cls) -> type:
-        """Return the class of the views of the element's agents."""
-        return WalkerView
+        super()._prepare(context)
+        self.laws_ = [UpdateLaw(context.target, self.walk)]
 
     def walk(self, agent: WalkerView, system: SystemView) -> None:
         """Stick next to the aggregate, or step to a random neighbouring cell.
@@ -368,10 +593,17 @@ class Q2rSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import Q2rSystem
-        >>> Q2rSystem((8,)).prepare().system_.elements[0].prepare().size_
-        8
+        >>> trajectory = Q2rSystem((8,)).prepare().simulate(until=1)
+        >>> trajectory.get_values('spins.spin').shape
+        (2, 8)
     """
 
     field = 'physics/statistical_mechanics'
@@ -387,48 +619,36 @@ class Q2rSystem(BaseSystem):
         up: float = 0.3,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.up = up
         self.random_state = random_state
-
-    @staticmethod
-    def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
-        """Return the spins and phases after one Q2R step.
-
-        The step reads the spins and the phases of a centred neighbourhood.
-        """
-        half = len(columns) // 2
-        spin, around, phase = columns[0], columns[1:half], columns[half]
-        flips = (phase == 1) & (sum(around) == 0)
-        return np.where(flips, -spin, spin), 1 - phase
 
     @staticmethod
     def _get_checkerboard(shape: tuple[int, ...]) -> Array:
         """Return 1 on the sites of even coordinate sum and 0 on the others."""
         return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the spins and phases of the lattice and their flips.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
-        space = LatticeSpace(shape)
-        group = GroupElement(
+        sites = Q2RSpinElement(
             'spins',
-            element=Q2RSpinElement,
-            space=space,
-            values={'spin': spins, 'phase': self._get_checkerboard(shape)},
-            on='sites',
+            spin=spins.ravel(),
+            phase=self._get_checkerboard(shape).ravel(),
+            space=LatticeSpace(shape),
         )
-        flip = LocalRuleInteraction(
-            'flip',
-            target='spins',
-            state=('spin', 'phase'),
-            rule=self._flip_without_cost,
-            neighborhood=BallNeighborhood(metric='manhattan', n_dim=len(shape), center='first'),
-        )
-        return CompositeSystem(self.label, elements=[group], interactions=[flip])
+        self.system_ = System(self.label, elements=[sites], interactions=[Q2RFlipInteraction('flip', target='spins')])
 
 
 class SitePercolationSystem(BaseSystem):
@@ -452,10 +672,17 @@ class SitePercolationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import SitePercolationSystem
-        >>> SitePercolationSystem((10, 10)).prepare().system_.elements[0].prepare().size_
-        100
+        >>> trajectory = SitePercolationSystem((10, 10)).prepare().simulate(until=1)
+        >>> trajectory.get_values('lattice.cover').shape
+        (2, 100)
     """
 
     field = 'physics/statistical_mechanics'
@@ -471,30 +698,28 @@ class SitePercolationSystem(BaseSystem):
         p: float = 0.6,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.p = p
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the occupied sites with the fire lit along the top row.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
         cover[0] *= BURNING
-        space = LatticeSpace(shape, boundary='fixed')
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'lattice',
-                    element=PercolationSiteElement,
-                    space=space,
-                    values={'cover': cover},
-                    on='sites',
-                ),
-            ],
-        )
+        sites = PercolationSiteElement('lattice', cover=cover.ravel(), space=LatticeSpace(shape, boundary='fixed'))
+        fire = FireSpreadInteraction('fire', target='lattice')
+        self.system_ = System(self.label, elements=[sites], interactions=[fire])
 
 
 class ContactProcessSystem(BaseSystem):
@@ -524,9 +749,15 @@ class ContactProcessSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
-        >>> ContactProcessSystem((10, 10), rate=1.0).prepare().system_.elements[0].values['rate']
+        >>> ContactProcessSystem((10, 10), rate=1.0).prepare().system_.elements[0].rate
         1.0
     """
 
@@ -545,31 +776,35 @@ class ContactProcessSystem(BaseSystem):
         infected: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
         self.rate = rate
         self.tau = tau
         self.infected = infected
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set the contact process on a lattice, with random infected sites at the start.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         shape = tuple(self.shape)
         states = (np.random.default_rng(self.random_state).random(shape) < self.infected).astype(float)
-        space = LatticeSpace(shape)
-        return CompositeSystem(
-            self.label,
-            elements=[
-                GroupElement(
-                    'lattice',
-                    element=ContactSiteElement,
-                    space=space,
-                    values={'infected': states, 'rate': self.rate, 'tau': self.tau},
-                    on='sites',
-                ),
-            ],
+        lattice = ContactSiteElement(
+            'lattice',
+            infected=states.ravel(),
+            rate=self.rate,
+            tau=self.tau,
+            space=LatticeSpace(shape),
         )
+        infection = ContactInfectionInteraction('infection', target='lattice')
+        self.system_ = System(self.label, elements=[lattice], interactions=[infection])
 
 
 class TASEPSystem(BaseSystem):
@@ -577,12 +812,12 @@ class TASEPSystem(BaseSystem):
 
     The process runs on an open line or a ring.
 
-    Every step all particles whose right neighbour is empty hop to it with probability `p` at once, a transfer along
-    every edge of the lane with one draw per edge. On an open line particles enter the first site with probability
-    `alpha` and leave the last site with probability `beta`. On a ring at density `rho` the current is `(1 - sqrt(1 - 4
-    p rho (1 - rho))) / 2`. On an open line the entry and exit probabilities select the low-density, high-density, or
-    maximal-current phase. The system has the occupations `lane.occupied` and the hops `lane.hops`, and on an open line
-    the entries `entry.flow_0` and the exits `exit.flow_0`.
+    Every step all particles whose right neighbour is empty hop to it with probability `p` at once, with one draw for
+    every pair of neighbouring sites. On an open line particles enter the first site with probability `alpha` and
+    leave the last site with probability `beta`. On a ring at density `rho` the current is `(1 - sqrt(1 - 4 p rho (1 -
+    rho))) / 2`. On an open line the entry and exit probabilities select the low-density, high-density, or
+    maximal-current phase. The system has the occupations `lane.occupied`, and on an open line the expected entries
+    `lane.entry` and exits `lane.exit` of every step.
 
     Args:
         n_sites:
@@ -609,13 +844,17 @@ class TASEPSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import TASEPSystem
         >>> [interaction.label for interaction in TASEPSystem(20).prepare().system_.interactions]
         ['hops', 'entry', 'exit']
     """
-
-    draws = True
 
     field = 'physics/statistical_mechanics'
     topics = ('lattice', 'stochastic', 'exclusion', 'traffic', 'nonequilibrium')
@@ -634,8 +873,10 @@ class TASEPSystem(BaseSystem):
         density: float = 0.5,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_sites = n_sites
         self.p = p
         self.alpha = alpha
@@ -644,76 +885,26 @@ class TASEPSystem(BaseSystem):
         self.density = density
         self.random_state = random_state
 
-    @staticmethod
-    def _hop(s: SimpleNamespace) -> Expression:
-        """Return 1 where a particle hops to the empty next site, and 0 otherwise.
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the lane with random occupied sites, its hops, and on an open line its entry and exit.
 
-        The hop has probability `p`, with one draw per edge.
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
         """
-        return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
-
-    @staticmethod
-    def _enter(s: SimpleNamespace) -> Expression:
-        """Return 1 where a particle enters the empty first site, and 0 otherwise.
-
-        The entry has probability `alpha`.
-        """
-        return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
-
-    @staticmethod
-    def _leave(s: SimpleNamespace) -> Expression:
-        """Return 1 where the particle on the last site leaves, and 0 otherwise.
-
-        The exit has probability `beta`.
-        """
-        return s.source.occupied * bernoulli('exit', s.source.beta)
-
-    def _build_system(self) -> CompositeSystem:
-        """Return the totally asymmetric simple exclusion process with parallel update.
-
-        The process runs on an open line or a ring.
-        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         occupied = np.zeros(self.n_sites)
         occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
         boundary = 'periodic' if self.ring else 'fixed'
-        lane = GroupElement(
-            'lane',
-            element=ExclusionSiteElement,
-            space=LatticeSpace(self.n_sites, boundary=boundary),
-            values={'occupied': occupied, 'p': self.p, 'alpha': self.alpha, 'beta': self.beta},
-            on='sites',
-        )
-        hops = TransferInteraction(
-            'hops',
-            source='lane',
-            target='lane',
-            state='occupied',
-            amount=self._hop,
-            flow='hops',
-            offset=1,
-            boundary=boundary,
-        )
-        if self.ring:
-            return CompositeSystem(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
-        first, last = 'lane[0]', f'lane[{self.n_sites - 1}]'
-        entry = TransferInteraction(
-            'entry',
-            source=first,
-            target=first,
-            state=Source(),
-            into='occupied',
-            amount=self._enter,
-        )
-        leaving = TransferInteraction(
-            'exit',
-            source=last,
-            target=last,
-            state='occupied',
-            into=Sink(),
-            amount=self._leave,
-        )
-        return CompositeSystem(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
+        lane = ExclusionSiteElement('lane', occupied=occupied, space=LatticeSpace(self.n_sites, boundary=boundary))
+        interactions: list[Interaction] = [ParallelHopInteraction('hops', target='lane', p=self.p, boundary=boundary)]
+        if not self.ring:
+            interactions += [
+                LaneEntryInteraction('entry', target='lane[0]', alpha=self.alpha),
+                LaneExitInteraction('exit', target=f'lane[{self.n_sites - 1}]', beta=self.beta),
+            ]
+        self.system_ = System(self.label, elements=[lane], interactions=interactions)
 
 
 class DiffusionLimitedAggregationSystem(BaseSystem):
@@ -737,9 +928,15 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         label:
             The label of the system, which names it when it is nested in another one.
 
+        solver:
+            The solver of the problem, or `'auto'` for the one the system chooses.
+
+        backend:
+            The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
+
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import DiffusionLimitedAggregationSystem
-        >>> DiffusionLimitedAggregationSystem(10, size=11).prepare().system_.elements[0].prepare().size_
+        >>> DiffusionLimitedAggregationSystem(10, size=11).prepare().system_.elements[0].size
         10
     """
 
@@ -756,29 +953,38 @@ class DiffusionLimitedAggregationSystem(BaseSystem):
         size: int = 41,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
+        solver: BaseSolver | str = 'auto',
+        backend: BaseBackend | str = 'auto',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, solver=solver, backend=backend)
         self.n_walkers = n_walkers
         self.size = size
         self.random_state = random_state
 
-    def _build_system(self) -> CompositeSystem:
-        """Return the parts of the system, built from its model parameters."""
+    def _prepare(self, context: Sequence[Observable] | None = None) -> None:
+        """Set `system_` to the walkers at random cells around a seed at the center.
+
+        Args:
+            context:
+                The observables to compile with the problem, or `None` for none.
+        """
+        super()._prepare(context)
         rng = np.random.default_rng(self.random_state)
         middle = self.size // 2
         cells = rng.integers(0, self.size, (self.n_walkers, 2))
         cells[0] = middle
         stuck = np.zeros(self.n_walkers)
         stuck[0] = 1.0
-        walkers = GroupElement(
+        walkers = WalkerElement(
             'walkers',
-            element=WalkerElement,
+            stuck=stuck,
+            x=cells[:, 0],
+            y=cells[:, 1],
             size=self.n_walkers,
-            values={'stuck': stuck},
-            location=[tuple(map(int, cell)) for cell in cells],
+            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
         )
-        return CompositeSystem(
+        self.system_ = System(
             self.label,
             elements=[walkers],
-            space=LatticeSpace((self.size, self.size), boundary='periodic', metric='manhattan'),
+            interactions=[StickingWalkInteraction('walk', target='walkers')],
         )

@@ -1,93 +1,66 @@
-"""Node of a network.
+"""Nodes of a network.
 
-The node carries its degree, clustering, betweenness, and community.
+The nodes carry their degree, clustering, betweenness, and community.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from .....core.components.elements import Element
-from .....core.components.laws import BaseLaw, RuleLaw
-from .....core.engine.solvers import AgentView, SystemView
-from .....core.specs import StateSpec, VisualSpec
+from .....core.components.elements import Element, VisualSpec
+from .....core.components.spaces import BaseSpace
 
 
 class NetworkNodeElement(Element):
-    """Node of a network.
-
-    The node carries its degree, clustering, betweenness, and community.
+    """Nodes of a network, each with its degree, clustering, betweenness, and community.
 
     Args:
         label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            The label of the nodes.
 
         degree:
-            The degree of the node.
+            The degree of every node, one per node or shared.
 
         clustering:
-            The clustering coefficient of the node.
+            The clustering coefficient of every node, one per node or shared.
 
         betweenness:
-            The normalized betweenness centrality of the node.
+            The normalized betweenness centrality of every node, one per node or shared.
 
         community:
-            The index of the community of the node.
+            The index of the community of every node, one per node or shared.
+
+        size:
+            The number of nodes, or `None` for one.
+
+        space:
+            The network with one node per site, or `None`.
 
     Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
         >>> from skcomplex.systems.mathematics.networks import NetworkNodeElement
-        >>> group = GroupElement('nodes', element=NetworkNodeElement, size=3)
-        >>> group.label, group.element.__name__, group.size
-        ('nodes', 'NetworkNodeElement', 3)
+        >>> NetworkNodeElement('nodes', degree=[1.0, 2.0, 1.0], size=3).degree
+        [1.0, 2.0, 1.0]
     """
 
-    law_classes = (RuleLaw,)
+    visual = VisualSpec('agents', {'color_by': 'community'})
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'community'}),
         *,
-        degree: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        clustering: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        betweenness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        community: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        degree: Annotated[object, NN] = 0.0,
+        clustering: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        betweenness: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        community: Annotated[object, NN] = 0.0,
+        size: int | None = None,
+        space: BaseSpace | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, size=size, space=space)
         self.degree = degree
         self.clustering = clustering
         self.betweenness = betweenness
         self.community = community
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that keeps the node in place.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.stay)]
-
-    def stay(self, agent: AgentView, system: SystemView) -> None:
-        """Keep the node and its measures unchanged.
-
-        Args:
-            agent:
-                The node.
-
-            system:
-                The system.
-        """
