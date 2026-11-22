@@ -20,16 +20,6 @@ SHALL record every algebraic state at every frame.
 - **WHEN** a voltage divider of two resistors driven by a constant source runs
 - **THEN** the trajectory holds the voltage of the middle node at every frame, equal to the divided source voltage
 
-### Requirement: Ports carry potential and flow variables
-`ConnectorSpec(name, potential, flow)` SHALL name the variables of a port. An element type SHALL declare its ports in
-the class variable `ports`, a mapping from port name to connector, with one algebraic state per port variable named
-`<port>_<variable>`. The core SHALL hold no named connector.
-
-#### Scenario: User-defined connector
-- **WHEN** a user defines `ConnectorSpec('chemical', potential='mu', flow='n')` and an element type with a port `a` of
-  it and the algebraic states `a_mu` and `a_n`
-- **THEN** a connection reads the potential `a_mu` and the flow `a_n` of the element, with no change to the core
-
 ### Requirement: Components state equations without a causal direction
 The equations of an element SHALL relate its states, its port variables, and the derivatives of its states without
 assigning which variable each equation determines, and the compiler SHALL solve them for the highest derivatives and
@@ -40,9 +30,9 @@ the algebraic states of the system.
 - **THEN** both systems compile, solving the resistor's equation for the current in one and for the voltage in the other
 
 ### Requirement: Connections balance flows
-`ConnectionInteraction` SHALL bind the elements of one node through a variadic role, name the port of each, and return
-equation laws that make the potentials of the ports equal and their flows sum to zero. A port that no connection names
-SHALL have a zero flow.
+A connected network SHALL be written as node elements holding potentials and component interactions whose `ConstraintLaw`
+laws add their flows into the balance of each node they join, so the flows into every node sum to zero. No connection
+class and no port SHALL be needed.
 
 #### Scenario: Kirchhoff's current law
 - **WHEN** three resistors meet at one node

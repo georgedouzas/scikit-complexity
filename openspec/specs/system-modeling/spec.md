@@ -8,16 +8,21 @@ through laws, a space the state lives in, and systems that nest and compose.
 ## Requirements
 
 ### Requirement: Elements declare typed state and parameters
-An element type SHALL declare its state variables and parameters with a domain, and an element instance SHALL take
-its label, initial state values, and parameter values as constructor arguments stored unmodified.
+An element SHALL be a plain class whose constructor stores its values unmodified, with no declaration of states or
+parameters. The kind of a value SHALL come from its Python type hint or its value, and a constraint SHALL be written as
+the allowed values in `Annotated`, only where one is needed.
 
 #### Scenario: Element stores its arguments
 - **WHEN** a user creates a population element with label `rabbits` and initial count 40
 - **THEN** the element exposes `label == 'rabbits'` and `n == 40`
 
 #### Scenario: Invalid value is rejected at compile time
-- **WHEN** a system contains an element whose positive parameter is set to a negative number and it is compiled
+- **WHEN** a system contains an element whose positive parameter is set to a negative number and it is prepared
 - **THEN** a named validation error is raised that names the element, the variable, and the domain
+
+#### Scenario: Velocity as a derivative
+- **WHEN** a particle with the values `x` and `m` falls under a gravity interaction whose law gives `x.diff(t, 2)`
+- **THEN** a run moves `x` with the acceleration `-g`, and the trajectory holds `ball.x` and `ball.x'`
 
 ### Requirement: Interactions bind elements through roles
 An interaction type SHALL declare named roles and parameters, and an interaction instance SHALL bind each role to an
@@ -31,58 +36,6 @@ element label of its system, or a variadic role to a sequence of element paths a
 - **WHEN** a variadic role holds the member reference `nodes[12]` and the group `nodes` has 10 members
 - **THEN** compiling the system raises a named role error that names the interaction, the role, the entry, and the
   group size
-
-### Requirement: Laws describe how state changes
-An interaction or element SHALL describe its effect as a list of laws of the kinds rate, noise, jump, and update, each
-law targeting state variables. Every law kind whose value the engine evaluates numerically SHALL accept a symbolic
-expression or a Python callable; equations, quantum generators and dissipators, and Godunov fluxes SHALL accept symbolic
-expressions only and say so when given a callable.
-
-#### Scenario: Symbolic rate law
-- **WHEN** an interaction returns a rate law on `prey.n` with the expression `-a * predator.n * prey.n`
-- **THEN** the compiled system includes that term in the time derivative of the prey count
-
-#### Scenario: Callable rate law
-- **WHEN** an interaction returns a rate law whose value is a Python callable of time and current values
-- **THEN** the simulation evaluates the callable at each solver evaluation and adds its result to the derivative
-
-#### Scenario: Callable jump change
-- **WHEN** a jump law's change is a callable of the current values
-- **THEN** each firing applies the change the callable returns
-
-#### Scenario: Callable equation refused
-- **WHEN** an equation law receives a callable
-- **THEN** the check raises an error naming equations as symbolic only and pointing to a callable rate law
-
-### Requirement: Rate and noise contributions add up
-Rate and noise laws on the same state variable SHALL combine by summation, so adding an interaction adds a term
-without changing other interactions.
-
-#### Scenario: Two forces on one particle
-- **WHEN** a particle is subject to a constant force and a harmonic potential
-- **THEN** its velocity derivative equals the sum of both contributions divided by its mass
-
-### Requirement: Element types create groups
-An element type SHALL create a group of N identical members with a label and a size given by position, and per-member
-values given by keyword as an array whose first dimension is N or as one value shared by every member, so a state of
-any name that is not reserved takes values. Creating a group SHALL reject at once a size below one, a value name the
-element type does not declare, and an array whose first dimension is not N.
-
-#### Scenario: Group with per-member positions
-- **WHEN** a user creates a group of 1000 molecules with an array of 1000 positions in a two-dimensional space
-- **THEN** the group stores its label, size, and values unmodified, and its position state has shape `(1000, 2)`
-
-#### Scenario: Wrong number of values
-- **WHEN** a user gives 999 positions to a group of size 1000
-- **THEN** creating the group raises a named error that names the group, the variable, and both sizes
-
-#### Scenario: Unknown value name
-- **WHEN** a user creates `Population.group('herds', 3, foo=1)`
-- **THEN** creating the group raises a named error that names `foo` and lists the declared states and parameters
-
-#### Scenario: State named size
-- **WHEN** an element type declares a state `size` and a user creates `Cell.group('cells', 3, size=[1.0, 2.0, 3.0])`
-- **THEN** the group has 3 members and its `size` state holds 1, 2, and 3
 
 ### Requirement: Roles bind to groups
 An interaction role SHALL bind to a group, to a single element, or to a set of single elements of one type, and the
@@ -158,18 +111,18 @@ raise no warning from the branch it does not choose.
 - **THEN** it returns 0 and 0.5 and raises nothing
 
 ### Requirement: Components are defined without subclassing
-The modelling layer SHALL build element and interaction types from declared states, parameters, roles, and a function
-that returns their laws, and such types SHALL behave like subclassed components in groups, cloning, and parameter
-introspection.
+`Element(label, values={...})` SHALL define an element from data, and
+`Interaction(label, roles={...}, laws=callable)` SHALL define an interaction from a function that returns its laws, and
+both SHALL behave like subclassed components in members, cloning, and parameters.
 
 #### Scenario: One-off growth system
-- **WHEN** a user defines an element type with a state `n` and an interaction type with a role and a rate law in a few
-  lines, without writing a class
-- **THEN** a system of them compiles and simulates exactly like the same system written with classes
+- **WHEN** a user builds an element from data with a value `n` and an interaction with one role and a rate law, without
+  writing a class
+- **THEN** the system prepares and simulates exactly like the same system written with classes
 
 #### Scenario: Defined types form groups
-- **WHEN** a user creates a group of 100 members from a defined element type
-- **THEN** the group compiles once and its parameters appear in `get_params` like those of a subclassed type
+- **WHEN** a user creates an element from data with `size=100`
+- **THEN** it prepares once for its 100 members, and its parameters appear in the nested parameters of the system
 
 ### Requirement: States take discrete and periodic domains
 States SHALL accept boolean, finite-alphabet, and angle domains besides the real and integer domains, and angle states
@@ -185,34 +138,36 @@ SHALL stay within one turn after every step.
 - **THEN** its value after the step lies in `[0, 2π)`
 
 ### Requirement: States declare an order with initial derivatives
-A state SHALL declare an order `k`, and the framework SHALL add companion states for its derivatives of orders 1 to
-`k - 1`. These SHALL take initial values in the constructor, appear in trajectories by path, and be readable in laws.
+The order of a state SHALL be the highest derivative its laws give or read, and the compiler SHALL add the derivatives
+of orders 1 to `k - 1` as states named with primes. Their initial values SHALL come from the initial state and default
+to zero, and they SHALL appear in trajectories by name and be readable in laws with `derivative`.
 
 #### Scenario: Initial angular velocity
-- **WHEN** a pendulum declares its angle with order 2 and is created with `theta=0.1, theta_d1=0.5`
+- **WHEN** a pendulum interaction gives `theta.diff(t, 2)` and a run starts with `initial_state={"bob.theta'": 0.5}`
+  and `theta=0.1`
 - **THEN** the run starts with angle 0.1 and angular velocity 0.5, and the trajectory returns both `bob.theta` and
-  `bob.theta_d1`
+  `bob.theta'`
 
 #### Scenario: First order unchanged
-- **WHEN** a state declares no order
-- **THEN** the system compiles exactly as before, with no companion states
+- **WHEN** the laws of a state give only its first derivative
+- **THEN** the system compiles with no derived states
 
 ### Requirement: Laws of any order superpose on the highest derivative
-Rate and noise laws on a state of order `k` SHALL contribute to its `k`-th derivative, and the contributions of
-different laws SHALL add up. A law that asserts a different order SHALL raise a named error.
+Rate and noise laws on a derivative of order `k` of a state SHALL contribute to it, and the contributions of different
+laws SHALL add up. Laws that give different orders of one state SHALL raise a named error.
 
 #### Scenario: Newton's second law from separate forces
-- **WHEN** a mass on a spring receives a restoring law from one interaction and a damping law that reads `x_d1` from
-  another, on a position of order 2
+- **WHEN** a mass on a spring receives a restoring law on `x.diff(t, 2)` from one interaction and a damping law
+  that reads `x.diff(t)` from another
 - **THEN** the run matches the damped oscillator `m x'' = -k x - c x'` within the solver tolerance
 
 #### Scenario: Third order
-- **WHEN** Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1` is written as one rate law on a state of order 3
+- **WHEN** Sprott's jerk equation `x''' = -A x'' - x' + |x| - 1` is written as one rate law on `x.diff(t, 3)`
 - **THEN** it compiles to three first-order equations, and with A = 0.6 its trajectory is bounded and chaotic
 
 #### Scenario: Order mismatch
-- **WHEN** a law asserts order 1 on a state declared with order 2
-- **THEN** compiling raises a named error that names the law, the state, and both orders
+- **WHEN** one law gives `x.diff(t, 1)` and another gives `x.diff(t, 2)`
+- **THEN** compiling raises a named error that names both laws, the state, and both orders
 
 ### Requirement: Equations state implicit relations in the highest derivatives
 An equation law SHALL relate the highest derivatives of states to other expressions, which MAY contain conditions and
@@ -462,26 +417,25 @@ graphs, and tilings, and the domain of a state SHALL decide which laws may targe
 - **THEN** each step rewrites the sequence in parallel
 
 ### Requirement: Interactions bind roles with an arity and a binding
-An interaction SHALL declare roles, each binding one component, one member, or a sequence of them. Its binding SHALL
-be one of `'members'`, `'pairs'`, `'neighbours'`, or `'hyperedges'`, so one interaction type covers unary, pairwise,
-neighbourhood, and higher-order couplings, and validation SHALL report a binding the space does not offer.
-Interactions SHALL hold no state.
+The base `Interaction` SHALL take its binding as arguments: named roles bound to elements or members, `among=` with
+`within=` a neighbourhood for every pair of close members, or `among=` with `along=` for every edge or hyperedge of a
+network. No interaction class SHALL exist only to fix a binding. Interactions SHALL hold no state.
 
 #### Scenario: Neighbour coupling
-- **WHEN** an interaction with binding `'neighbours'` couples the members of a quantum group on a lattice
+- **WHEN** an interaction binds `among=` an element placed on a lattice with `within=LatticeNeighborhood()`
 - **THEN** its laws run once per pair of adjacent sites
 
 #### Scenario: Pairs within a cutoff
-- **WHEN** an interaction with binding `'pairs'` couples a group of particles
-- **THEN** its laws run once per pair of members closer than its cutoff, as the former pair interactions did
+- **WHEN** an interaction is created with `among='gas'` and `within=RadiusNeighborhood(2.5)`
+- **THEN** its laws run once per pair of members closer than 2.5
 
 #### Scenario: Hyperedges need a network that has them
-- **WHEN** an interaction with binding `'hyperedges'` couples a group on a lattice
-- **THEN** validation reports that the binding needs a network space with hyperedges
+- **WHEN** an interaction binds along hyperedges of a lattice
+- **THEN** preparing reports that the binding needs a network space with hyperedges
 
 #### Scenario: State on an interaction is rejected
 - **WHEN** an interaction type declares a `state`
-- **THEN** defining the type raises a named error that suggests a group on the edges of the space
+- **THEN** defining the type raises a named error that suggests an element on the edges of the space
 
 ### Requirement: Space is a substrate with boundary conditions
 A space SHALL be none (well-mixed), a lattice, a network with optional hyperedges, a continuous space of a dimension, or
@@ -671,20 +625,6 @@ breaks it.
 - **WHEN** a law creates wealth from nothing in a system whose run declares the observable `total_wealth` invariant
 - **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
 
-### Requirement: Components share two main public methods
-Elements, interactions, spaces, times, and systems SHALL derive from `BaseComponent`, which defines `label`,
-`prepare(context)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from `prepare`, and
-their laws from `run(s)`, and a system SHALL return the laws of its children. A law SHALL be a frozen value deriving
-from `BaseLaw`, with its fields and no `prepare`, component label, or cloning.
-
-#### Scenario: System yields laws
-- **WHEN** a system of a population element and a growth interaction is prepared and run with a namespace
-- **THEN** it returns the laws of the element and of the interaction, in order
-
-#### Scenario: A law is a value
-- **WHEN** a user builds `RateLaw(n, r * n)` twice
-- **THEN** the two laws are equal, neither is an instance of `BaseComponent`, and neither has `prepare`
-
 ### Requirement: Hamiltonian interactions generate rate laws
 `HamiltonianInteraction` SHALL derive Hamilton's equations symbolically from a function of canonical coordinates and
 momenta, states of order 1 that are real or angles, as one `RateLaw` per coordinate and per momentum. The Hamiltonians
@@ -709,17 +649,21 @@ of separate interactions on one state SHALL sum. A misuse SHALL raise `Validatio
   `StateSpec(order=1)` or `EulerLagrangeInteraction`
 
 ### Requirement: Core interactions are distinct operations
-Every class of `skcomplex.core.components.interactions` SHALL name a mathematical operation that no other class of the
-package already gives with one fixed function or argument. A specific form of an operation SHALL be written as the core
-class with its function, or as a named realization in the field that has a term for it.
+The interactions of the core SHALL be `BaseInteraction` and `Interaction` alone. Interactions that generate laws from
+one function, such as gradient flows and Hamiltonian or Lagrangian mechanics, SHALL live in the systems packages that
+use them, since a law written in Sage gives them in one line. No core interaction SHALL only wrap one law or fix one
+binding.
 
 #### Scenario: No parametrised copy
 - **WHEN** the classes of `skcomplex.core.components.interactions` are listed
-- **THEN** none is a subclass that only fixes the rate, the flux, the guard, or the map function of another core class
+- **THEN** none is a subclass that only fixes the rate, the flux, the guard, or the map function of another core class,
+  and none of `RateInteraction`, `JumpInteraction`, `MapInteraction`, `PairInteraction`, or `NeighborInteraction` is
+  among them
 
 #### Scenario: Specific form without a realization
 - **WHEN** a mathematics system needs an Ornstein-Uhlenbeck control or a graph diffusion
-- **THEN** it writes `RateInteraction` with the rate `(goal - x) / time` or `D laplacian(u)`, with no class of its own
+- **THEN** it writes an `Interaction` whose law is `RateLaw` with `(goal - x) / time` or `D laplacian(u)`, with no class
+  of its own
 
 ### Requirement: The core names mathematics and holds no realization
 Every public name and module of `skcomplex.core.components` SHALL be a mathematical, modelling, or engineering term,
@@ -742,27 +686,6 @@ and the core SHALL import nothing from `skcomplex.systems`.
 - **THEN** both come from `skcomplex.systems.general`, built on the core `RuleLaw`, `UpdateLaw`, and `MatchLaw`, and no
   field defines either again
 
-### Requirement: The core holds building blocks only
-Every component of the core SHALL be a building block: a structural base where laws run, a primitive mechanism that
-the engine lowers in its own way, or an operator generated from one function. A recipe, a pattern of strategies that
-the primitives express, SHALL live in `skcomplex.systems`. A compile pass, a kernel, a solver, or a backend lowering
-SHALL key on a core primitive, never on a class of `skcomplex.systems`.
-
-#### Scenario: A recipe written with primitives
-- **WHEN** a reviewer lists the interactions of `skcomplex.core.components.interactions`
-- **THEN** none is an agent rule that only returns a `RuleLaw`, and none is a strategy over a law the engine already
-  lowers, such as a matching over `MatchLaw` or a reaction over `JumpLaw`
-
-#### Scenario: Engine support stays with its primitive
-- **WHEN** the engine compiles a matching, a toppling sandpile, or a binary encounter from the systems
-- **THEN** it lowers the core `MatchLaw`, `CascadeLaw`, or `BilinearLaw` that the recipe returns, and names no class of
-  `skcomplex.systems`
-
-#### Scenario: Strategy branches leave kept classes
-- **WHEN** a system needs the zones of a flock or the row scores of a sequence walk
-- **THEN** it subclasses the core `CouplingInteraction` or `SamplingInteraction` in its field, and the core classes take
-  no argument for either strategy
-
 ### Requirement: Systems nest as components
 A system SHALL hold nested systems among its components, and a nested system SHALL itself be a component, so systems
 nest to any depth. An interaction SHALL refer to a component of a nested system by a slash path relative to the system
@@ -780,16 +703,220 @@ that holds the interaction. Two direct children of a system with the same label 
 - **WHEN** a user checks whether a `CompositeSystem` instance is an instance of `BaseComponent`
 - **THEN** the check is true, the instance is an instance of `BaseSystem`, and it is not an instance of `BaseElement`
 
-### Requirement: A system is elements, interactions, space, and time
-A system SHALL be defined by its label, its elements, its interactions, its nested systems, its space, and its time,
-and by nothing else. A system SHALL accept no argument about how it runs: no solver, backend, form, noise convention,
-delay history, activation schedule outside its time, or observables.
+### Requirement: States and parameters follow from the laws
+A value of an element that some law changes SHALL be a state, and a value that no law changes SHALL be a parameter,
+decided by `prepare` from the laws of the system.
 
-#### Scenario: Four-component system
-- **WHEN** a user builds `CompositeSystem('ecology', elements=[rabbits, foxes], interactions=[predation],
-  space=None, time=ContinuousTime())`
-- **THEN** the system compiles and runs, and its parameters list only the parameters of its elements and interactions
+#### Scenario: A particle at rest
+- **WHEN** a system holds a particle with the values `x` and `m` and no interaction
+- **THEN** preparing it finds no state, and `parameters_` lists `ball.x` and `ball.m`
 
-#### Scenario: Execution arguments are rejected
-- **WHEN** a user passes `noise=`, `history=`, `phases=`, or `observables=` to `CompositeSystem`
+#### Scenario: A particle under gravity
+- **WHEN** the system adds a gravity interaction whose law is `RateLaw(x.diff(t, 2), -g)`
+- **THEN** `states_` lists `ball.x` and `ball.x'`, and `parameters_` lists `ball.m` and `gravity.g`
+
+### Requirement: Derivatives, lags, and delays are written in Sage
+A law SHALL be written in Sage, with every state a function of the time `t`: derivatives as `x.diff(t, k)`, past values
+as `x(t=t - k)`, and delays as `x(t=t - tau)`. The library SHALL define no functions of its own for them, and the order
+of a state SHALL be the highest derivative or lag its laws use.
+
+#### Scenario: A pushed particle
+- **WHEN** a user simulates a particle under gravity with `initial_state={"ball.x'": 1.5}`
+- **THEN** the run starts with the velocity 1.5, and `trajectory.get_values("ball.x'")` returns the velocity
+
+#### Scenario: A difference equation with two lags
+- **WHEN** an interaction returns `UpdateLaw(y, a * y(t=t - 1) + b * y(t=t - 2))`
+- **THEN** the compiled map keeps two past values of `y`, and `states_` lists `economy.y`, `economy.y[-1]`, and
+  `economy.y[-2]`
+
+### Requirement: Derivatives and past values are named with primes and indices
+Derivatives SHALL be named with a prime in initial states and trajectories, such as `"ball.x'"`, and past values with
+an index, such as `"economy.y[-1]"`, and they SHALL default to zero.
+
+#### Scenario: A named derivative
+- **WHEN** a user reads `trajectory.get_values("ball.x'")` of a falling particle
+- **THEN** it returns the velocity, which starts at zero unless the initial state gives it
+
+### Requirement: Prepared systems expose what they learned
+After `prepare`, a system SHALL expose `states_`, the names of the values its laws change with their derivatives and
+lags, `parameters_`, the names of the values no law changes, `equations_`, one readable equation per state, `form_`,
+the kind of problem the laws make, and `solver_` and `backend_`, the resolved runners. The compiled problem SHALL be
+private.
+
+#### Scenario: A damped spring
+- **WHEN** a user prepares a particle under gravity and a damped spring
+- **THEN** `form_` is the ordinary differential equations, `equations_` maps `ball.x` to `ball.x'` and `ball.x'` to
+  the sum of the forces over the mass, and `solver_` is the default ODE solver
+
+#### Scenario: Readable reductions
+- **WHEN** a user prepares a consensus whose rate sums the differences to the neighbours on a network
+- **THEN** `equations_` writes the sum as `neighbors(...)` of the states it reads, and names no internal symbol
+
+### Requirement: Interactions own the parameters of their relation
+A parameter that describes the relation between elements or between an element and its surroundings SHALL belong to
+the interaction, and an element SHALL hold only the parameters that describe that element alone.
+
+#### Scenario: Gravity on a particle
+- **WHEN** a user models a particle falling under gravity
+- **THEN** the gravitational acceleration is a parameter of the gravity interaction, and the particle holds its
+  position, its velocity, and its mass
+
+### Requirement: Systems expose the parameters of their parts by nested names
+`System.get_params()` SHALL list the parameters of every element, interaction, space, and nested system under the name
+`<label>__<parameter>`, nested systems adding their label in front, and `set_params` SHALL accept the same names, as a
+scikit-learn `Pipeline` does.
+
+#### Scenario: Tuning a part
+- **WHEN** a user calls `system.set_params(gravity__g=1.62)` on a system with an interaction labelled `gravity`
+- **THEN** the interaction's `g` is 1.62, and `system.get_params()['gravity__g']` returns 1.62
+
+#### Scenario: An unknown nested name
+- **WHEN** a user calls `system.set_params(gravity__mass=2.0)` and the interaction has no `mass`
+- **THEN** a `ValidationError` names `gravity`, `mass`, and the parameters the interaction has
+
+### Requirement: Interactions return laws of seven kinds
+Interactions SHALL describe every change of state as a list of laws of seven kinds, `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`,
+`ConstraintLaw`, `EventLaw`, and `ObjectiveLaw`, each a frozen value that targets states. Every kind SHALL accept a symbolic
+expression or a Python callable for the values the engine evaluates numerically. Elements SHALL return no laws.
+
+#### Scenario: Symbolic rate law
+- **WHEN** an interaction returns `RateLaw(s.prey.n, -s.a * s.predator.n * s.prey.n)`
+- **THEN** the compiled system includes that term in the time derivative of the prey count
+
+#### Scenario: Callable jump change
+- **WHEN** a jump law's change is a callable of the current values
+- **THEN** each firing applies the change the callable returns
+
+#### Scenario: Only interactions return laws
+- **WHEN** a user writes an element class whose `_prepare` sets `laws_`
+- **THEN** preparing a system with it raises a named error that asks for an interaction
+
+### Requirement: Contributions of every additive kind add up
+Rates, noises, jump channels, and constraint balances that several laws give to one state SHALL add up, so adding an
+interaction adds a term without changing the others.
+
+#### Scenario: Two forces on one particle
+- **WHEN** a particle receives a rate on its velocity from a gravity interaction and another from a spring
+- **THEN** the derivative of its velocity is the sum of both rates
+
+### Requirement: One element class makes one member, many members, or one member per site
+An element class SHALL create N members when given `size=N`, and one member per site when given `space=`, with
+per-member values given as an array whose first dimension is the number of members or as one shared value. Creating
+members SHALL reject at once a size below one, an unknown value name, and an array of the wrong length. `size` and
+`space` SHALL be reserved names that no state or parameter takes.
+
+#### Scenario: Members with per-member positions
+- **WHEN** a user creates `Particle('gas', size=1000, x=positions)` with an array of 1000 two-dimensional positions
+- **THEN** the element has 1000 members, and its state `x` has shape `(1000, 2)`
+
+#### Scenario: Wrong number of values
+- **WHEN** a user gives 999 positions to an element of size 1000
+- **THEN** creating it raises a named error that names the element, the variable, and both sizes
+
+#### Scenario: One member per site
+- **WHEN** a user creates `Temperature('T', space=CellComplexSpace(...))`
+- **THEN** the element has one member at every site of the mesh
+
+#### Scenario: A reserved name
+- **WHEN** an element class stores a quantity of its own under the name `size`, such as the half side of a table
+- **THEN** preparing it raises a named error that names `size` and the reserved names `label`, `size`, `space`, and
+  `values`
+
+### Requirement: Components are prepared against their context
+Elements, interactions, spaces, neighbourhoods, and systems SHALL derive from `BaseComponent`, which gives `label`,
+parameters, cloning, tags, and `prepare(context)`, and no `run`. An interaction SHALL implement `_prepare` against the
+namespace of the elements its roles bind and set `laws_`, and the engine SHALL prepare a clone of it for every binding.
+Laws SHALL be frozen values, and systems SHALL also have `simulate`.
+
+#### Scenario: An interaction learns its laws
+- **WHEN** a user prepares a gravity interaction against a namespace with the symbol `x` of its target
+- **THEN** `laws_` holds `RateLaw(x.diff(t, 2), -g)`, and the interaction has no `run`
+
+#### Scenario: The user's interaction stays unchanged
+- **WHEN** a user prepares a system that binds one interaction object to two groups
+- **THEN** the engine prepares a clone per binding, and the user's interaction has no `laws_`
+
+#### Scenario: A system is prepared and simulated
+- **WHEN** a user calls `system.prepare().simulate(until=10)`
+- **THEN** the call returns a trajectory up to time 10
+
+### Requirement: A system is parts, a space, a solver, and a backend
+A system SHALL be defined by its label, its elements, its interactions, its nested systems, its space, its solver, and
+its backend, and by nothing else. Its time SHALL be inferred from the kinds of its laws. Observers, observables, initial
+states, and random states SHALL be arguments of `simulate`.
+
+#### Scenario: A system with its settings
+- **WHEN** a user builds `System(elements=[rabbits, foxes], interactions=[predation], solver=GillespieSolver())`
+- **THEN** the system prepares and simulates with the Gillespie solver, and its parameters list `solver` and the nested
+  parameters of its parts
+
+#### Scenario: Other execution arguments are rejected
+- **WHEN** a user passes `observers=` or `time=` to `System`
 - **THEN** a `TypeError` is raised as for any unknown argument
+
+### Requirement: The core holds the building blocks of general systems
+Every component of the core SHALL be a building block that general systems of several fields are built from. A law
+that one field needs SHALL live in that field with the solver that lowers it, built on the public engine
+bases, and the engine core SHALL key only on the seven law kinds.
+
+#### Scenario: A field law with its solver
+- **WHEN** the criticality package simulates a sandpile with its cascade law
+- **THEN** the law and its solver live in the criticality package, and no module of the core names them
+
+### Requirement: Spatial operators are functions that laws call
+Spatial operators, such as `laplacian`, `divergence`, and `gradient`, and the reductions over the neighbours of a member
+SHALL be public functions that laws call on states, and SHALL NOT be interactions.
+
+#### Scenario: Heat equation
+- **WHEN** an interaction returns `RateLaw(s.target.T, s.D * laplacian(s.target.T))` for an element placed on a mesh
+- **THEN** the system compiles to the discretised heat equation of that mesh
+
+### Requirement: The network changes by updates on its edges
+A change of the structure of a network space SHALL be written as `UpdateLaw` laws on the edges of the space, returned by
+an ordinary interaction.
+
+#### Scenario: Rewiring
+- **WHEN** an interaction returns updates that remove an edge between disagreeing nodes and add a random one
+- **THEN** the network of the trajectory changes at every step, and no dedicated topology class is used
+
+### Requirement: Laws are values that interactions state
+A law SHALL be a frozen value with no label, no parameters of its own, and no `prepare` or `run`, and the components
+SHALL be elements, interactions, spaces, and systems.
+
+#### Scenario: A law is no component
+- **WHEN** a test lists the public classes of `skcomplex.core.components` that derive from `BaseComponent`
+- **THEN** none is a law
+
+### Requirement: The core holds general spaces and neighbourhoods
+The spaces of the core SHALL be the lattice, network, continuous, phase, and cell complex spaces, a mesh being a cell
+complex, and the neighbourhoods SHALL be the lattice, adjacency, radius, nearest, Delaunay, and coface neighbourhoods, a
+radius measured in the metric of its space. Spaces and neighbourhoods of one field SHALL live in that field.
+
+#### Scenario: A Cayley graph
+- **WHEN** a reviewer looks for `CayleySpace`
+- **THEN** it lives in `skcomplex.systems.computer_science.common.automata`, and no module of the core names it
+
+### Requirement: Elements are drawn as their class and values say
+An element class SHALL give its default drawing in its class attribute `visual`, whose numeric options MAY be
+expressions of the element's parameters. A group SHALL be drawn as its prepared member, or as its space when the space
+cannot show that drawing. A visualisation observer SHALL draw chosen elements otherwise by path.
+
+#### Scenario: A radius from a parameter
+- **WHEN** a group of cells whose class is drawn with `{'radius': 'R_0 / 2'}` is prepared with `R_0 = 2.0`
+- **THEN** the cells are drawn as points of radius 1.0
+
+#### Scenario: A drawing the space cannot show
+- **WHEN** a group whose class is drawn as an image lives on the nodes of a graph
+- **THEN** it is drawn as the sites of the graph
+
+#### Scenario: A drawing chosen at the run
+- **WHEN** a user simulates with `RerunObserver(visuals={'oscillators': VisualSpec('sites', {'states': ['theta']})})`
+- **THEN** the oscillators are drawn as sites, whatever their class says
+
+### Requirement: Interactions type-check with either context
+The context of an interaction's `_prepare` SHALL be typed as its space or the namespace of its bindings, so an
+interaction written in the new style type-checks without suppressions.
+
+#### Scenario: A new-style interaction
+- **WHEN** `mypy` checks a test whose interaction reads `context.target.x` in `_prepare`
+- **THEN** it reports no error for that `_prepare`

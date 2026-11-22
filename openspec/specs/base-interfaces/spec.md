@@ -6,38 +6,6 @@ derived state in attributes ending in `_`, and values carry only fields and `che
 
 ## Requirements
 
-### Requirement: Configurable bases share two main public methods
-Every base class of an estimator of the library SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines
-`prepare(context)` and `run(input, final=False)` once. `prepare` SHALL call the private hook `_prepare`, which checks the
-settings of the object before it derives anything, and `run` SHALL call `_run`. No public `check` SHALL exist.
-`BaseConfig` SHALL declare the hooks `_prepare` and `_run` as abstract methods, so a class that does not implement both
-cannot be instantiated, and SHALL give only the optional hook `_release` a default that does nothing. A class SHALL
-implement each hook itself or inherit it from the base of its family. Specs SHALL derive from `BaseSpec`, which is not a
-`BaseConfig`. No base SHALL derive from `BaseEstimator` directly, and no configurable class SHALL add a public method
-beyond its constructors and the extension hooks a user implements.
-
-#### Scenario: One vocabulary
-- **WHEN** a user calls `prepare(...)` and `run(...)` on a space, a solver, a backend, a visual, and an observer
-- **THEN** every call works, every class is a `BaseConfig`, and none of `check`, `initialize`, `advance`, `lower`,
-  `on_frame`, `compile`, or `forecast` exists
-
-#### Scenario: A new child through hooks
-- **WHEN** a user writes a space that implements `_prepare`, which checks its arguments and sets `size_`, `n_dim_`, and
-  `positions_`, and `_run` setting the neighbours it finds
-- **THEN** the space is prepared and run through the base's main public methods, and the runtime uses it
-
-#### Scenario: A missing hook
-- **WHEN** a user writes a configurable class that implements `_prepare` but not `_run`, and creates it
-- **THEN** creating it raises a `TypeError` that names `_run`
-
-#### Scenario: A hook from the family base
-- **WHEN** a user writes a pass that implements only `_run`
-- **THEN** the pass is created, and preparing it uses the `_prepare` of the pass base
-
-#### Scenario: A spec without hooks
-- **WHEN** a user writes a frozen spec with two fields and no hook
-- **THEN** the spec has neither `prepare` nor `run`, and its owner checks it through `_check`
-
 ### Requirement: Constructors only store their arguments
 Every `__init__` SHALL assign each argument to the attribute of the same name and do nothing else. Every other
 attribute SHALL end in `_` and be set only by `prepare` or `run`, and the checks of arguments SHALL run at the start of
@@ -109,22 +77,6 @@ The runtime, the visuals, and the analyses SHALL read a problem only through the
 - **WHEN** a quantum system is simulated, recorded, and shown in Rerun
 - **THEN** the run succeeds, and no module of `skcomplex.core.engine` reads a quantum problem's own methods
 
-### Requirement: Specs live in one package
-Every spec SHALL be a frozen `BaseSpec` in a module of its own, in the lowest package that can import every type its
-fields name: `skcomplex.core.specs` for specs built from root types, `skcomplex.core.specs` for specs that name core
-classes, the engine package whose classes they name, such as `skcomplex.core.engine.problems` for the problem and kernel
-specs, and `skcomplex.core.experiments.specs` for experiment specs. Each of these packages SHALL export its public specs.
-
-#### Scenario: Specs from one place
-- **WHEN** a user imports `StateSpec` and `SupportSpec` from `skcomplex.core.specs`, `NodeSpec` from
-  `skcomplex.core.specs`, and `ProblemSpec` and `FrameSpec` from `skcomplex.core.engine.problems`
-- **THEN** every import succeeds and each class is a frozen `BaseSpec`
-
-#### Scenario: No scattered dataclass
-- **WHEN** a test lists every dataclass defined in `skcomplex.core.components`, `skcomplex.core.engine`, `skcomplex.core.analysis`, and
-  `skcomplex.core.experiments`
-- **THEN** every one of them is a frozen `BaseSpec`
-
 ### Requirement: Acting objects are classes, not dataclasses
 An object that keeps state between calls or acts SHALL be a class under the base of its package, deriving from
 `BaseConfig`, whose constructor only stores its settings and whose state lives in attributes ending in `_`.
@@ -144,40 +96,10 @@ protocol SHALL end in `Protocol`.
 - **THEN** every import succeeds, and no module of the core outside an `enums` module defines an enum, and none
   outside a `types` module defines a protocol
 
-### Requirement: Runs keep their results as attributes
-Every main public method of a configurable object SHALL return the object itself, and every hook SHALL return `None`. A run SHALL
-keep what it produces in an attribute ending in `_`, named once for each family:
-- elements, interactions, and systems keep their laws in `laws_`, and no other component has `laws_`,
-- compilers keep the compiled problem in `problem_`,
-- lowerings keep what they lowered in `lowered_`,
-- backends keep the lowered functions in `functions_`,
-- solvers keep the advanced state in `state_`,
-- kernels keep their values in `values_`, `None` for a kernel that changes the state in place,
-- searches keep the pairs they find in `pairs_`,
-- printers keep the code they print in `code_`,
-- observers of a compilation keep what they observed in `observed_`,
-- the quantum lowering keeps its kernels in `kernels_`, and
-- market protocols keep their trades in `trades_`.
-
-Observers of a run, clocks, and visuals SHALL keep their results in the attributes they already document, and
-analyses, experiments, and `simulate` SHALL return their results. The overrides of `run` that name their input, such as `BaseClock.run(elapsed=...)`,
-SHALL forward to the base method and return the object.
-
-#### Scenario: A compiler's problem
-- **WHEN** a user prepares and runs a compiler on a system
-- **THEN** `run()` returns the compiler, and `problem_` is the compiled problem
-
-#### Scenario: A solver's state
-- **WHEN** the runtime runs a prepared solver on one step
-- **THEN** `run()` returns the solver, and `state_` is the state vector at the end of the step
-
-#### Scenario: A simulation keeps its named input
-- **WHEN** a user runs `system.prepare().simulate(until=20)`
-- **THEN** the call returns the trajectory, which covers the times up to 20
-
 ### Requirement: Running needs preparing
-`run` SHALL raise `NotPreparedError` for a configurable object that was not prepared with `prepare`. No main public
-method SHALL prepare an object on its own: a simulation runs only once its system is compiled.
+`simulate` SHALL raise `NotPreparedError` on a system that was not prepared or whose parameters changed since it was
+prepared, and `run` SHALL raise it on an engine object that was not prepared. No main public method SHALL prepare an
+object on its own.
 
 #### Scenario: Running before preparing
 - **WHEN** a user runs an `RK4Solver()` without preparing it
@@ -186,6 +108,14 @@ method SHALL prepare an object on its own: a simulation runs only once its syste
 #### Scenario: A spec runs without preparing
 - **WHEN** a user looks for `run` on a spec
 - **THEN** it does not exist, since a spec is a value and not an estimator
+
+#### Scenario: Simulating before preparing
+- **WHEN** a user calls `simulate` on a system that was never prepared
+- **THEN** it raises `NotPreparedError`, which names the system and asks for `prepare`
+
+#### Scenario: Parameters changed after preparing
+- **WHEN** a user prepares a system, calls `set_params(gravity__g=1.62)`, and then `simulate`
+- **THEN** it raises `NotPreparedError`, which names the changed parameter
 
 ### Requirement: The root base holds only the main public methods and hooks
 `BaseConfig` SHALL define only the main public methods `prepare` and `run` and their hooks. Loading generated source
@@ -228,15 +158,13 @@ components prepared, and preparing again SHALL replace their attributes.
   `prepare` and no `run`, and `NotCheckedError` does not exist
 
 ### Requirement: Estimators are the components and the engine
-The classes with `prepare` and `run` SHALL be the components a modeler defines, which are elements, interactions,
-spaces, times, and systems, and the engine that runs them, which is solvers, backends, compilers and their
-passes, observers, visuals, clocks, kernels, and printers. Simulating, analysing, running experiments, and calibrating
-SHALL be functions of a system or of its results. Laws SHALL be frozen values that interactions hold, with no
-`prepare` and no `run`.
+The estimators of the library SHALL be the systems, which are prepared and simulated, and the engine classes, which
+are prepared and run. Elements, interactions, spaces, and neighbourhoods SHALL be components that a system prepares,
+with no `run` and no `simulate`. Experiments and calibration SHALL be functions.
 
 #### Scenario: Listing estimators
-- **WHEN** a test lists the public classes of `skcomplex.core` that have `prepare` and `run`
-- **THEN** every one is a component or a class of the engine, and none is a law, an experiment, or a calibration
+- **WHEN** a test lists the public classes of `skcomplex.core` that have `simulate` or `run`
+- **THEN** every one is a system or an engine class, and none is an element, an interaction, or an experiment
 
 ### Requirement: Systems form a class hierarchy
 `BaseSystem` SHALL be the base of every system: it SHALL hold `prepare`, `run`, `get_tags()` derived from the
@@ -249,13 +177,13 @@ form, which the tags give.
 - **THEN** it is a `BaseSystem`, and its tags come from its components
 
 ### Requirement: Ready-made systems are classes with model parameters
-Every ready-made system SHALL be a class deriving from `BaseSystem` or from a general system of the core, whose
-constructor only stores the model's own parameters and whose `prepare` builds its components from them. `get_params`,
-`set_params`, and `clone` SHALL work on those parameters.
+Every ready-made system SHALL be a class deriving from `BaseSystem`, whose constructor only stores the model's own
+parameters, and whose `_prepare` sets `system_`, the `System` of its components, which `prepare` then compiles.
+`get_params`, `set_params`, and `clone` SHALL work on the model parameters.
 
 #### Scenario: Changing a model parameter
-- **WHEN** a user calls `SIRSystem(beta=0.3).set_params(beta=0.5).prepare()`
-- **THEN** the prepared system's infection rate is 0.5, and `get_params()` returns `beta=0.5`
+- **WHEN** a user calls `SIRSystem(beta=0.3).set_params(beta=0.5).prepare().simulate(until=10)`
+- **THEN** the run uses the infection rate 0.5, and `get_params()` returns `beta=0.5`
 
 ### Requirement: General systems enter the core only when fields share them
 The core SHALL hold only the systems that are building blocks: `BaseSystem`, the base of every system, and
@@ -279,3 +207,63 @@ systems of its own field.
 - **WHEN** a user lists `skcomplex.core.components.systems`
 - **THEN** it exports `BaseSystem`, `RunSettings`, and `CompositeSystem`, and importing `ReactionNetworkSystem` from it
   fails with `ImportError`
+
+### Requirement: Each family has prepare and its own verb
+Systems SHALL have `prepare` and `simulate`. Solvers, backends, observers, compilers, and kernels SHALL have `prepare`
+and `run`, which the system calls. Elements, interactions, spaces, and neighbourhoods SHALL have `prepare` alone.
+
+#### Scenario: Listing the verbs
+- **WHEN** a test lists the public methods of the public classes of `skcomplex.core`
+- **THEN** systems have `prepare` and `simulate`, engine classes have `prepare` and `run`, and the other components
+  have `prepare` and the parameter methods
+
+### Requirement: Public methods call the hooks subclasses implement
+A base SHALL define each public method once, and a subclass SHALL implement the private hook the method calls, as
+`BaseSearchCV.fit` calls `_run_search` in scikit-learn. An interaction SHALL implement `_prepare`, which sets `laws_`,
+and a ready-made system SHALL implement `_prepare`, which sets `system_`.
+
+#### Scenario: A user interaction
+- **WHEN** a user writes an interaction whose `_prepare` sets `laws_`
+- **THEN** preparing the interaction against a namespace sets `laws_`, and preparing a system with it compiles them
+
+### Requirement: Engine bases share prepare and run
+Every base of an engine class SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines `prepare(context)`
+and `run(input, final=False)` and calls the abstract hooks `_prepare` and `_run`. `BaseSystem` SHALL define `prepare`
+and `simulate`. `BaseComponent` SHALL give parameters, cloning, tags, and `prepare`, and no `run`. No public `check`
+SHALL exist.
+
+#### Scenario: One vocabulary in the engine
+- **WHEN** a user calls `prepare(...)` and `run(...)` on a solver, a backend, and an observer
+- **THEN** every call works, and every class is a `BaseConfig`
+
+#### Scenario: A missing hook
+- **WHEN** a user writes an engine class that implements `_prepare` but not `_run`, and creates it
+- **THEN** creating it raises a `TypeError` that names `_run`
+
+### Requirement: Values live beside the classes that use them
+No specs package SHALL exist. A value that users build or read SHALL live in the package of the class that uses it, the
+only declaration SHALL be `RoleSpec` with the alias `Role`, in the interactions package, and no `StateSpec` or
+`ParameterSpec` SHALL exist. Engine records SHALL be private dataclasses beside the code that uses them.
+
+#### Scenario: The declarations
+- **WHEN** a user imports `RoleSpec` and `Role` from `skcomplex.core.components.interactions`
+- **THEN** both imports succeed, and importing `skcomplex.core.specs` fails
+
+#### Scenario: No engine record in the public API
+- **WHEN** a test lists the public classes of `skcomplex.core`
+- **THEN** none of `LoweredFunctionsSpec`, `DrawLogSpec`, or `EventRecordSpec` is among them, and every public class
+  that ends with `Spec` is a value that a system, a test, or a document builds or reads
+
+### Requirement: Prepare keeps what it derives and simulate returns its trajectory
+`prepare` SHALL return the object and keep what it derives in attributes ending in `_`, such as `states_`,
+`equations_`, `form_`, `solver_`, and `backend_` on a system, and `laws_` on an interaction. `simulate` and the
+experiment and analysis functions SHALL return their results.
+Engine classes SHALL keep the results of `run` in the attributes their family documents.
+
+#### Scenario: A system's problem
+- **WHEN** a user prepares a system of rate laws
+- **THEN** `prepare()` returns the system, and `form_` is the ordinary differential equations
+
+#### Scenario: A simulation returns its trajectory
+- **WHEN** a user calls `system.simulate(until=20)` twice with different initial states
+- **THEN** each call returns its own trajectory, and the system stores neither

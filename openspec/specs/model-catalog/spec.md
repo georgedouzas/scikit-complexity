@@ -25,8 +25,9 @@ tuned run settings as class attributes. `simulate` SHALL use the tuned run setti
 out.
 
 #### Scenario: Direct use
-- **WHEN** a user runs `SIRSystem().prepare().simulate()` after `from skcomplex.systems.biology.epidemiology import SIRSystem`
-- **THEN** the run uses the class's tuned end time, solver hint, and observables
+- **WHEN** a user runs `SIRSystem().prepare().simulate()` after
+  `from skcomplex.systems.biology.epidemiology import SIRSystem`
+- **THEN** the run uses the class's tuned end time, solver, and observables
 
 ### Requirement: Systems are discovered with all_systems
 `all_systems(field=None, topics=(), tags=None)` SHALL return the name and class of every ready-made system, in the role

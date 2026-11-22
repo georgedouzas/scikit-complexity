@@ -159,32 +159,17 @@ of a scientific field from the list of the field-term test.
 - **THEN** the test session fails and names the object and the term
 
 ### Requirement: A docstring of a cross-domain component names uses from several fields
-The docstring body of every public class and function of the core components, the analysis functions, and the
-experiment functions SHALL explain in plain words what the thing does, and SHALL then name concrete uses from at least
-two fields of science. Where a use fits as code, the `Examples` section SHALL show it as a runnable example.
+The body paragraph of every docstring of a public class and function of the core components, the analysis functions,
+and the experiment functions SHALL say in plain words what the thing does, and SHALL name concrete uses from at least two
+fields of science in one sentence.
 
 #### Scenario: The declared element
-- **WHEN** a reader reads the docstring of `DeclaredElement`
-- **THEN** it names uses such as people infected in an epidemic, moles of a chemical species, money in an account,
-  and tokens in a place of a Petri net, and its examples build at least two of them and run
+- **WHEN** a reader reads the docstring of `Element`
+- **THEN** one sentence names uses such as people infected in an epidemic and moles of a chemical species
 
 #### Scenario: An analysis function
 - **WHEN** a reader reads the docstring of `recurrence`
 - **THEN** it says what a recurrence is in plain words and names uses from at least two fields
-
-### Requirement: A docstring of a core component compares it with its nearest components
-The docstring of every public class of the core elements, interactions, laws, spaces, neighbourhoods, times, and
-systems SHALL hold a paragraph that starts with "Unlike" and names what the class adds over its nearest component,
-followed by a sentence that starts with "Choose it when", and a paragraph of uses that starts with "It appears in".
-
-#### Scenario: The declared element compared
-- **WHEN** a reader reads the docstring of `DeclaredElement`
-- **THEN** it says that, unlike `Element`, it needs no subclass, since it takes its states and parameters as data, and
-  when to choose it
-
-#### Scenario: A missing comparison
-- **WHEN** a public class of a rewritten family has no paragraph that starts with "Unlike" or "It appears in"
-- **THEN** the test session fails and names the class
 
 ### Requirement: The guide is a reference of the core components for builders
 The user guide SHALL hold one hand-written reference page per family of the core: elements, interactions, laws,
@@ -415,3 +400,21 @@ page or a missing anchor inside the documentation.
 #### Scenario: A broken anchor
 - **WHEN** a page links `extend_the_library.md#where-a-new-part-goes` after the heading was renamed
 - **THEN** the strict build fails and names the link
+
+### Requirement: Docstrings follow the scikit-learn layout
+Every docstring of a public class or function of the core SHALL hold, in order, one summary line, one paragraph in plain
+words with the formula when there is one, a line that links its section of the user guide, the arguments, a See Also
+section, and an Examples section.
+
+#### Scenario: The objective law
+- **WHEN** a reader reads the docstring of `ObjectiveLaw`
+- **THEN** its body is one paragraph that says the system minimises a scalar of its states and names uses from several
+  fields, and its See Also names `ConstraintLaw`
+
+### Requirement: Docstring examples are short and use real parts
+The Examples section of a docstring of the core SHALL hold three to six lines of code and SHALL define no class only to
+have something to work on.
+
+#### Scenario: A missing example part
+- **WHEN** an example of a core docstring defines a class that is not the subject of the example
+- **THEN** the test session fails and names the docstring

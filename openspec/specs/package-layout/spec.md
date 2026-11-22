@@ -323,23 +323,17 @@ package SHALL NOT hold a component module that serves a single system.
 - **THEN** the layout test fails and names the module and the system that should hold it
 
 ### Requirement: Estimators for what is defined, functions for what is done
-The public API SHALL hold estimators for the components a modeler defines and for calibration, and public functions
-for simulating, analysing, and running experiments. Every other helper SHALL be a method of the class that reads it,
-with only the module functions that the requirement on classes owning the functions they read lets stay. Compilers and
-problem forms SHALL be private, with one documented hook for a system package that brings its own form, except the
-operator compiler and the operator problem, which SHALL be public so that the quantum analyses of a field package can
-compile an operator system and read its problem.
+The public API SHALL hold systems and engine classes as estimators, elements, interactions, spaces, and laws as their
+configurable parts and values, and public functions for analysing and running experiments. Simulating SHALL be the
+method `simulate` of a prepared system, and no free function `simulate` SHALL exist.
 
 #### Scenario: Public surface
 - **WHEN** a test lists the public names of `skcomplex.core.engine`
-- **THEN** it finds solvers, backends, observables, `simulate`, and `Trajectory`, no concrete compiler but
-  `OperatorCompiler` and no `Simulation`, and of compilation and problems only the bases a system package's own form
-  builds on, the problems of the shared pass core and of the operator form, and the frames observers read
+- **THEN** it finds solvers, backends, observers, and `Trajectory`, and no `simulate`
 
 #### Scenario: A system package brings its own form
-- **WHEN** a system class tunes the run setting `compiler` with a compiler its package defines on `BaseCompiler`
-- **THEN** `simulate` compiles the system with it, while the library's own forms, such as the rewriting and operator
-  forms, are chosen from what the system holds
+- **WHEN** a field package defines a solver on the public engine bases for a law of its own
+- **THEN** a system of that field prepares with it, and the engine core names no class of the field
 
 ### Requirement: Systems of the core form a components package
 The systems of the core SHALL live in the package `skcomplex.core.components.systems`, laid out like the packages of
@@ -403,67 +397,6 @@ SHALL get no class.
 - **WHEN** a flock looks at the neighbours within a radius and an angle around its heading
 - **THEN** it uses `RadiusNeighborhood(radius, angle=angle, direction='theta')`, the pairs equal those of the former
   `ConeNeighborhood`, and `RadiusNeighborhood(radius)` has the angle `pi`
-
-### Requirement: Compile records shared across engine packages are public
-A spec of `skcomplex.core.components.specs` that a module of another package imports SHALL be public and exported by
-its package, and no module SHALL import a private name of another package.
-
-#### Scenario: Subsystem spec
-- **WHEN** the operator compiler and the operator lowering name the subsystem of a tensor product
-- **THEN** both import the public `SubsystemSpec` from `skcomplex.core.components.specs`
-
-### Requirement: Every component has one place by the placement rule
-Every new component SHALL be placed by one ordered test. A structural base SHALL go to the core. A law kind, an
-operator generated from one function, or numerics the engine handles by type SHALL go to the core under a mathematical
-name, and the engine SHALL key only on the seven law kinds. Any other component is a recipe of core components, placed
-by its users: `skcomplex.systems.general.<concept>` for several fields, `systems/<field>/common/<family>` for one
-field, its system's module for one system. Numerics that serve one field alone SHALL come as a solver or a compiler
-built on the public engine bases, in the package of that field. Every analysis SHALL be placed by its users too: an
-analysis that measures what systems of several fields share SHALL go to `skcomplex.core.analysis`, and an analysis of
-one field SHALL go to `systems/<field>/common/<family>`. The core SHALL never import `skcomplex.systems`.
-
-#### Scenario: Structural base
-- **WHEN** a contributor adds a base where laws run once per triangle of a cell complex
-- **THEN** it goes to the core, and the source tests accept it as a class that another public core class subclasses
-
-#### Scenario: Handled by type
-- **WHEN** a contributor adds a law that a new kernel lowers
-- **THEN** it goes to the core under a mathematical name, and the source tests accept it because the engine names it
-
-#### Scenario: Recipe of several fields
-- **WHEN** a contributor adds an agent rule that systems of economics and social use
-- **THEN** it goes to a concept subpackage of `skcomplex.systems.general`, and the source tests reject it in the core,
-  since no engine code names it and it returns only `RuleLaw`
-
-#### Scenario: Missing primitive
-- **WHEN** a recipe needs an operation the engine cannot lower
-- **THEN** the operation enters the core as a new primitive by the second step, and the recipe keeps no engine code
-
-#### Scenario: Engine support keeps its place
-- **WHEN** the expression printer of the engine reads the dialects of `DialectSpec`
-- **THEN** `DialectSpec` stays in `core/specs/_dialect_spec.py` as engine support, and `skcomplex.core.specs` does not
-  re-export it, since nothing outside the package reads it
-
-#### Scenario: Analysis of several fields
-- **WHEN** a contributor adds an analysis of the winding defects of a field of angles, which liquid crystals, active
-  nematics, and spiral waves of heart tissue share
-- **THEN** it goes to `skcomplex.core.analysis`
-
-#### Scenario: Analysis of one field
-- **WHEN** a contributor adds an analysis of the entanglement of the subsystems of a quantum state
-- **THEN** it goes to `systems/physics/common/quantum`, and it imports only the public modules of the core
-
-#### Scenario: Source tests guard the rule
-- **WHEN** the source tests run
-- **THEN** every public class of `skcomplex.core.components` is a structural base, is named in the code of another core
-  module, or is the interaction with the fewest law classes among those of its base that list one of its laws other
-  than `RuleLaw`, no module under `src/skcomplex/core` imports `skcomplex.systems`, and the roots of `systems/general`
-  and of every `systems/<field>/common` hold no module but `__init__.py`
-
-#### Scenario: One text of the rule
-- **WHEN** a reviewer reads `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide
-- **THEN** each states the same ordered test as this requirement, in the word component, and each says that analyses
-  follow it by their users
 
 ### Requirement: Module constants lead the module under public names
 Every module constant of a Python file of the sources, the tests, and the documents, without the generated pages,
@@ -617,3 +550,54 @@ meanings, and SHALL hold a self-check against planted files.
 - **WHEN** the convention check runs on the repository
 - **THEN** `real_part`, `symmetric_part`, `PARTS` of a group, `delay_parts`, `_count_parts`, and the parts of the
   watchmakers raise no finding
+
+### Requirement: Concrete systems consume the core
+The concrete systems of a field SHALL be built from the public core and from the common package of their field, and
+SHALL live in the systems package of that field. The core SHALL hold no concrete system.
+
+#### Scenario: A falling particle
+- **WHEN** a contributor adds a free-fall system
+- **THEN** it lives in `skcomplex.systems.physics.mechanics`, built from the point mass and gravity of
+  `skcomplex.systems.physics.common.particles` and from the core `System`
+
+### Requirement: Field-specific components live in their field
+A component that systems of one field use SHALL live in `skcomplex.systems.<field>.common.<family>`, and a component that
+several fields share as a recipe SHALL live in `skcomplex.systems.general.<concept>`. Moving a component out of the core
+SHALL keep its behaviour and its tests, and the tests SHALL move to mirror its new place.
+
+#### Scenario: A quantum law
+- **WHEN** a reviewer looks for the Lindblad dissipator
+- **THEN** it lives in `skcomplex.systems.physics.common.quantum` with the solver that lowers it, and no module of the
+  core names it
+
+### Requirement: Engine records are private
+A record that only the engine reads SHALL be a private dataclass of the package that defines it, and no record SHALL
+be public only because another package imports it.
+
+#### Scenario: Subsystem record
+- **WHEN** the operator compiler and the operator lowering name the subsystem of a tensor product
+- **THEN** both use one private record, and `skcomplex.core.components.specs` no longer exists as a public package
+
+### Requirement: Components are placed by one ordered test
+A structural base, a law kind, an operator generated from one function, or a space that systems of several fields use
+SHALL go to the core under a mathematical name. Any other component SHALL go to `skcomplex.systems.general.<concept>`
+for several fields, to `systems/<field>/common/<family>` for one field, or to its system's module for one system.
+Analyses follow the same test by their users. The core SHALL never import `skcomplex.systems`.
+
+#### Scenario: A law kind
+- **WHEN** a contributor asks where `JumpLaw` lives
+- **THEN** it lives in the core, since reactions, epidemics, and births and deaths of several fields use it
+
+#### Scenario: A recipe of several fields
+- **WHEN** a contributor adds an agent rule that systems of economics and social use
+- **THEN** it goes to a concept subpackage of `skcomplex.systems.general`, built on `Interaction` and `UpdateLaw`
+
+#### Scenario: Source tests guard the rule
+- **WHEN** the source tests run
+- **THEN** no module under `src/skcomplex/core` imports `skcomplex.systems`, and every public class of
+  `skcomplex.core.components` is a base, a law kind, a generated interaction, or a space used by systems of several
+  fields
+
+#### Scenario: One text of the rule
+- **WHEN** a reviewer reads `openspec/constitution.md`, `CONTRIBUTING.md`, and the extension page of the user guide
+- **THEN** each states the same ordered test as this requirement
