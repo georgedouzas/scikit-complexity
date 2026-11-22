@@ -46,8 +46,8 @@ class ReplayInteraction(Interaction):
         self.laws_ = [UpdateLaw(context.target.x, self._replay, arrays=True)]
 
     def _replay(self, values, *, time, **kwargs):
-        """Return the member of the ensemble of the step, or the last member after the ensemble ends."""
-        return self.ensemble[min(int(time), len(self.ensemble) - 1)]
+        """Return the member of the frame the step ends at, or the last member after the ensemble ends."""
+        return self.ensemble[min(int(time) + 1, len(self.ensemble) - 1)]
 
 
 def test_drive_replays_an_ensemble_by_the_time_of_the_step():
@@ -63,7 +63,7 @@ def test_drive_replays_an_ensemble_by_the_time_of_the_step():
 
 @pytest.mark.parametrize('stochastic', [False, True])
 def test_drive_receives_the_keywords_of_every_rule(stochastic):
-    """Test that a drive receives time, space, degree, and random, the generator if stochastic."""
+    """Test that a drive receives the start time of its step, space, degree, and random, the generator if stochastic."""
     seen = {}
 
     def drive(values, **keywords):
@@ -75,7 +75,7 @@ def test_drive_receives_the_keywords_of_every_rule(stochastic):
     interaction = _DriveInteraction('drive', target='chain', function=drive, stochastic=stochastic)
     System(elements=[chain], interactions=[interaction]).prepare().simulate(until=1, random_state=0)
     assert set(seen) == {'time', 'space', 'degree', 'random'}
-    assert (seen['time'], seen['space'], seen['degree']) == (1.0, space, None)
+    assert (seen['time'], seen['space'], seen['degree']) == (0.0, space, None)
     assert isinstance(seen['random'], np.random.Generator) if stochastic else seen['random'] is None
 
 

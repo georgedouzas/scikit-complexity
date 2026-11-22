@@ -2372,7 +2372,7 @@ def check_layout_faults_are_named(folder: Path) -> list[str]:
             \"\"\"
         """,
     )
-    good, bad = (ast.get_docstring(node) or '' for node in _read_tree(path).body)
+    good, bad = (ast.get_docstring(node) or '' for node in _read_tree(path).body if isinstance(node, ast.ClassDef))
     found = [_layout_faults(good), _example_faults(good), _layout_faults(bad), _example_faults(bad)]
     expected = [
         [],
