@@ -12,14 +12,13 @@ the start, the share of hawks settles at `V / C`, the mixed equilibrium of the g
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.evolution import ReplicatorDynamicsSystem
 
 SYSTEM = 'replicator_dynamics'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-trajectory = simulate(ReplicatorDynamicsSystem(x=[0.05, 0.95], V=2.0, C=3.0), observers=[observer])
+trajectory = ReplicatorDynamicsSystem(x=[0.05, 0.95], V=2.0, C=3.0).prepare().simulate(observers=[observer])
 
 # %%
 # The mixed equilibrium
@@ -29,7 +28,7 @@ trajectory = simulate(ReplicatorDynamicsSystem(x=[0.05, 0.95], V=2.0, C=3.0), ob
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for start in [0.05, 0.3, 0.6, 0.95]:
-    trajectory = simulate(ReplicatorDynamicsSystem(x=[start, 1 - start]))
+    trajectory = ReplicatorDynamicsSystem(x=[start, 1 - start]).prepare().simulate()
     ax.plot(trajectory.times, trajectory.get_values('population.x')[:, 0], label=f'{start:.0%} hawks at the start')
 ax.axhline(2 / 3, color='black', linestyle='--', label='V / C')
 ax.set_xlabel('time')

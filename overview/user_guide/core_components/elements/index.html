@@ -63,11 +63,11 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
@@ -235,13 +235,13 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../../../parts/elements/" class="md-tabs__link">
+        <a href="../../../../components/elements/" class="md-tabs__link">
           
   
   
     
   
-  Parts
+  Components
 
         </a>
       </li>
@@ -789,17 +789,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#declaredelement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DeclaredElement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#element" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -811,10 +800,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#groupelement" class="md-nav__link">
+  <a href="#quantity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GroupElement
+        Quantity
       
     </span>
   </a>
@@ -822,10 +811,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fieldelement" class="md-nav__link">
+  <a href="#period" class="md-nav__link">
     <span class="md-ellipsis">
       
-        FieldElement
+        Period
       
     </span>
   </a>
@@ -833,10 +822,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#wordelement" class="md-nav__link">
+  <a href="#member" class="md-nav__link">
     <span class="md-ellipsis">
       
-        WordElement
+        Member
       
     </span>
   </a>
@@ -844,10 +833,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#patchelement" class="md-nav__link">
+  <a href="#tensor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PatchElement
+        Tensor
       
     </span>
   </a>
@@ -1021,14 +1010,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../choosing_parts/" class="md-nav__link">
+      <a href="../choosing_components/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Choosing parts
+    Choosing components
   
 
     
@@ -1058,8 +1047,6 @@
   
     
     
-      
-        
       
         
       
@@ -1228,34 +1215,6 @@
     
   
     General interactions
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../build_a_custom_system/connected_components/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Connected components
   
 
     
@@ -2421,7 +2380,7 @@
   <span class="md-ellipsis">
     
   
-    Parts
+    Components
   
 
     
@@ -2437,7 +2396,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Parts
+    Components
   
 
           </label>
@@ -2450,7 +2409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/elements/" class="md-nav__link">
+      <a href="../../../../components/elements/" class="md-nav__link">
         
   
   
@@ -2478,7 +2437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/interactions/" class="md-nav__link">
+      <a href="../../../../components/interactions/" class="md-nav__link">
         
   
   
@@ -2506,7 +2465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/laws/" class="md-nav__link">
+      <a href="../../../../components/laws/" class="md-nav__link">
         
   
   
@@ -2534,7 +2493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/spaces/" class="md-nav__link">
+      <a href="../../../../components/spaces/" class="md-nav__link">
         
   
   
@@ -2562,7 +2521,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/systems/" class="md-nav__link">
+      <a href="../../../../components/systems/" class="md-nav__link">
         
   
   
@@ -2590,7 +2549,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/solvers/" class="md-nav__link">
+      <a href="../../../../components/solvers/" class="md-nav__link">
         
   
   
@@ -2618,7 +2577,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/backends/" class="md-nav__link">
+      <a href="../../../../components/backends/" class="md-nav__link">
         
   
   
@@ -2646,7 +2605,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/analyses/" class="md-nav__link">
+      <a href="../../../../components/analyses/" class="md-nav__link">
         
   
   
@@ -2674,7 +2633,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../parts/experiments/" class="md-nav__link">
+      <a href="../../../../components/experiments/" class="md-nav__link">
         
   
   
@@ -28842,6 +28801,8 @@
       
         
       
+        
+      
     
     
     
@@ -28907,6 +28868,34 @@
     
   
     Base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/core/enums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enums
   
 
     
@@ -28998,7 +28987,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -29020,14 +29009,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_1_4" id="__nav_4_1_4_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_1_5" id="__nav_4_1_5_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_1_4">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -29094,10 +29083,6 @@
       
         
       
-        
-      
-        
-      
     
     
     
@@ -29109,7 +29094,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_6" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -29131,14 +29116,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_1_5" id="__nav_4_1_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_1_6" id="__nav_4_1_6_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_1_5">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -29282,7 +29267,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_5_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_6_5" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -29304,14 +29289,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_1_5_5" id="__nav_4_1_5_5_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_1_6_5" id="__nav_4_1_6_5_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_5_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_1_5_5">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_6_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -29385,62 +29370,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../api/core/components/specs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Specs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../api/core/components/systems/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Systems
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -29474,6 +29403,8 @@
       
         
       
+        
+      
     
     
     
@@ -29485,7 +29416,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_7" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -29507,14 +29438,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_1_6" id="__nav_4_1_6_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_1_7" id="__nav_4_1_7_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_1_6">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -29523,6 +29454,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/core/engine/enums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enums
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -29602,7 +29561,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_6_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_7_4" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -29624,14 +29583,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_1_6_3" id="__nav_4_1_6_3_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_1_7_4" id="__nav_4_1_7_4_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_6_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_1_6_3">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_7_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -29849,7 +29808,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -29871,14 +29830,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_1_7" id="__nav_4_1_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_1_8" id="__nav_4_1_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_1_7">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -29959,14 +29918,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/core/specs/" class="md-nav__link">
+      <a href="../../../../api/core/systems/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Specs
+    Systems
   
 
     
@@ -31060,6 +31019,8 @@
       
         
       
+        
+      
     
     
     
@@ -31133,6 +31094,103 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../../../api/systems/computer_science/common/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Common
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_2_3_2" id="__nav_4_2_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_2_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Common
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/systems/computer_science/common/automata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Automata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -32217,6 +32275,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -32427,14 +32489,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/systems/general/flows/" class="md-nav__link">
+      <a href="../../../../api/systems/general/gradients/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Flows
+    Gradients
   
 
     
@@ -32579,6 +32641,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="../../../../api/systems/general/mechanics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mechanics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
       
@@ -32595,7 +32685,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2_6_7" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2_6_8" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -32617,14 +32707,14 @@
             </a>
             
               
-              <label class="md-nav__link " for="__nav_4_2_6_7" id="__nav_4_2_6_7_label" tabindex="0">
+              <label class="md-nav__link " for="__nav_4_2_6_8" id="__nav_4_2_6_8_label" tabindex="0">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_2_6_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_2_6_7">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_2_6_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2_6_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -32665,6 +32755,34 @@
           </ul>
         </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../api/systems/general/rewriting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rewriting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -37002,17 +37120,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#declaredelement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DeclaredElement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#element" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -37024,10 +37131,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#groupelement" class="md-nav__link">
+  <a href="#quantity" class="md-nav__link">
     <span class="md-ellipsis">
       
-        GroupElement
+        Quantity
       
     </span>
   </a>
@@ -37035,10 +37142,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fieldelement" class="md-nav__link">
+  <a href="#period" class="md-nav__link">
     <span class="md-ellipsis">
       
-        FieldElement
+        Period
       
     </span>
   </a>
@@ -37046,10 +37153,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#wordelement" class="md-nav__link">
+  <a href="#member" class="md-nav__link">
     <span class="md-ellipsis">
       
-        WordElement
+        Member
       
     </span>
   </a>
@@ -37057,10 +37164,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#patchelement" class="md-nav__link">
+  <a href="#tensor" class="md-nav__link">
     <span class="md-ellipsis">
       
-        PatchElement
+        Tensor
       
     </span>
   </a>
@@ -37100,470 +37207,382 @@
 
 <h1 id="elements">Elements</h1>
 <p>An element holds the states of a system, the numbers that change as the system runs. An interaction reads these states
-and returns laws that change them, a space places the members of a group, and a system composes elements,
-interactions, and a space into one model. <a href="../">How the parts fit</a> shows the families together, and the
-<a href="../../../../parts/elements/">elements parts page</a> compares every element class and holds its fact sheet.</p>
-<h2 id="declaredelement">DeclaredElement</h2>
-<p>A <code>DeclaredElement</code> takes its states and parameters as data, so it needs no class of its own. Each variable is a
-<code>DeclaredVariableSpec</code> with an initial value and a spec. Here one compartment holds 100 infected people, and a
-<code>RateInteraction</code> makes them recover at a rate of 0.1 a day.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeclaredElement</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateInteraction</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSystem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.specs</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeclaredVariableSpec</span><span class="p">,</span> <span class="n">StateSpec</span>
-
-<span class="n">infected</span> <span class="o">=</span> <span class="n">DeclaredElement</span><span class="p">(</span><span class="s1">'infected'</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="n">DeclaredVariableSpec</span><span class="p">(</span><span class="mf">100.0</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">())})</span>
-<span class="n">recovery</span> <span class="o">=</span> <span class="n">RateInteraction</span><span class="p">(</span><span class="s1">'recovery'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'infected'</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s1">'x'</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="o">-</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-<span class="n">epidemic</span> <span class="o">=</span> <span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">infected</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">recovery</span><span class="p">])</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">epidemic</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'infected.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>[100.0, 60.7, 36.8]
-</code></pre></div>
-<p>The infected fall from 100 to 60.7 after five days and to 36.8 after ten, the exponential decay <code>100 exp(-0.1 t)</code>.</p>
-<p>The same class holds the balance of a bank account. Interest at 5 percent a year grows it continuously.</p>
-<div class="highlight"><pre><span></span><code><span class="n">account</span> <span class="o">=</span> <span class="n">DeclaredElement</span><span class="p">(</span><span class="s1">'account'</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="n">DeclaredVariableSpec</span><span class="p">(</span><span class="mf">250.0</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">())})</span>
-<span class="n">interest</span> <span class="o">=</span> <span class="n">RateInteraction</span><span class="p">(</span><span class="s1">'interest'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'account'</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s1">'x'</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-<span class="n">savings</span> <span class="o">=</span> <span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">account</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">interest</span><span class="p">])</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">savings</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'account.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>[250.0, 262.82]
-</code></pre></div>
-<p>The balance reaches 262.82 after one year, which is <code>250 exp(0.05)</code>.</p>
-<p><strong>How the engine runs it.</strong> The element returns no laws of its own. The compiler reads each declared variable as it
-reads a state that a subclass annotates, so the rate laws of the interactions above form an ordinary differential
-equation that <code>ScipyODESolver</code> integrates. A state of order 2 also gets a companion state for its first derivative,
-named <code>x_d1</code>, which <code>get_value</code> reads and <code>set_params</code> changes.</p>
-<div class="highlight"><pre><span></span><code><span class="n">mass</span> <span class="o">=</span> <span class="n">DeclaredElement</span><span class="p">(</span><span class="s1">'mass'</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="n">DeclaredVariableSpec</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="mi">2</span><span class="p">))})</span>
-<span class="n">mass</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">'x'</span><span class="p">),</span> <span class="n">mass</span><span class="o">.</span><span class="n">set_params</span><span class="p">(</span><span class="n">x_d1</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">'x_d1'</span><span class="p">)</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>(1.0, 0.5)
-</code></pre></div>
-<p><strong>How it combines.</strong> It fills any role whose domains include those of its states. Its usual partners are
-<code>RateInteraction</code> for flows, <code>TransferInteraction</code> for amounts that move between compartments, and <code>JumpInteraction</code>
-for random events. Systems that learn their variables while they build, such as a network read from a table of
-reactions, build one <code>DeclaredElement</code> per entry.</p>
-<p><strong>Limits and errors.</strong> The element holds one value per variable, not a member per site, so a lattice or a network
-needs a <code>GroupElement</code>. Every name must be an identifier that no argument of the constructor takes, and <code>prepare</code>
-raises a <code>ValidationError</code> otherwise.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="n">DeclaredElement</span><span class="p">(</span><span class="s1">'cell'</span><span class="p">,</span> <span class="n">variables</span><span class="o">=</span><span class="p">{</span><span class="s1">'2x'</span><span class="p">:</span> <span class="n">DeclaredVariableSpec</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">())})</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
-<span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-<span class="n">message</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>Element 'cell' declares '2x'. Use an identifier that no argument takes.
-</code></pre></div>
-<p>The message reads "Element 'cell' declares '2x'. Use an identifier that no argument takes." The fix is a name such
-as <code>x2</code>.</p>
-<p><strong>A field realization.</strong> A field names the element in its own words and derives the variables from its arguments.
-The subclass overrides the hook <code>_declare_variables</code>, which <code>DeclaredElement</code> reads in place of <code>variables</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sage.all__sagemath_symbolics</span><span class="w"> </span><span class="kn">import</span> <span class="n">oo</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sage.sets.real_set</span><span class="w"> </span><span class="kn">import</span> <span class="n">RealSet</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">CompartmentElement</span><span class="p">(</span><span class="n">DeclaredElement</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">people</span><span class="o">=</span><span class="mf">0.0</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">people</span> <span class="o">=</span> <span class="n">people</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_declare_variables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="n">DeclaredVariableSpec</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">people</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">domain</span><span class="o">=</span><span class="n">RealSet</span><span class="o">.</span><span class="n">closed_open</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">oo</span><span class="p">)))}</span>
-
-
-<span class="n">CompartmentElement</span><span class="p">(</span><span class="s1">'susceptible'</span><span class="p">,</span> <span class="n">people</span><span class="o">=</span><span class="mf">990.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>990.0
-</code></pre></div>
-<p>See its <a href="../../../../parts/elements/#declaredelement">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="DeclaredElement(label, visual=None, *, variables=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.DeclaredElement">API entry</a>.</p>
+and sets the laws that change them, a space places the members of a group, and a system composes elements,
+interactions, and a space into one model. <a href="../">How the components fit</a> shows the families together, and the
+<a href="../../../../components/elements/">elements page</a> compares every element class and holds its fact sheet.</p>
 <h2 id="element">Element</h2>
-<p>An <code>Element</code> is the base of an element class of your own. The class declares each state and parameter as an argument
-of its <code>__init__</code>, annotated with <code>StateSpec</code> or <code>ParameterSpec</code>, and may return laws of its own from <code>_get_laws</code>.
-Here a population grows at a rate proportional to its size.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span>
+<p>An <code>Element</code> holds values. A class of your own is a plain Python class whose arguments are its values, stored
+unmodified, and <code>Element('label', values={...})</code> holds values without a class. The element returns no laws: a value
+that some law changes is a state, and any other value is a parameter. Here a population of rabbits grows through an
+interaction at the rate <code>r x</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Interaction</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLaw</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSystem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.specs</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterSpec</span><span class="p">,</span> <span class="n">StateSpec</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Role</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">GrowthElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-    <span class="n">law_classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">RateLaw</span><span class="p">,)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">label</span><span class="p">,</span>
-        <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">x</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-        <span class="n">r</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ParameterSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Population</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Growth</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Role</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">namespace</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">namespace</span><span class="o">.</span><span class="n">r</span> <span class="o">*</span> <span class="n">namespace</span><span class="o">.</span><span class="n">x</span><span class="p">)]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">x</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">t</span><span class="p">),</span> <span class="n">s</span><span class="o">.</span><span class="n">r</span> <span class="o">*</span> <span class="n">x</span><span class="p">)]</span>
 
 
-<span class="n">rabbits</span> <span class="o">=</span> <span class="n">GrowthElement</span><span class="p">(</span><span class="s1">'rabbits'</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">rabbits</span><span class="p">]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'rabbits.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="n">rabbits</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">Population</span><span class="p">(</span><span class="s1">'rabbits'</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">40.0</span><span class="p">)],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Growth</span><span class="p">(</span><span class="s1">'growth'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'rabbits'</span><span class="p">)])</span>
+<span class="n">rabbits</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'rabbits.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code>[40.0, 65.9]
 </code></pre></div>
-<p>The same class is a bank deposit that earns interest at 5 percent.</p>
-<div class="highlight"><pre><span></span><code><span class="n">deposit</span> <span class="o">=</span> <span class="n">GrowthElement</span><span class="p">(</span><span class="s1">'deposit'</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">250.0</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">deposit</span><span class="p">]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'deposit.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<p>The rabbits grow from 40 to 65.9 in one unit of time, which is <code>40 exp(0.5)</code>. The same classes are a bank deposit that
+earns interest at 5 percent.</p>
+<div class="highlight"><pre><span></span><code><span class="n">deposit</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">Population</span><span class="p">(</span><span class="s1">'deposit'</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="mf">250.0</span><span class="p">)],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Growth</span><span class="p">(</span><span class="s1">'interest'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'deposit'</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)])</span>
+<span class="n">deposit</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'deposit.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code>[250.0, 262.82]
 </code></pre></div>
-<p><strong>How the engine runs it.</strong> <code>prepare</code> reads the annotations to find the states, parameters, and their specs. At
-compile time the element returns its laws for a namespace whose attributes are the symbols of its variables, and the
-class attribute <code>law_classes</code> names their kinds, so <code>get_tags</code> knows them before a run.</p>
-<div class="highlight"><pre><span></span><code><span class="nb">sorted</span><span class="p">(</span><span class="n">rabbits</span><span class="o">.</span><span class="n">get_tags</span><span class="p">()</span><span class="o">.</span><span class="n">laws</span><span class="p">),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">rabbits</span><span class="o">.</span><span class="n">get_tags</span><span class="p">()</span><span class="o">.</span><span class="n">domains</span><span class="p">)</span>
+<p><strong>How the engine runs it.</strong> <code>prepare</code> collects the laws of the interactions and reads which values they change. Those
+values are the states, and the others are the parameters. The kind of a value comes from its Python type hint or its
+value, so <code>1.0</code> is real, <code>1</code> an integer, and <code>'S'</code> a category.</p>
+<div class="highlight"><pre><span></span><code><span class="n">deposit</span><span class="o">.</span><span class="n">states_</span><span class="p">,</span> <span class="n">deposit</span><span class="o">.</span><span class="n">parameters_</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>(['rate'], ['real'])
+<div class="highlight"><pre><span></span><code>(('deposit.x',), ('interest.r',))
 </code></pre></div>
-<p><strong>How it combines.</strong> An element with laws of its own runs alone, and interactions add laws to its states. As the
-member class of a <code>GroupElement</code> or a <code>FieldElement</code> it runs on every site of a space. An element whose laws are agent
-rules is an agent, and one that declares <code>ports</code> joins others through a <code>ConnectionInteraction</code>.</p>
-<p><strong>Limits and errors.</strong> A spec must be valid for its state. An order of 0, for example, is neither a whole number of
-at least 1 nor a fraction in <code>(0, 1)</code>, and <code>prepare</code> raises a <code>ValidationError</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
+<p>The balance <code>deposit.x</code> is the state, and the rate <code>interest.r</code> is a parameter.</p>
+<p><strong>How it combines.</strong> Interactions add laws to its values, and the laws of several interactions on one value add up.
+<code>size=N</code> makes <code>N</code> members of one element, and <code>space=</code> puts one member on every site of a space, so one class covers
+one member, a group, and a field. An element bound to an interaction that gives it a rule is an agent.</p>
+<p><strong>Limits and errors.</strong> The allowed values of a value are written in <code>Annotated</code>, such as a size that is never
+negative, and <code>prepare</code> raises a <code>ValidationError</code> that names a value outside them.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">sage.all__sagemath_symbolics</span><span class="w"> </span><span class="kn">import</span> <span class="n">oo</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sage.sets.real_set</span><span class="w"> </span><span class="kn">import</span> <span class="n">RealSet</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">BrokenElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">(</span><span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Herd</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">RealSet</span><span class="o">.</span><span class="n">closed_open</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">oo</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
 
 
 <span class="k">try</span><span class="p">:</span>
-    <span class="n">BrokenElement</span><span class="p">(</span><span class="s1">'broken'</span><span class="p">)</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+    <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">Herd</span><span class="p">(</span><span class="s1">'herd'</span><span class="p">,</span> <span class="n">x</span><span class="o">=-</span><span class="mf">5.0</span><span class="p">)],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Growth</span><span class="p">(</span><span class="s1">'growth'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'herd'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
 <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
     <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
 <span class="n">message</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>The order 0 is neither an integer of at least 1 nor a real number in (0, 1).
+<div class="highlight"><pre><span></span><code>The system is not valid, with 1 error(s):
+- herd: herd.x = -5.0 is not in its domain [0, +oo). Correct the component as the message describes. [value]
 </code></pre></div>
-<p>The message says that the order 0 is neither a whole number of at least 1 nor a real number in <code>(0, 1)</code>. The fix is
-<code>StateSpec(order=1)</code>, the default, for a state with a first derivative.</p>
-<p><strong>A field realization.</strong> The catalog writes its elements as subclasses that rename the states for one field, such as
-a capacitor whose state is a voltage.</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CapacitorElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">label</span><span class="p">,</span>
-        <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">v</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-        <span class="n">C</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ParameterSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">1e-3</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
+<p>The message reads "herd.x = -5.0 is not in its domain [0, +oo)." The fix is a starting size of zero or more.</p>
+<p><strong>A field realization.</strong> The catalog writes its elements as classes that name the values of one field, such as a
+capacitor whose value is a voltage and whose capacitance belongs to it alone.</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Capacitor</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">C</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">v</span> <span class="o">=</span> <span class="n">v</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">C</span> <span class="o">=</span> <span class="n">C</span>
 
 
-<span class="n">CapacitorElement</span><span class="p">(</span><span class="s1">'c1'</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_params</span><span class="p">()</span>
+<span class="n">Capacitor</span><span class="p">(</span><span class="s1">'c1'</span><span class="p">,</span> <span class="n">v</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_params</span><span class="p">()</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>{'C': 0.001, 'label': 'c1', 'v': 5.0, 'visual': None}
+<div class="highlight"><pre><span></span><code>{'C': 0.001, 'label': 'c1', 'v': 5.0}
 </code></pre></div>
-<p>See its <a href="../../../../parts/elements/#element">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="Element(label, visual=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.Element">API entry</a>.</p>
-<h2 id="groupelement">GroupElement</h2>
-<p>A <code>GroupElement</code> holds many members of one element class, with one row per member in every state. Here three herds
-of grazing animals start at different sizes.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">GroupElement</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateInteraction</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSystem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.specs</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterSpec</span><span class="p">,</span> <span class="n">StateSpec</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">StockElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">label</span><span class="p">,</span>
-        <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">x</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-        <span class="n">r</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ParameterSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
-
-
-<span class="n">herds</span> <span class="o">=</span> <span class="n">GroupElement</span><span class="p">(</span><span class="s1">'herds'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">StockElement</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="p">[</span><span class="mf">40.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">]})</span>
-<span class="n">herds</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">size_</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>3
-</code></pre></div>
-<p>The same class holds the assets of a portfolio, each with its own yearly return.</p>
-<div class="highlight"><pre><span></span><code><span class="n">holdings</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="p">[</span><span class="mf">100.0</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">],</span> <span class="s1">'r'</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.02</span><span class="p">]}</span>
-<span class="n">assets</span> <span class="o">=</span> <span class="n">GroupElement</span><span class="p">(</span><span class="s1">'assets'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">StockElement</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">holdings</span><span class="p">)</span>
-<span class="n">returns</span> <span class="o">=</span> <span class="n">RateInteraction</span><span class="p">(</span><span class="s1">'returns'</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">'assets'</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s1">'x'</span><span class="p">,</span> <span class="n">rate</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">r</span> <span class="o">*</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
-<span class="n">portfolio</span> <span class="o">=</span> <span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">assets</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">returns</span><span class="p">])</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">portfolio</span><span class="p">,</span> <span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'assets.x'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>[[100.0, 50.0], [105.13, 51.01]]
-</code></pre></div>
-<p><strong>How the engine runs it.</strong> The laws of the member class and of the interactions are written for one member. The
-compiler runs them for every member at once as arrays, so a group of a thousand members costs one vectorised call per
-evaluation.</p>
-<p><strong>How it combines.</strong> With <code>on='sites'</code> the members sit on the sites of a lattice or the nodes of a network, and with
-<code>on='edges'</code> or <code>on='hyperedges'</code> on the links of a network. Neighbour interactions, such as <code>CouplingInteraction</code>,
-then read the members around each member. With <code>variable=True</code>, laws add and remove members during a run.</p>
+<p><strong>Members on the links of a network.</strong> <code>space=</code> puts one member of an element on every node of a network, and
+<code>on='edges'</code> puts one on every link instead, such as the width of every road between three cities. An interaction that
+runs <code>along</code> the edges reads the member of each link as <code>s.edge</code>, beside the two ends <code>s.source</code> and <code>s.target</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.spaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">NetworkSpace</span>
-
-<span class="n">lines</span> <span class="o">=</span> <span class="n">GroupElement</span><span class="p">(</span><span class="s1">'lines'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">StockElement</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">NetworkSpace</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">cycle_graph</span><span class="p">(</span><span class="mi">5</span><span class="p">)),</span> <span class="n">on</span><span class="o">=</span><span class="s1">'edges'</span><span class="p">)</span>
-<span class="n">lines</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">size_</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>5
-</code></pre></div>
-<p><strong>Limits and errors.</strong> Every member shares the class of the group. Each value holds one row per member or one value
-for all, and <code>prepare</code> raises a <code>ValidationError</code> for any other count.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="n">GroupElement</span><span class="p">(</span><span class="s1">'herds'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">StockElement</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="p">[</span><span class="mf">40.0</span><span class="p">,</span> <span class="mf">25.0</span><span class="p">]})</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
-<span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-<span class="n">message</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>Group 'herds' has 2 values of x for 3 members. Give one value per member, or one value shared by every member.
-</code></pre></div>
-<p>The message says that the group has 2 values of <code>x</code> for 3 members. The fix is three values, or one value shared by
-every member.</p>
-<p><strong>A field realization.</strong> A field fixes the member class and the space of its group in a subclass, such as the
-sites of a forest.</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ForestElement</span><span class="p">(</span><span class="n">GroupElement</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">100</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">StockElement</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
-
-
-<span class="n">ForestElement</span><span class="p">(</span><span class="s1">'forest'</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">size_</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>4
-</code></pre></div>
-<p>See its <a href="../../../../parts/elements/#groupelement">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="GroupElement(label, *, element, size=None, values=None, visual=None, space=None, variable=False, on=None, location=None, layer=None, capacity=None, rank=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.GroupElement">API entry</a>.</p>
-<h2 id="fieldelement">FieldElement</h2>
-<p>A <code>FieldElement</code> holds one member on every site of a space and gives its states the operators of space, such as the
-Laplacian, and boundary conditions. Here heat spreads through a plate of 10 by 20 sites with insulated edges.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">FieldElement</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Interaction</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLaw</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">laplacian</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.spaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">LatticeSpace</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.specs</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParameterSpec</span><span class="p">,</span> <span class="n">StateSpec</span>
-
-
-<span class="k">class</span><span class="w"> </span><span class="nc">DiffusionElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
-    <span class="n">law_classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">RateLaw</span><span class="p">,)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">label</span><span class="p">,</span>
-        <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">,</span>
-        <span class="n">u</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">StateSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
-        <span class="n">D</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">ParameterSpec</span><span class="p">()]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">u</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">D</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">namespace</span><span class="o">.</span><span class="n">u</span><span class="p">,</span> <span class="n">namespace</span><span class="o">.</span><span class="n">D</span> <span class="o">*</span> <span class="n">laplacian</span><span class="p">(</span><span class="n">namespace</span><span class="o">.</span><span class="n">u</span><span class="p">))]</span>
-
-
-<span class="n">walls</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'u'</span><span class="p">:</span> <span class="s1">'zero-flux'</span><span class="p">}</span>
-<span class="n">plate</span> <span class="o">=</span> <span class="n">FieldElement</span><span class="p">(</span><span class="s1">'plate'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">DiffusionElement</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">LatticeSpace</span><span class="p">((</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">)),</span> <span class="n">boundary</span><span class="o">=</span><span class="n">walls</span><span class="p">)</span>
-<span class="n">plate</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">size_</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>200
-</code></pre></div>
-<p>The same law spreads a pollutant along a channel of three reaches until each reach holds the same amount.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
-
 <span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.spaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">NetworkSpace</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSystem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Role</span>
 
-<span class="n">channel</span> <span class="o">=</span> <span class="n">NetworkSpace</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">path_graph</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
-<span class="n">river</span> <span class="o">=</span> <span class="n">FieldElement</span><span class="p">(</span><span class="s1">'river'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">DiffusionElement</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'u'</span><span class="p">:</span> <span class="p">[</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]})</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">river</span><span class="p">]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'river.u'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Exchange</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">among</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'cities'</span><span class="p">,</span> <span class="n">along</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">among</span><span class="o">=</span><span class="n">among</span><span class="p">,</span> <span class="n">along</span><span class="o">=</span><span class="n">along</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">edge</span><span class="o">.</span><span class="n">w</span> <span class="o">*</span> <span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">x</span> <span class="o">-</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">t</span><span class="p">),</span> <span class="n">flow</span><span class="p">),</span> <span class="n">RateLaw</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">t</span><span class="p">),</span> <span class="o">-</span><span class="n">flow</span><span class="p">)]</span>
+
+
+<span class="n">roads</span> <span class="o">=</span> <span class="n">NetworkSpace</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">path_graph</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+<span class="n">cities</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s1">'cities'</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'x'</span><span class="p">:</span> <span class="p">[</span><span class="mf">90.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]},</span> <span class="n">space</span><span class="o">=</span><span class="n">roads</span><span class="p">)</span>
+<span class="n">links</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s1">'links'</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'w'</span><span class="p">:</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]},</span> <span class="n">space</span><span class="o">=</span><span class="n">roads</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s1">'edges'</span><span class="p">)</span>
+<span class="n">system</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">cities</span><span class="p">,</span> <span class="n">links</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Exchange</span><span class="p">(</span><span class="s1">'exchange'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+<span class="n">system</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'cities.x'</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[[9.0, 0.0, 0.0], [3.0, 3.0, 3.0]]
+<div class="highlight"><pre><span></span><code>[41.3, 36.4, 12.3]
 </code></pre></div>
-<p><strong>How the engine runs it.</strong> The compiler turns each operator of space into a stencil of the space: the Laplacian of a
-lattice reads the neighbours of each site, and that of a network reads the edges. The boundary conditions replace the
-values beyond the edges of a lattice. The result is one large system of ordinary differential equations, which a
-solver for stiff fields can integrate.</p>
-<p><strong>How it combines.</strong> It is a <code>GroupElement</code> with one member per site, so every interaction of groups applies.
-<code>ConservationInteraction</code> and <code>GradientInteraction</code> read its operators directly.</p>
-<p><strong>Limits and errors.</strong> A field needs a space with sites, and it cannot add or remove members. Its values follow the
-rules of a group, one per site or one for all.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
+<p>After one unit of time the three cities hold 41.3, 36.4, and 12.3, since the wide first road carries four times the
+flow of the second. <code>on='hyperedges'</code> puts one member on every hyperedge of a network, which an interaction with
+<code>along='hyperedges'</code> reads as <code>s.hyperedge</code>, beside the members <code>s.member</code> and <code>s.others</code> of the hyperedge.</p>
+<p><strong>Groups that grow.</strong> A group has no capacity to give. When rules or topology requests add members, the engine
+doubles the rows of the group as a Python list grows and goes on from the step where the group filled, so a network
+may start with one node and the trajectory holds one unbroken run. Here a network grows to 500 nodes by preferential
+attachment, each new node linking to a node drawn by its degree plus one.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">TopologyRequestSpec</span><span class="p">,</span> <span class="n">UpdateLaw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">neighbors</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="n">FieldElement</span><span class="p">(</span><span class="s1">'river'</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">DiffusionElement</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">channel</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'u'</span><span class="p">:</span> <span class="p">[</span><span class="mf">9.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]})</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
-<span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-<span class="n">message</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">degree</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">neighbors</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Attach</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">among</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'nodes'</span><span class="p">,</span> <span class="n">along</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">among</span><span class="o">=</span><span class="n">among</span><span class="p">,</span> <span class="n">along</span><span class="o">=</span><span class="n">along</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">UpdateLaw</span><span class="p">(</span><span class="n">TopologyRequestSpec</span><span class="p">(</span><span class="s1">'add-node'</span><span class="p">,</span> <span class="n">edges</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">one</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">toward</span><span class="o">=</span><span class="n">degree</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)]</span>
+
+
+<span class="n">nodes</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s1">'nodes'</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'k'</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">},</span> <span class="n">space</span><span class="o">=</span><span class="n">NetworkSpace</span><span class="p">(</span><span class="n">nx</span><span class="o">.</span><span class="n">empty_graph</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+<span class="n">web</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">nodes</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Attach</span><span class="p">(</span><span class="s1">'attach'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+<span class="n">grown</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mi">499</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">get_network</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">get_graph</span><span class="p">()</span>
+<span class="n">grown</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">(),</span> <span class="nb">max</span><span class="p">(</span><span class="n">degree</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">degree</span> <span class="ow">in</span> <span class="n">grown</span><span class="o">.</span><span class="n">degree</span><span class="p">())</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>Group 'river' has 2 values of u for 3 members. Give one value per member, or one value shared by every member.
+<div class="highlight"><pre><span></span><code>(500, 27)
 </code></pre></div>
-<p>The message says that the group has 2 values of <code>u</code> for 3 members. The fix is three values, one per reach.</p>
-<p><strong>A field realization.</strong> A field names the field and fixes its member class, such as the temperature of a rod.</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RodElement</span><span class="p">(</span><span class="n">FieldElement</span><span class="p">):</span>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">visual</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">sites</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="n">DiffusionElement</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">LatticeSpace</span><span class="p">((</span><span class="n">sites</span><span class="p">,)),</span> <span class="n">visual</span><span class="o">=</span><span class="n">visual</span><span class="p">)</span>
+<p>The network holds 500 nodes, and its largest hub has 27 links, far more than a network whose new nodes link uniformly
+would give.</p>
+<p>See its <a href="../../../../components/elements/#element">fact sheet</a>
+and its <a class="autorefs autorefs-internal" title="Element(label, *, values=None, size=None, space=None, on=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.Element">API entry</a>.</p>
+<h2 id="quantity">Quantity</h2>
+<p>A <code>Quantity</code> says what a value holds, such as money, water, or energy. It is written in <code>Annotated</code> beside the
+allowed values of the value. The total of a quantity changes only through flows in and out of the system, so the
+conservation monitor checks the total at every frame, and a plain rate law that changes the value is rejected. A flow
+is a labelled <code>RateLaw</code> whose target maps each value to the sign of its change, and a flow out of the system names
+only the value it leaves. Here a tank drains into the ground, and the monitor follows the water that is left.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">sage.all__sagemath_symbolics</span><span class="w"> </span><span class="kn">import</span> <span class="n">oo</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sage.sets.real_set</span><span class="w"> </span><span class="kn">import</span> <span class="n">RealSet</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Quantity</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Interaction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLaw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConservationObserver</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Role</span>
 
 
-<span class="n">RodElement</span><span class="p">(</span><span class="s1">'rod'</span><span class="p">,</span> <span class="n">sites</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">size_</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Tank</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">RealSet</span><span class="o">.</span><span class="n">closed_open</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">oo</span><span class="p">),</span> <span class="n">Quantity</span><span class="p">(</span><span class="s1">'water'</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="n">level</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Drain</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'tank'</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">k</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">level</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">({</span><span class="n">level</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">},</span> <span class="n">s</span><span class="o">.</span><span class="n">k</span> <span class="o">*</span> <span class="n">level</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">'drained'</span><span class="p">)]</span>
+
+
+<span class="n">monitor</span> <span class="o">=</span> <span class="n">ConservationObserver</span><span class="p">()</span>
+<span class="n">tank</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">Tank</span><span class="p">(</span><span class="s1">'tank'</span><span class="p">)],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Drain</span><span class="p">(</span><span class="s1">'drain'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+<span class="n">tank</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">observers</span><span class="o">=</span><span class="p">[</span><span class="n">monitor</span><span class="p">])</span>
+<span class="nb">round</span><span class="p">(</span><span class="n">monitor</span><span class="o">.</span><span class="n">totals_</span><span class="p">[</span><span class="s1">'water'</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>8
+<div class="highlight"><pre><span></span><code>&lt;skcomplex.core.engine.runtime._trajectories.Trajectory object at 0x78abfed2fc20&gt;
+3.679
 </code></pre></div>
-<p>See its <a href="../../../../parts/elements/#fieldelement">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="FieldElement(label, *, element, space, boundary=None, values=None, visual=None, discretization='finite-difference', symmetry=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.FieldElement">API entry</a>.</p>
-<h2 id="wordelement">WordElement</h2>
-<p>A <code>WordElement</code> holds a word of symbols that productions rewrite at every generation. In the algae of Lindenmayer <code>A</code>
-becomes <code>AB</code> and <code>B</code> becomes <code>A</code>, so the length of the word runs through the Fibonacci numbers.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">WordElement</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProductionLaw</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSystem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
+<p>About 3.679 of the 10 units of water are left after two units of time. A value given through <code>values=</code> has no
+quantity, since it has no annotation.</p>
+<p>See its <a class="autorefs autorefs-internal" title="Quantity(name)
+
+  
+      dataclass
+  " href="../../../../api/core/components/elements/#skcomplex.core.components.elements.Quantity">API entry</a>.</p>
+<h2 id="period">Period</h2>
+<p>A <code>Period</code> says that a value wraps around, such as an angle or a phase. It is written in <code>Annotated</code>, as
+<code>theta: Annotated[float, Period(2 * pi)]</code>, and the value is brought back within one period around zero after every
+step. The analyses read a periodic value as a phase, or as a heading when its element moves in a space, so no further
+setting is needed. Here a clock turns at one radian per unit of time, and its hand stays on the circle.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Period</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Interaction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLaw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Role</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">AlgaeElement</span><span class="p">(</span><span class="n">WordElement</span><span class="p">):</span>
-    <span class="n">law_classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">ProductionLaw</span><span class="p">,)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Clock</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">theta</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">Period</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">omega</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theta</span> <span class="o">=</span> <span class="n">theta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">omega</span> <span class="o">=</span> <span class="n">omega</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">ProductionLaw</span><span class="p">(</span><span class="s1">'A'</span><span class="p">,</span> <span class="s1">'AB'</span><span class="p">),</span> <span class="n">ProductionLaw</span><span class="p">(</span><span class="s1">'B'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">)]</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Turn</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'clock'</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">theta</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">t</span><span class="p">),</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">omega</span><span class="p">)]</span>
 
 
-<span class="n">trajectory</span> <span class="o">=</span> <span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">AlgaeElement</span><span class="p">(</span><span class="s1">'algae'</span><span class="p">,</span> <span class="n">axiom</span><span class="o">=</span><span class="s1">'A'</span><span class="p">)]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<span class="n">trajectory</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'algae.size'</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="n">clock</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">Clock</span><span class="p">(</span><span class="s1">'clock'</span><span class="p">)],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Turn</span><span class="p">(</span><span class="s1">'turn'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+<span class="n">clock</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'clock.theta'</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[1.0, 2.0, 3.0, 5.0, 8.0, 13.0]
+<div class="highlight"><pre><span></span><code>[0.0, 1.0, 2.0, 3.0, -2.283, -1.283]
 </code></pre></div>
-<p>The Thue and Morse sequence of symbolic dynamics comes from the same class, with <code>0</code> becoming <code>01</code> and <code>1</code> becoming
-<code>10</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">MorseElement</span><span class="p">(</span><span class="n">WordElement</span><span class="p">):</span>
-    <span class="n">law_classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">ProductionLaw</span><span class="p">,)</span>
+<p>The angle grows to 3.0, then goes on at -2.283 instead of 4.0, the same point of the circle. Two values of an angle
+that differ by a whole turn are one value, so the alignment of a group of such clocks reads them as phases.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">alignment</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">ProductionLaw</span><span class="p">(</span><span class="s1">'0'</span><span class="p">,</span> <span class="s1">'01'</span><span class="p">),</span> <span class="n">ProductionLaw</span><span class="p">(</span><span class="s1">'1'</span><span class="p">,</span> <span class="s1">'10'</span><span class="p">)]</span>
-
-
-<span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">MorseElement</span><span class="p">(</span><span class="s1">'morse'</span><span class="p">,</span> <span class="n">axiom</span><span class="o">=</span><span class="s1">'0'</span><span class="p">)]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'morse.size'</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="n">clocks</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">Clock</span><span class="p">(</span><span class="s1">'clock'</span><span class="p">)],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Turn</span><span class="p">(</span><span class="s1">'turn'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
+<span class="n">alignment</span><span class="p">(</span><span class="n">clocks</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">1.0</span><span class="p">),</span> <span class="n">kind</span><span class="o">=</span><span class="s1">'mean-phase'</span><span class="p">)</span><span class="o">.</span><span class="n">phase</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[1.0, 2.0, 4.0, 8.0]
+<div class="highlight"><pre><span></span><code>[0.0, 1.0, 2.0, 3.0, -2.283, -1.283]
 </code></pre></div>
-<p><strong>How the engine runs it.</strong> Each generation applies every production to every matching symbol at once. The
-rewriting solver advances one generation per unit of time and records the size of the word as the state <code>size</code>.</p>
-<p><strong>How it combines.</strong> Its productions are its own laws, so it usually runs alone. A <code>geometry</code> draws the word as line
-segments, as a turtle does, for plants and fractal curves.</p>
-<p><strong>Limits and errors.</strong> The word grows at every generation, so <code>max_size</code> bounds it. A symbol outside <code>alphabet</code>, or a
-word that would grow past <code>max_size</code>, raises a <code>RewritingError</code> during the run.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">RewritingError</span>
+<p>The mean phase follows the hand around the circle. A period must be a positive number, so <code>Period(0)</code> is rejected
+when the system is prepared.</p>
+<p>See its <a class="autorefs autorefs-internal" title="Period(length)
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">AlgaeElement</span><span class="p">(</span><span class="s1">'algae'</span><span class="p">,</span> <span class="n">axiom</span><span class="o">=</span><span class="s1">'A'</span><span class="p">,</span> <span class="n">max_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<span class="k">except</span> <span class="n">RewritingError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-<span class="n">message</span>
+  
+      dataclass
+  " href="../../../../api/core/components/elements/#skcomplex.core.components.elements.Period">API entry</a>.</p>
+<h2 id="member">Member</h2>
+<p>A <code>Member</code> says that a value names a member of another group, such as the firm a worker works for or the bank of a
+customer. It is written in <code>Annotated</code>, as <code>employer: Annotated[int, Member('firms')] = -1</code>. The value is the index of
+the member in its group when the system starts, and -1 names none. During the run the value holds the id of that
+member, and a rule reads the member with <code>agent.get_referenced('employer')</code>. When a member of the group is removed,
+every value that names it becomes -1. Here four workers name their firms, and the first firm closes in the first step.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Member</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Interaction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">UpdateLaw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Role</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Worker</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">employer</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">object</span><span class="p">,</span> <span class="n">Member</span><span class="p">(</span><span class="s1">'firms'</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">employer</span> <span class="o">=</span> <span class="n">employer</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Closing</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'workers'</span><span class="p">,</span> <span class="n">firms</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'firms'</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">firms</span> <span class="o">=</span> <span class="n">firms</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">UpdateLaw</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">)]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">system</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s1">'firms'</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">system</span><span class="o">.</span><span class="n">get_agents</span><span class="p">(</span><span class="s1">'firms'</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+
+<span class="n">workers</span> <span class="o">=</span> <span class="n">Worker</span><span class="p">(</span><span class="s1">'workers'</span><span class="p">,</span> <span class="n">employer</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">firms</span> <span class="o">=</span> <span class="n">Element</span><span class="p">(</span><span class="s1">'firms'</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="p">{</span><span class="s1">'wage'</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.2</span><span class="p">]},</span> <span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="n">trajectory</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">workers</span><span class="p">,</span> <span class="n">firms</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Closing</span><span class="p">(</span><span class="s1">'closing'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="p">[</span><span class="n">trajectory</span><span class="o">.</span><span class="n">get_agents</span><span class="p">(</span><span class="s1">'workers'</span><span class="p">,</span> <span class="n">step</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="s1">'employer'</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>Word 'algae' would reach 5 symbols at generation 3, above its maximum size 4. Raise max_size or run fewer generations.
+<div class="highlight"><pre><span></span><code>[[5.0, 6.0, 5.0, -1.0], [-1.0, 6.0, -1.0, -1.0]]
 </code></pre></div>
-<p>The message says that the word would reach 5 symbols at generation 3, above its maximum size 4. The fix is a larger
-<code>max_size</code> or fewer generations.</p>
-<p><strong>A field realization.</strong> The subclasses above are already field realizations, the algae of biology and the sequence
-of symbolic dynamics.</p>
-<p>See its <a href="../../../../parts/elements/#wordelement">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="WordElement(label, axiom='', *, alphabet=None, ignore='', geometry=None, max_size=10000000, bounds=None, visual=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.WordElement">API entry</a>.</p>
-<h2 id="patchelement">PatchElement</h2>
-<p>A <code>PatchElement</code> holds tiles, placed copies of basic shapes, that substitutions replace by smaller pieces at every
-generation. Keeping the outer thirds of every interval builds the Cantor set.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">PatchElement</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">SubstitutionLaw</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">CompositeSystem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.engine.runtime</span><span class="w"> </span><span class="kn">import</span> <span class="n">simulate</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.specs</span><span class="w"> </span><span class="kn">import</span> <span class="n">AffineSpec</span><span class="p">,</span> <span class="n">PrototileSpec</span>
+<p>The firms have the ids 5 and 6, so the workers start with the employers 5, 6, 5, and -1. After the first firm closes,
+its two workers have the employer -1, and the worker of the second firm keeps it.</p>
+<p>See its <a class="autorefs autorefs-internal" title="Member(group)
+
+  
+      dataclass
+  " href="../../../../api/core/components/elements/#skcomplex.core.components.elements.Member">API entry</a>.</p>
+<h2 id="tensor">Tensor</h2>
+<p>A <code>Tensor</code> says that a value holds the entries of a square matrix of one symmetry, such as the order tensor of a liquid
+crystal. It is written in <code>Annotated</code>, as <code>Q: Annotated[object, Tensor('traceless')] = 0.0</code>. The value holds only the
+independent entries, <code>Q_xx</code> and <code>Q_xy</code> for a traceless matrix in two dimensions, and the matrix has one row per
+dimension of the space of the element. Laws read the value as a Sage matrix. Here the order of every site of a small
+lattice relaxes until <code>tr(Q^2)</code> is one half.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">Element</span><span class="p">,</span> <span class="n">Tensor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.interactions</span><span class="w"> </span><span class="kn">import</span> <span class="n">Interaction</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.laws</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLaw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.spaces</span><span class="w"> </span><span class="kn">import</span> <span class="n">LatticeSpace</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.systems</span><span class="w"> </span><span class="kn">import</span> <span class="n">System</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Role</span>
 
 
-<span class="k">class</span><span class="w"> </span><span class="nc">CantorElement</span><span class="p">(</span><span class="n">PatchElement</span><span class="p">):</span>
-    <span class="n">law_classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">SubstitutionLaw</span><span class="p">,)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
-        <span class="n">thirds</span> <span class="o">=</span> <span class="p">[</span><span class="n">AffineSpec</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">),</span> <span class="n">AffineSpec</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">3</span><span class="p">,</span> <span class="n">translation</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span> <span class="o">/</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">))]</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">SubstitutionLaw</span><span class="p">(</span><span class="s1">'interval'</span><span class="p">,</span> <span class="p">[(</span><span class="s1">'interval'</span><span class="p">,</span> <span class="n">third</span><span class="p">)</span> <span class="k">for</span> <span class="n">third</span> <span class="ow">in</span> <span class="n">thirds</span><span class="p">])]</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Crystal</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">Q</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">object</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">(</span><span class="s1">'traceless'</span><span class="p">)]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">space</span><span class="o">=</span><span class="n">space</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Q</span> <span class="o">=</span> <span class="n">Q</span>
 
 
-<span class="n">cantor</span> <span class="o">=</span> <span class="n">CantorElement</span><span class="p">(</span><span class="s1">'cantor'</span><span class="p">,</span> <span class="n">prototiles</span><span class="o">=</span><span class="p">[</span><span class="n">PrototileSpec</span><span class="p">(</span><span class="s1">'interval'</span><span class="p">,</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)])])</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">cantor</span><span class="p">]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'cantor.size'</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Ordering</span><span class="p">(</span><span class="n">Interaction</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Role</span> <span class="o">=</span> <span class="s1">'crystal'</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target</span> <span class="o">=</span> <span class="n">target</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prepare</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_prepare</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+        <span class="n">Q</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">Q</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">laws_</span> <span class="o">=</span> <span class="p">[</span><span class="n">RateLaw</span><span class="p">(</span><span class="n">Q</span><span class="p">,</span> <span class="o">-</span><span class="p">((</span><span class="n">Q</span> <span class="o">*</span> <span class="n">Q</span><span class="p">)</span><span class="o">.</span><span class="n">trace</span><span class="p">()</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="n">Q</span><span class="p">)]</span>
+
+
+<span class="n">crystal</span> <span class="o">=</span> <span class="n">Crystal</span><span class="p">(</span><span class="s1">'crystal'</span><span class="p">,</span> <span class="n">Q</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">([</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span> <span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">space</span><span class="o">=</span><span class="n">LatticeSpace</span><span class="p">((</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)))</span>
+<span class="n">trajectory</span> <span class="o">=</span> <span class="n">System</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">crystal</span><span class="p">],</span> <span class="n">interactions</span><span class="o">=</span><span class="p">[</span><span class="n">Ordering</span><span class="p">(</span><span class="s1">'ordering'</span><span class="p">)])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">until</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span> <span class="n">dt</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span>
+<span class="n">trajectory</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'crystal.Q'</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>[1.0, 2.0, 4.0, 8.0]
+<div class="highlight"><pre><span></span><code>[[0.447, 0.224], [0.447, 0.224], [0.447, 0.224], [0.447, 0.224]]
 </code></pre></div>
-<p>Replacing every triangle by its three corner triangles builds the Sierpinski triangle of geometry.</p>
-<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SierpinskiElement</span><span class="p">(</span><span class="n">PatchElement</span><span class="p">):</span>
-    <span class="n">law_classes</span> <span class="o">=</span> <span class="p">(</span><span class="n">SubstitutionLaw</span><span class="p">,)</span>
+<p>Every site keeps its axis, the ratio of its two entries, and reaches the order where <code>2 (Q_xx^2 + Q_xy^2)</code> is one
+half. A symmetry other than <code>'full'</code>, <code>'symmetric'</code>, <code>'antisymmetric'</code>, or <code>'traceless'</code> is rejected when the system
+is prepared.</p>
+<p>See its <a class="autorefs autorefs-internal" title="Tensor(symmetry)
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_laws</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">namespace</span><span class="p">):</span>
-        <span class="n">corners</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)]</span>
-        <span class="n">pieces</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">'triangle'</span><span class="p">,</span> <span class="n">AffineSpec</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">translation</span><span class="o">=</span><span class="n">corner</span><span class="p">))</span> <span class="k">for</span> <span class="n">corner</span> <span class="ow">in</span> <span class="n">corners</span><span class="p">]</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">SubstitutionLaw</span><span class="p">(</span><span class="s1">'triangle'</span><span class="p">,</span> <span class="n">pieces</span><span class="p">)]</span>
-
-
-<span class="n">triangle</span> <span class="o">=</span> <span class="n">SierpinskiElement</span><span class="p">(</span><span class="s1">'sierpinski'</span><span class="p">,</span> <span class="n">prototiles</span><span class="o">=</span><span class="p">[</span><span class="n">PrototileSpec</span><span class="p">(</span><span class="s1">'triangle'</span><span class="p">,</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])])</span>
-<span class="n">simulate</span><span class="p">(</span><span class="n">CompositeSystem</span><span class="p">(</span><span class="n">elements</span><span class="o">=</span><span class="p">[</span><span class="n">triangle</span><span class="p">]),</span> <span class="n">until</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">get_values</span><span class="p">(</span><span class="s1">'sierpinski.size'</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>[1.0, 3.0, 9.0, 27.0]
-</code></pre></div>
-<p><strong>How the engine runs it.</strong> Each generation applies every substitution to every tile of its prototile at once, and
-the rewriting solver records the number of tiles as the state <code>size</code>.</p>
-<p><strong>How it combines.</strong> Its substitutions are its own laws, so it usually runs alone, and its tiles are drawn as polygons.</p>
-<p><strong>Limits and errors.</strong> Every tile must name a prototile of the patch, and <code>prepare</code> raises a <code>RewritingError</code>
-otherwise.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">RewritingError</span>
-
-<span class="k">try</span><span class="p">:</span>
-    <span class="n">interval</span> <span class="o">=</span> <span class="n">PrototileSpec</span><span class="p">(</span><span class="s1">'interval'</span><span class="p">,</span> <span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)])</span>
-    <span class="n">PatchElement</span><span class="p">(</span><span class="s1">'patch'</span><span class="p">,</span> <span class="n">tiles</span><span class="o">=</span><span class="p">[(</span><span class="s1">'square'</span><span class="p">,</span> <span class="kc">None</span><span class="p">)],</span> <span class="n">prototiles</span><span class="o">=</span><span class="p">[</span><span class="n">interval</span><span class="p">])</span><span class="o">.</span><span class="n">prepare</span><span class="p">()</span>
-<span class="k">except</span> <span class="n">RewritingError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
-    <span class="n">message</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
-<span class="n">message</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code>The patch patch has a tile of the unknown prototile 'square'.
-</code></pre></div>
-<p>The message names the unknown prototile <code>square</code>. The fix is a tile of the prototile <code>interval</code>.</p>
-<p><strong>A field realization.</strong> The two subclasses above are realizations of mathematics, and a tiling of physics, such as
-the Penrose tiling of a quasicrystal, is written the same way.</p>
-<p>See its <a href="../../../../parts/elements/#patchelement">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="PatchElement(label, tiles=None, *, prototiles=(), filled=False, max_size=10000000, bounds=None, visual=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.PatchElement">API entry</a>.</p>
+  
+      dataclass
+  " href="../../../../api/core/components/elements/#skcomplex.core.components.elements.Tensor">API entry</a>.</p>
 <h2 id="baseelement">BaseElement</h2>
 <p><code>BaseElement</code> is the abstract base of every element. A new kind of element that stores its members in a way of its
-own, as <code>GroupElement</code> does, derives from it. Every other element derives from <code>Element</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseElement</span><span class="p">,</span> <span class="n">Element</span><span class="p">,</span> <span class="n">GroupElement</span>
+own derives from it. Every other element derives from <code>Element</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">skcomplex.core.components.elements</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseElement</span><span class="p">,</span> <span class="n">Element</span>
 
-<span class="nb">issubclass</span><span class="p">(</span><span class="n">Element</span><span class="p">,</span> <span class="n">BaseElement</span><span class="p">),</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">GroupElement</span><span class="p">,</span> <span class="n">BaseElement</span><span class="p">)</span>
+<span class="nb">issubclass</span><span class="p">(</span><span class="n">Element</span><span class="p">,</span> <span class="n">BaseElement</span><span class="p">)</span>
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>(True, True)
+<div class="highlight"><pre><span></span><code>True
 </code></pre></div>
-<p>See its <a href="../../../../parts/elements/#baseelement">fact sheet</a>
-and its <a class="autorefs autorefs-internal" title="BaseElement(label, visual=None)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.BaseElement">API entry</a>.</p>
+<p>See its <a href="../../../../components/elements/#baseelement">fact sheet</a>
+and its <a class="autorefs autorefs-internal" title="BaseElement(label)" href="../../../../api/core/components/elements/#skcomplex.core.components.elements.BaseElement">API entry</a>.</p>
 
 
 

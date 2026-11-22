@@ -13,19 +13,16 @@ well-mixed population.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.epidemiology import AgentBasedSIRSystem
 
 SYSTEM = 'agent_based_sir'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = simulate(
-    AgentBasedSIRSystem(people=500, infected=5, beta=0.6, gamma=0.02, random_state=0),
-    dt=1,
-    observers=[observer],
-    random_state=0,
-    until=299,
+trajectory = (
+    AgentBasedSIRSystem(people=500, infected=5, beta=0.6, gamma=0.02, random_state=0)
+    .prepare()
+    .simulate(dt=1, observers=[observer], random_state=0, until=299)
 )
 
 # %%

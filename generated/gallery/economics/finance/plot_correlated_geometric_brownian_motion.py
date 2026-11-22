@@ -15,7 +15,6 @@ they rise and fall together, and their log returns are correlated with `rho`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.economics.finance import CorrelatedGeometricBrownianMotionSystem
@@ -23,10 +22,9 @@ from skcomplex.systems.economics.finance import CorrelatedGeometricBrownianMotio
 SYSTEM = 'correlated_geometric_brownian_motion'
 RHO = 0.7
 
-system = CorrelatedGeometricBrownianMotionSystem(rho=RHO)
+system = CorrelatedGeometricBrownianMotionSystem(rho=RHO, solver=EulerMaruyamaSolver(dt=0.001))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-solver = EulerMaruyamaSolver(dt=0.001)
-trajectory = simulate(system, until=3, dt=0.02, solver=solver, observers=[observer], random_state=0)
+trajectory = system.prepare().simulate(until=3, dt=0.02, observers=[observer], random_state=0)
 
 # %%
 # Correlated log returns
