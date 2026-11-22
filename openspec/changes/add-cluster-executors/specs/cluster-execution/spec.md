@@ -58,13 +58,13 @@ cluster started on SLURM nodes, and CI SHALL check it on a SLURM cluster in Dock
 - **THEN** the result equals the result of `executor='serial'`
 
 ### Requirement: Runs travel in chunks that compile once
-The experiments of runs SHALL take `chunk_size` and SHALL send the runs of one compiled structure in chunks, each
-compiled once on its worker, and a result SHALL not depend on the chunk size. On a process or remote worker, a chunk
+The experiments of runs SHALL take `chunk_size` and SHALL send the runs of one structure in chunks, each prepared, and
+so compiled, once on its worker, and a result SHALL not depend on the chunk size. On a process or remote worker, a chunk
 SHALL run Numba with the CPUs the executor grants, one by default.
 
 #### Scenario: One compile per chunk
 - **WHEN** a sweep of 100 values runs on a process pool with `chunk_size=25`
-- **THEN** the system is compiled 4 times, and the result equals the result with `chunk_size=1`
+- **THEN** the system is prepared 4 times, and the result equals the result with `chunk_size=1`
 
 #### Scenario: Thread limit on a worker
 - **WHEN** a chunk runs on a process pool on a machine with eight cores

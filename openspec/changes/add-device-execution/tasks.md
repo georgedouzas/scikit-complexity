@@ -12,8 +12,8 @@
 ## 2. Device and precision
 
 - [ ] 2.1 Add `device` and `precision` to `JaxBackend`, with `_check` of the precision and `_prepare` that resolves the
-  device into `device_`, and verify the missing-GPU and unknown-precision scenarios in
-  `tests/core/engine/backends/test_jax.py`
+  device into `device_` when the system that holds the backend is prepared, and verify the missing-GPU and
+  unknown-precision scenarios in `tests/core/engine/backends/test_jax.py`
 - [ ] 2.2 Run every traced function under `jax.default_device` and `jax.enable_x64` of the precision, put parameters
   and states on the device once per run, and record the backend name with its platform, and verify the CPU-device
   scenario
@@ -23,7 +23,8 @@
 ## 3. Loops on the device
 
 - [ ] 3.1 Add `core/engine/backends/_jax_loops.py` with the builder of `iterate` for deterministic and drawing maps on
-  `fori_loop`, fill `accelerated.iterate`, and verify the logistic map part of the same-values scenario
+  `fori_loop`, fill `iterate` of the private `_AcceleratedSpec`, and verify the logistic map part of the same-values
+  scenario
 - [ ] 3.2 Add the builders of `rk4`, `velocity_verlet`, and `yoshida4` with the boundary of the problem, and verify the
   Lorenz and harmonic oscillator parts of the same-values scenario
 - [ ] 3.3 Keep the `jax.Array` a loop returns as the state of the solvers that read `accelerated`, convert it in the

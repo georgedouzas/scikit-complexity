@@ -8,8 +8,8 @@ as a penalty. The result SHALL be the field on the points of the space, read lik
 
 #### Scenario: Loaded membrane
 
-- **WHEN** a square membrane fixed at zero on its boundary carries the energy `∫ (|∇u|² / 2 - f u)` with the load
-  `f = 2π² sin(πx) sin(πy)`, and is solved by the Deep Ritz method with a fixed random seed
+- **WHEN** a square membrane on a space fixed at zero on its boundary carries the energy `∫ (|∇u|² / 2 - f u)` with the
+  load `f = 2π² sin(πx) sin(πy)`, and is prepared with `DeepRitzSolver` as its solver and a fixed random seed
 - **THEN** the field agrees with the exact solution `sin(πx) sin(πy)` within 1e-2 in the relative L2 norm on a 33 by
   33 grid
 
@@ -25,5 +25,5 @@ prepared for the Deep Ritz method, with an error that names the laws the method 
 
 #### Scenario: Laws that are not an energy
 
-- **WHEN** a heat equation given by rate laws is prepared for the Deep Ritz method
+- **WHEN** a heat equation given by rate laws is prepared with `DeepRitzSolver` as its solver
 - **THEN** preparing the system raises an error that names its rate laws and points to a solver for fields in time

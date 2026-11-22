@@ -23,12 +23,12 @@ with the network, the training and validation errors, and a rollout `forecast`.
 - **THEN** `AnalysisError` is raised and says that positions are needed
 
 ### Requirement: Learned graph networks are systems
-The result of `graph_network` SHALL hold `system`, a system of one particle group under discrete time whose update moves
-every particle by the predicted acceleration with semi-implicit Euler steps, and that system SHALL run through
-`simulate` and `sweep` and be read by the agent analyses like any particle system.
+The result of `graph_network` SHALL hold `system`, a system of one particle group whose update law moves every particle
+by the predicted acceleration with semi-implicit Euler steps, and that system SHALL prepare and simulate, run in
+`sweep`, and be read by the agent analyses like any particle system.
 
 #### Scenario: Forecast of the system
-- **WHEN** the `system` of the result runs from the frame the `forecast` starts at
+- **WHEN** the `system` of the result is prepared and simulated from the frame the `forecast` starts at
 - **THEN** its positions equal the forecast within 1e-10
 
 ### Requirement: Hamiltonian networks learn symplectic many-body laws
@@ -48,18 +48,18 @@ The potential SHALL be invariant under permutations of the particles and rotatio
 - **THEN** the three values agree within 1e-10
 
 ### Requirement: Learned Hamiltonians run symplectically
-The result of `hamiltonian_network` SHALL hold `system`, a particle group under continuous time with a pair interaction
-whose potential is the learned network called through `learned_function` of `add-learning-foundation`, so its
-accelerations are minus the gradient of the learned potential over the masses, it runs on the NumPy and JAX backends,
-and the velocity Verlet and fourth-order symplectic solvers accept it.
+The result of `hamiltonian_network` SHALL hold `system`, a particle group with an interaction bound with `within=` whose
+pair energy is the learned network called through `learned_function` of `add-learning-foundation`, so its second
+derivatives of the positions are minus the gradient of the learned energy over the masses, it runs on the NumPy and JAX
+backends, and the velocity Verlet and fourth-order symplectic solvers accept it as its `solver` setting.
 
 #### Scenario: Learned pair potential on JAX
-- **WHEN** the `system` of the result is compiled on the NumPy and JAX backends
+- **WHEN** the `system` of the result is prepared with the NumPy and with the JAX backend
 - **THEN** both give the same accelerations within 1e-10, and the JAX run is differentiable in the weights of the network
 
 #### Scenario: Bounded energy error
-- **WHEN** the `system` of a network trained on a chain of masses and springs runs for 10,000 steps with
-  `VelocityVerletSolver`
+- **WHEN** the `system` of a network trained on a chain of masses and springs is prepared with `VelocityVerletSolver`
+  and simulated for 10,000 steps
 - **THEN** the learned total energy stays within 1e-3 of its initial value relative to it, without drift
 
 ### Requirement: Force matching fits coarse-grained potentials

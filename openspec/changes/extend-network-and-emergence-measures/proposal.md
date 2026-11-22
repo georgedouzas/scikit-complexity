@@ -49,7 +49,7 @@ but no Granger test, no PCMCI, no convergent cross mapping, and no result that h
   `'ccm'`, convergent cross mapping (pyEDM), `'granger'`, tests of a vector autoregression (statsmodels), or
   `'transfer'`, the transfer entropy estimators of `information`. Its graph is a NetworkX directed graph that
   `network_measures` reads.
-- New system `SurvivingByServingSystem` in `biology/evolution`: agents that transform pairs of feature vectors from a
+- New ready-made system `SurvivingByServingSystem` in `biology/evolution`: agents that transform pairs of feature vectors from a
   shared, aging pool, gain credit when their outputs are used by agents or evaluators, and mutate after long
   uncredited spells by a Hill-type probability. It records the transfers between agents, the network whose core and
   periphery the gallery example detects.
@@ -73,7 +73,7 @@ None.
 - Code: a new module `src/skcomplex/core/analysis/_causal_network.py`, `src/skcomplex/core/analysis/_networks.py` (new kind, `NetworkMeasuresResult` fields, `method` default),
   `src/skcomplex/core/analysis/_emergence.py` (bootstrap of `'causal'`, the kinds `'scales'`, `'synergy-capacity'`,
   and `'coalition'`, `EmergenceResult` fields), and `src/skcomplex/core/analysis/_surrogates.py` (`method`). A new
-  module in `src/skcomplex/systems/biology/evolution/`.
+  module `src/skcomplex/systems/biology/evolution/_serving.py`.
 - New runtime dependencies for `causal_network`: `tigramite>=5.2.10.1` (5.2.10.1, released 2026-01-14, GPL-3.0,
   accepted by the user on 2026-11-10), `pyEDM>=2.5.7` (2.5.7, released 2026-08-29, UCSD licence for educational,
   research, and non-profit use, an open question below), and `statsmodels>=0.15.0` (0.15.0, released 2026-08-27,

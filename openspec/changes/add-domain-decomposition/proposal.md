@@ -7,18 +7,18 @@ the standard method of lattice and field codes on CPU clusters.
 
 `add-multi-device-sharding` already splits lattices over GPUs and nodes through multi-controller JAX. This change covers
 the same need for the NumPy and Numba backends on CPU clusters. It is the least urgent of the changes for massive
-simulations: GPU clusters are covered by sharding, particle systems by the LAMMPS backend, and many-run workloads by the
+simulations: GPU clusters are covered by sharding, particle systems by `LammpsSolver`, and many-run workloads by the
 cluster executors. It is drafted last for that reason and can wait until a user needs a CPU-only run larger than a
 machine.
 
 ## What Changes
 
-- **Decomposed runs.** `simulate` gains `communicator=None`, an `mpi4py` communicator. With one, every rank of an MPI
-  run, started by `mpiexec` or `srun`, simulates the slab of every lattice along its first axis, and the run is
+- **Decomposed runs.** `System.simulate` gains `communicator=None`, an `mpi4py` communicator. With one, every rank of
+  an MPI run, started by `mpiexec` or `srun`, simulates the slab of every lattice along its first axis, and the run is
   the run of the whole system.
 - **Slabs that compile alone.** Every rank compiles the system with the shape of its slab plus a halo as wide as the
-  reach of the neighbourhoods, so no rank builds the whole lattice. Initial values that are numbers or functions of the
-  site are evaluated per slab, and full arrays are sliced.
+  reach of the neighbourhoods, so no rank builds the whole lattice. Values of an element on the lattice that are
+  numbers apply to every site of the slab, and full arrays are sliced.
 - **Halo exchange.** Before every evaluation of a drift or an update, and once per colour of checkerboard and colored
   schedules, every rank sends its boundary rows to its neighbours and receives their rows into its halo with
   `Sendrecv`, wrapping around for periodic boundaries. Steppers then run one internal step at a time, since the Numba
@@ -43,7 +43,8 @@ None.
 ## Impact
 
 - Core: new private module `core/engine/runtime/_decomposition.py` with the slabs, the halo exchange, and the reductions
-  of observables. `core/engine/runtime/_simulate.py` takes `communicator`. The lattice compile pass takes the shape of a
+  of observables. `System.simulate` in `core/systems/_base.py` and
+  `core/engine/runtime/_simulate.py` take `communicator`. The lattice compile pass takes the shape of a
   slab.
 - Dependencies: `mpi4py>=4.1.0` (4.1.2, 2026-05-16, BSD-3-Clause).
 - Tests: runs under `mpiexec -n 4` of the installed MPICH in a subprocess, marked slow.

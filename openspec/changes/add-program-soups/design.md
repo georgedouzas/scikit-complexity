@@ -1,8 +1,11 @@
 ## Context
 
-`ArrayUpdateLaw` in `core/components/laws/_array_update.py` hands a whole array state to a Python function at every
-step of discrete time. Its requirement allows `LatticeSpace` and, for groups on edges and hyperedges, `NetworkSpace`.
-The genome walks of `molecular-structures` and the sandpile drive use it. `entropy` in `core/analysis/_entropy.py` has
+`UpdateLaw(state, f, arrays=True)` in `core/components/laws/_update.py` hands the whole array of a state to a Python
+function `f(values, **kwargs)` at every step of discrete time, with the fixed keywords of every rule, such as `time`,
+`space`, and `random` when the law is `stochastic=True`. The compiler lowers it onto the private record `ArrayUpdateLaw`
+in `core/engine/compile/_array_update_law.py`, whose requirement allows `LatticeSpace` and, for groups on edges and
+hyperedges, `NetworkSpace`. The sequence samplers of `biology/common/sequences` and the sandpile drive of
+`physics/common/avalanches` use it. `entropy` in `core/analysis/_entropy.py` has
 the kinds `'shannon'`, `'block'`, `'lempel-ziv'` (through antropy), and others, with settings per kind.
 
 The BFF soup of 2406.19108 holds 2^17 tapes of 64 bytes. An epoch pairs them at random, runs every pair for up to 2^13
@@ -12,7 +15,7 @@ function over the whole soup, it takes milliseconds.
 ## Goals / Non-Goals
 
 **Goals:**
-- Let a compiled function update a well-mixed group as one array, the missing case of `ArrayUpdateLaw`.
+- Let a compiled function update a well-mixed group as one array, the missing case of `UpdateLaw(..., arrays=True)`.
 - Add the compression estimate of high-order entropy to the entropies.
 - A BFF soup whose state transition matches the paper's statistics.
 
@@ -30,7 +33,7 @@ function over the whole soup, it takes milliseconds.
 
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
-| `ArrayUpdateLaw` on groups without a space | 2, a law kind the engine handles | `core/components/laws/_array_update.py`, NumPy and Numba backends | artificial chemistries and digital evolution in computer science, well-mixed populations of genomes in biology, bags of molecules in chemistry, urn models in mathematics |
+| `UpdateLaw(..., arrays=True)` on groups without a space | 2, a law kind the engine handles | `core/engine/compile/_array_update_law.py`, NumPy and Numba backends | artificial chemistries and digital evolution in computer science, well-mixed populations of genomes in biology, bags of molecules in chemistry, urn models in mathematics |
 | `entropy(kind='high-order')` | 2, an analysis that reads series and groups by their tags | `core/analysis/_entropy.py` | origin of life and digital evolution, DNA and protein sequences in biology, configurations of cellular automata, texts and languages in social systems |
 | `BffSoupSystem` and its interpreter | 3, one system | `computer_science/evolutionary_computation/_bff_soup.py` | computer science |
 
@@ -40,9 +43,10 @@ in the module and moves to `computer_science/common/` when a second system of th
 
 ### Array updates of well-mixed groups
 
-`ArrayUpdateLaw.requirement` adds the case of a group whose system has no space. The lowering is the one of the network
-case: the function receives an array of shape `(members, components)` and returns one of the same shape, which the step
-checks. Variable groups are not covered, since their size changes between steps.
+The requirement of the private `ArrayUpdateLaw` adds the case of a group whose system has no space. The lowering is the
+one of the network case: the function receives an array of shape `(members, components)` and returns one of the same
+shape, which the step checks. The keyword `space` is `None`. Variable groups are not covered, since their size changes
+between steps. The public law is unchanged, so users write the well-mixed case as they write the other cases.
 
 ### High-order entropy
 
@@ -66,12 +70,17 @@ checks. Variable groups are not covered, since their size changes between steps.
 
 - `BffSoupSystem(n_tapes=2**17, tape_length=64, max_steps=2**13, mutation_rate=0.00024, seeds=(), random_state=None)`.
   `seeds` is a sequence of byte strings placed in the first tapes, for the seeded runs of the paper.
-- A group `soup` with one vector state `tape` of `tape_length` components in `[0, 255]`, and one `ArrayUpdateLaw` whose
-  function permutes the rows with the run's generator, runs the pairs in a Numba kernel, and mutates bytes with a
-  binomial draw of positions. The interpreter follows the instruction table of the paper: heads start at 0, the
+- A group `Element('soup', values={'tape': ...}, size=n_tapes)` with one vector value `tape` of `tape_length`
+  components in `[0, 255]`, and one interaction whose `_prepare` sets `UpdateLaw(s.target.tape, epoch, arrays=True,
+  stochastic=True)`, where `epoch(values, **kwargs)` permutes the rows with the generator it receives as `random`,
+  runs the pairs in a Numba kernel, and mutates bytes with a binomial draw of positions. The step limit and the
+  mutation rate are parameters of that interaction. The interpreter follows the instruction table of the paper: heads
+  start at 0, the
   instruction pointer at 0, brackets match with nesting, an unmatched bracket halts, and heads wrap within the
   concatenated tape.
-- The observable `high_order_entropy` reads the soup each frame through the same private function as the analysis.
+- The observable `high_order_entropy` is `Observable('high_order_entropy', group='soup', variable='tape',
+  reduce=...)`, whose reduction is a module function of the system that calls the public `entropy` on the array of
+  tapes. A system never imports a private name of the core.
 - Primitives: `agents`, `groups`, `draws`, `updates`, and the new `compression-entropy`.
 
 ## Risks / Trade-offs

@@ -4,6 +4,9 @@
   `concurrent.futures.Executor`, builds one `_TaskSpec` per run with its `SeedSequence`, and calls
   `pool.map(functools.partial(_run_task, problems=problems), tasks)`. The dictionary of compiled problems is shared in
   serial and thread runs, and every process pickles an empty copy, so process workers compile once per task.
+- Since `redesign-core-api`, an experiment clones the system, sets parameters with `set_params`, prepares the clone,
+  which compiles it, and calls `system.simulate`. It prepares once per structure when only initial states or random
+  streams change. A task is a run of a prepared system, never a call of a free `simulate`.
 - `BrokenProcessPool` becomes `ExperimentError` with the advice of the main guard. No other failure is named.
 - `ExperimentResult` holds a tuple of `_RunResultSpec`, each with its times, series, and scalars in memory. It offers
   `rows`, `get_column`, `get_series`, `get_ensemble`, `get_summary`, and `convert_to_frame`.
@@ -113,7 +116,7 @@ Profile records the exception and its reason.
   and otherwise splits the runs of each structure into at most 256 chunks, enough to keep 64 workers busy four times
   over. An integer is used as given. With `vectorized=True` a chunk is one batch of `add-batched-runs`, and
   `batch_size` sets it.
-- A chunk compiles its structure once and runs its runs in order. It returns its run results, or writes nothing and
+- A chunk prepares the system of its structure once, which compiles it, and simulates its runs in order. It returns its run results, or writes nothing and
   returns them to the caller when a store is used.
 - Thread limits: a chunk on a process or remote worker calls `numba.set_num_threads` with the CPUs the executor grants,
   `num_cpus` of `RayExecutor`, and one for a process pool or a Dask executor, whose workers already hold one thread
@@ -213,4 +216,13 @@ they get faster with the same results.
 
 ## Open Questions
 
-None. The user decided on 2026-11-11 that Ray is the optional extra `ray` and that CI tests SLURM with a Docker image.
+The user decided on 2026-11-11 that Ray is the optional extra `ray` and that CI tests SLURM with a Docker image. Two
+questions remain after `redesign-core-api`:
+
+- `RayExecutor` speaks the verbs `submit` and `shutdown` of `concurrent.futures.Executor`, not `prepare` and one own
+  verb, since every experiment reads executors through that standard interface. Is this exception to the rule of verbs
+  accepted, or should Ray enter only through a string such as `executor='ray'`?
+- The constitution says a name is re-exported once, where it lives, and names `skcomplex.systems.import_extra` as the
+  way to defer an optional import. Moving `import_extra` to `skcomplex.core.errors` while `skcomplex.systems` keeps
+  exporting it would export it twice. Should `skcomplex.systems` stop exporting it, with the constitution updated to
+  name `skcomplex.core.errors.import_extra`?

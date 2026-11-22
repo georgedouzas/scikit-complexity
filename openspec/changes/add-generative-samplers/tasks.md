@@ -7,20 +7,25 @@
 - [ ] 1.2 Add `flowjax>=19.2.1` to the runtime dependencies in `pyproject.toml` and the Project Profile, and verify
   `pdm install` resolves and it imports
 
-## 2. Independence proposals in Monte Carlo
+## 2. Independence proposals in Metropolis sampling
 
-- [ ] 2.1 Add `ProposalSpec` in `core/specs/_proposal_spec.py` with its `_check`, verified by
-  `tests/core/specs/test_proposal_spec.py` and its doctest
-- [ ] 2.2 Add `energy` to `SamplingInteraction` and `SampleLaw`, print it in the lattice pass, and record
-  `<label>.energy`, verified by `tests/core/components/interactions/test_sampling.py` (equipartition of the free field)
-- [ ] 2.3 Add the proposal path to `MonteCarloKernel` with the independence Metropolis rule and the recorded
-  acceptance rate, and the validation errors for a missing energy or another rule, verified by tests of the exact
-  proposal and of the wide Gaussian proposal
+- [ ] 2.1 Add `ProposalSpec` in `src/skcomplex/core/engine/solvers/_proposal_spec.py` with its `_check`, export it from
+  `skcomplex.core.engine.solvers`, verified by `tests/core/engine/solvers/test_proposal_spec.py` and its doctest
+- [ ] 2.2 Add the field `total` to `ObjectiveLaw` in `src/skcomplex/core/components/laws/_objective.py`, print it over
+  the neighbour table in the compiler, and record `<interaction label>.energy`, verified by
+  `tests/core/components/laws/test_objective.py` and the equipartition scenario of the free field in
+  `tests/core/engine/solvers/test_metropolis.py`
+- [ ] 2.3 Accept a `ProposalSpec` in the `moves` of `MetropolisSolver` and add the proposal path to `MonteCarloKernel`
+  in `src/skcomplex/core/engine/problems/_monte_carlo_kernel.py` with the independence Metropolis rule and the recorded
+  acceptance rate, and the validation errors for a missing `total` or another rule, verified by tests of the exact
+  proposal and of the wide Gaussian proposal in `tests/core/engine/solvers/test_metropolis.py`
 - [ ] 2.4 Document global proposals and site energies in the lattice systems guide and verify its code blocks run
 
 ## 3. Lattice φ⁴ system
 
-- [ ] 3.1 Add `LatticePhi4System` in `systems/physics/statistical_mechanics/_phi4.py`, verified by
+- [ ] 3.1 Add `LatticePhi4System` in `src/skcomplex/systems/physics/statistical_mechanics/_phi4.py`, with its element on a
+  periodic lattice, its interaction stating the local objective and its `total`, and its tuned `MetropolisSolver`,
+  verified by
   `tests/systems/physics/statistical_mechanics/test_phi4.py` (free propagator, broken symmetry) and its doctest
 - [ ] 3.2 Register `lattice_phi4`, add its inventory entry and the `generative-samplers` primitive, and verify
   `tests/systems/test_catalog.py` and `inventory_problems()` report no problem
@@ -32,8 +37,10 @@
   a Gaussian target with a known normaliser and by the early-stop-of-forward-training scenario
 - [ ] 4.2 Add the flow-matching sampler on Equinox, Diffrax, and the shared loop with exact divergences, verified by a test that its log
   densities of a Gaussian target match the exact ones within 1e-6
-- [ ] 4.3 Add `generative_sampler` and `GenerativeSamplerResult` with weights, effective sample size, free energy,
-  estimates, the learned system, and the errors for a missing energy, discrete states, and reverse flow matching,
+- [ ] 4.3 Add `generative_sampler` and `GenerativeSamplerResult` in
+  `src/skcomplex/core/analysis/_generative_sampler.py` with weights, effective sample size, free energy, estimates, the
+  learned system with its proposing solver setting, and the errors for a missing `total`, discrete states, and reverse
+  flow matching,
   verified by `tests/core/analysis/test_generative_sampler.py` and the doctest
 - [ ] 4.4 Add the probe tests of the free field (effective sample size, reweighted `φ²`, free energy), of flow matching
   on chain samples, and of flow proposals in a run of the interacting field, marking the 8 × 8 ones as slow

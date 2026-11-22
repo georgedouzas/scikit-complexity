@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Trajectories stream to a store
-`simulate` SHALL take `store`, a path or a Zarr store. With a store, every recorded frame of every state SHALL be
+`system.simulate` SHALL take `store`, a path or a Zarr store. With a store, every recorded frame of every state SHALL be
 written to the store, each process writing the shards it holds, and the trajectory SHALL read its states from the
 store while it holds its times and observables in memory.
 

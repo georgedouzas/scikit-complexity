@@ -6,14 +6,15 @@
 The experiments layer SHALL estimate the basin stability of the attractors of a system by running it from initial
 states sampled within bounds and classifying each final state, as the experiment function `basin_stability` whose
 result holds the fraction of runs per attractor. With `vectorized=True` it SHALL run the initial states as batches of
-runs of one compiled problem, for systems with groups and child systems as for systems of single elements.
+runs of one prepared system, for systems with elements of many members and nested systems as for systems of single
+elements.
 
 #### Scenario: Bistable system
 - **WHEN** a user runs a basin stability experiment of a symmetric double-well system over symmetric bounds of the
   initial position
 - **THEN** each of the two attractors gets a fraction within 0.05 of one half
 
-#### Scenario: System of groups
+#### Scenario: System of many members
 - **WHEN** a user runs basin stability of a Kuramoto system of 100 oscillators over 1000 initial states with
   `vectorized=True`
 - **THEN** it returns the same fractions as with `vectorized=False`

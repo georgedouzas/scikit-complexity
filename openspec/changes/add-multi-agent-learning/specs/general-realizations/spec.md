@@ -5,7 +5,8 @@
 ### Requirement: Members learn by temporal differences
 `skcomplex.systems.general.agents` SHALL provide `TemporalDifferenceInteraction`, which moves the value of the last
 observation and action of every member towards the target of Q-learning, SARSA, expected SARSA, or TD(0) after every
-step, as update laws of the states of a group or as agent rules.
+step, as one `UpdateLaw` of the values of a group without a `schedule`, and as one rule of the whole system that walks
+the agents with a `schedule`, as `ChoiceInteraction` does.
 
 #### Scenario: Q-learning target
 - **WHEN** a member with values `[[0, 0], [1, 3]]` acts 0 in state 0, receives 1, and moves to state 1, with rate 0.5
@@ -20,6 +21,11 @@ step, as update laws of the states of a group or as agent rules.
 #### Scenario: Sample averages
 - **WHEN** a stateless learner with `rate='average'` receives the rewards 1, 2, and 3 for one arm
 - **THEN** the value of that arm is 2 within 1e-12
+
+#### Scenario: Same values with and without a schedule
+- **WHEN** a group of 10 Q-learners runs 50 steps with the same seed once without a schedule and once with the schedule
+  `'synchronous'`
+- **THEN** both runs hold the same tables of values within 1e-12
 
 ### Requirement: Members choose epsilon-greedily
 `ChoiceInteraction` SHALL take the rule `'epsilon-greedy'`, which picks an option of largest utility with probability

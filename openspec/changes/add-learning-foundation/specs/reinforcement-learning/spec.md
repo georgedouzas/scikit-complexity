@@ -9,22 +9,28 @@ train it by an experiment, so control, intervention, harvesting, and learning ag
 
 ### Requirement: Systems are read as environments
 `EnvironmentSpec(observation, actions, reward, terminal, interval, discount)` SHALL name the observation model of a
-system, its actions as bounded adaptive parameters with their bounds or as parameters with a tuple of choices, its
-reward and terminal observables, the time between decisions, and the discount. It SHALL refuse an action that is not an
-adaptive parameter of the system, bounds outside the bounds of the parameter, and an interval that is not positive.
+system, its actions as parameters with bounds or with a tuple of choices, its reward and terminal observables, the time
+between decisions, and the discount. Bounds SHALL default to the allowed values of the parameter. Preparing a system
+whose policy holds it SHALL refuse an unknown action, bounds outside the allowed values, and an interval that is not
+positive.
 
-#### Scenario: Action not adaptive
-- **WHEN** an environment names as action a parameter not declared adaptive
-- **THEN** `prepare` raises `ValidationError` that names the parameter and says actions are bounded adaptive parameters
+#### Scenario: Unknown action
+- **WHEN** an environment names as action the path `push.forse` and the system has no such parameter
+- **THEN** preparing the system raises `ValidationError` that names the path and lists the parameters of the system
 
-### Requirement: Policies are components of the system
-`PolicyInteraction` SHALL bind through its role `target` the component it observes and controls, read the observation of
-its environment every `interval`, evaluate a learned function of it, and set the actions until the next decision, by a
-categorical draw for choices, a normal draw clipped to the bounds for continuous actions, or the mean for a
-deterministic policy. Every stochastic action SHALL be a named draw that `record_draws` keeps and replay forces.
+#### Scenario: Bounds outside the allowed values
+- **WHEN** an environment gives the action `push.force` the bounds `(-20, 20)` and the value allows `[-10, 10]`
+- **THEN** preparing the system raises `ValidationError` that names the action and both ranges
+
+### Requirement: Policies are interactions of the system
+`PolicyInteraction` SHALL bind through its role `target` the part it observes and controls, and SHALL state one update
+law per action whose value is a learned function of the observation: a named categorical draw for choices, a named
+normal draw clipped to the bounds for continuous actions, or the mean for a deterministic policy. Its weights SHALL be
+an array parameter. A run SHALL apply these laws every `interval` and hold the actions in between. Every random action
+SHALL be a named draw that `record_draws` keeps and `replay` forces.
 
 #### Scenario: Actions held between decisions
-- **WHEN** a cart-pole system with a policy deciding every 0.02 is simulated with a solver step of 0.005
+- **WHEN** a cart-pole system with a policy deciding every 0.02 is prepared with a solver step of 0.005 and simulated
 - **THEN** the recorded force is constant within every interval between decisions and takes only the values -10 and 10
 
 #### Scenario: Replay of actions
@@ -36,15 +42,16 @@ deterministic policy. Every stochastic action SHALL be a named draw that `record
 - **THEN** each member gets its own action from the same weights, and the actions differ
 
 #### Scenario: Deterministic policy is differentiable
-- **WHEN** a pendulum with a deterministic policy runs on the JAX backend
+- **WHEN** a pendulum with a deterministic policy is prepared with the JAX backend and simulated
 - **THEN** the gradient of the sum of its rewards in the policy weights agrees with central finite differences within
   1e-6 relative error
 
 ### Requirement: Training a policy is an experiment
-`train_policy(system, method=...)` SHALL train the weights of every `PolicyInteraction` of a system, with `'reinforce'`
-and `'ppo'` by the score of the recorded actions of rollouts cut at the terminal observable, and with `'pathwise'` through
-the differentiable run of the system, and SHALL return a frozen `PolicyTrainingResult` whose `system` holds the trained
-weights and whose `returns` hold the mean return of every epoch.
+`train_policy(system, method=...)` SHALL clone the system, prepare the clone once, and train the weights of its every
+`PolicyInteraction`, with `'reinforce'` and `'ppo'` by the score of the recorded actions of rollouts cut at the
+terminal observable, and with `'pathwise'` through the differentiable run. It SHALL return a frozen
+`PolicyTrainingResult` whose `system` holds the trained weights and whose `returns` hold the mean return of every
+epoch.
 
 #### Scenario: Cart-pole balanced
 - **WHEN** `train_policy` with `'ppo'`, a two-layer policy, and a two-layer critic trains `CartPoleSystem` for 200 epochs

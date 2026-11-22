@@ -23,15 +23,18 @@ components, so these become experiments with no new concept.
 - `design_experiment` gains `rounds` and `policy`: a design policy, a `PolicyInteraction` whose action is the next
   design and whose observation is the history of designs and outcomes, trained by `train_policy` on the sequential
   information gain, after the policy-based adaptive design of Rainforth et al. (sect. 6). Its result holds the trained
-  system, so `simulate` runs adaptive experiments.
+  system, prepared, so `result.system.simulate(...)` runs adaptive experiments.
 - New experiment `optimize(system, parameters, objective, *, method='bayesian', ...)`, which searches bounded
-  parameters for the best value of an observable or a function of the run, with `'bayesian'` (Optuna's tree-structured
+  parameters, named as `get_params` names them, such as `'switch'` or `'gravity__g'`, for the best value of an observable or a function of the run, with `'bayesian'` (Optuna's tree-structured
   Parzen estimator), `'cma'` (CMA-ES of pymoo), and `'nsga2'` for several objectives (pymoo), and returns a frozen
-  `OptimizationResult` with the best parameters, the history, the Pareto front of several objectives, and the system
-  set to the best values.
+  `OptimizationResult` with the best parameters, the history, the Pareto front of several objectives, and a prepared
+  clone of the system set to the best values. Like every experiment it clones the system, sets parameters, prepares,
+  and simulates, and the user's system is unchanged.
 - `identifiability` gains `method='structural'`, the local structural identifiability of every parameter from the rank
-  of the Jacobian of the Taylor coefficients of the observed outputs, computed on the symbolic laws with Sage.
-- `MinimumTimeControlSystem` gains `control='open-loop'` with the switch time of the bang-bang control as a model
+  of the Jacobian of the Taylor coefficients of the observed outputs, computed with Sage on the symbolic equations that
+  `prepare` derives.
+- `MinimumTimeControlSystem` gains the model parameters `control`, with `'open-loop'` beside the default `'feedback'`,
+  and `switch`, the switch time of the bang-bang control as a model
   parameter, whose optimum is known in closed form, as the probe of `optimize`.
 
 ## Capabilities
@@ -53,4 +56,6 @@ components, so these become experiments with no new concept.
 - Docs: a design section in the experiments page of the user guide and gallery examples of D-optimal sampling times
   and of the open-loop switch time found by every optimiser.
 - Depends on `add-learning-foundation` for `ObservationSpec`, `PolicyInteraction`, and `train_policy`. The static
-  designs, `optimize`, and structural identifiability need only the observation model.
+  designs and structural identifiability need only the observation model, and `optimize` needs nothing from it. The
+  names used here are those of that change, and this change follows it if its adaptation to the current API renames
+  them.

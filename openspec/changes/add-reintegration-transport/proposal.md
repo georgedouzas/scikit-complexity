@@ -5,8 +5,8 @@ matter moves by reintegration tracking, a semi-Lagrangian scheme that sends the 
 its target and sums what lands in each cell (2212.07906). Because mass is conserved, almost every pattern stays
 localised, and because the parameters of the rule can travel with the matter, creatures with different rules meet and
 compete in one world, a step towards open-ended evolution. The core convolves fields, reads them at shifted positions,
-and has upwind and advection terms of rate laws, but no update that moves a field along a flow while it conserves its
-total exactly. Conservative transport of this kind is used beyond artificial life, in the advection of tracers in
+and has `advection` and `divergence` terms of rate laws, but no update that moves a field along a flow while it
+conserves its total exactly. Conservative transport of this kind is used beyond artificial life, in the advection of tracers in
 oceans and atmospheres and in the transport of densities of cells and crowds.
 
 ## What Changes
@@ -19,7 +19,8 @@ oceans and atmospheres and in the transport of densities of cells and crowds.
   so parameters travel with the mass with no second operator.
 - The JAX, NumPy, and Numba backends lower the operator as a gather over a fixed window of offsets, so a Flow-Lenia run
   is differentiable on JAX.
-- New system `FlowLeniaSystem` in `computer_science/automata`, Flow-Lenia with several channels, bump kernels from
+- New ready-made system `FlowLeniaSystem` in `skcomplex.systems.computer_science.automata`, used as
+  `FlowLeniaSystem().prepare().simulate(until=500)`, Flow-Lenia with several channels, bump kernels from
   any channel to any channel, the flow of the paper, and an option to carry the kernel weights with the matter and
   mutate them in random zones.
 

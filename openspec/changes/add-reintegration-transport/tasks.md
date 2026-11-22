@@ -13,10 +13,11 @@
 
 ## 2. Flow-Lenia
 
-- [ ] 2.1 Add `FlowLeniaSystem` and its elements and interactions in
-  `src/skcomplex/systems/computer_science/automata/_flow_lenia.py`, export them, and verify the mass-conserved and
-  defaults scenarios
-- [ ] 2.2 Verify the patterns-stay-localised scenario, marked slow if it exceeds the time budget of the suite
+- [ ] 2.1 Add `FlowLeniaSystem` and its interaction in `src/skcomplex/systems/computer_science/automata/_flow_lenia.py`,
+  with `_prepare` setting `system_` and `solver` and `backend` as settings, export it, and verify the mass-conserved
+  and defaults scenarios in `tests/systems/computer_science/automata/test_flow_lenia.py`
+- [ ] 2.2 Verify the patterns-stay-localised scenario in `tests/systems/computer_science/automata/test_flow_lenia.py`,
+  marked slow if it exceeds the time budget of the suite
 - [ ] 2.3 Add `localized` and `mutation_rate`, and verify the two-species scenario
 - [ ] 2.4 Add the inventory entry `flow_lenia` with the source 2212.07906 and the primitive `mass-transport` with
   `change = "add-reintegration-transport"`, and verify the inventory check passes

@@ -1,18 +1,21 @@
 ## ADDED Requirements
 
 ### Requirement: Oracles are specs the caller passes
-The core SHALL provide `OracleSpec(respond, name, cache)`, a frozen spec of a function `respond(request, *, seed)` that
-returns a string or a JSON value, and `simulate` SHALL take `oracles`, a mapping from the name a rule uses to an
-`OracleSpec`. A system SHALL declare the names its rules query, and a run SHALL raise `ValidationError` naming every
-declared oracle that the caller did not pass.
+`skcomplex.core.engine.runtime` SHALL provide `OracleSpec(respond, name, cache)`, a frozen value of a function
+`respond(request, *, seed)` that returns a string or a JSON value, and `System.simulate` SHALL take `oracles`, a mapping
+from the name a rule uses to an `OracleSpec`. A ready-made system SHALL declare the names its rules query in the class
+variable `oracles`, and its run SHALL raise `ValidationError` before the first step naming every declared oracle that
+the caller did not pass.
 
 #### Scenario: Missing oracle
-- **WHEN** a user simulates a system whose rules query the oracle `player` without passing it
+- **WHEN** a user calls `LlmNamingGameSystem(player='oracle').prepare().simulate(until=10)` without passing the oracle
+  `player`
 - **THEN** `simulate` raises `ValidationError` before the first step, and the message names `player`
 
 #### Scenario: Not callable
-- **WHEN** a user builds `OracleSpec(respond='gpt')`
-- **THEN** checking the spec raises `ValidationError`, whose message asks for a function of a request and a seed
+- **WHEN** a user passes `OracleSpec(respond='gpt')` to `simulate`
+- **THEN** `simulate` raises `ValidationError` before the first step, whose message asks for a function of a request and
+  a seed
 
 ### Requirement: Queries are seeded and cached
 A query SHALL draw its call seed from a generator spawned from the random state of the run for queries alone, and SHALL
@@ -41,7 +44,8 @@ request, the seed, the answer, and whether the cache served it. `save_queries(tr
 - **THEN** the trajectory holds 5 records in the order of the steps, each with its request, seed, and answer
 
 ### Requirement: Queries are replayed
-`simulate(replay=...)` SHALL accept a trajectory or a query log, SHALL return the recorded answers in order without
+`System.simulate(replay=...)` SHALL accept a trajectory or a query log, SHALL return the recorded answers in order
+without
 calling any oracle, and SHALL raise `ValidationError` naming the step, the agent, and the request when a rule sends a
 request that differs from the record.
 

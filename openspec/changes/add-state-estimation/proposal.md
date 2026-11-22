@@ -18,15 +18,17 @@ state estimation needs one experiment and no new concept.
   noise laws of the system as the process noise. Methods `'kalman'`, `'ekf'`, `'ukf'`, `'enkf'`, and `'particle'`,
   with `smoother=True` for the Rauch-Tung-Striebel smoothers of the Gaussian filters and the backward simulation
   smoother of the particle filter. `augmented` names parameters appended to the state, for joint state and parameter
-  estimation. It returns a frozen `AssimilationResult` with the filtered or smoothed trajectory, covariances or
-  ensembles, innovations, the log-likelihood of the run, the estimates of augmented parameters, and `system`, restarted
-  from the last estimate so that `simulate` forecasts from it.
-- `calibrate` gains `method='pmmh'`, particle marginal Metropolis-Hastings, whose likelihood is that of the particle
+  estimation. Like every experiment it clones the system, sets parameters, and prepares the clone once. It returns a
+  frozen `AssimilationResult` with the filtered or smoothed trajectory, covariances or ensembles, innovations, the
+  log-likelihood of the run, the estimates of augmented parameters, and `system`, a prepared clone that starts from the
+  last estimate, so that `result.system.simulate(until=...)` forecasts from it.
+- `calibrate` gains `method='pmmh'`, a new member of `CalibrationMethodKind`, particle marginal Metropolis-Hastings, whose likelihood is that of the particle
   filter, so stochastic systems seen through noise, jump laws included, are calibrated by their exact posterior.
 - `forecast_skill` gains probabilistic scores of ensemble forecasts: the continuous ranked probability score and the
   coverage of central intervals.
-- `PendulumSystem` gains `noise`, the spectral density of a white noise on its angular acceleration, the noisy pendulum
-  of Särkkä (Example 3.7) that every filter of the book tracks.
+- `PendulumSystem` gains the model parameter `noise`, the spectral density of a white noise on its angular
+  acceleration, which its swing interaction states as a `NoiseLaw` on `bob.theta'`. It is the noisy pendulum of Särkkä
+  (Example 3.7) that every filter of the book tracks.
 - Dependencies: filterpy 2.0.0 and scoringrules 0.12.0 become runtime dependencies.
 
 ## Capabilities
@@ -43,12 +45,14 @@ state estimation needs one experiment and no new concept.
 
 ## Impact
 
-- Core: a new module `core/experiments/_assimilation.py`, the method `'pmmh'` in `_calibration.py`, and
-  `core/analysis/_forecast_skill.py`.
+- Core: a new module `core/experiments/_assimilation.py`, the method `'pmmh'` in `_calibration.py` and in
+  `CalibrationMethodKind` of `core/enums.py`, and `core/analysis/_forecast_skill.py`, which `add-learning-foundation`
+  adds.
 - Systems: `physics/mechanics/_mechanics.py` gains the noise of the pendulum.
 - Dependencies: `filterpy>=2.0.0` (2.0.0, released 2026-10-26) and `scoringrules>=0.11.0` (0.12.0, released
   2026-11-08, and 0.11.0 of 2026-06-06 as the lower bound).
 - Docs: an assimilation section in the calibrate page of the user guide and gallery examples of the noisy pendulum
   tracked by every filter and of Lorenz-96 assimilated by the ensemble Kalman filter.
-- Depends on `add-learning-foundation` for `ObservationSpec`, observed runs, and `forecast_skill`. The probabilistic
+- Depends on `add-learning-foundation` for `ObservationSpec`, observed runs, and `forecast_skill`. This change uses the
+  names that change gives them, and follows it if its adaptation to the current API renames them. The probabilistic
   scores also read the replicates of `identify` that `add-learning-bridges` adds, but do not need them.

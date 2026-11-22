@@ -7,16 +7,18 @@
 
 ## 2. Training systems
 
-- [ ] 2.1 Add `DiscreteNormalFormSystem` in `systems/mathematics/dynamical_systems/_discrete_normal_forms.py`, verified
+- [ ] 2.1 Add `DiscreteNormalFormSystem` in `src/skcomplex/systems/mathematics/dynamical_systems/_discrete_normal_forms.py`,
+  whose `_prepare` sets a `System` of one element and one interaction stating `UpdateLaw` values, verified
   by `tests/systems/mathematics/dynamical_systems/test_discrete_normal_forms.py` (negative lag-1 autocorrelation of the
   period-doubling form, unknown kind) and its doctest
-- [ ] 2.2 Add `FoxCardiacAlternansSystem` in `systems/biology/physiology/_fox_alternans.py`, verified by
+- [ ] 2.2 Add `FoxCardiacAlternansSystem` in `src/skcomplex/systems/biology/physiology/_fox_alternans.py`, verified by
   `tests/systems/biology/physiology/test_fox_alternans.py` (one value at 300, alternans at 150) and its doctest
-- [ ] 2.3 Add `WesterhoffBusinessCycleSystem` in `systems/economics/macroeconomics/_westerhoff_cycle.py`, verified by
+- [ ] 2.3 Add `WesterhoffBusinessCycleSystem` in `src/skcomplex/systems/economics/macroeconomics/_westerhoff_cycle.py`,
+  whose map reads the previous income as the past value `y(t=t - 1)`, verified by
   `tests/systems/economics/macroeconomics/test_westerhoff_cycle.py` (fixed point `2 a` at 10, cycles at 22) and its
   doctest
 - [ ] 2.4 Register the three systems, add their inventory entries and the `learned-indicators` primitive, and verify
-  `tests/systems/test_catalog.py` and `inventory_problems()` report no problem
+  `tests/systems/test_catalog.py` and `inventory_problems()` of `docs/inventory_checks.py` report no problem
 
 ## 3. Transition classifier
 

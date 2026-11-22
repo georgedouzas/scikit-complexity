@@ -1,12 +1,15 @@
 ## Context
 
 - `_run_experiment` in `core/experiments/_runs.py` builds one `_TaskSpec` per row, scenario, and replicate, spawns one
-  `SeedSequence` per row and replicate, compiles one problem per structure (source and model parameters), and maps
-  `_run_task` over the tasks on the executor. Each task calls `_simulate`, which steps one state.
-- `_replicate.py` turns a system of single elements into a system of groups and runs it once. `orbit_diagram` and
+  `SeedSequence` per row and replicate, prepares one system per structure (source and model parameters), and maps
+  `_run_task` over the tasks on the executor. Each task calls `_simulate_task`, which simulates the prepared system
+  and steps one state.
+- `_replicate.py` turns a system of single elements into a system of elements of many members (`size=`) and runs it
+  once, through `_replicate` for the private composite and `_replicate_prepared` for a `System`. `orbit_diagram` and
   `basin_stability` use it when `vectorized=True`, and read members with `Trajectory.get_member`. It rejects anything
   but plain single elements, and a replicated `ReactionInteraction` fails its role check.
-- After `add-device-execution`, the JAX backend fills `AcceleratedSpec` with loops on a device, and every loop takes
+- After `add-device-execution`, the JAX backend fills `LoweredFunctionsSpec.accelerated`, the private engine record
+  `_AcceleratedSpec` of `core/engine/problems/_accelerated_spec.py`, with loops on a device, and every loop takes
   `(t, x, p, until, ...)` and a key when it draws. The Numba loops take a NumPy generator when they draw.
 - `GradientDescentSolver` and calibration already use `jax.vmap` of an unrolled run over batches of parameters.
 
@@ -69,7 +72,7 @@ None. `jax.vmap` and `concurrent.futures.ThreadPoolExecutor` are already in use.
   every loop, which would need a typed list of generators that Numba does not support.
 - NumPy: a loop over the runs, the reference that the batched results are tested against.
 - `BaseBackend` gains the private hook `_get_batched(loop)` with the NumPy loop as its default, and the JAX and Numba
-  backends override it. The batched loops are kept in `LoweredFunctionsSpec.batched`, an `AcceleratedSpec` whose loops
+  backends override it. The batched loops are kept in `LoweredFunctionsSpec.batched`, an `_AcceleratedSpec` whose loops
   take a leading run axis.
 
 ### Random streams and equality
@@ -100,9 +103,9 @@ None. `jax.vmap` and `concurrent.futures.ThreadPoolExecutor` are already in use.
   on the host, as today.
 - `orbit_diagram` and `basin_stability` read their runs from the batched trajectories and no longer call
   `Trajectory.get_member`.
-- `_replicate.py` and its tests are removed. `tests/core/components/elements/test_declared.py` and
-  `tests/core/engine/runtime/test_trajectories.py` import the private `_replicate`, which the constitution forbids,
-  and their two tests move to batched ensembles of declared elements and of the Lotka-Volterra system.
+- `_replicate.py` and its tests are removed. `tests/core/engine/runtime/test_trajectories.py` imports the private
+  `_replicate_prepared`, which the constitution forbids, and its member test moves to a batched ensemble of the
+  Lotka-Volterra system through the public experiments.
 
 ### Batched runs by default
 
@@ -112,7 +115,7 @@ benchmarks show that batched runs never lose, with a reported serial fallback fo
 - The gate is a set of benchmarks marked `benchmark`, one per experiment of runs, each timed with `vectorized=True` and
   `vectorized=False` on the same machine. They cover the NumPy and Numba backends and the CPU device of JAX, with the
   GPU device on the GPU runner of `add-device-execution`, at 1, 10, 1000, and 100000 runs, for a map of single
-  elements, an ODE system of groups, and a stochastic reaction network. Batched runs never lose when every case takes
+  elements, an ODE system of an element of many members, and a stochastic reaction network. Batched runs never lose when every case takes
   at most the unbatched time, within the 10% spread of three repeats.
 - The flip waits for the gate. A losing case is fixed first, for instance by a run count below which the experiment
   runs one by one, and the outcome of every case is written in the benchmark docstrings and in this design.
@@ -133,7 +136,7 @@ The targets are ratios to the current code on the same machine, measured in task
 - `orbit_diagram` of the logistic map over 1000000 values of `r`, 1000 transient steps and 100 kept. With the batched
   JAX loops on the CPU it takes at most twice the time of the replicated Numba run of today. On a GPU it takes at most
   a fifth of it.
-- `basin_stability` of the Kuramoto system with 100 oscillators, a system of groups that replication rejected, over
+- `basin_stability` of the Kuramoto system with 100 oscillators, a system of an element of many members that replication rejected, over
   10000 initial states, runs with `vectorized=True` and gives the same fractions as the unbatched run.
 
 ## Risks / Trade-offs

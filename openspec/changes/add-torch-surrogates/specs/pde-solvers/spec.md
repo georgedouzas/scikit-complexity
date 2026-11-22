@@ -6,8 +6,8 @@ dimensions over the time of the run, by training a network on the residuals of t
 and the boundary conditions, and SHALL return the network solution on the lattice at the frames of the run.
 
 #### Scenario: Heat equation
-- **WHEN** a one-dimensional heat diffusion system runs to time 0.5 with the physics-informed solver and with the
-  spectral solver
+- **WHEN** a one-dimensional heat diffusion system is prepared once with `PinnSolver` and once with the spectral solver
+  as its `solver` setting, and simulated to time 0.5
 - **THEN** the relative L2 difference of the fields at the final time is below 0.02
 
 #### Scenario: Allen-Cahn benchmark
@@ -20,8 +20,8 @@ derivatives and Laplacians taken by automatic differentiation of the network, so
 reject before training any law it cannot express.
 
 #### Scenario: Unsupported law
-- **WHEN** a field system with a noise law is given to the physics-informed solver
-- **THEN** it raises `SolverError` before training, whose message names the solver and the noise law
+- **WHEN** a field system with a noise law is prepared with `PinnSolver`
+- **THEN** `prepare` raises `SolverError` before training, whose message names the solver and the noise law
 
 #### Scenario: Periodic boundary
 - **WHEN** a field on a periodic lattice runs with the physics-informed solver

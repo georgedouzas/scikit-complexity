@@ -1,10 +1,17 @@
 ## Context
 
-Agent rules run on the Mesa backend as Python functions of an agent and a system view (`SystemView` in
-`core/engine/solvers/_mesa.py`, typed by `SystemViewProtocol` in `core/components/types.py`). The view already offers
-`rng` and `draw(name, distribution, ...)`, and `simulate(record_draws=True)` keeps named draws in a `DrawLogSpec` that
-`simulate(replay=...)` forces back. Object states hold strings and tuples, so a memory of past rounds or a prompt can
-live in an agent state. `NamingGameSystem` in `social/opinion_dynamics/_conventions.py` is the classic naming game.
+An agent's behaviour is an interaction on its group whose `_prepare` sets an `UpdateLaw` with a rule, `rule(agent,
+system)`, and a rule of the whole system is `UpdateLaw(s, rule)` with `rule(system)`. The agent solver runs these rules
+on Mesa with a system view (`SystemView` in `core/engine/solvers/_mesa.py`, typed by `SystemViewProtocol` in
+`core/components/types.py`). The view already offers `rng`, `get_agents`, and `draw(name, distribution, ...)`, and
+`system.simulate(record_draws=True)` keeps named draws in a private draw log of the trajectory that
+`system.simulate(replay=trajectory)` forces back. Values of agents hold strings and tuples, so a memory of past rounds
+or a prompt can live in a value of an agent. `NamingGameSystem` in `social/opinion_dynamics/_conventions.py` is the
+classic naming game.
+
+A system is prepared once and simulated many times. `BaseSystem.simulate` takes the arguments of one run, such as
+`initial_state`, `random_state`, `observers`, `record_draws`, and `replay`, while the solver and the backend are
+settings of the system.
 
 The constitution adds three constraints. A capability with a credential or a real-world side effect lives behind an
 optional extra. A credential is named, never passed. The choice of a model stays with the caller. The dependency rule
@@ -25,7 +32,8 @@ adds that a library the core uses is a runtime dependency, so the core cannot im
   probe of the same primitive. A later change adds it.
 - Asynchronous or batched calls. Rules run in the order of the schedule, so calls run one at a time. Batching is a
   later optimisation inside the view.
-- Symbolic and compiled forms. Only agent rules on the Mesa backend query oracles.
+- Symbolic and compiled laws. Only the rules of agents and of the whole system, which the agent solver runs with a
+  system view, query oracles. Every other function of a law receives no view, so it has no way to query.
 
 ## Decisions
 
@@ -33,11 +41,11 @@ adds that a library the core uses is a runtime dependency, so the core cannot im
 
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
-| `OracleSpec`, `QueryRecordSpec` | 2, the runtime records and replays them by type | `skcomplex.core.specs` | social systems of language-model agents, human-in-the-loop experiments in economics and psychology, calls to a remote simulator in engineering co-simulation, pretrained policies in robotics and ecology of behaviour |
-| `query` of the system view, `oracles` of `simulate`, the record, the cache, and the replay | 2, the engine handles them | `core/engine/solvers/_mesa.py`, `core/engine/runtime` | as above |
+| `OracleSpec`, `QueryRecordSpec` | 2, the runtime records and replays them by type | `skcomplex.core.engine.runtime`, beside `Trajectory` | social systems of language-model agents, human-in-the-loop experiments in economics and psychology, calls to a remote simulator in engineering co-simulation, pretrained policies in robotics and ecology of behaviour |
+| `query` of the system view, `oracles` of `System.simulate`, the record, the cache, and the replay | 2, the engine handles them | `core/engine/solvers/_mesa.py`, `core/engine/runtime`, `core/systems/_base.py` | as above |
 | `chat_oracle`, `parse_options` | 3, a recipe used by several fields | `skcomplex.systems.general.language_models` | social (language, organizations), mathematics (networks) |
 | `LlmNamingGameSystem` | 3, one system | `social/language/_llm_naming_game.py` | social |
-| The learned player of the naming game | 3, a `PolicyInteraction` of `add-learning-foundation` in one system | `social/language/_llm_naming_game.py` | social |
+| The learned player of the naming game | 3, a `PolicyInteraction` of `add-learning-foundation` bound to the group of agents in one system | `social/language/_llm_naming_game.py` | social |
 | `LlmNetworkGrowthSystem` | 3, one system | `mathematics/networks/_llm_network_growth.py` | mathematics |
 | `GroupGuessingGameSystem` | 3, one system | `social/organizations/_group_guessing_game.py` | social |
 
@@ -56,15 +64,20 @@ requirement asks.
   identifies the model and its settings, such as `'gpt-4o-mini@0.7'`, and enters the cache key, so two oracles with the
   same function and other settings do not share answers. `cache` is the path of an SQLite file or `None` for an
   in-memory cache that lives for one run.
-- `simulate(..., oracles={'player': spec})`. A system names the oracles its rules use in a class variable
-  `oracle_names`, and `simulate` raises `ValidationError` naming the missing ones before the run starts.
+- `system.simulate(until, ..., oracles={'player': spec})`. Oracles are an argument of the run, like `replay`, since
+  the caller chooses the model and a prepared system runs with different oracles without compiling again.
+- A ready-made system names the oracles its rules use in the class variable `oracles: ClassVar[tuple[str, ...]]`, and
+  `simulate` raises `ValidationError` naming the missing ones before the first step. A plain `System` declares none, so
+  a query of a name the run was not given raises `ValidationError` at that query, naming it and the names given.
 - `system.query(name, request)`. The view draws the call seed as an integer from the run's generator, so one
   `random_state` repeats every seed. The cache key is the SHA-256 hash of the oracle name, the canonical JSON of the
   request, and the seed. A hit returns the stored answer, a miss calls `respond` and stores it.
-- The record. Every query appends `QueryRecordSpec(oracle, time, agent, request, seed, answer, cached)` to
-  `Trajectory.queries`, whether or not draws are recorded, since queries are the costly part of a run.
-- The replay. `simulate(replay=trajectory)` or `simulate(replay=load_queries(path))` serves the recorded answers in
-  order, checks that the oracle and the request match, and calls nothing. A mismatch raises `ValidationError` naming
+- The record. Every query appends `QueryRecordSpec(oracle, time, agent, request, seed, answer, cached)` to the
+  `queries` of the trajectory, whether or not draws are recorded, since queries are the costly part of a run. Users and
+  tests read the records, so `QueryRecordSpec` is a public value and not a private engine record like the draw log.
+- The replay. `system.simulate(replay=trajectory)` or `system.simulate(replay=load_queries(path))` serves the recorded
+  answers in order, checks that the oracle and the request match, and calls nothing. A mismatch raises `ValidationError`
+  naming
   the step, the agent, and the first differing character of the request.
 - `save_queries(trajectory, path)` and `load_queries(path)` in `core/engine/runtime` write and read JSON lines. They
   hold no credential, since the oracle never puts its key in a request.
@@ -89,10 +102,10 @@ cache nor the model. The guide states that a fresh run against a hosted model ca
 - `chat_oracle(model, *, base_url=None, api_key_variable='OPENAI_API_KEY', temperature=0.0, system_prompt=None,
   max_tokens=None)` returns an `OracleSpec` whose `respond` sends the request as the user message through
   `openai.OpenAI(base_url=..., api_key=os.environ[api_key_variable]).chat.completions.create(..., seed=seed)`. The key
-  is read where it is used, as the constitution asks, and never stored in the spec or the record.
+  is read where it is used, as the constitution asks, and never stored in the value or the record.
 - One client reaches OpenAI, the OpenAI-compatible endpoints of other hosted providers, and local servers such as
-  Ollama, vLLM, and llama.cpp. `import_extra('openai', 'language-models')` raises the named `MissingExtraError` when the
-  extra is not installed.
+  Ollama, vLLM, and llama.cpp. `import_extra('openai', 'chat_oracle', 'language-models')` of `skcomplex.systems`
+  raises the named `MissingExtraError` when the extra is not installed.
 - `parse_options(answer, options, count=1)` returns the first `count` options that appear in the answer as whole
   tokens, in order of appearance, or raises `ValidationError` quoting the answer. The probes use it for names, letters,
   and numbers.
@@ -117,8 +130,8 @@ cache nor the model. The guide states that a fresh run against a hosted model ca
   for each player and round, as 2410.08948 does to remove the bias of order. `player='oracle'` builds the prompt of the
   paper from the rules, the shuffled names, and the memory, and reads the name with `parse_options`. `player='score'`
   gives the name of largest summed reward in memory, at random among ties and at random with an empty memory.
-  `player='learned'` is a `PolicyInteraction` in its agent form, bound to the agents with shared weights, whose
-  categorical action is the name and whose observation encodes the memory as counts of rewards per name. It is trained
+  `player='learned'` is a `PolicyInteraction` bound to the group of agents with shared weights, whose categorical
+  action is the name and whose observation encodes the memory as counts of rewards per name. It is trained
   by `train_policy` with `'reinforce'` on the reward of the rounds. The
   observables are the share of the most common name and the consensus time, the first round at which that share
   reaches 0.9 over a window of rounds.
@@ -150,5 +163,10 @@ None. Existing runs do not query and keep their trajectories.
 
 - Should the subpackage be named `language_models` or the neutral `oracles`? The recipes are specific to chat models,
   so the design proposes `language_models`.
-- Should `Trajectory.queries` also count tokens and costs when the provider reports them? The design keeps only what
-  replay needs.
+- Should the `queries` of a trajectory also count tokens and costs when the provider reports them? The design keeps
+  only what replay needs.
+- Should `oracles` be an argument of `simulate`, as designed, or a setting of the system beside `solver` and `backend`?
+  The design keeps it an argument of the run, since the caller and not the system chooses the model.
+- Should a plain `System` declare the oracles its rules query, so that a missing one fails before the first step as it
+  does for ready-made systems? The system holds only a label, its parts, a space, a solver, and a backend today, so the
+  design checks a plain `System` only at the query.

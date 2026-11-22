@@ -38,8 +38,8 @@
 ## 3. Chunks
 
 - [ ] 3.1 Add `chunk_size` to `ensemble`, `sweep`, `compare_scenarios`, `basin_stability`, and `orbit_diagram`, split
-  the runs of each structure into chunks that compile once, and verify the one-compile-per-chunk scenario in
-  `tests/core/experiments/test_runs.py`
+  the runs of each structure into chunks that prepare their system once, and verify the one-compile-per-chunk
+  scenario in `tests/core/experiments/test_runs.py`
 - [ ] 3.2 Make a chunk of `add-batched-runs` one batch when `vectorized=True`, if that change is applied, and verify a
   vectorised ensemble on the Dask fixture equals the serial result
 - [ ] 3.3 Set the Numba threads of a chunk on a process or remote worker from the CPUs the executor grants, and verify

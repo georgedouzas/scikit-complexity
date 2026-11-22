@@ -1,23 +1,27 @@
-## 1. Oracle specs
+## 1. Oracle values
 
-- [ ] 1.1 Add `OracleSpec` and `QueryRecordSpec` in `src/skcomplex/core/specs/_oracle_spec.py` and
-  `_query_record_spec.py`, export them, and verify the not-callable scenario and their doctests in
-  `tests/core/specs/test_oracle_spec.py` and `test_query_record_spec.py`
-- [ ] 1.2 Add `query` to `SystemViewProtocol` and to `SystemView` of `core/engine/solvers/_mesa.py`, with call seeds
-  from a generator spawned for queries, and verify the rule-that-asks and other-draws-unchanged scenarios in
-  `tests/core/engine/solvers/test_mesa.py`
-- [ ] 1.3 Raise `ValidationError` when a symbolic law queries an oracle, and verify the scenario with a test
+- [ ] 1.1 Add `OracleSpec` and `QueryRecordSpec` in `src/skcomplex/core/engine/runtime/_oracle_spec.py` and
+  `src/skcomplex/core/engine/runtime/_query_record_spec.py`, export them from `skcomplex.core.engine.runtime`, and
+  verify their doctests in `tests/core/engine/runtime/test_oracle_spec.py` and
+  `tests/core/engine/runtime/test_query_record_spec.py`
+- [ ] 1.2 Add `query` to `SystemViewProtocol` in `src/skcomplex/core/components/types.py` and to `SystemView` in
+  `src/skcomplex/core/engine/solvers/_mesa.py`, with call seeds from a generator spawned for queries, and verify the
+  rule-that-asks, unknown-name, and other-draws-unchanged scenarios in `tests/core/engine/solvers/test_mesa.py`
 
 ## 2. Runs, records, and replay
 
-- [ ] 2.1 Add `oracles` to `simulate` and `simulations`, the class variable `oracle_names` of systems, and the check of
-  missing oracles, and verify the missing-oracle scenario in `tests/core/engine/runtime/test_simulate.py`
+- [ ] 2.1 Add `oracles` to `BaseSystem.simulate` in `src/skcomplex/core/systems/_base.py` and pass them to the
+  runtime, add the class variable `oracles` of ready-made systems and the check of missing and not callable oracles,
+  and verify the missing-oracle and not-callable scenarios in `tests/core/systems/test_base.py`
 - [ ] 2.2 Add the in-memory and SQLite caches keyed by the hash of the oracle name, the request, and the seed, and
-  verify the same-seed and cache-on-disk scenarios
-- [ ] 2.3 Add `Trajectory.queries` and extend `replay` to serve recorded answers and to check requests, and verify the
-  trajectory-without-queries, draws-and-queries, and replay-that-does-not-match scenarios
-- [ ] 2.4 Add `save_queries` and `load_queries` in `core/engine/runtime`, export them, and verify the
-  replay-without-the-oracle scenario on a fake oracle and their doctests
+  verify the same-seed and cache-on-disk scenarios in `tests/core/engine/solvers/test_mesa.py`
+- [ ] 2.3 Add `queries` to `Trajectory` in `src/skcomplex/core/engine/runtime/_trajectories.py` and extend `replay` to
+  serve recorded answers and to check requests, and verify the trajectory-without-queries, draws-and-queries, and
+  replay-that-does-not-match scenarios in `tests/core/engine/runtime/test_trajectories.py` and
+  `tests/core/systems/test_base.py`
+- [ ] 2.4 Add `save_queries` and `load_queries` in `src/skcomplex/core/engine/runtime/_query_record_spec.py`, export
+  them, and verify the replay-without-the-oracle scenario on a fake oracle and their doctests in
+  `tests/core/engine/runtime/test_query_record_spec.py`
 - [ ] 2.5 Document oracles, seeds, the cache, and replay in the agent section of the user guide with a runnable
   example on a fake oracle, and verify the markdown tests run it
 
@@ -28,18 +32,22 @@
 - [ ] 3.2 Add the optional extra `language-models` with `openai>=3.49.0` in `pyproject.toml` and the Project Profile,
   and verify `pdm install -G language-models` resolves
 - [ ] 3.3 Add `chat_oracle` and `parse_options` with `import_extra`, and verify the extra-not-installed, missing-key,
-  options, no-option, and no-credential scenarios with a fake client in `tests/systems/general/language_models/`
+  options, no-option, and no-credential scenarios with a fake client in the test module of
+  `tests/systems/general/language_models/` that mirrors the source module
 
 ## 4. Probe systems
 
 - [ ] 4.1 Add `LlmNamingGameSystem` in `src/skcomplex/systems/social/language/_llm_naming_game.py` with both players,
   committed agents, and the consensus observables, and verify the consensus, committed-minority, and prompt scenarios
+  in `tests/systems/social/language/test_llm_naming_game.py`
 - [ ] 4.2 Once `add-learning-foundation` is applied, declare the environment of every probe and add the learned
   player of the naming game, and verify the learned-players-reach-consensus scenario, marked slow
 - [ ] 4.3 Add `LlmNetworkGrowthSystem` in `src/skcomplex/systems/mathematics/networks/_llm_network_growth.py`, and
-  verify the preferential-player and request scenarios
+  verify the preferential-player and request scenarios in
+  `tests/systems/mathematics/networks/test_llm_network_growth.py`
 - [ ] 4.4 Add `GroupGuessingGameSystem` in `src/skcomplex/systems/social/organizations/_group_guessing_game.py` with
-  the three conditions, and verify the feedback-player and prompt scenarios
+  the three conditions, and verify the feedback-player and prompt scenarios in
+  `tests/systems/social/organizations/test_group_guessing_game.py`
 - [ ] 4.5 Add the inventory entries `llm_naming_game`, `llm_network_growth`, and `group_guessing_game` with sources
   2410.08948, 2312.06619, and 2510.05174, and the primitive `oracle-queries` with
   `change = "add-language-model-agents"`, and verify the inventory check passes

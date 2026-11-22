@@ -3,24 +3,25 @@
 ## Purpose
 
 Lets a user run large systems with a space on a device: lattices, fields on lattices, particles and flocks with
-neighbour search, networks, explicit fields on meshes, and agent groups in their vectorised form, with observables
+neighbour search, networks, explicit fields on meshes, and agent groups whose laws are symbolic, with observables
 reduced on the device.
 
 ## ADDED Requirements
 
 ### Requirement: Lattices run on the device
 The JAX backend SHALL lower reads of `LatticeNeighborhood` to gathers from a table of neighbour indices and SHALL fill
-the `lattice` loop of `AcceleratedSpec`, which `LatticeSolver` and `MonteCarloSolver` read, for the schedules
-`'synchronous'`, `'checkerboard'`, and `'colored'`. The schedules `'random-sequential'` and `'random-site'` SHALL raise
-`BackendError`, whose message names the parallel schedules.
+a `lattice` loop of the accelerated loops of the problem, which `LatticeSolver` reads for update laws on a lattice and
+`MetropolisSolver` reads for its sweeps, for the schedules `'synchronous'`, `'checkerboard'`, and `'colored'`. The
+schedules `'random-sequential'` and `'random-site'` SHALL raise `BackendError`, whose message names the parallel
+schedules.
 
 #### Scenario: Ising magnetisation
-- **WHEN** an Ising system of 256 by 256 sites at temperature 2 runs 2000 checkerboard sweeps on
-  `JaxBackend(device='cpu')` over 20 seeds, after 500 sweeps of warm-up
+- **WHEN** `IsingSystem` of 256 by 256 sites at temperature 2 with `backend=JaxBackend(device='cpu')` runs 2000
+  checkerboard sweeps of `MetropolisSolver` over 20 seeds, after 500 sweeps of warm-up
 - **THEN** the mean absolute magnetisation per site is within three standard errors of Onsager's value 0.911
 
 #### Scenario: Random sequential updates
-- **WHEN** a lattice system with the schedule `'random-sequential'` is compiled with the JAX backend
+- **WHEN** a lattice system whose local rule has `schedule='random-sequential'` and `backend=JaxBackend()` is prepared
 - **THEN** it raises `BackendError`, whose message names `'checkerboard'` and `'colored'`
 
 ### Requirement: Neighbours are found on the device
@@ -34,16 +35,18 @@ capacity SHALL raise `BackendError` after the frame, whose message names `capaci
 - **THEN** both give the same sets of neighbours
 
 #### Scenario: Overflow
-- **WHEN** a flock whose members gather into one cell runs on `JaxBackend(device='cpu', capacity=8)`
+- **WHEN** a flock whose members gather into one cell runs with `backend=JaxBackend(device='cpu', capacity=8)`
 - **THEN** it raises `BackendError`, whose message names `capacity`
 
 #### Scenario: Ordered flock
-- **WHEN** a Vicsek system of 4000 particles at density 4 and noise 0.1 runs 500 steps on `JaxBackend(device='cpu')`
+- **WHEN** `VicsekSystem` of 4000 particles at density 4 and noise 0.1 with `backend=JaxBackend(device='cpu')` runs
+  500 steps
 - **THEN** its polarisation exceeds 0.9
 
 ### Requirement: Networks and meshes run as sparse sums
 The JAX backend SHALL lower reads and reductions of `AdjacencyNeighborhood` and the explicit operators of fields on
-meshes to sums over edge lists, in memory linear in the edges, and implicit steppers on meshes SHALL raise
+a `CellComplexSpace` mesh to sums over edge lists, in memory linear in the edges, and implicit steppers on meshes SHALL
+raise
 `BackendError`, whose message names the NumPy and Numba backends.
 
 #### Scenario: Same drift as the Numba backend
@@ -56,23 +59,26 @@ meshes to sums over edge lists, in memory linear in the edges, and implicit step
   threshold `1 / Lambda`
 - **THEN** the prevalence falls below 1e-3 in the first run and stays above 1e-2 in the second
 
-### Requirement: Vectorised agent laws run on the device
-The JAX backend SHALL lower `TransitionLaw` and `SampleLaw` to categorical and normal draws per member, and SHALL raise
-`BackendError` for `RuleLaw` and `MatchLaw`, whose message names `form='symbolic'`.
+### Requirement: Symbolic agent laws run on the device
+The JAX backend SHALL lower update laws on the members of a group whose values hold categorical, Bernoulli, uniform, or
+normal draws to draws per member, and SHALL raise `BackendError` for an update law whose value is a Python rule,
+`rule(agent, system)` or `rule(system)`, whose message names symbolic update laws.
 
 #### Scenario: Transitions in distribution
-- **WHEN** a group of 100000 members with a two-state transition law runs 50 steps on the JAX and NumPy backends
+- **WHEN** an element of 100000 members with an update law that draws one of two states runs 50 steps on the JAX and
+  NumPy backends
 - **THEN** the fractions in each state agree within three standard errors
 
-#### Scenario: Agent form
-- **WHEN** a system of agents in the agent form is compiled with the JAX backend
-- **THEN** it raises `BackendError`, whose message names `form='symbolic'`
+#### Scenario: Agent rule
+- **WHEN** a system whose agents move by an update law with the rule `rule(agent, system)` is prepared with
+  `backend=JaxBackend()`
+- **THEN** it raises `BackendError`, whose message names symbolic update laws
 
 ### Requirement: Large systems are benchmarked against the Numba backend
 The benchmarks SHALL time large systems with a space on the JAX backend against the Numba backend on the same machine.
 
 #### Scenario: Large Ising lattice
-- **WHEN** an Ising system of 4096 by 4096 sites runs 100 checkerboard sweeps on the Numba backend and on the JAX
+- **WHEN** `IsingSystem` of 4096 by 4096 sites runs 100 checkerboard sweeps on the Numba backend and on the JAX
   backend, in a test marked `benchmark`
 - **THEN** the run on the CPU device takes at most twice the Numba time, and the run on a GPU, marked `gpu`, at most a
   tenth

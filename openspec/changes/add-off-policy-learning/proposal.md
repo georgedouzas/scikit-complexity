@@ -8,16 +8,17 @@ transitions from recorded runs, so this change adds the estimators and no concep
 
 ## What Changes
 
-- `train_policy` gains the methods `'dqn'`, Q-learning with a replay store, a target network, and double Q-learning
-  (Mnih et al. 2015, van Hasselt et al. 2016), for choices, and `'sac'`, soft actor-critic with two Q-functions and a
-  tuned temperature (Haarnoja et al. 2018, arXiv 1812.05905), for continuous actions.
-- `train_policy` gains `data`, an `ObservedRunsSpec` of logged runs with their actions and rewards, and `'fqi'`,
-  fitted Q iteration from that data alone (Ernst, Geurts, and Wehenkel 2005), with a scikit-learn regressor or an
-  Equinox module as the Q-function.
+- The experiment `train_policy` gains the methods `'dqn'`, Q-learning with a replay store, a target network, and
+  double Q-learning (Mnih et al. 2015, van Hasselt et al. 2016), for choices, and `'sac'`, soft actor-critic with two
+  Q-functions and a tuned temperature (Haarnoja et al. 2018, arXiv 1812.05905), for continuous actions.
+- `train_policy` gains `data`, the observed runs of `add-learning-foundation` logged with their actions and rewards,
+  and `'fqi'`, fitted Q iteration from that data alone (Ernst, Geurts, and Wehenkel 2005), with a scikit-learn
+  regressor or an Equinox module as the Q-function. The regressor is used inside the experiment. No system gains `fit`
+  or `predict`.
 - `train_policy` gains `q_function`, the learned function of the action values, and `buffer`, the size of the store.
 - `PolicyTrainingResult` gains `q_function`, the trained action values, `None` for on-policy methods.
-- Probes on existing systems: `CartPoleSystem` with `'dqn'` and `PendulumSwingUpSystem` with `'sac'`, compared with the
-  energy-pumping controller of Åström and Furuta (2000) that the system already runs.
+- Probes: `CartPoleSystem` of `add-learning-foundation` with `'dqn'`, and the existing `PendulumSwingUpSystem` with
+  `'sac'`, compared with the energy-pumping controller of Åström and Furuta (2000) that the system already runs.
 
 ## Capabilities
 
@@ -27,15 +28,18 @@ None.
 
 ### Modified Capabilities
 
-- `reinforcement-learning`: off-policy and offline training of policies.
+- `reinforcement-learning`: off-policy and offline training of policies. The capability is added by
+  `add-learning-foundation`, so this change applies after it.
 - `model-library`: the pendulum swing-up system as an environment with a continuous pivot acceleration.
 
 ## Impact
 
-- Core: `core/experiments/_policy_training.py`, the store of transitions as a private class of that module, and the
-  temporal-difference gradient on the shared loop of `core/engine/solvers/_gradient_descent.py`.
+- Core: `core/experiments/_policy_training.py` of `add-learning-foundation`, the store of transitions as a private
+  class of that module, and the temporal-difference gradient on the shared loop of
+  `core/engine/solvers/_gradient_descent.py`.
 - Systems: `engineering/control/_control.py` gains an environment of `PendulumSwingUpSystem`.
 - No new dependency.
 - Docs: the experiments page of the user guide and a gallery example of the pendulum swung up by soft actor-critic.
-- Depends on `add-learning-foundation`. After `add-learning-bridges`, whose Gymnasium environments it does not need but
-  whose agreement test of the cart-pole it reuses as a reference.
+- Depends on `add-learning-foundation`, whose environment, policy interaction, observed runs, `train_policy`, and
+  `PolicyTrainingResult` it extends under the names that change settles on. After `add-learning-bridges`, whose
+  Gymnasium environments it does not need but whose agreement test of the cart-pole it reuses as a reference.

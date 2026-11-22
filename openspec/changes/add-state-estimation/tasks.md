@@ -11,18 +11,19 @@
 
 ## 2. Noisy pendulum
 
-- [ ] 2.1 Add `noise` to `PendulumSystem` as an SDE term on the angular acceleration, with its docstring citing Särkkä
-  (Example 3.7), and verify the variance-of-the-velocity and default-unchanged scenarios in
-  `tests/systems/physics/mechanics/`
+- [ ] 2.1 Add the model parameter `noise` to `PendulumSystem` and have `PendulumSwingInteraction` state a `NoiseLaw` on
+  `bob.theta'` when it is positive, with the docstring citing Särkkä (Example 3.7), and verify the
+  variance-of-the-velocity and default-unchanged scenarios in `tests/systems/physics/mechanics/test_mechanics.py`
 
 ## 3. Assimilation
 
-- [ ] 3.1 Add `AssimilationResult` and `assimilate` in `src/skcomplex/core/experiments/_assimilation.py` with the
-  checks of method, run, noise, and arguments, export them, and verify the several-runs and
-  counts-with-a-Gaussian-filter scenarios in `tests/core/experiments/test_assimilation.py`
-- [ ] 3.2 Write the private process model that advances members from one observation time to the next with the
-  compiled step on the system's backend, inputs and conditions set, and the process noise from the noise laws or
-  `process_noise`, and verify it against `simulate` for one member
+- [ ] 3.1 Add `AssimilationResult` and `assimilate` in `src/skcomplex/core/experiments/_assimilation.py`, which clones
+  the system, sets the conditions of the run with `set_params`, and prepares the clone once, with the checks of
+  method, run, noise, and arguments, export them from `skcomplex.core.experiments`, and verify the several-runs,
+  counts-with-a-Gaussian-filter, and prepares-once scenarios in `tests/core/experiments/test_assimilation.py`
+- [ ] 3.2 Write the private process model that advances members from one observation time to the next with the solver
+  of the prepared clone on its backend, inputs set, and the process noise from the noise laws or `process_noise`, and
+  verify it against `system.simulate` for one member
 - [ ] 3.3 Write the private measurement model from the readouts of the `ObservationSpec`, with `R` from Gaussian noise,
   logarithms for log-normal noise, and rows skipped for missing values, and verify it on a run with missing values
 - [ ] 3.4 Add `'kalman'` with the linearity check and the RTS smoother, and verify the linear-tracking,
@@ -37,15 +38,16 @@
   scenario
 - [ ] 3.9 Add `augmented` and `augmented_noise` with the estimates of the result, and verify the gravity-of-the-pendulum
   scenario
-- [ ] 3.10 Set the states and augmented parameters of the result's `system` to the last estimates, and verify the
-  forecast-from-the-last-estimate scenario
+- [ ] 3.10 Return in the result's `system` a prepared clone whose initial state is the last estimate and whose
+  augmented parameters are set to their estimates, and verify the forecast-from-the-last-estimate scenario
 - [ ] 3.11 Check the DAPPER benchmark value of the ensemble filter on Lorenz-96 in the setting of Sakov and Oke (2008),
   record it with its filter variant and inflation, and tighten the bound of the Lorenz-96 scenario to it
 
 ## 4. Particle marginal Metropolis-Hastings
 
-- [ ] 4.1 Add `method='pmmh'` to `calibrate` with the particle likelihood of `_assimilation.py` over every run and the
-  adaptive random walk, and verify the noise-variance-of-the-pendulum and same-seed scenarios in
+- [ ] 4.1 Add `PMMH = 'pmmh'` to `CalibrationMethodKind` in `src/skcomplex/core/enums.py` and `method='pmmh'` to
+  `calibrate`, with the particle likelihood of `_assimilation.py` over every run, one prepared clone per proposal, and
+  the adaptive random walk, and verify the noise-variance-of-the-pendulum and same-seed scenarios in
   `tests/core/experiments/test_calibration.py`
 - [ ] 4.2 Verify the outbreak-with-jump-laws scenario on a stochastic SIR system, marked slow
 

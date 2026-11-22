@@ -3,12 +3,13 @@
 Many runs matter as much to the user as huge single runs: ensembles, sweeps, scenarios, basin stability, orbit
 diagrams, calibration, inference, and reinforcement learning rollouts. Today the experiments run one task per run, and
 each task steps its own state from Python. The only vectorised path, `vectorized=True` of `basin_stability` and
-`orbit_diagram`, rebuilds the system with every single element replaced by a group, through the private
-`_replicate`. That path has three limits:
+`orbit_diagram`, rebuilds the system with every single element replaced by an element of many members (`size=`),
+through the private `_replicate` and `_replicate_prepared`. That path has three limits:
 
-- It rejects systems with child systems, groups, fields, or agents, so most large systems cannot use it.
-- A replicated `ReactionInteraction` fails its role check, as the archived change `fix-error-reporting-defects`
-  recorded.
+- It rejects systems with nested systems or elements of many members, on a space, or on edges, so most large systems
+  cannot use it.
+- A replicated `ReactionInteraction`, now in `skcomplex.systems.general.reactions`, failed its role check, as the
+  archived change `fix-error-reporting-defects` recorded.
 - Only two experiments offer it, and the result reads members of one trajectory rather than runs.
 
 A batch of runs of one compiled problem needs no new system. It is the same problem with a leading run axis on its
@@ -28,8 +29,9 @@ retires the replication.
   result of the runs one by one on the same backend.
 - **Memory-aware batch sizes.** `batch_size=None` sizes a batch from the bytes one run needs, its state, parameters,
   loop workspace, and kept frames, and from the free memory of the device, or of the host for the CPU.
-- **Every kind of system.** Single elements, groups, child systems, fields, and reaction networks batch, since the batch
-  never rebuilds the system. Lattices, networks, and agents in their vectorised form batch once
+- **Every kind of system.** Single elements, elements of many members, nested systems, fields, and reaction networks
+  batch, since the batch never rebuilds the system. Lattices, networks, and agent groups whose laws are symbolic batch
+  once
   `add-large-system-kernels` gives their solvers loops. A solver without an accelerated loop, such as a SciPy integrator
   or Mesa, runs its runs one by one, and the experiment warns with `BackendWarning`, which names the solver and the
   solvers that batch, so a fallback is reported and never silent.
@@ -39,8 +41,8 @@ retires the replication.
   and `orbit_diagram` once the gate passes, as the last task of the change. Seeded results stay identical on the NumPy
   and Numba backends and within 1e-10 on the JAX backend, but users see the fallback warning for systems that cannot
   batch, and batches hold more memory at once. `vectorized=False` keeps runs one by one.
-- **BREAKING (private only): `_replicate` is removed.** The replication module and its tests go, and the tests that
-  imported it read batched runs through the public experiments instead.
+- **BREAKING (private only): `_replicate` and `_replicate_prepared` are removed.** The replication module and its
+  tests go, and the test that imported it read batched runs through the public experiments instead.
 
 ## Capabilities
 
@@ -58,6 +60,9 @@ retires the replication.
 - Core: a new private module `core/engine/runtime/_batches.py`. `core/engine/backends/_jax.py` and
   `core/engine/backends/_numba.py` gain the batched loops. `core/experiments/_runs.py` groups tasks into batches.
   `core/experiments/_replicate.py` and `tests/core/experiments/test_replicate.py` are removed.
+- API: batches are options of the experiment functions, which clone the system, set parameters, prepare it once per
+  structure, and simulate it, as every experiment does since `redesign-core-api`. No class and no verb is added, and
+  `system.simulate` is unchanged.
 - Dependencies: none.
 - Docs: a batched runs section in the run experiments page of the user guide, and the changelog entry of the new
   default.

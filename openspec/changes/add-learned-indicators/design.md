@@ -4,8 +4,9 @@
 
 Analyses in `src/skcomplex/core/analysis/` are functions that return a frozen `*Result` and declare `TAGS` as an
 `AnalysisTags`. Series are read by `_read_samples` in `_base.py`, which accepts a trajectory, an array, or several runs.
-`sweep` and `ensemble` in `core/experiments` return an `ExperimentResult`, whose `column(name)` gives design values and
-whose `series(name)` gives the kept series of every run. `early_warning` lives in `systems/physics/climate/_early_warning.py`
+`sweep` and `ensemble` in `core/experiments` return an `ExperimentResult`, whose `get_column(name)` gives design values
+and whose `get_series(name)` gives the kept series of every run. Each clones the system, sets parameters, prepares, and
+simulates it. `early_warning` lives in `systems/physics/climate/_early_warning.py`
 and reads `rolling` from the core. The continuous normal forms are in
 `systems/mathematics/dynamical_systems/_normal_forms.py`, `RampedStochasticFoldSystem` in
 `systems/physics/climate/_tipping_types.py`, `StommelSystem` in `systems/physics/oceanography/_thermohaline.py`, and
@@ -75,11 +76,15 @@ validation and early stopping.
   wider bipartition the confusion bound uses the distance between the means of the two sets.
 - **Systems.** `DiscreteNormalFormSystem` goes in its own module `_discrete_normal_forms.py` of
   `mathematics/dynamical_systems`, with `kind`, `mu`, `ramp` (start and end, or `None` for a fixed parameter), `sigma`,
-  `degree` of the random higher-order terms, and `random_state`. `FoxCardiacAlternansSystem` goes in
+  `degree` of the random higher-order terms, and `random_state`, the seed of those terms, which is a model parameter
+  and not the seed of a run. `FoxCardiacAlternansSystem` goes in
   `biology/physiology/_fox_alternans.py` and `WesterhoffBusinessCycleSystem` in
-  `economics/macroeconomics/_westerhoff_cycle.py`. Each is a `BaseSystem` of one element under `DiscreteTime` with
-  update laws, a noise term drawn in the law, and the ramp as a time input, as `RampedStochasticFoldSystem` writes its
-  ramp. The Westerhoff element keeps the previous income as a second state.
+  `economics/macroeconomics/_westerhoff_cycle.py`. Each is a ready-made system whose `_prepare` sets `system_`, a
+  `System` of one `Element` and one interaction that states `UpdateLaw` values, so its time is discrete without a
+  setting. The noise is drawn in the law with `normal` of `skcomplex.core.components.laws.utils`, and the ramp is a
+  function of the time `t` that the interaction reads, as `RampedFoldInteraction` of `RampedStochasticFoldSystem`
+  writes its ramp. The Westerhoff map reads the previous income as the past value `y(t=t - 1)`, recorded as
+  `'economy.y[-1]'`, so no second state is written.
 - **Placement.** Both functions are analyses that read series by their tags, step 2 of the placement rule, in
   `skcomplex.core.analysis`. Domains: climate and oceanography (tipping), ecology (regime shifts), physiology (cardiac
   alternans), economics (business cycles), statistical physics (phase transitions). The three systems are one system

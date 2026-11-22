@@ -1,12 +1,14 @@
 ## Context
 
-`add-learning-foundation` adds `ObservedRunsSpec`, `identify` and its `IdentificationResult`, `EnvironmentSpec`,
-`PolicyInteraction`, `train_policy`, and `make_arrays` in `skcomplex.core.data`. It records the decision that systems
-are not scikit-learn estimators. Every function that learns a system returns a result with the fields `system`,
-`training_error`, and `validation_error`. `BaseConfig` derives from `sklearn.base.BaseEstimator`, so `get_params` and
-`set_params` of systems already reach nested parameters with double underscores. The runtime runs a system step by
-step through `simulations` and its clocks. `CartPoleSystem` uses the constants and Euler steps of Gymnasium's
-`CartPole-v1`.
+`add-learning-foundation` adds `ObservedRunsSpec` in `skcomplex.core.components`, `identify` and its
+`IdentificationResult`, `EnvironmentSpec` and `PolicyInteraction` in `skcomplex.core.components.interactions`,
+`train_policy`, and `make_arrays` in `skcomplex.core.data`. It records the decision that systems are not scikit-learn
+estimators. Every function that learns a system returns a result with the fields `system`, `training_error`, and
+`validation_error`. `BaseConfig` derives from `sklearn.base.BaseEstimator`, so `get_params` and `set_params` of
+systems already reach nested parameters with double underscores, such as `gravity__g`. A system is prepared once and
+simulated many times, and the private `Simulation` of `skcomplex.core.engine.runtime` runs a compiled problem frame by
+frame and goes on from its last frame with `extend`. `CartPoleSystem` uses the constants and Euler steps of
+Gymnasium's `CartPole-v1`. The runtime may not import `skcomplex.core.systems`, which sits above the engine.
 
 ## Goals / Non-Goals
 
@@ -32,7 +34,8 @@ step through `simulations` and its clocks. `CartPoleSystem` uses the constants a
 ### scikit-learn inside, not around
 
 Decided on 2026-11-10. A system is the model being simulated, not an estimator, so scikit-learn enters inside the
-library in three places, and `prepare` and `run` stay the only verbs of its classes:
+library in three places, and every family keeps `prepare` and its own verb, `simulate` for systems and `run` for engine
+classes:
 
 - scikit-learn regressors and pipelines are learned terms of laws through `learned_function`, in the foundation.
 - `make_arrays` of `skcomplex.core.data` turns runs into `X`, `y`, and `groups` for any pipeline, in the foundation.
@@ -44,8 +47,8 @@ Alternatives considered:
   `identify` and the surrogate analyses, so `cross_validate`, `GridSearchCV`, and `Pipeline` take them. Rejected: they
   are a second way of doing what `identify` and the analyses do, and a system is the model being simulated, not an
   estimator.
-- `fit` and `predict` on systems. Rejected for the same reasons, and because every class would carry a second verb
-  pair.
+- `fit` and `predict` on systems. Rejected for the same reasons, and because `prepare` and `simulate` already play
+  those roles.
 
 The accepted cost: a fitted system cannot sit inside a scikit-learn `Pipeline` or `GridSearchCV`. The search runs
 inside the experiment instead, and its result holds the selected system.
@@ -60,14 +63,14 @@ and `identify` works without it, so the foundation stays smaller.
 | `cv`, `groups`, `scoring`, `param_grid`, `split`, and the selection fields of the results | 2, arguments of experiments over any system | `core/experiments/_identification.py`, `_calibration.py`, `_policy_training.py`, and the private `_selection.py` they share | every field with data or a policy |
 | `aic`, `bic`, `loo`, `waic`, `residuals`, `replicates` | 2, fields and options of the results of experiments over any system | `core/experiments/_identification.py`, `_calibration.py` | ecology and epidemiology (rival mechanistic and hybrid models), systems biology (model selection of Raman 6.4), engineering (validation of identified plants), climate and finance (forecast models) |
 | `whiteness`, `WhitenessResult` | 2, an analysis that reads series by their tags | `skcomplex.core.analysis` | engineering (residual analysis of identified plants), econometrics (residual autocorrelation), epidemiology and ecology (checks of fitted models), climate (forecast errors) |
-| `make_environment`, `make_parallel_environment` | 2, the runtime steps a system through its `EnvironmentSpec` | `skcomplex.core.engine.runtime` | engineering, epidemiology, ecology, economics, social systems, computer science |
-| `GymnasiumSystem`, `PettingZooSystem` | 3, recipes of an element and an update law with a `CallSpec`, used by several fields | `skcomplex.systems.general.environments`, approved on 2026-11-10 | as above |
+| `make_environment`, `make_parallel_environment` | 2, functions that prepare a system and step it through its `EnvironmentSpec` | `skcomplex.core.systems`, in a new module `_environments.py` above `_system` | engineering, epidemiology, ecology, economics, social systems, computer science |
+| `GymnasiumSystem`, `PettingZooSystem` | 3, recipes of an element and an interaction whose update law steps the external environment, used by several fields | `skcomplex.systems.general.environments`, approved on 2026-11-10 | as above |
 
 ### Dependencies
 
 Checked on PyPI on 2026-11-10. Gymnasium 1.4.0, released 2026-10-05, needs numpy, cloudpickle, typing-extensions, and
 farama-notifications. PettingZoo 1.27.0, released 2026-08-13, needs numpy, gymnasium, and typing-extensions, and
-supports Python up to 3.14. Both are runtime dependencies, since the runtime of the core imports them.
+supports Python up to 3.14. Both are runtime dependencies, since `skcomplex.core.systems` imports them.
 
 ArviZ 1.3.0, released 2026-08-11 with its parts `arviz-base`, `arviz-stats`, and `arviz-plots` of the same day, needs
 numpy, scipy, xarray (a runtime dependency since the foundation), and lazy_loader, and requires Python 3.12, the lower
@@ -157,14 +160,18 @@ and gives the splitters, `ParameterGrid`, `ParameterSampler`, and the scorers.
 
 ### Gymnasium
 
-- `make_environment(system, *, environment=None, until=None, solver=None, backend=None, random_state=None)` takes the
-  environment of the system, its class attribute or the argument. The observation space is a `Box` of the observation
-  paths, bounded by the domains of their states. The action space is a `Box` of the continuous actions or a `Discrete`
+- `make_environment(system, *, environment=None, until=None, random_state=None)` takes the environment of the system,
+  its class attribute or the argument, clones the system, and prepares the clone once. Its solver and backend are
+  settings of the system, so the function takes neither. The observation space is a `Box` of the observation paths,
+  bounded by the allowed values of their states. The action space is a `Box` of the continuous actions or a `Discrete`
   of the choices, and several choices give a `MultiDiscrete`.
-- `reset(seed=...)` prepares a fresh run from the initial states. `step(action)` writes the actions as the policy
-  would, advances one interval through the stepwise runtime, and returns the observation with its noise, the reward,
-  `terminated` from the terminal observable, and `truncated` at `until`.
+- `reset(seed=...)` starts a fresh run of the compiled problem from the initial states. `step(action)` writes the
+  actions as the schedule writes parameters, advances one interval with the private `Simulation` of the runtime and
+  its `extend`, and returns the observation with its noise, the reward, `terminated` from the terminal observable, and
+  `truncated` at `until`.
 - A system that holds a `PolicyInteraction` for those actions is refused, since an external agent replaces it.
+- The function lives in `skcomplex.core.systems` because it reads the prepared system and its compiled problem, and
+  the runtime may not import the systems of the core.
 
 ### PettingZoo
 
@@ -174,13 +181,14 @@ and gives the splitters, `ParameterGrid`, `ParameterSampler`, and the scorers.
 
 ### Environments as systems
 
-- `GymnasiumSystem(environment, label='system')` takes an environment or its identifier. It holds one element with the
-  observation as a vector state, the last reward, and the terminated flag, and one discrete-time update law with a
-  `CallSpec` that steps the environment with the current action. The action is a bounded adaptive parameter, or a
-  choice of the indices of a `Discrete` space, so a `PolicyInteraction` sets it. Its class attribute `environment`
-  reads the observation, the reward, and the flag.
-- `PettingZooSystem(environment, label='system')` holds one element per agent with the same states and one update law
-  that steps every agent at once.
+- `GymnasiumSystem(environment, label='system')` is a `BaseSystem` that takes an environment or its identifier. Its
+  `_prepare` sets `system_` to a `System` of one `Element` whose values are the observation as a vector, the last
+  reward, and the terminated flag, and one interaction whose `UpdateLaw(..., arrays=True, stochastic=True)` steps the
+  environment with the current action and writes the three values. The action is a parameter of that interaction, with
+  the bounds of a `Box` or the indices of a `Discrete` space as its allowed values, so a `PolicyInteraction` sets it.
+  Its class attribute `environment` reads the observation, the reward, and the flag.
+- `PettingZooSystem(environment, label='system')` holds one element per agent with the same values and one interaction
+  whose update law steps every agent at once.
 - They are recipes of core components used by several fields, in the new concept subpackage
   `systems.general.environments`, approved on 2026-11-10 and named by the concept of reinforcement learning it
   bridges.
@@ -199,5 +207,15 @@ and gives the splitters, `ParameterGrid`, `ParameterSampler`, and the scorers.
   and the user guide shows a small grid.
 - [Gymnasium seeds and the run's random stream differ] → `reset(seed=...)` seeds the run's stream, and the test checks
   that two resets with one seed give equal episodes.
-- [External environments are not differentiable] → `GymnasiumSystem` and `PettingZooSystem` declare stochastic,
-  non-differentiable tags, so `train_policy(method='pathwise')` refuses them before running.
+- [External environments are not differentiable] → the update laws of `GymnasiumSystem` and `PettingZooSystem` are
+  random functions of whole arrays, so their tags hold `stochastic` and not `differentiable`, and
+  `train_policy(method='pathwise')` refuses them before running.
+- [The environments of `SIRVaccinationSystem` and `PendulumSwingUpSystem` do not exist yet] → this change adds them as
+  class attributes, since the checker scenario reads them.
+
+## Open Questions
+
+- `make_environment` and `make_parallel_environment` move from `skcomplex.core.engine.runtime` to a new module of
+  `skcomplex.core.systems`, since the runtime may not import the systems. The alternative is to put both bridges in
+  `skcomplex.systems.general.environments`, beside `GymnasiumSystem`, which would make Gymnasium and PettingZoo an
+  optional extra rather than runtime dependencies. To be decided before the bridges are built.

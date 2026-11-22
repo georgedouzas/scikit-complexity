@@ -11,14 +11,15 @@ free energy, which reads the sector means, cannot be differentiated with respect
 
 ## What Changes
 
-- The reductions `total`, `mean`, and `variance` of the law namespace gain symbolic derivatives with respect to the
-  states of the reading member, with the condition `where` and the set `over` held fixed, so `derivative` and
-  `GradientInteraction` differentiate expressions that hold them. The derivative lowers like any reduction.
+- The reductions `total`, `mean`, and `variance` of `skcomplex.core.components.laws.utils` gain symbolic derivatives
+  with respect to the values of the reading member, with the condition `where` and the set `over` held fixed, so
+  Sage's `.diff` and `GradientInteraction` of `skcomplex.systems.general.gradients` differentiate expressions that hold
+  them. The derivative lowers like any reduction.
 - New system `ActiveInferenceFlockSystem` in `biology/collective_behaviour`: agents with positions, unit headings,
   and beliefs in generalised coordinates of the sector distances, a Laplace-encoded free energy with sensory and
   process precisions, belief and heading updates by its gradient, and the default and milling configurations of the
-  paper. The free-energy update is a recipe in the module, `FreeEnergyInteraction`, written with `derivative` and
-  update laws.
+  paper. The free-energy update is a recipe in the module, `FreeEnergyInteraction`, an `Interaction` whose `_prepare`
+  writes the free energy, differentiates it with `.diff`, and sets `UpdateLaw` laws in `laws_`.
 
 ## Capabilities
 
@@ -33,8 +34,9 @@ None.
 
 ## Impact
 
-- Core: the reduction functions of `core/components/laws/utils/_reductions.py`, which gain `_derivative_` hooks, and the
-  printers, which print the derived reductions as they print any reduction. No new law kind and no new class.
+- Core: the private `_ReductionFunction` of `core/components/laws/utils/_reductions.py`, which gains the `_derivative_`
+  hook that Sage reads, and the printers, which print the derived reductions as they print any reduction. No new law
+  kind and no new class.
 - Systems: a new module in `skcomplex.systems.biology.collective_behaviour`.
 - No new dependency. `inferactively-pymdp` 1.0.5, released 2026-11-07, covers active inference over discrete states and
   is not used, since the flock is continuous.

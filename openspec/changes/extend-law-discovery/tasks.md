@@ -12,7 +12,7 @@
 - [ ] 2.2 Add `ensemble`, `drop_terms`, and `random_state` with `pysindy.EnsembleOptimizer`, set `inclusion` and the
   median coefficients, and verify the inclusion, reproducibility, and invalid-size scenarios
 - [ ] 2.3 Add `parameters`, read from the conditions of observed runs, and `parameter_degree` with
-  `pysindy.ParameterizedLibrary`, declare the parameters on the surrogate element, and verify the Lorenz over `rho` and
+  `pysindy.ParameterizedLibrary`, hold the parameters as values of the surrogate element, and verify the Lorenz over `rho` and
   run-without-the-condition scenarios
 - [ ] 2.4 Move `_input_declarations` into `_sparse_identification.py`, add `inputs` to `sparse_identification` and read
   the inputs of observed runs, and verify the forced oscillator and input schedule scenarios, with the mode
@@ -24,7 +24,8 @@
   the doctests run
 
 - [ ] 2.7 Add `system` and `learned` to `sparse_identification`, evaluating the trained models at the states of the
-  source and replacing the recovered terms in the returned system, and verify the system-without-learned-functions
+  source and returning a clone whose interactions are wrapped by a private interaction that replaces the recovered
+  calls in their `laws_`, and verify the system-without-learned-functions
   scenario and, once the foundation's `UniversalLotkaVolterraSystem` exists, the
   interaction-terms-of-Lotka-Volterra scenario, marked slow
 - [ ] 2.8 Document the recovery of learned terms in the learned surrogates section of
@@ -35,8 +36,8 @@
 
 - [ ] 3.1 Add `eigenfunctions`, `eigenfunction_errors`, `valid`, and `eigenfunction_tolerance` from the left
   eigenvectors, and verify the slow manifold and Duffing scenarios in `tests/core/analysis/test_mode_decomposition.py`
-- [ ] 3.2 Fit the readout of the variables, declare one observable per variable on the lifted system, and verify the
-  lifted run records `x` and `y`
+- [ ] 3.2 Fit the readout of the variables, prepare the lifted system with one `Observable` per variable, and verify
+  the lifted run records `x` and `y`
 - [ ] 3.3 Add `delays` with stacked lagged states, and verify the sine series and negative-delay scenarios
 - [ ] 3.4 Accept a list of dictionaries, keep the one of smallest error on runs held out by `split_runs`, set
   `dictionary_errors`, and verify the polynomial choice and zero-validation scenarios
@@ -59,10 +60,11 @@
   environments
 - [ ] 4.3 Read particle snapshots, form environments within `cutoff` and accelerations from velocities, fit with
   `BayesianRidge` and the smoothness prior, and verify the reproducibility and uncertainty scenarios
-- [ ] 4.4 Build the result system with a 1-body rate law and a private pair interaction for body order 2, and verify
+- [ ] 4.4 Build the result `System` with a 1-body rate law and a private interaction bound with
+  `within=RadiusNeighborhood(cutoff)` for body order 2, and verify
   the law and system agree within 1e-8 and the `bird_swarm` pairwise and free-run scenarios
-- [ ] 4.5 Add the 3-body and 4-body interactions on the k-body neighbour roles of `add-many-body-neighbour-roles`, and
-  verify the `many_body_alignment_swarm` scenario
+- [ ] 4.5 Add the 3-body and 4-body interactions, whose laws sum the fitted terms with
+  `hyperedges(..., size=k, over=RadiusNeighborhood(cutoff))`, and verify the `many_body_alignment_swarm` scenario
 - [ ] 4.6 Add the group-without-velocities error and the argument checks, export `cluster_expansion` and
   `ClusterExpansionResult` from `skcomplex.core.analysis`, declare its analysis tags, and verify the error scenario
 - [ ] 4.7 Document `cluster_expansion` in the user guide and add a gallery example in
@@ -73,7 +75,7 @@
 
 - [ ] 5.1 Add `OnlineOfflineActivityNetworkSystem` in `src/skcomplex/systems/social/spreading/_online_offline.py` with
   its stochastic and mean-field forms, export it from the subfield, and verify the balance and fully mixed scenarios
-  in `tests/systems/social/spreading/`
+  in `tests/systems/social/spreading/test_online_offline.py`
 - [ ] 5.2 Verify the weak-form scenario of five noisy mean-field runs in the same tests
 - [ ] 5.3 Add `docs/examples/social/spreading/plot_online_offline_activity_network.py` with the stochastic runs, their
   mean, and the weak-form fit, and verify the gallery build runs it

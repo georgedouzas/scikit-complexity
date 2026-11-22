@@ -3,8 +3,8 @@
 ## ADDED Requirements
 
 ### Requirement: Mixed effects
-`identify` SHALL take `individual`, a mapping from per-member parameters of a group to the standard deviation of their
-Gaussian prior, fit one value per member with the penalty of that prior beside the shared parameters named by `trained`,
+`identify` SHALL take `individual`, a mapping from per-member values of a group element, named as `get_params` names
+them, to the standard deviation of their Gaussian prior, fit one value per member with the penalty of that prior beside the shared parameters named by `trained`,
 and record the effects of every member in the field `effects` of its result.
 
 #### Scenario: Population clearance
@@ -32,7 +32,7 @@ only the effects of its members, the maximum a posteriori estimate from their sa
 - **THEN** the median relative error of the area under the concentration curve over the dosing interval is below 10%
 
 ### Requirement: Parameters mapped from covariates
-A parameter of a law SHALL be given by a learned function of covariates, which are per-member parameters of a group, so
+A parameter of a law SHALL be given by a learned function of covariates, which are per-member values of a group, so
 one `identify` call learns the map from covariates to the parameter across members, and a new member with its
 covariates set through `set_params` gets its parameter from the map.
 

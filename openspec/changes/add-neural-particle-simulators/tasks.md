@@ -7,36 +7,38 @@
 
 ## 2. Particle analyses
 
-- [ ] 2.1 Hoist the periodic radius search of `neighbors` to `_radius_pairs` in `core/analysis/_base.py` with the
+- [ ] 2.1 Hoist the periodic radius search of `neighbors` to `_radius_pairs` in `src/skcomplex/core/analysis/_base.py` with the
   minimum-image displacements, verified by `tests/core/analysis/test_neighbors.py` and a new unit test of the pairs in
   `tests/core/analysis/test_base.py`
 - [ ] 2.2 Add `mapping` and `forces` to `coarse_grain` and the field `forces` to its result, verified by
   `tests/core/analysis/test_coarse_grain.py` (centres of dimers across periodic sides, rows that do not sum to one)
-- [ ] 2.3 Add `distribution_distance` with the three kinds in `core/analysis/_distribution_distance.py`, verified by
+- [ ] 2.3 Add `distribution_distance` with the three kinds in `src/skcomplex/core/analysis/_distribution_distance.py`, verified by
   `tests/core/analysis/test_distribution_distance.py` (identical sets, shifted sets, unequal sizes) and its doctest
 - [ ] 2.4 Document bead mappings and distribution distances in the agent section of
   `docs/overview/user_guide/analyse.md` and verify its code blocks run
 
 ## 3. SPH dam break
 
-- [ ] 3.1 Add `SphDamBreakSystem` in `systems/physics/fluids/_sph_dam_break.py`, verified by
+- [ ] 3.1 Add `SphDamBreakSystem` in `src/skcomplex/systems/physics/fluids/_sph_dam_break.py`, with fluid and wall
+  particles in one element, a pair interaction bound with `within=`, and a gravity interaction, verified by
   `tests/systems/physics/fluids/test_sph_dam_break.py` (surge front, mass and density) and its doctest
 - [ ] 3.2 Register `sph_dam_break`, add its inventory entry and the `particle-surrogates` primitive, and verify
   `tests/systems/test_catalog.py` and `inventory_problems()` report no problem
 
 ## 4. Learned particle systems
 
-- [ ] 4.1 Add `force_matching` in `core/analysis/_force_matching.py` with the linear Gaussian basis and its symbolic
-  bead system, verified by `tests/core/analysis/test_force_matching.py` (identity mapping on Lennard-Jones, mismatched
+- [ ] 4.1 Add `force_matching` in `src/skcomplex/core/analysis/_force_matching.py` with the linear Gaussian basis and its
+  bead system, whose interaction states the fitted sum as a symbolic pair energy, verified by `tests/core/analysis/test_force_matching.py` (identity mapping on Lennard-Jones, mismatched
   forces) and its doctest
 - [ ] 4.2 Add the network kind of `force_matching` with the repulsive prior, trained on the shared loop, whose system
-  holds the prior plus a learned pair potential, and the dimer scenario, marked slow if needed
-- [ ] 4.3 Add `hamiltonian_network` in `core/analysis/_hamiltonian_network.py`, trained on the shared loop, and its
-  continuous-time system with a learned pair potential, verified by `tests/core/analysis/test_hamiltonian_network.py`
-  (Lennard-Jones potential, invariance, learned pair potential on JAX, bounded energy error of a spring chain) and its
+  holds the prior plus a learned pair energy with the weights as an array parameter of its interaction, and the dimer
+  scenario, marked slow if needed
+- [ ] 4.3 Add `hamiltonian_network` in `src/skcomplex/core/analysis/_hamiltonian_network.py`, trained on the shared
+  loop, and its system with a learned pair energy, verified by `tests/core/analysis/test_hamiltonian_network.py`
+  (Lennard-Jones potential, invariance, learned pair energy on JAX, bounded energy error of a spring chain) and its
   doctest
-- [ ] 4.4 Add `graph_network` in `core/analysis/_graph_network.py`, trained on the shared loop with runs held out by
-  `split_runs`, its discrete-time system, and `rollout_error` from `forecast_skill`, verified by
+- [ ] 4.4 Add `graph_network` in `src/skcomplex/core/analysis/_graph_network.py`, trained on the shared loop with runs
+  held out by `split_runs`, its system with one update law, and `rollout_error` from `forecast_skill`, verified by
   `tests/core/analysis/test_graph_network.py` (rollout better than constant velocity on short dam-break runs, forecast
   equal to the system's run, missing positions) and its doctest
 - [ ] 4.5 Export the four functions from `skcomplex.core.analysis`, add a section on learned particle systems to

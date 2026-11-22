@@ -1,22 +1,32 @@
 ## Context
 
-- `GradientStepLaw`, returned by `TrainingInteraction` (`core/components/interactions/_training.py`), trains adaptive
-  parameters of a nested system over epochs, which are the time of the outer system. `GradientDescentSolver`
-  (`core/engine/solvers/_gradient_descent.py`) unrolls the nested system on the pure function `traced_` of `JaxBackend`,
-  with one `diffrax.diffeqsolve` per inner step for ODEs, and updates the parameters with an Optax optimizer. Its data
-  is a `DatasetSpec` of parameter values of shape `(sequences, steps, ...)` on one shared grid of times.
-- `calibrate` (`core/experiments/_calibration.py`) fits model parameters within bounds with SciPy, Optuna, pyabc, and
-  numpyro. Its private `_CalibrationObjective.get_traced` compiles a system on JAX and returns the differentiable map
-  from a parameter vector to the simulated values at the data times. Its data is one mapping from paths to times and
-  values.
+- `TrainingInteraction` (`core/components/interactions/_training.py`) trains parameters of a nested system, named by
+  dotted path in `trained`, over epochs, which are the time of the outer system. It states no laws of its own.
+  `GradientDescentSolver` (`core/engine/solvers/_gradient_descent.py`) reads its settings, unrolls the nested system on
+  the pure function `traced_` of `JaxBackend`, with one `diffrax.diffeqsolve` per inner step for ODEs, and updates the
+  parameters with an Optax optimizer. The learning compiler (`core/engine/compile/_learning_compiler.py`) makes the
+  trained paths adaptive when it compiles the inner system. Its data is a `DatasetSpec`
+  (`core/components/laws/_dataset_spec.py`) of parameter values of shape `(sequences, steps, ...)` on one shared grid
+  of times.
+- `calibrate` (`core/experiments/_calibration.py`) fits parameters named as `get_params` names them, such as
+  `growth__r`, within bounds or priors, with SciPy, Optuna, pyabc, and numpyro. Its private
+  `_CalibrationObjective.get_traced` compiles a system on JAX and returns the differentiable map from a parameter vector
+  to the simulated values at the data times. Its data is one mapping from paths to times and values.
 - `sparse_identification`, `mode_decomposition`, and `reservoir` read trajectories through `_read_samples` in
-  `core/analysis/_base.py` and return results whose `system` runs through `simulate`. `reservoir` runs its fitted map
-  through a `CallSpec`.
-- Bounded adaptive parameters are controls (`control` spec), set by the `schedule` of `simulate`, by optimal control
-  solvers, or by a controller. `simulate(record_draws=True)` keeps named draws, and the event likelihood of `calibrate`
-  scores them.
-- Law functions such as `series` and `lookup` live in `components/laws/utils` and return Sage expressions that every
-  backend lowers. `ParameterSpec.shape` holds role names only.
+  `core/analysis/_base.py` and return results whose `system` is prepared and simulated like any system. `reservoir`
+  runs its fitted map through an `UpdateLaw` with a `CallSpec`.
+- A system is prepared and simulated like an estimator is fitted and used to predict: `system.prepare()` compiles once
+  and `system.simulate(until, ...)` returns a `Trajectory`. Its `simulate` takes `schedule`, the functions of time
+  that drive parameters, and `record_draws` and `replay`, which keep and force named draws. The event likelihood of
+  `calibrate` scores recorded draws.
+- Interactions own the parameters of their relation and state laws of seven kinds in `laws_` from `_prepare`. An array
+  value of an interaction, such as the weight matrices of the Elman network, is a parameter of its shape, addressed by
+  path and recorded with its shape. Controls are the values an `ObjectiveLaw` names in `controls`, with their bounds from
+  the allowed values in `Annotated` on the element.
+- Law functions such as `series`, `lookup`, `normal`, and `categorical` live in `components/laws/utils` and return
+  Sage expressions that every backend lowers. `normal` and `categorical` are named draws, kept by `record_draws`.
+- No specs package exists. Values live beside the classes that use them: `Observable`, `RoleSpec`, and `Tags` in
+  `skcomplex.core.components`, the law values in `skcomplex.core.components.laws`.
 - The drafted changes plan their own learning blocks: `neural_function` and `neural_identification` in
   `add-hybrid-neural-laws`, Equinox training loops in `add-learned-indicators`, `add-generative-samplers`, and
   `add-neural-particle-simulators`, private readers of experiment results in `extend-law-discovery`, and forecast
@@ -25,9 +35,9 @@
 ## Goals / Non-Goals
 
 **Goals:**
-- Express every data-driven and learning method with the existing concepts: a learned function is a term of a law, a
-  policy is an interaction, a data set is observed runs, identification and training are experiments whose results hold
-  a system, and the record of a training is a trajectory.
+- Express every data-driven and learning method with the existing concepts: a learned function is a term of a law an
+  interaction states, a policy is an interaction, a data set is observed runs, identification and training are
+  experiments whose results hold a system, and the record of a training is a trajectory.
 - One observation model and one data spec, read by every fit.
 - One Optax loop, shared by identification, policy training, and the training of learned analyses.
 - Reinforcement learning on any system, with on-policy methods implemented and off-policy and multi-agent methods
@@ -57,22 +67,23 @@
 | --- | --- |
 | Data set | `ObservedRunsSpec`, observed runs of states or observables through an `ObservationSpec` |
 | Observation model, sensor | `ObservationSpec`, which paths are seen and with what noise |
-| Learned model, network, regressor | `learned_function`, a term of a law, with weights as one adaptive parameter |
-| Hybrid model, universal differential equation | a law with a known term and a learned term |
+| Learned model, network, regressor | `learned_function`, a term of a law, with weights as one array parameter of the interaction |
+| Hybrid model, universal differential equation | an interaction whose law has a known term and a learned term |
 | Learned interaction, learned potential | an interaction whose law calls `learned_function` on the states of its roles |
 | Loss | the negative log-likelihood of the observation model, or a loss observable |
 | Training | the system of `TrainingInteraction`, whose time is epochs and whose states are the trained parameters |
 | System identification, system from data | the experiment `identify`, whose result holds a system |
 | Environment | any system read through an `EnvironmentSpec` |
-| Agent, controller, policy | `PolicyInteraction`, a component that sets bounded adaptive parameters from its observation |
-| Episode, rollout | a run of `simulate` with recorded draws |
+| Agent, controller, policy | `PolicyInteraction`, an interaction whose laws set the actions from its observation |
+| Episode, rollout | one `simulate` of a prepared system with recorded draws |
 | Reward, return | an observable of the system, summed over decisions with a discount |
 | Reinforcement learning | the experiment `train_policy`, whose result holds a system with the trained policy |
 | Forecast evaluation | the analysis `forecast_skill` |
 | Feature and target arrays | `make_arrays`, from runs to the `X` and `y` of any scikit-learn pipeline |
 
-No machine-learning package, base class, or verb is added. The one new package, `skcomplex.core.data`, holds functions
-that make and reshape data. Learned components are configured with `prepare` and run with `run`, like every component.
+No machine-learning base class or verb is added. The one new package, `skcomplex.core.data`, holds functions that make
+and reshape data. Learned terms are values inside laws, policies are interactions with `prepare` alone, and systems
+with learned parts are prepared and simulated like every system.
 
 ### scikit-learn inside, not around
 
@@ -87,44 +98,43 @@ wrapped in a scikit-learn estimator. scikit-learn enters in three places instead
 - **Arrays for any pipeline.** `make_arrays` of `skcomplex.core.data` turns runs into `X`, `y`, and `groups`, so any
   pipeline trains on simulated or observed data and any splitter keeps runs whole.
 
-`prepare` and `run` stay the only verbs of the classes of the library.
+Every family keeps `prepare` and its own verb: systems `simulate`, engine classes `run`, and the other parts none.
 
 Alternatives considered:
 
 - Adapter classes such as `IdentificationEstimator` and `SurrogateEstimator`, with `fit`, `predict`, and `score` around
   `identify` and the surrogate analyses. Rejected: they are a second way of doing what `identify` does, and they make
   a system look like an estimator when it is the model being simulated.
-- Systems with `fit` and `predict` themselves. Rejected for the same reasons, and because it would add a second verb
-  pair to every class.
+- Systems with `fit` and `predict` themselves. Rejected for the same reasons, and because `prepare` and `simulate`
+  already play those roles.
 
 The accepted cost: a fitted system cannot sit inside a scikit-learn `Pipeline` or `GridSearchCV`. Model selection
 runs inside the experiments, and pipelines train on the arrays of `make_arrays` or sit inside laws.
 
 ### Placement
 
-| Component | Placement step | Where | Domains that use it |
+| Part | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
-| `ObservationSpec`, `ObservedRunSpec`, `ObservedRunsSpec` | 2, the losses, `identify`, `calibrate`, and the surrogate analyses read them by type | `skcomplex.core.specs` | ecology (pelt and census counts), epidemiology (reported cases), pharmacology (sparse samples), climate (station series), engineering (sensors), neuroscience (recordings) |
+| `ObservationSpec`, `ObservedRunSpec`, `ObservedRunsSpec` | 2, values that `TrainingInteraction`, the losses, `identify`, `calibrate`, and the surrogate analyses read by type | `skcomplex.core.components`, beside `Observable`, the lowest package that names them | ecology (pelt and census counts), epidemiology (reported cases), pharmacology (sparse samples), climate (station series), engineering (sensors), neuroscience (recordings) |
 | `read_runs`, `observe`, `split_runs`, `make_arrays` | 2, functions that build the spec the fits read and the arrays any pipeline reads, as `sklearn.datasets` and `train_test_split` do | `skcomplex.core.data`, approved on 2026-11-10 | as above |
-| Whole-number sizes of `ParameterSpec.shape` | 1, the structural spec of every parameter | `skcomplex.core.specs` | every learned function, and fixed-size vectors in any field |
 | `learned_function`, `learned_weights` | 2, a law function the backends lower by the type of its model | `skcomplex.core.components.laws.utils` | ecology and epidemiology (unknown rates), pharmacology (covariate maps), physics (learned potentials, neural cellular automata), engineering (learned controllers), neuroscience (learned couplings) |
 | Lowering of learned functions | 2, backend lowering | `core/engine/backends/_jax.py`, `_numpy.py`, and the Numba fallback | as above |
-| `EnvironmentSpec` | 2, `PolicyInteraction`, `train_policy`, and the bridges read it by type | `skcomplex.core.specs` | engineering (control), epidemiology (interventions), ecology (harvests), economics (decisions of agents), social systems (learning agents), computer science (games) |
-| `PolicyInteraction` | 2, the runtime holds its actions between decisions and the training finds it by type | `skcomplex.core.components.interactions` | as above |
+| `EnvironmentSpec` | 2, a value `PolicyInteraction`, `train_policy`, and the bridges read by type | `skcomplex.core.components.interactions`, beside `PolicyInteraction` | engineering (control), epidemiology (interventions), ecology (harvests), economics (decisions of agents), social systems (learning agents), computer science (games) |
+| `PolicyInteraction` | 2, an interaction whose actions the runtime holds between decisions and whose weights the training finds by type, as `GradientDescentSolver` finds `TrainingInteraction` | `skcomplex.core.components.interactions` | as above |
 | The shared Optax loop and the score estimator | 2, a solver and its estimators | `core/engine/solvers/_gradient_descent.py` | every training |
 | `identify`, `IdentificationResult` | 2, an experiment over any system | `skcomplex.core.experiments` | every field with data |
 | `train_policy`, `PolicyTrainingResult` | 2, an experiment over any system with a policy | `skcomplex.core.experiments` | as for `PolicyInteraction` |
 | `forecast_skill`, `ForecastSkillResult` | 2, an analysis that reads series by their tags | `skcomplex.core.analysis` | climate, ecology, epidemiology, finance, fluids, and every surrogate |
-| `initial`, `noise`, `horizon`, `windows`, and SDE fits of `identify` | 2, options of an experiment over any system | `core/experiments/_identification.py` | ecology and epidemiology (unknown initial populations and reporting noise), neuroscience and climate (long chaotic runs), finance and cell biology (SDE models) |
-| `kind='time'` of `split_runs`, binomial noise of `ObservationSpec` | 2, options of a data function and a spec that every fit reads | `skcomplex.core.data`, `skcomplex.core.specs` | every field whose data are one run (pelts, outbreaks, climate records), and epidemiology and ecology (under-reported counts) |
+| `initial`, `noise`, `horizon`, `windows`, and the fits of noise laws in `identify` | 2, options of an experiment over any system | `core/experiments/_identification.py` | ecology and epidemiology (unknown initial populations and reporting noise), neuroscience and climate (long chaotic runs), finance and cell biology (stochastic models) |
+| `kind='time'` of `split_runs`, binomial noise of `ObservationSpec` | 2, options of a data function and a value that every fit reads | `skcomplex.core.data`, `skcomplex.core.components` | every field whose data are one run (pelts, outbreaks, climate records), and epidemiology and ecology (under-reported counts) |
 | `UniversalLotkaVolterraSystem` | 3, one system | `biology/ecology/_universal_lotka_volterra.py` | biology |
 | `LearnedContactSIRSystem` | 3, one system | `biology/epidemiology/_learned_contact.py` | biology |
 | `CartPoleSystem` | 3, one system | `engineering/control/_cart_pole.py` | engineering |
 
-The core never imports `skcomplex.systems` (step 5). The policy is a core interaction and not a recipe because no
-core component can hold an action between decisions and expose its draws to a training (step 4). The general
-`ChoiceInteraction` of `systems.general.agents` stays a recipe: it chooses by scores the user writes, and a learned
-policy is not a case of it.
+The core never imports `skcomplex.systems`. The policy is a core interaction and not a recipe because the runtime
+holds its actions between decisions and the training finds its weights and draws by type, as the learning solver finds
+`TrainingInteraction`. The general `ChoiceInteraction` of `systems.general.agents` stays a recipe: it chooses by scores
+the user writes, and a learned policy is not a case of it.
 
 ### Dependencies
 
@@ -153,19 +163,24 @@ step a system of this library.
 ### Observed data
 
 - `ObservationSpec(paths, noise='none', scale=0.0)`. `paths` are dotted paths of states or observables, or
-  `ObservableSpec` readouts such as a reported fraction of a compartment. `noise` is `'none'`, `'gaussian'`,
+  `Observable` readouts such as a reported fraction of a compartment. `noise` is `'none'`, `'gaussian'`,
   `'log-normal'`, `'poisson'`, `'negative-binomial'`, or `'binomial'`, and `scale` is the standard deviation, the log
   standard deviation, the dispersion, or the reporting probability, one value or one per path. Binomial noise draws
   the reported count from the true count, rounded, with the reporting probability, the under-reporting model of
-  epidemiology, and its likelihood uses the continuous extension of the binomial coefficient by the gamma function. The spec says what a sensor sees, so the same spec builds
-  simulated data, scores fits, and gives the observation of an environment.
+  epidemiology, and its likelihood uses the continuous extension of the binomial coefficient by the gamma function. The
+  spec says what a sensor sees, so the same spec builds simulated data, scores fits, and gives the observation of an
+  environment.
 - `ObservedRunSpec(series, inputs=None, conditions=None, label='')`. `series` maps a path to its times and values, one
-  column per member for a group, each path with its own times, and NaN marks a missing value. `inputs` maps parameter
-  paths to times and values held between their times, the control inputs and exogenous series of the run.
-  `conditions` maps model parameters, initial states, or per-member covariates to the values of this run, set through
-  `set_params` before the run.
+  column per member for a group, each path with its own times, and NaN marks a missing value. `inputs` maps dotted
+  parameter paths to times and values held between their times, the control inputs and exogenous series of the run,
+  given to `simulate` as its `schedule`. `conditions` maps parameters, as `get_params` names them, or dotted initial
+  states to the values of this run, set through `set_params` or `initial_state` before the run.
 - `ObservedRunsSpec(runs, observation=None)` holds the runs and the observation model they were seen through. Its
-  `_check` refuses empty runs, paths that differ between runs, and times that are not increasing.
+  `_check` refuses empty runs, paths that differ between runs, and times that are not increasing. Its owner calls
+  `_check` when it reads the spec, as for every value.
+- The three specs live in `skcomplex.core.components`, beside `Observable`, since `TrainingInteraction` and
+  `PolicyInteraction` of `skcomplex.core.components.interactions` read them and every layer above reads them too. One
+  module per spec, `_observation_spec.py`, `_observed_run_spec.py`, and `_observed_runs_spec.py`.
 - `read_runs(frame, *, time='time', run=None, paths=None, inputs=(), conditions=(), observation=None)` reads a pandas
   data frame in long form (one row per time and run) or wide form, or an xarray dataset with the dimension `time` and an
   optional dimension `run`. Conditions are columns or coordinates constant within a run.
@@ -203,15 +218,17 @@ step a system of this library.
 ### Learned functions
 
 - `learned_function(model, *inputs, weights=None)` in `components/laws/utils/_learned.py` returns one Sage expression
-  per output of the model, a call of a symbolic function that holds the static part of the model in a registry keyed by
-  its structure, as `series` holds its table. The inputs are expressions of the states and parameters the law reads, so
-  a pair law passes the distance and a group law passes member states.
-- An Equinox module is split with `equinox.partition(model, equinox.is_array)`. Its arrays become `weights`, an
-  expression of one adaptive vector parameter declared `ParameterSpec(shape=(size,), adaptive=True)`, whose initial
-  value `learned_weights(model)` returns with `jax.flatten_util.ravel_pytree`. The JAX backend lowers the call to
-  `equinox.combine(unravel(weights), static)(inputs)[k]`, vectorised over members and pairs with `jax.vmap`, traced and
-  differentiable. The NumPy backend calls the same function compiled with `jax.jit`. The Numba backend falls back to
-  Python with its existing warning.
+  per output of the model, a call of a private `BuiltinFunction` subclass that holds the static part of the model in a
+  registry keyed by its structure, as `series` holds its table. The inputs are expressions of the states and parameters
+  the law reads, so a pair law passes the distance and a group law passes member states.
+- An Equinox module is split with `equinox.partition(model, equinox.is_array)`. Its arrays become `weights`, the
+  expression of one array parameter of the interaction that states the law, such as `s.weights` for an interaction
+  constructed with `weights=learned_weights(model)`. `learned_weights(model)` returns the flat vector of the arrays with
+  `jax.flatten_util.ravel_pytree`. The parameter is a parameter like any other: its shape follows from its value, it is
+  listed by `get_params` as `<label>__weights`, recorded by path, and trained when `trained` names it. No declaration
+  and no marker is added. The JAX backend lowers the call to `equinox.combine(unravel(weights), static)(inputs)[k]`,
+  vectorised over members and pairs with `jax.vmap`, traced and differentiable. The NumPy backend calls the same
+  function compiled with `jax.jit`. The Numba backend falls back to Python with its existing warning.
 - A scikit-learn regressor, or a pipeline that ends in one, is cloned when the law is built and called through
   `predict` on the NumPy backend, once per evaluation over all members. It takes no `weights`. An unfitted regressor
   raises `ValidationError` at `prepare` unless the system is passed to `identify(method='derivatives')`, which fits
@@ -219,10 +236,13 @@ step a system of this library.
   reads.
 - The compiler reports `learned-weights` when the weight vector does not have the length of the module, and
   `learned-inputs` when the number of inputs is not the input size of the model.
-- A symbolic learned term is an ordinary expression whose coefficients are adaptive parameters, such as the laws
-  `sparse_identification` returns. `identify` refines it like any weights, so no third model kind is needed.
-- Weights are parameters, so `set_params`, `schedule`, trajectories, `sweep`, and `calibrate` read them like any
-  parameter. A system with learned functions validates as differentiable exactly when every model is an Equinox module.
+- A symbolic learned term is an ordinary expression whose coefficients are parameters of the interaction, such as the
+  laws `sparse_identification` returns. `identify` refines it like any weights, so no third model kind is needed.
+- Weights are parameters, so `set_params`, the `schedule` of `simulate`, trajectories, `sweep`, and `calibrate` read them
+  like any parameter. A system with learned functions has the tag `differentiable` exactly when every model is an
+  Equinox module.
+- Array parameters of interactions already exist, as the weight matrices of the Elman network show, so this change
+  adds no shape declaration.
 
 ### One fit loop
 
@@ -235,28 +255,31 @@ step a system of this library.
 - Observed runs replace data sets. Each run is unrolled on the union of its observation times and its input times,
   inputs held between their times, conditions set before the run, and missing values masked out of the loss. Runs with
   different times are padded and masked, so a batch compiles once.
-- The loss of `TrainingInteraction` is an `ObservableSpec`, as today, or the name of a loss: `'squares'`, `'log'` (the
+- The loss of `TrainingInteraction` is an `Observable`, as today, or the name of a loss: `'squares'`, `'log'` (the
   squares of the logarithms, for concentrations and counts), or `'likelihood'`, the negative log-likelihood of the
   noise of the observation model. Poisson and negative binomial likelihoods use their continuous extensions in the
   predicted mean, so gradients exist.
 - `validation` holds out runs with `split_runs`, records `<interaction path>/validation_loss` every epoch, and with
   `patience` stops when it has not fallen for that many epochs, keeping the best parameters.
-- The Diffrax solver, tolerances, and adjoint stay those of the solver, lifted to module constants that `identify`
-  and `calibrate(method='variational')` read, so a fit and a simulation agree.
+- The Diffrax solver, tolerances, and adjoint stay those of the solver, lifted to public module constants of
+  `core/engine/solvers/_gradient_descent.py` that `identify` and `calibrate(method='variational')` read, so a fit and a
+  simulation agree.
 
 ### Identification
 
 - `identify(system, data, *, trained, method='gradient', loss=None, initial=(), noise=False, horizon=None,
   windows=None, continuity=1.0, paths=16, optimizer='adam', learning_rate=1e-2, epochs=500, batch_size=None,
-  validation=0.0, patience=None, random_state=None)` in `core/experiments/_identification.py`. `trained` names
-  adaptive parameters, learned weights included. `loss=None` takes `'likelihood'` when the data has a noisy
-  observation model and `'squares'` otherwise.
-- **Initial states and noise.** `initial` names states whose initial values are fitted, one value per run, started
-  from the first observed value where the state is observed and from the value of the system otherwise. `noise=True`
-  fits the scale of the observation model with the likelihood loss, one value per path. Fitting the initial states
-  through the run is the strong constraint 4D-Var of data assimilation, and both are what Carpenter (2018) estimates
-  beside the four rates, so the probe compares like for like. The result reports them as `initial_states`, a mapping
-  from run label to state path to value, and `noise_scales`, a mapping from path to scale.
+  validation=0.0, patience=None, random_state=None)` in `core/experiments/_identification.py`. Like every experiment it
+  clones the system, sets parameters with `set_params`, prepares the clone, and simulates it. `trained` names
+  parameters as `get_params` names them, such as `predation__weights` or `growth__r`, as the bounds of `calibrate` do,
+  and every named parameter becomes a trained state of the training system, so no parameter needs a marker. `loss=None`
+  takes `'likelihood'` when the data has a noisy observation model and `'squares'` otherwise.
+- **Initial states and noise.** `initial` names dotted states, such as `'prey.x'`, whose initial values are fitted, one
+  value per run, started from the first observed value where the state is observed and from the value of the system
+  otherwise. `noise=True` fits the scale of the observation model with the likelihood loss, one value per path. Fitting
+  the initial states through the run is the strong constraint 4D-Var of data assimilation, and both are what Carpenter
+  (2018) estimates beside the four rates, so the probe compares like for like. The result reports them as
+  `initial_states`, a mapping from run label to state path to value, and `noise_scales`, a mapping from path to scale.
 - **Prediction error and multiple shooting.** Output error through a long run of a chaotic or stiff system has many
   local minima (Kidger 2202.02435, Schoukens and Ljung 1902.00683). `horizon=k` starts a fresh rollout from every
   observation time at which all states are observed and scores the next `k` observations, the k step prediction
@@ -265,53 +288,61 @@ step a system of this library.
   `initial` trains the first one, and adds `continuity` times the squared gap between the end of each window and the
   start of the next, so unobserved states are allowed. `horizon=None` and `windows=None` keep the error of the whole
   run.
-- **SDE fits.** `method='gradient'` accepts systems whose only stochastic laws are SDE terms. Every epoch draws
+- **Noise laws.** `method='gradient'` accepts systems whose only random laws are `NoiseLaw`s. Every epoch draws
   `paths` Brownian paths per run with `diffrax.VirtualBrownianTree`, seeded from `random_state`, and the loss compares
   the mean and the variance of the paths at every observation time with those of the observed runs that share their
   conditions, so drift and diffusion are both fitted. Gradients are pathwise through Diffrax, after Kidger
-  (2202.02435, ch. 4). Jump laws are still refused, and latent SDEs and SDE GANs are left for later.
-- `method='gradient'` builds the training system, a `TrainingInteraction` bound to the system, simulates it with
-  `GradientDescentSolver`, and reads the last or best frame. This is the one path of training, so a user who wants the
-  training as a system writes the same interaction.
+  (2202.02435, ch. 4). `JumpLaw`s and random draws in `UpdateLaw`s are still refused, and latent SDEs and SDE GANs are
+  left for later.
+- `method='gradient'` builds the training system, a `System` that holds the system as a nested system and a
+  `TrainingInteraction` bound to it, prepares and simulates it with `GradientDescentSolver` as its solver setting, and
+  reads the last or best frame. This is the one path of training, so a user who wants the training as a system writes
+  the same interaction.
 - `method='derivatives'` smooths the observed states with pysindy's `SmoothedFiniteDifference`, subtracts the known
   terms of every rate, and fits the scikit-learn regressors of the learned functions to the residuals, as SINDy fits a
   library. It needs every state of a learned rate observed, and raises `ValidationError` naming the unobserved state.
-- `IdentificationResult` holds `system`, `estimates` (path to value, weights excluded), `initial_states`,
+- `IdentificationResult` holds `system`, `estimates` (parameter name to value, weights excluded), `initial_states`,
   `noise_scales`, `losses` and `validation_losses` (one per epoch), `training_error`, `validation_error`, and
-  `trajectory`, the run of the training system. These field names are the convention every function that learns a system follows.
+  `trajectory`, the run of the training system. These field names are the convention every function that learns a
+  system follows.
 - `identify` is not `calibrate`. `calibrate` fits few named parameters of a known system within bounds and priors, and
-  gives uncertainty. `identify` fits many unbounded adaptive parameters, learned weights included, over many runs by
+  gives uncertainty. `identify` fits many unbounded parameters, learned weights included, over many runs by
   stochastic gradients, and gives a point estimate.
 
 ### Reinforcement learning
 
-- `EnvironmentSpec(observation, actions, reward, terminal=None, interval=1.0, discount=0.99)`. `actions` maps the path
-  of a bounded adaptive parameter to its bounds for a continuous action, or to a tuple of values for a choice.
+- `EnvironmentSpec(observation, actions, reward, terminal=None, interval=1.0, discount=0.99)` in
+  `components/interactions/_environment_spec.py`. `observation` is an `ObservationSpec`. `actions` maps the dotted path
+  of a parameter, such as `'push.force'`, to its bounds for a continuous action, or to a tuple of values for a choice.
+  Bounds default to the allowed values in `Annotated` of the value, as for controls, and must lie inside them.
   `reward` and `terminal` are observables. `interval` is the time between decisions, during which the actions are held,
   as a schedule holds a parameter.
-- `PolicyInteraction(label, target, environment, model, weights=None, *, distribution='normal', scale=0.1,
-  form='symbolic')`. The role `target` binds the element, group, or nested system the policy observes and controls.
-  Every `interval` the policy reads the observation of its environment, evaluates `learned_function(model, ...)` on it,
-  and sets the actions: logits of a numpyro `Categorical` for choices, the mean of a numpyro `Normal` of standard
-  deviation `scale`, clipped to the bounds, for continuous actions, or the mean itself with `'deterministic'`. Every
-  stochastic action is a named draw `<label>.action`, so `record_draws` keeps it and replay forces it. Bound to a group,
-  the policy acts for every member with shared weights. `form='agent'` acts inside the step of every agent on the Mesa
-  backend, through the system view.
-- The runtime handles the interaction by type: it splits the run at the decision times and writes the actions as the
-  schedule writes parameters, so the plant laws read them unchanged on every backend. The deterministic policy on the
-  JAX backend is one more term of the traced function, so a closed loop is differentiable.
+- `PolicyInteraction(label, *, target, environment, model, weights=None, distribution='normal', scale=0.1)` in
+  `components/interactions/_policy.py`. The role `target` binds the element, group, or nested system the policy
+  observes and controls. Its `_prepare` sets `laws_` to one `UpdateLaw` per action, whose value reads
+  `learned_function(model, ..., weights=s.weights)` on the observation: the logits of the named draw `categorical` of
+  `laws.utils` for choices, the mean of the named draw `normal` of deviation `scale`, clipped to the bounds, for
+  continuous actions, or the mean itself with `'deterministic'`. Every draw is named `<label>.action`, so
+  `record_draws` keeps it and `replay` forces it. Bound to a group, the policy acts for every member with shared
+  weights, and agents of the agent solver read their actions like any value of the group.
+- The runtime reads the interval of the interaction by type, as `GradientDescentSolver` reads the settings of
+  `TrainingInteraction`: it splits the run at the decision times, applies the update laws of the policy there, and holds
+  the actions between them as the schedule holds parameters, so the laws of the plant read them unchanged on every
+  backend. The deterministic policy on the JAX backend is one more term of the traced function, so a closed loop is
+  differentiable.
 - `train_policy(system, *, method='ppo', trained=None, critic=None, episodes=16, epochs=200, horizon=None,
   gae=0.95, clip=0.2, optimizer='adam', learning_rate=3e-4, executor='serial', random_state=None)` in
-  `core/experiments/_policy_training.py`. It finds every `PolicyInteraction` by type and trains their weights, or the
-  paths named by `trained`.
+  `core/experiments/_policy_training.py`. It clones the system, finds every `PolicyInteraction` by type, and trains
+  their weights, or the parameters named by `trained`. The clone is prepared once, and every rollout is one `simulate`
+  with recorded draws.
   - `'reinforce'` runs `episodes` rollouts with recorded draws through the runner of `ensemble`, cuts each at the first
     decision where the terminal observable is nonzero or at `horizon`, and takes the gradient of the log densities of
     the recorded actions times the discounted returns minus their mean, Williams (1992).
   - `'ppo'` adds a critic, an Equinox module of the observation passed as `critic`, generalised advantage estimates
     (Schulman et al. 2015, arXiv 1506.02438), and the clipped surrogate objective of Schulman et al. (2017, arXiv
     1707.06347), with several passes over each batch of rollouts.
-  - `'pathwise'` maximises the expected discounted reward through the differentiable run of a system whose tags are
-    differentiable, with the deterministic policy, by `GradientDescentSolver`.
+  - `'pathwise'` maximises the expected discounted reward through the differentiable run of a system whose tags hold
+    `differentiable`, with the deterministic policy, by `GradientDescentSolver`.
 - `PolicyTrainingResult` holds `system`, `returns` (mean return per epoch), `losses`, `episodes` (the number of
   rollouts per epoch), and `trajectory` for every method, a trajectory whose times are the epochs and whose series are
   the trained weights, the mean return, and the loss, as the run of `TrainingInteraction` records an identification.
@@ -321,7 +352,7 @@ step a system of this library.
   the recorded action draw, the reward, and the next observation. The store of transitions is an `ObservedRunsSpec` of
   recorded rollouts, so data logged elsewhere trains the same way. A Q-function is a second learned function passed to
   `train_policy`, and the temporal-difference loss is one more gradient for `_OptaxLoop`. No new concept is needed.
-- **Multi-agent, designed for `add-multi-agent-learning`.** Several `PolicyInteraction` components, each with its own
+- **Multi-agent, designed for `add-multi-agent-learning`.** Several `PolicyInteraction` parts, each with its own
   environment and reward, are independent learners trained in one call. A policy bound to a group already shares its
   weights across members. A centralised critic reads the joint observation. PettingZoo exposes the agents through the
   bridges.
@@ -336,16 +367,17 @@ step a system of this library.
 
 ### Probes
 
-- **`UniversalLotkaVolterraSystem`** in `biology/ecology/_universal_lotka_volterra.py`, with `prey`, `predators`, `r`,
-  `d`, `form='mechanistic'` or `'hybrid'`, `hidden=16`, and `random_state`. The hybrid form keeps the growth of hares
-  and the death of lynx and replaces both predation terms by one Equinox network of the two populations with two
-  outputs, after the universal differential equations of Rackauckas et al. (2020) that 2306.10335 analyses. The data
-  are the hare and lynx pelts of 1900 to 1920 of the build tutorial, as distributed with Carpenter (2018), whose
-  posterior means 0.55, 0.028, 0.80, and 0.024 are the reference values of the mechanistic fit. That model also
+- **`UniversalLotkaVolterraSystem`** in `biology/ecology/_universal_lotka_volterra.py`, a `BaseSystem` with `prey`,
+  `predators`, `r`, `d`, `form='mechanistic'` or `'hybrid'`, `hidden=16`, and `random_state`, whose `_prepare` sets
+  `system_`. The hybrid form keeps the growth of hares and the death of lynx and replaces both predation terms by one
+  interaction whose laws call one Equinox network of the two populations with two outputs, its weights a parameter of
+  that interaction, after the universal differential equations of Rackauckas et al. (2020) that 2306.10335 analyses.
+  The data are the hare and lynx pelts of 1900 to 1920 of the build tutorial, as distributed with Carpenter (2018),
+  whose posterior means 0.55, 0.028, 0.80, and 0.024 are the reference values of the mechanistic fit. That model also
   estimates the two initial populations and the log-normal noise scale of each series, so the probe fits them with
   `initial` and `noise`, and their posterior means are read from the case study as further reference values. The
-  held-out years are split with `split_runs(kind='time')`. Primitives: `rates`,
-  `learned-functions`, `observed-data`, `learning`.
+  held-out years are split with `split_runs(kind='time')`. Primitives: `rates`, `learned-functions`, `observed-data`,
+  `learning`.
 - **`LearnedContactSIRSystem`** in `biology/epidemiology/_learned_contact.py`, with `population=763`, `beta`, `gamma`,
   `form='constant'` or `'learned'`, and `random_state`. The learned form multiplies the contact rate by a positive
   network of time. The data are the boys confined to bed in the influenza outbreak of a boarding school in the north of
@@ -357,8 +389,9 @@ step a system of this library.
 - **`CartPoleSystem`** in `engineering/control/_cart_pole.py`, the cart and pole of Barto, Sutton, and Anderson (1983)
   with the corrected equations of Florian (2007): gravity 9.8, cart mass 1.0, pole mass 0.1, half length 0.5, force 10
   as a choice of push left or right, decisions every 0.02 seconds, reward 1 per decision, and failure past 12 degrees
-  or 2.4 metres, the constants of Gymnasium's `CartPole-v1`. It runs with explicit Euler steps of 0.02, as the
-  reference does, so the bridges follow-up compares the two step by step. Its environment is a class attribute. A
+  or 2.4 metres, the constants of Gymnasium's `CartPole-v1`. The force is a parameter of the push interaction, and
+  gravity a parameter of the gravity interaction. Its tuned solver is the explicit Euler solver with steps of 0.02, as
+  the reference does, so the bridges follow-up compares the two step by step. Its environment is a class attribute. A
   return of 475 averaged over 100 episodes of 500 decisions is the threshold at which Gymnasium counts the task solved.
   Primitives: `rates`, `policies`, `learned-functions`, `draws`.
 
@@ -376,17 +409,18 @@ The drafts that build on this change may follow in any order after it. None need
 ### The data package and its layer
 
 Decided on 2026-11-10. `skcomplex.core.data` is a new package of the core that holds `read_runs`, `observe`,
-`split_runs`, and `make_arrays`, as `sklearn.datasets` holds what makes data. The specs of observed runs stay in
-`skcomplex.core.specs`, since the fits read them by type.
+`split_runs`, and `make_arrays`, as `sklearn.datasets` holds what makes data. The specs of observed runs live in
+`skcomplex.core.components`, since interactions read them by type.
 
-The layers contract of `pyproject.toml` runs `experiments`, `analysis`, `engine`, `components`, `specs`, `base`, then
-`types` and `errors`. `data` enters between `analysis` and `engine`, so experiments and analyses may import it and it
-imports neither. It imports only `skcomplex.core.specs`, the trajectories of `skcomplex.core.engine.runtime`, and the
-root modules of types and errors. `observe` and `make_arrays` read an `ExperimentResult` through its `runs`, run result
-specs of `skcomplex.core.specs`, so the package never imports `skcomplex.core.experiments`. A scenario of the
-observed data checks that `observe` and `make_arrays` read an `ExperimentResult` while no module of the package
-imports `skcomplex.core.experiments`. A forbidden contract keeps
-it from `skcomplex.core.components` and the other engine packages, so data stays a reader of results and specs.
+The layers contract of `pyproject.toml` runs `experiments`, `analysis`, `systems`, `engine`, `components`, `base`, then
+`types`, `enums`, and `errors`. `data` enters between `analysis` and `systems`, so experiments and analyses may import
+it and it imports none of them. It imports only the root modules of `skcomplex.core.components` that hold the specs,
+`Trajectory` of `skcomplex.core.engine.runtime`, and the root modules of types and errors. `observe` and `make_arrays`
+read an `ExperimentResult` through its `runs` and their fields, so the package never imports
+`skcomplex.core.experiments`. A scenario of the observed data checks that `observe` and `make_arrays` read an
+`ExperimentResult` while no module of the package imports `skcomplex.core.experiments`. A forbidden contract keeps it
+from the subpackages of `skcomplex.core.components`, from `skcomplex.core.systems`, and from the engine packages other
+than `runtime`, so data stays a reader of results and specs.
 
 ### Decisions of 2026-11-10
 
@@ -395,10 +429,26 @@ it from `skcomplex.core.components` and the other engine packages, so data stays
 - The package `skcomplex.core.data` is approved and holds `read_runs`, `observe`, `split_runs`, and `make_arrays`.
 - The subpackage `skcomplex.systems.general.environments` is approved for the bridges of `add-learning-bridges`.
 - From the gap report of the learning drafts, approved the same day: `identify` fits initial states, noise scales, and
-  SDE terms, and offers prediction error and multiple shooting, `split_runs` splits by time within a run,
+  noise laws, and offers prediction error and multiple shooting, `split_runs` splits by time within a run,
   `PolicyTrainingResult.trajectory` exists for every method, and `ObservationSpec` gains binomial noise. Filtering,
   smoothing, and data assimilation are the follow-up `add-state-estimation`, and optimal designs and design
   optimisation the follow-up `add-experimental-design`.
+
+### Fit with the redesigned core
+
+Written after `redesign-core-api` landed on 2026-11-22.
+
+- The specs leave the removed package `skcomplex.core.specs` for `skcomplex.core.components` and its interactions
+  package, beside the classes that read them.
+- Weights are array parameters of the interaction that states the learned law. The planned whole-number sizes of
+  `ParameterSpec.shape` and the marker `adaptive=True` are dropped, since `ParameterSpec` is gone, array parameters
+  already have their shape from their value, and `trained` names the parameters a fit trains.
+- `trained` of `identify` and `train_policy` names parameters as `get_params` does, as `calibrate` names its bounds.
+- The policy is an interaction whose laws are update laws with named draws, and the `form='agent'` of the earlier draft
+  is dropped, since agents read the values of their group.
+- `GradientStepLaw` no longer exists. `TrainingInteraction` and `GradientDescentSolver` carry the training.
+- The data package sits between `analysis` and the `systems` package of the core, which did not exist when it was
+  approved.
 
 ## Risks / Trade-offs
 
@@ -414,9 +464,9 @@ it from `skcomplex.core.components` and the other engine packages, so data stays
   positive value, which the docstring states.
 - [The real data of the probes are small] → The scenarios check agreement with published estimates and held-out years,
   not the accuracy of a large benchmark.
-- [The mean and variance of SDE paths are noisy estimates of the loss] → `paths` sets the number of paths, the seed of
-  every epoch comes from `random_state`, and the scenario fits a process whose stationary moments are known in closed
-  form.
+- [The mean and variance of stochastic paths are noisy estimates of the loss] → `paths` sets the number of paths, the
+  seed of every epoch comes from `random_state`, and the scenario fits a process whose stationary moments are known in
+  closed form.
 - [Multiple shooting adds trained start states that a short run may not determine] → `continuity` weights the gaps,
   and the scenario compares windows with the error of the whole run on a chaotic system where the latter fails.
 
@@ -431,3 +481,8 @@ parameters. `DatasetSpec` keeps no alias. No other public name changes.
 
 - Torch models train outside the one Optax loop, by their own libraries. Whether that stays is the open question of
   `add-torch-surrogates`.
+- The runtime reads `PolicyInteraction` by type to hold its actions between decisions. The alternative is a policy in
+  a nested discrete system that steps once per decision interval, as co-simulation already steps a discrete child
+  inside a continuous parent, so the engine names no interaction class. To be decided before the policy is built.
+- `identify(initial=...)` names states whose initial values are fitted, while `calibrate(initial=...)` gives the
+  starting values of the fitted parameters. One of the two names should change.

@@ -2,12 +2,14 @@
 
 `sweep` in `core/experiments/_sweep.py` runs a system over rows of parameters from bounds or a design, with replicates,
 analyses, outputs, and executors, and returns an `ExperimentResult`. `calibrate` fits parameters to data with optuna,
-pyabc, and numpyro. A name without a dot is a model parameter set with `set_params`, and a dotted path names an initial
-state or a component parameter, so a search can reuse the same row handling.
+pyabc, and numpyro. A name without a dot, such as `r` or the nested `growth__r`, is set with `set_params` and the copy
+is prepared again, and a dotted path, such as `population.x`, sets a value of a component on one prepared copy, so a
+search can reuse the same row handling.
 
-`LeniaSystem` in `computer_science/automata/_lenia.py` runs Lenia with ring kernels. Particles with pair forces in
-periodic boxes run through `PairInteraction` and the particle helpers of `physics/common/particles`, but `physics` is
-another field, so particle life uses only core components.
+`LeniaSystem` in `computer_science/automata/_lenia.py` runs Lenia with ring kernels. Pair forces in the current core
+are an `Interaction` bound with `among=` and `within=RadiusNeighborhood(r)`, whose laws read the two members of a pair
+as `s.first` and `s.second`. The particle helpers of `physics/common/particles` belong to another field, so particle
+life uses only core components.
 
 ## Goals / Non-Goals
 
@@ -21,7 +23,7 @@ another field, so particle life uses only core components.
 - A pretrained vision-language embedding inside the core. The user passes the embedding. Torch and open_clip are not
   added here.
 - The curriculum and the gradient inner loop of 2402.10236, which train an initial pattern to reach a goal through a
-  differentiable run. `identify` and `TrainingInteraction` of `add-learning-foundation` already fit differentiable
+  differentiable run. `identify` of `add-learning-foundation` and `TrainingInteraction` already fit differentiable
   runs, and goal exploration here perturbs parameters only.
 - `sensorimotor_lenia`, Lenia with an obstacle channel. It is a probe of the curriculum, which is out of scope.
 - Supervised target search of ASAL. `calibrate` already fits a target, and an embedding-based loss is a user function.
@@ -40,11 +42,15 @@ another field, so particle life uses only core components.
 
 - Signature: `diversity_search(system, parameters, *, descriptors, objective=None, method='map-elites', cells=10,
   iterations=100, batch=32, until=None, dt=None, random_state=None, executor='serial')`. `parameters` are bounds as in
-  `sweep`. A matrix parameter is given by its dotted entries or as one bound per entry with the shape kept, so particle
-  life searches its matrix entry by entry.
+  `sweep`, by parameter name or dotted path. A matrix parameter, such as the `matrix` of particle life, is given as one
+  pair of bounds per entry in an array of its shape, so the search moves every entry and sets the whole matrix.
 - `descriptors` is a mapping from a name to a function of a trajectory with a range, which sets the bounds of the
   archive. `objective` is a function of a trajectory or `None`, which scores every run as 1.
-- Runs go through the same private runner as `sweep`, so executors, outputs, and seeds behave the same.
+- Runs go through the same private runner as `sweep`, so executors, outputs, and seeds behave the same. Rows that
+  change only dotted paths reuse one prepared copy, and rows that change parameters by name prepare their copy again,
+  as in `sweep`.
+- The system is not an estimator of pyribs or of scikit-learn. The search calls pyribs and scikit-learn inside the
+  experiment, and no system gains `fit`, `predict`, or `ask` and `tell`.
 - A parameter may be the weight vector of a `learned_function` or of a `PolicyInteraction` of
   `add-learning-foundation`, given one pair of bounds for every entry. `'cma-me'` searches it as covariance matrix
   adaptation does in neuroevolution, and the archive keeps policies or learned laws that behave differently.
@@ -67,9 +73,8 @@ another field, so particle life uses only core components.
   the expectation of equation 3 of 2412.17799 with its sign turned so that larger means more open-ended.
 - `'observer'`: artefacts are the embedded frames. For every `t` in a set of checkpoints, a clone of `observer`
   (default `sklearn.mixture.GaussianMixture(n_components=4)`) is fitted to the artefacts up to `t`, and `l(t, T)` is
-  the mean of `-score_samples` over a window around `T`. The observer may also be a learned density model of
-  `add-learning-foundation`, an Equinox module trained on the shared Optax loop by the negative log density of the
-  artefacts, whose `score_samples` is its log density. Novelty holds when the Spearman correlation of `l(t, T)` with
+  the mean of `-score_samples` over a window around `T`. Any estimator with `fit` and `score_samples` serves, such as
+  `KernelDensity` or a density model the user writes. Novelty holds when the Spearman correlation of `l(t, T)` with
   `T` is positive with a p-value below `alpha` for most checkpoints `t`, and learnability when the correlation of
   `l(t, T)` with `t` is negative in the same sense. The result holds the matrix, both correlations per checkpoint, and
   the verdicts.
@@ -88,11 +93,19 @@ another field, so particle life uses only core components.
 ### Particle life
 
 `ParticleLifeSystem(n_species=4, n_particles=400, matrix=None, core=0.3, cutoff=1.0, friction=0.5, force=1.0,
-box=40.0, random_state=None)`. A group of particles holds position, velocity, and species. One `PairInteraction` gives
-the force `F(r) = r / core - 1` for `r < core` and `a_ij (1 - |2 r - 1 - core| / (1 - core))` for `core <= r < 1`, in
-units of `cutoff`, along the unit vector between the pair, times `force`. A `RateInteraction` gives the friction. A
-`matrix` of `None` draws entries uniformly in `[-1, 1]` from `random_state`. Primitives: `particles`, `groups`,
-`interactions`, `continuous-spaces`, `draws`.
+box=40.0, random_state=None)`. One `Element('particles', size=n_particles, space=ContinuousSpace(...))` on a periodic
+square holds the position, named after the axes of the space, and the integer `species`. The velocity is the
+derivative of the position, not a value of its own. One `Interaction` with `among='particles'` and
+`within=RadiusNeighborhood(cutoff)` sets `RateLaw` laws on the second derivative of the position of each member of a
+pair, with the force `F(r) = r / core - 1` for `r < core` and `a_ij (1 - |2 r - 1 - core| / (1 - core))` for
+`core <= r < 1`, in units of `cutoff`, along the unit vector between the pair, times `force`, where `a_ij` is the entry
+of `matrix` at the species of the two members, read as a lookup table. The matrix, `core`, and `force` are parameters
+of that interaction. A second `Interaction` with one role gives the friction as `RateLaw(x.diff(t, 2), -friction *
+x.diff(t))`. A `matrix` of `None` draws entries uniformly in `[-1, 1]` from `random_state`. The force is not
+symmetric, so it is a rate law and not a pair energy `ObjectiveLaw`. If the entry of a matrix parameter cannot be read
+at the species of two members, the system is recorded as blocked and a change for that primitive is opened, as the
+constitution asks. Primitives: `particles`, `groups`, `interactions`, `continuous-spaces`, `numeric-functions`,
+`draws`.
 
 ## Risks / Trade-offs
 

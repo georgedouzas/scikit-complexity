@@ -2,20 +2,21 @@
 
 ## Context
 
-Particle groups hold vector states of order 2 for positions and run with pair laws such as `PairInteraction` with a
-potential (`core/components/interactions/_pair.py`), into which `move-recipes-to-systems` merges the former
-`PairCouplingInteraction`. Its `potential(namespace, r)` is a symbolic function of the distance.
+A particle group is one `Element` with `size=N` whose vector position `x` has a second derivative set by laws, and a
+value named after an axis of its space is its position. Pair forces come from an interaction bound with `among` and
+`within=RadiusNeighborhood(r)` that gives its pair energy as `ObjectiveLaw(V(r))`, a symbolic function of the distance,
+from which the engine derives the forces `RateLaw(x.diff(t, 2), -dV/dx / m)` of both members.
 `LennardJonesFluidSystem` is in `systems/physics/statistical_mechanics/_gases.py`. `VelocityVerletSolver` and
-`Yoshida4Solver` integrate states of order 2 symplectically. At run time the Numba backend finds pairs with cell lists
+`Yoshida4Solver` integrate positions with second derivatives symplectically, as `solver` settings of a system. At run time the Numba backend finds pairs with cell lists
 (`core/engine/backends/_numba_neighbours.py`), private to the compiled kernels. In the analysis layer `_read_snapshots`
 (`core/analysis/_base.py`) gives the positions, velocities, and box of a particle or agent group at every frame, and
 `neighbors` (`core/analysis/_neighbors.py`) searches pairs with a periodic `scipy.spatial.cKDTree`. `coarse_grain`
 (`core/analysis/_coarse_grain.py`) maps agents to grids or members to densities over a state. The surrogate functions
-`sparse_identification` and `reservoir` return a `system` built from a private element and laws, and `reservoir` runs a
-fitted Python map through `UpdateLaw` with a `CallSpec`. jax and optax are runtime dependencies.
+`sparse_identification` and `reservoir` return a `system` built from an `Element` and an interaction that states its
+laws, and `reservoir` runs a fitted Python map through `UpdateLaw` with a `CallSpec`. jax and optax are runtime dependencies.
 
 `add-learning-foundation` is a prerequisite. It adds Equinox as a runtime dependency, `learned_function`, whose
-learned pair potentials lower to NumPy and JAX and differentiate, the private `_OptaxLoop`, the one training loop of the
+learned pair energies lower to NumPy and JAX and differentiate, with weights as an array parameter of the interaction, the private `_OptaxLoop`, the one training loop of the
 library with validation and early stopping, `split_runs`, and `forecast_skill`.
 `physics/fluids` holds the fluid systems. There is no `physics/fluid_dynamics` subfield and none is created.
 
@@ -23,8 +24,8 @@ library with validation and early stopping, `split_runs`, and `forecast_skill`.
 
 **Goals:**
 
-- Learned particle systems that are ordinary systems, run by `simulate` and read by the agent analyses.
-- Force matching whose default result is a symbolic pair potential, so it runs on every backend.
+- Learned particle systems that are ordinary systems, prepared and simulated and read by the agent analyses.
+- Force matching whose default result is a symbolic pair energy, so it runs on every backend and in LAMMPS.
 - The physical metrics of LagrangeBench, distribution distances, as a general analysis.
 
 **Non-Goals:**
@@ -56,30 +57,32 @@ library with validation and early stopping, `split_runs`, and `forecast_skill`.
   `noise`, as in 2309.16342, with whole runs held out by `split_runs` for validation. Static particles, given by `kinds`, are not moved. The result holds `system`, `network`,
   `training_error`, `validation_error`, `rollout_error`, and `forecast`. `rollout_error` is the result of
   `forecast_skill` of the forecast against the held-out frames, so the error by lead time and the valid time come from
-  one analysis. Its `system` is a private declared element with
-  the positions and the recent velocities of every particle under `DiscreteTime`, and one `UpdateLaw` with a vectorised
-  `CallSpec` that builds the graph and applies the network, as `reservoir` does.
+  one analysis. Its `system` is a `System` of one `Element(label, values=...)` with
+  the positions and the recent velocities of every particle, and one `Interaction` whose `UpdateLaw` calls a vectorised
+  `CallSpec` that builds the graph and applies the network, as `reservoir` does. Its time is discrete, since its law is
+  an update.
 - **Hamiltonian network.** `hamiltonian_network(source, *, cutoff, masses=1.0, group=None, width=64, depth=3,
   validation=0.2, epochs=500, learning_rate=1e-3, random_state=None)`. The potential is `Σ_{i<j} φ(r_ij)` with `φ` an
   `eqx.nn.MLP` of the distance, smoothly cut off at `cutoff`, which is invariant by construction. Training matches one
   velocity Verlet step of the learned forces, `-jax.grad` of the potential, to the next positions and velocities of the
   data, differentiated through the step, on the shared loop. The result holds `system`, `network`, `radii`, `potential`, and the errors.
-  Its `system` is a particle group under `ContinuousTime` with a `PairInteraction` whose potential is
-  `learned_function(network, r, weights=theta)`, the learned pair potential of `add-learning-foundation`, with the
-  trained weights as an adaptive parameter. Since the rates of the positions read only the velocities and the reverse,
-  `VelocityVerletSolver` and `Yoshida4Solver` split it, and the system runs on the NumPy and JAX backends and
-  differentiates in the weights. The vectorised `CallSpec` that an earlier version of this design planned is not
+  Its `system` is a particle group with an interaction bound with `among` and `within=RadiusNeighborhood(cutoff)`
+  whose pair energy is `ObjectiveLaw(learned_function(network, r, weights=s.weights))`, the learned pair energy of
+  `add-learning-foundation`, with the trained weights as an array parameter of the interaction. The engine turns the
+  energy into rate laws on the second derivatives of the positions, so `VelocityVerletSolver` and `Yoshida4Solver`
+  split it, and the system runs on the NumPy and JAX backends and differentiates in the weights. The vectorised `CallSpec` that an earlier version of this design planned is not
   needed.
 - **Force matching.** `force_matching(source, *, forces, mapping=None, cutoff, basis='gaussian', size=32,
   width=None, kind='linear', masses=None, group=None, random_state=None)`. Positions and forces are mapped by
   `coarse_grain` with `mapping`, the forces with the transpose rule of the multiscale coarse-graining method, summing
   the forces of the particles of a bead. With `kind='linear'` the bead potential is `Σ_k c_k exp(-(r - r_k)² / (2 w²))`
   on `size` centres up to `cutoff`, and the coefficients solve the linear least squares of the mapped forces with
-  `scipy.linalg.lstsq`, which is the method of Izvekov and Voth. The `system` is the beads with a
-  `PairInteraction` whose potential is that symbolic sum, so it runs on every backend. With `kind='network'` the
+  `scipy.linalg.lstsq`, which is the method of Izvekov and Voth. The `system` is the beads with an
+  interaction bound with `within=` whose pair energy `ObjectiveLaw` is that symbolic sum, so it runs on every backend
+  and `LammpsSolver` prints it as a Lepton expression. With `kind='network'` the
   potential is an Equinox MLP of the distance plus a repulsive prior `(σ / r)^12`, trained on the shared loop as in
-  2310.18278, and the `system` holds a `PairInteraction` whose potential is the prior plus the `learned_function` of the
-  network, as the Hamiltonian network does. `forces` is an array of frames by
+  2310.18278, and the `system` holds an interaction with `within=` whose pair energy is the prior plus the
+  `learned_function` of the network, as the Hamiltonian network does. `forces` is an array of frames by
   particles by dimensions.
 - **Coarse-grained positions.** `coarse_grain` gains `mapping` and `forces`. With `mapping` it reads the snapshots of a
   particle group, unwraps every group by the minimum image of its first particle, and returns `positions` of the beads,
@@ -93,9 +96,12 @@ library with validation and early stopping, `split_runs`, and `forecast_skill`.
 - **System.** `SphDamBreakSystem` goes in `systems/physics/fluids/_sph_dam_break.py`, with `height`, `spacing`,
   `sound_speed` (ten times the largest velocity `sqrt(2 g H)`), `viscosity`, `gravity`, and `rest_density`. Fluid
   particles fill a column `2 H` wide and `H` high in a tank `5.366 H` wide, wall particles form three layers of fixed
-  position, velocity zero, and rest density. One `PairInteraction` with the Wendland C2 kernel in its `function`
-  writes the density rate and the acceleration jointly, with the Tait pressure and Monaghan's artificial viscosity, and gravity is
-  a rate law of the fluid group. The generalized wall conditions of Adami are replaced by fixed dummy particles, which
+  position, velocity zero, and rest density. Fluid and wall particles are members of one element `particles`, whose
+  per-member value `wall` marks the walls. One interaction bound with `among='particles'` and
+  `within=RadiusNeighborhood(2 h)` states rate laws on the density and on the second derivative of the position of both
+  members of every pair, with the Wendland C2 kernel, the Tait pressure, and Monaghan's artificial viscosity, each
+  multiplied by `1 - wall` of the member it changes, and a gravity interaction with one role adds `-g` to the vertical
+  second derivative of every fluid particle. Gravity and the kernel width are parameters of the interactions. The generalized wall conditions of Adami are replaced by fixed dummy particles, which
   the docstring states.
 - **Placement.** The four functions are analyses that read particle and agent trajectories by their tags, step 2, in
   `skcomplex.core.analysis`. Domains: fluids and soft matter in physics, molecular simulation in chemistry, collective

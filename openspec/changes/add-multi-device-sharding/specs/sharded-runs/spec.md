@@ -13,13 +13,13 @@ a run of several processes, a sequence that does not span the devices of every p
 whose message names `jax.devices()`.
 
 #### Scenario: Emulated devices
-- **WHEN** a Kuramoto system of 4000 oscillators runs on `JaxBackend(device=jax.devices('cpu'))` with four emulated
-  CPU devices
+- **WHEN** `KuramotoSystem` of 4000 oscillators with `backend=JaxBackend(device=jax.devices('cpu'))` runs on four
+  emulated CPU devices
 - **THEN** its trajectory equals the run on one device within 1e-10
 
 #### Scenario: Devices of one process in a cluster run
 - **WHEN** a script run as two processes passes `jax.local_devices()` to the backend
-- **THEN** preparing the backend raises `BackendError`, whose message names `jax.devices()`
+- **THEN** `prepare` of the system raises `BackendError`, whose message names `jax.devices()`
 
 ### Requirement: Batches split over devices
 A batch of runs on several devices SHALL split its run axis over them, and its results SHALL equal those on one device.
@@ -38,7 +38,7 @@ A single run on several devices SHALL split every group of at least 1000 members
 halos of lattices between neighbouring devices, and SHALL give the result of the run on one device.
 
 #### Scenario: Lattice on four devices
-- **WHEN** an Ising system of 512 by 512 sites runs 100 checkerboard sweeps with random state 0 on four emulated CPU
+- **WHEN** an Ising system of 512 by 512 sites runs 100 checkerboard sweeps with `random_state=0` on four emulated CPU
   devices
 - **THEN** its spins equal those of the run on one device
 

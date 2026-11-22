@@ -25,9 +25,10 @@
 ## 3. Optimisation
 
 - [ ] 3.1 Add `control` and `switch` to `MinimumTimeControlSystem`, and verify the switch-of-the-Pontryagin-solution and
-  feedback-unchanged scenarios in `tests/systems/engineering/control/`
+  feedback-unchanged scenarios in `tests/systems/engineering/control/test_minimum_time_control.py`
 - [ ] 3.2 Add `OptimizationResult` and `optimize` in `src/skcomplex/core/experiments/_optimization.py` with
-  `'bayesian'` on Optuna's `TPESampler`, `direction`, `replicates`, `constraints`, and the executor, export them, and
+  `'bayesian'` on Optuna's `TPESampler`, `direction`, `replicates`, `constraints`, and the executor, every evaluation
+  cloning, setting parameters, preparing, and simulating, export them from `skcomplex.core.experiments`, and
   verify the Bayesian part of the switch-time scenario and the same-seed scenario
 - [ ] 3.3 Add `'cma'` on pymoo's `CMAES`, and verify the CMA-ES part of the switch-time scenario
 - [ ] 3.4 Add `'nsga2'` on pymoo's `NSGA2` with the front and the point closest to the ideal point, and verify the
@@ -35,7 +36,8 @@
 
 ## 4. Structural identifiability
 
-- [ ] 4.1 Add `method='structural'` to `identifiability` with the Taylor coefficients by Sage, the exact rank at random
+- [ ] 4.1 Add `method='structural'` to `identifiability` with the Taylor coefficients by Sage on the symbolic equations
+  of a prepared clone, the exact rank at random
   rational points, and the field `rank`, and verify the sum-of-two-rates, predator-and-prey, and
   laws-that-are-not-symbolic scenarios in `tests/core/experiments/test_identifiability.py`
 

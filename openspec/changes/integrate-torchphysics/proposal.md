@@ -16,11 +16,13 @@ allows numpy 2. Until then it stays a recorded plan.
 
 - **Deep Ritz solver.** New solver `DeepRitzSolver` finds the static state of a field system whose laws give its energy
   as `ObjectiveLaw`, such as the Dirichlet energy of a membrane under load, by training a network on the energy
-  integral over the domain of the space, with the fixed values of the boundary as a penalty. It reads the system
-  through `prepare` like every other solver and returns the field on the points of the space.
+  integral over the domain of the space, with the fixed values of the boundary of the space as a penalty. It is the
+  `solver` setting of the system, prepared by `system.prepare()` like every other solver, and `simulate` returns the
+  field on the points of the space.
 - **Parametric physics-informed surrogates.** New analysis function `parametric_surrogate(system, params=...)` trains
-  one physics-informed network over the field and the ranges of the named parameters, such as
-  `params={'k': (0.5, 2.0)}` for a diffusion coefficient. Its result follows the surrogate convention `system`,
+  one physics-informed network over the field and the ranges of the parameters named as `get_params` names them, such
+  as `params={'k': (0.5, 2.0)}` for the diffusion coefficient of a ready-made heat system or
+  `params={'diffusion__k': (0.5, 2.0)}` for a `System`. Its result follows the surrogate convention `system`,
   `training_error`, `validation_error`. The `system` gives the field at any parameter value of the range without a new
   solve, and the validation error compares it with solves of the system itself at held out parameter values.
 - **Dependency.** `torchphysics` becomes a runtime dependency, since the core uses it. It brings `pytorch-lightning`.
@@ -47,8 +49,8 @@ None.
   `skcomplex.core.analysis`. Nothing existing changes.
 - Dependencies: `torchphysics` (1.1.2 or the first release that allows numpy 2) and its `pytorch-lightning`. The
   install grows by tens of megabytes over the torch stack of `add-torch-surrogates`.
-- Depends on `add-torch-surrogates` (torch, CPU wheels in CI, `PinnSolver` as the single solve path) and on
-  `redesign-core-api` (`System`, `prepare`, `simulate`, `ObjectiveLaw`).
+- Depends on `add-torch-surrogates` (torch, CPU wheels in CI, `PinnSolver` as the single solve path). It builds on
+  `System`, `prepare`, `simulate`, and `ObjectiveLaw`, already in the code since `redesign-core-api` was archived.
 - Blocked on upstream: a TorchPhysics release without the `numpy<2.0` pin. Its hard `jupyter` requirement should go in
   the same release, or the change records why the package accepts it.
 - Gallery: one example for each method, a loaded membrane and a diffusion sweep.

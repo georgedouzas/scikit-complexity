@@ -9,10 +9,11 @@ result.
 
 #### Scenario: Cart-pole by Q-learning
 - **WHEN** `train_policy` with `'dqn'` trains `CartPoleSystem` with `random_state=0` for 50000 decisions
-- **THEN** the mean return over 100 evaluation episodes is at least 475
+- **THEN** the mean return over 100 evaluation runs of the trained system, each `prepare().simulate(...)` with its own
+  seed, is at least 475
 
 #### Scenario: Continuous actions refused
-- **WHEN** `'dqn'` is called on a system whose environment has a continuous action
+- **WHEN** `train_policy` with `'dqn'` is called on a system whose environment has a continuous action
 - **THEN** it raises `ValidationError` that says Q-learning needs choices and names `'sac'`
 
 ### Requirement: Soft actor-critic trains continuous policies
@@ -30,8 +31,8 @@ without running the system, with a scikit-learn regressor or an Equinox module, 
 a path of the environment, the actions, or the reward.
 
 #### Scenario: Logs of a random policy
-- **WHEN** fitted Q iteration with extremely randomised trees learns from 200 logged cart-pole episodes of a random
-  policy
+- **WHEN** fitted Q iteration with `ExtraTreesRegressor` of scikit-learn learns from 200 logged cart-pole episodes of a
+  random policy
 - **THEN** the greedy policy of the result has a mean return above 150 over 100 evaluation episodes
 
 #### Scenario: Missing reward

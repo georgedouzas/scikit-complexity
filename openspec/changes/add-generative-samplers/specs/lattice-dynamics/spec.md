@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: Monte Carlo accepts independence proposals of whole configurations
-`SamplingInteraction` SHALL take a `ProposalSpec` as its move, which samples whole configurations of the state with
-their log densities `log q`, `hits` times per unit of time. Each proposal SHALL be accepted with probability
-`min(1, exp(-intensity * (E' - E)) q(x) / q(x'))`, where `E` is the total energy, the sum over sites of the declared
-`energy` of a site. A proposal move without an energy, or with a rule other than Metropolis, SHALL raise
-`ValidationError`.
+### Requirement: Metropolis sampling accepts independence proposals of whole configurations
+`MetropolisSolver` SHALL take a `ProposalSpec` of `skcomplex.core.engine.solvers` as the move of a state in its `moves`,
+which samples whole configurations of the state with their log densities `log q`, `hits` times per unit of time. Each
+proposal SHALL be accepted with probability `min(1, exp(-(E' - E) / T) q(x) / q(x'))`, where `T` is the temperature of
+the solver and `E` is the total energy, the sum over members of the `total` of the objective law. Preparing a system
+whose proposal move has no `total` to read, or whose rule is not Metropolis, SHALL raise `ValidationError`.
 
 #### Scenario: Exact proposal
 - **WHEN** the free field on a 4 × 4 lattice is sampled with the exact Gaussian density as its proposal
@@ -16,15 +16,15 @@ their log densities `log q`, `hits` times per unit of time. Each proposal SHALL 
   time
 - **THEN** the mean of `φ²` over the sites and frames lies within three standard errors of the exact value
 
-#### Scenario: Missing energy
-- **WHEN** a sampling interaction with a proposal move declares no energy
-- **THEN** preparing the system raises `ValidationError` naming the setting `energy`
+#### Scenario: Missing total energy
+- **WHEN** a system whose solver has a proposal move states an objective law without `total`
+- **THEN** preparing the system raises `ValidationError` naming the field `total`
 
-### Requirement: Total energies are declared per site
-`SamplingInteraction` SHALL take `energy`, a function of the namespace of a site whose sum over the sites is the total
-objective, and a run SHALL record the total energy as `<label>.energy` when it is declared. The local objective SHALL
-keep scoring local moves.
+### Requirement: Total energies are given per member
+`ObjectiveLaw` SHALL take `total`, an expression of the namespace of a member whose sum over the members is the total
+objective, and a run SHALL record the total energy as `<interaction label>.energy` when it is given. The local
+objective SHALL keep scoring local moves.
 
 #### Scenario: Energy of the free field
-- **WHEN** the free field is run at intensity 1 with a declared energy for 1,000 units of time
+- **WHEN** the free field is run at temperature 1 with a given `total` for 1,000 units of time
 - **THEN** the mean recorded energy per site lies within 2% of 1/2, as equipartition gives for a quadratic action

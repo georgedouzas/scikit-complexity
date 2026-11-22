@@ -19,7 +19,7 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
 - New analysis function `phase_indicator(source, *, parameter=..., output=..., kind=...)` in `core/analysis`. It reads
   samples at every point of a `sweep` and returns the supervised, confusion, or prediction-based indicator, the
   critical point at its maximum, and the lower bound of the Fisher information that the indicator gives.
-- New system `DiscreteNormalFormSystem` (`mathematics/dynamical_systems`), the noisy discrete-time normal forms of the
+- New ready-made system `DiscreteNormalFormSystem` (`mathematics/dynamical_systems`), the noisy discrete-time normal forms of the
   period-doubling, Neimark-Sacker, fold, transcritical, and pitchfork bifurcations with random higher-order terms and a
   ramped or fixed parameter, which generate training libraries.
 - New system `FoxCardiacAlternansSystem` (`biology/physiology`), the Fox map of cardiac action potential duration with
@@ -59,4 +59,5 @@ the ensembles, and `sweep`, but no analysis that learns from runs.
   `learned-indicators`.
 - Depends on `add-learning-foundation`: training libraries are observed runs built by `observe` from a `sweep`, with
   irregular times from the observation, the validation series are held out by `split_runs`, and the CNN-LSTM trains on
-  its shared Optax loop with early stopping. Independent of the other drafts that build on it.
+  its shared Optax loop with early stopping. The names used here are those of that change, and this change follows it
+  if its adaptation to the current API renames them. Independent of the other drafts that build on it.

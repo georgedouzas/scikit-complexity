@@ -2,7 +2,7 @@
 
 ## 1. Prerequisites and dependencies
 
-- [ ] 1.1 Check that `add-multi-device-sharding` is applied, so `simulate` takes `store`, and stop if it is not
+- [ ] 1.1 Check that `add-multi-device-sharding` is applied, so `System.simulate` takes `store`, and stop if it is not
 - [ ] 1.2 Add `mpi4py>=4.1.0` to the runtime dependencies in `pyproject.toml` and the Project Profile with its release
   date and licence, and verify `pdm install` resolves on Linux and macOS and `mpiexec -n 2 python -c "from mpi4py
   import MPI"` runs with the MPICH of `mpich`
@@ -13,11 +13,11 @@
 
 ## 2. Slabs
 
-- [ ] 2.1 Add `communicator` to `simulate`, compute the rows each rank owns, and check that every lattice has the same
-  number of rows, and verify the lattices-of-different-heights scenario in
+- [ ] 2.1 Add `communicator` to `System.simulate` and `run_problem`, compute the rows each rank owns, and check that
+  every lattice has the same number of rows, and verify the lattices-of-different-heights scenario in
   `tests/core/engine/runtime/test_decomposition.py`
 - [ ] 2.2 Compile each lattice of a rank with the shape of its slab plus its halo in
-  `core/engine/compile/passes/_lattices.py`, evaluate numbers and functions of sites per slab, slice full arrays, and
+  `core/engine/compile/passes/_lattices.py`, apply numbers to every site of the slab, slice full arrays, and
   verify the memory-per-rank scenario
 
 ## 3. Halo exchange
@@ -36,8 +36,8 @@
   observables of sites, and verify the observable-that-does-not-decompose scenario
 - [ ] 4.2 Give rank `r` the child `r` of the spawned random state, and verify the same-seed-and-ranks and
   Ising-magnetisation-on-four-ranks scenarios, marked slow
-- [ ] 4.3 Write the owned rows of every frame to the store of `simulate`, and verify the store of a four-rank Gray-Scott
-  run equals the frames of the run on one rank
+- [ ] 4.3 Write the owned rows of every frame to the store of `system.simulate`, and verify the store of a four-rank
+  Gray-Scott run equals the frames of the run on one rank
 
 ## 5. Benchmarks
 

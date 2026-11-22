@@ -36,7 +36,8 @@ state components.
 - **THEN** it returns the origin with index 1
 
 ### Requirement: The census reads the numeric drift
-The census SHALL evaluate the compiled drift or next value of a system and its Jacobian numerically, from the exact
+The census SHALL evaluate the drift or next value of the problem that `prepare` compiles for a system, and its
+Jacobian, numerically, from the exact
 Jacobian of the symbolic laws, from automatic differentiation on JAX for laws with learned functions of
 `add-learning-foundation`, and by finite differences otherwise. It SHALL accept groups of any size, callable laws, and
 learned laws, and SHALL reject other forms with a named error.
@@ -77,3 +78,7 @@ components as the annealed and quenched complexities.
 #### Scenario: System without disorder
 - **WHEN** a user asks for 10 realizations of a system that takes no `random_state`
 - **THEN** an `AnalysisError` states that realizations need a system with a `random_state`
+
+#### Scenario: Realizations leave the system unchanged
+- **WHEN** a user takes the census of a system with `random_state=3` over 10 realizations
+- **THEN** every realization is a prepared clone with its own seed, and the user's system keeps `random_state=3`

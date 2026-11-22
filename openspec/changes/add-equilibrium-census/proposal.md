@@ -15,14 +15,15 @@ number of unstable directions, counted over many realizations of the quenched di
 - The census runs over quenched realizations. With `realizations` above one, it redraws the disorder of a system that
   has a `random_state` and repeats the search, then reports the counts by index of every realization, their mean (the
   annealed count), and the exponential of the mean of `log(1 + n)` (the typical, or quenched, count), with both
-  complexities per unit.
-- The census reads the numeric drift and Jacobian of the compiled problem, not the symbolic equations, so it has no
+  complexities per unit. Each realization is a clone of the system with another `random_state`, set with `set_params`
+  and prepared, as the experiments do.
+- The census reads the numeric drift and Jacobian of the problem that `prepare` compiles, not the symbolic equations, so it has no
   member limit and accepts callable laws. For laws with learned functions of `add-learning-foundation` it takes the
   exact Jacobian by automatic differentiation of their JAX lowering, so systems identified from data are censused like
   hand-written ones.
 - The numeric fallback of the kind `'fixed-points'` uses the same deflated search, so it no longer misses roots that
   share a basin of the Newton iteration.
-- New system `RandomForceFieldRelaxationSystem` in `physics/statistical_mechanics`: units that relax to zero under a
+- New ready-made system `RandomForceFieldRelaxationSystem` in `physics/statistical_mechanics`: units that relax to zero under a
   quenched Gaussian random force field, with a gradient part and a divergence-free part mixed by the reciprocity `tau`.
 
 ## Capabilities
@@ -39,8 +40,9 @@ number of unstable directions, counted over many realizations of the quenched di
 ## Impact
 
 - Code: `src/skcomplex/core/analysis/_stability.py` (new kind, `StabilityResult` fields, deflated root search that
-  replaces `_numeric_points`). A new module in `src/skcomplex/systems/physics/statistical_mechanics/`.
-- Depends on `add-learning-foundation` for the census of systems with learned laws. The rest of the change does not
+  replaces `_numeric_points`). A new module `src/skcomplex/systems/physics/statistical_mechanics/_random_force_field.py`.
+- Depends on `add-learning-foundation` for the census of systems with learned laws, under the names that change gives
+  them. The rest of the change does not
   need it, and its tasks on learned laws wait for it.
 - No new dependencies. SciPy gives `optimize.root` and `differentiate.jacobian`. NumPy draws the realizations.
 - Docs: the stability section of the analysis guide, a gallery example, and an inventory entry.

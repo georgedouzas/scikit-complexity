@@ -61,12 +61,22 @@ and SHALL report their final means and variances as `estimates`.
 - **THEN** the estimate of `g` at the last time is within 5% of 9.81, and its variance is below its initial variance
 
 ### Requirement: Assimilated systems forecast
-The `system` of an `AssimilationResult` SHALL hold the last estimate of the states and the estimates of augmented
-parameters, so that `simulate` forecasts from them.
+The `system` of an `AssimilationResult` SHALL be a prepared clone of the system that starts from the last estimate of
+the states and holds the estimates of augmented parameters, so that `result.system.simulate(until=...)` forecasts from
+them. The system passed to `assimilate` SHALL stay unchanged.
 
 #### Scenario: Forecast from the last estimate
-- **WHEN** the system of a result is simulated
-- **THEN** its first frame equals the last frame of the result's trajectory within 1e-12
+- **WHEN** a user calls `result.system.simulate(until=10)` on the result of `assimilate`
+- **THEN** its first frame equals the last frame of the result's trajectory within 1e-12, and the user's system keeps
+  its own initial state
+
+### Requirement: Assimilation prepares once
+`assimilate` SHALL clone the system, set the conditions of the run with `set_params`, and prepare the clone once for
+every member, sigma point, and particle, as the experiments that vary only states do.
+
+#### Scenario: Prepares once
+- **WHEN** a user calls `assimilate` with `'particle'` and 1000 particles on a stochastic system
+- **THEN** the system is prepared once, and every particle advances the same prepared clone
 
 ### Requirement: Assimilation checks its models
 `assimilate` SHALL raise `ValidationError` before filtering when the method needs linear laws, derivatives, or Gaussian

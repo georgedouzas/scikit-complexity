@@ -6,9 +6,14 @@
   the forward function once per internal step from Python.
 - `JaxBackend.unroll` already runs a whole map or ODE run as one `jax.lax.scan`, with JAX keys for the uniform and
   normal draws of maps. Calibration and the learning compiler use it. It is the seed of the loops of this change.
-- `NumbaBackend` fills `AcceleratedSpec` with the loops of `_numba_loops.py`, written as source text and compiled with
-  `njit`. The solvers `RK4Solver`, `VelocityVerletSolver`, `Yoshida4Solver`, `EulerMaruyamaSolver`, `GillespieSolver`,
-  and the map solver call these loops once per frame.
+- `NumbaBackend` fills `LoweredFunctionsSpec.accelerated`, the private engine record `_AcceleratedSpec` of
+  `core/engine/problems/_accelerated_spec.py`, with the loops of `_numba_loops.py`, written as source text and compiled
+  with `njit`. The solvers `RK4Solver`, `VelocityVerletSolver`, `Yoshida4Solver`, `EulerMaruyamaSolver`,
+  `GillespieSolver`, and `IterationSolver` call these loops once per frame.
+- Since `redesign-core-api`, the backend is a setting of `System` and of every ready-made system, such as
+  `KuramotoSystem(backend=JaxBackend(device='gpu'))`. `system.prepare()` prepares the backend with the problem it
+  compiles, and `system.simulate(until, ...)` runs it, so the device and the precision are settings of the backend
+  and never arguments of `simulate`.
 - The automatic backend choice in `core/engine/compile/_base.py` picks Numba for groups of 1000 members or more and
   NumPy otherwise. The Numba loops run members in parallel with `prange` from that size on.
 - `GradientDescentSolver` has `precision='float64'` or `'float32'`, the naming this change reuses.
@@ -39,7 +44,7 @@
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `device` and `precision` of `JaxBackend` | 2, settings of a backend the engine runs by type | `core/engine/backends/_jax.py` | every field with large runs: physics (oscillators, particles), epidemiology (stochastic outbreaks), neuroscience (spiking networks), ecology, finance (Monte Carlo paths) |
-| JAX loops `iterate`, `rk4`, `velocity_verlet`, `yoshida4`, `euler_maruyama`, `gillespie` | 2, backend lowerings that the solvers call through `AcceleratedSpec` | new private module `core/engine/backends/_jax_loops.py` | the same fields, through every solver that reads `accelerated` |
+| JAX loops `iterate`, `rk4`, `velocity_verlet`, `yoshida4`, `euler_maruyama`, `gillespie` | 2, backend lowerings that the solvers call through `_AcceleratedSpec` | new private module `core/engine/backends/_jax_loops.py` | the same fields, through every solver that reads `accelerated` |
 | JAX lowering of noise and jump laws | 2, backend lowerings of law kinds | `core/engine/backends/_jax.py` | stochastic chemistry, epidemiology, finance, population genetics |
 | `gpu` marker, `gpu` session, and GPU workflow | not a part of the package | `tests/conftest.py`, `noxfile.py`, `.github/workflows/gpu.yml`, `.github/workflows/release.yml` | none |
 
@@ -64,7 +69,8 @@ package imports only `jax`.
 
 ### Device and precision
 
-- `JaxBackend(device=None, precision='float64')`. The constructor stores both. `prepare` resolves `device` to one
+- `JaxBackend(device=None, precision='float64')`. The constructor stores both. `_check` checks the precision, and
+  `_prepare`, which the system calls when it is prepared, resolves `device` to one
   `jax.Device` in `device_`: `None` gives `jax.devices()[0]`, a name gives the first device of that platform, where
   `'gpu'` takes CUDA or ROCm, and a `jax.Device` is kept. A name JAX does not know, or a platform with no device,
   raises `BackendError` that lists `jax.devices()` and the install command of the plugin.

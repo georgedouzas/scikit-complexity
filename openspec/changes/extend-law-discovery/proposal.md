@@ -16,13 +16,13 @@ few runs.
   - a weak form, which integrates the library against test functions instead of differentiating the series
   - an ensemble, which bags samples or library terms and returns the inclusion probability of every term
   - a parametric library, whose coefficients depend on named conditions that differ between the observed runs
-  - control inputs, named variables or the inputs of observed runs, that enter the library and become bounded adaptive
-    parameters of the system
+  - control inputs, named variables or the inputs of observed runs, that enter the library and become values of the
+    system bounded by the range of the observed inputs, which the `schedule` of `System.simulate` drives
   - experiment results of `ensemble` and `sweep` as sources, read as observed runs through `observe` of
     `add-learning-foundation`, one run per design point or per replicate
 - `sparse_identification` gains `system` and `learned`: it evaluates the trained learned functions of a system at the
   states of the source and fits a sparse library to their outputs, so the missing term of a universal differential
-  equation is recovered as an equation and the result's system holds the symbolic law in its place. This is the second
+  equation is recovered as an equation and the result's system, prepared again, runs the symbolic law in its place. This is the second
   step of the workflow of Rackauckas et al. (2001.04385), after `identify` of `add-learning-foundation` trains the
   network.
 - `embedding` gains the kinds `'tica'` and `'vamp'`, the slow coordinates of time-lagged independent component analysis
@@ -33,8 +33,8 @@ few runs.
   `split_runs`, with scikit-learn transformers.
 - New analysis `cluster_expansion` learns one shared acceleration law of the members of a group from particle
   trajectories. The law is permutation invariant and rotation equivariant, split by body order, and fitted by Bayesian
-  ridge regression with scikit-learn. Its result holds the contribution of every body order and a runnable group system
-  with the learned law.
+  ridge regression with scikit-learn. Its result holds the contribution of every body order and a `System` of the group
+  whose interactions state the learned law as rate laws, ready to `prepare` and `simulate`.
 - New system `online_offline_activity_network` in `social/spreading`, a stochastic process of online engagement and
   offline participation on a network with its mean-field limit, the probe of the multi-trajectory weak form.
 - **BREAKING:** `SparseIdentificationResult` gains fields and its `features` now name the terms of the chosen library,
@@ -64,9 +64,10 @@ None.
   parameters of the parametric library, run inputs are the control inputs, `observe` turns experiment results into
   runs, `split_runs` holds out validation runs, and every result follows the field convention of
   `IdentificationResult` (`system`, `training_error`, `validation_error`), and `identify` and `learned_function` train
-  the networks whose terms the learned-term option recovers. The private branch of `_read_samples` for
+  the networks whose terms the learned-term option recovers. The names used here are those of that change, and this
+  change follows it if its adaptation to the current API renames them. The private branch of `_read_samples` for
   experiment results that this change once planned is not needed.
-- Depends on `add-many-body-neighbour-roles` (change 9): the system of a `cluster_expansion` above body order 2 holds
-  its k-body neighbour interactions, and its probe is `many_body_alignment_swarm`. The 2-body part and the pairwise
-  probe `bird_swarm` do not depend on it.
+- Builds on `add-many-body-neighbour-roles`, which is archived and implemented: the system of a `cluster_expansion`
+  above body order 2 states its k-body terms with the reduction `hyperedges(..., size=k, over=RadiusNeighborhood(r))`,
+  and its probes `ManyBodyAlignmentSwarmSystem` and `BirdSwarmSystem` exist in `biology/collective_behaviour`.
 - Docs: the learned surrogates section of the user guide, gallery examples, and the inventory.

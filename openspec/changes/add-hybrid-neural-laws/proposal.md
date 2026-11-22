@@ -14,13 +14,15 @@ need learned functions on the sites of a lattice, trained through the unrolled r
 
 - The JAX path of the ODE solvers steps on the breakpoints of pulse inputs, so dosing schedules of the existing
   `DosingInteraction` of `biology/common/pharmacokinetics` are differentiable.
-- `identify` of `add-learning-foundation` gains `individual`, a mapping from per-member parameters of a group to the
-  standard deviation of their Gaussian prior, the random effects, fitted beside the shared parameters named by
+- `identify` of `add-learning-foundation` gains `individual`, a mapping from per-member values of a group element, named
+  as `get_params` names them, such as `patients__eta_CL`, to the standard deviation of their Gaussian prior, the random
+  effects, fitted beside the shared parameters named by
   `trained`. `IdentificationResult` gains `effects`, one value per member. Called with `trained=()` on new members, it
   gives their maximum a posteriori effects from few samples. Its `validation` holds out members when `individual` is
   set.
-- Parameters mapped from covariates are `learned_function` calls of per-member covariates, so one `identify` call learns
-  the map across members, and a new member gets its parameter from its covariates.
+- Parameters mapped from covariates are `learned_function` calls of per-member covariates inside the laws of an
+  interaction, so one `identify` call learns the map across members, and a new member gets its parameter from its
+  covariates.
 - New systems in `biology/physiology`, beside the existing two-compartment pharmacokinetics, dosed through
   `DosingInteraction` of `biology/common/pharmacokinetics`:
   - `tacrolimus_population_pk`: a group of patients with transit absorption, two compartments, covariates, and
@@ -52,7 +54,7 @@ None.
   `core/experiments/_identification.py`, two modules in `src/skcomplex/systems/biology/physiology/`, and one module in
   `src/skcomplex/systems/computer_science/automata/`.
 - Dependencies: none new. Equinox comes with `add-learning-foundation`.
-- Depends on `add-learning-foundation`, which adds `learned_function`, fixed shapes of `ParameterSpec`, observed runs
-  with per-member columns and missing values, the shared loop, and `identify`. `calibrate` stays the function for
+- Depends on `add-learning-foundation`, which adds `learned_function` with weights as array parameters of
+  interactions, observed runs with per-member columns and missing values, the shared loop, and `identify`. `calibrate` stays the function for
   posteriors of known parameters.
 - Docs: a user guide section on mixed effects, gallery examples, and the inventory.

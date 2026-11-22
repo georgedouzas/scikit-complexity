@@ -1,37 +1,40 @@
 ## Context
 
-See proposal.md for the motivation. This change sits on two drafted changes. `add-bayesian-calibration` gives
-`calibrate` its `method` argument (`'local'`, `'global'`, `'abc_smc'`, `'mcmc'`, `'variational'`), priors read from the
-bounds, the private `_CalibrationObjective` in `core/experiments/_calibration.py`, posterior fields of
-`CalibrationResult`, and `posterior_coverage` in `core/experiments/_coverage.py`. `add-neural-particle-simulators`
-gives `force_matching` in `core/analysis/_force_matching.py`, with `kind='linear'` and `kind='network'`, and particle
-mappings in `coarse_grain`. Its network kind holds the learned pair potential as a `learned_function` of `add-learning-foundation`, and its graph
-network runs a fitted Python map through an `UpdateLaw` with a vectorised `CallSpec`, as `reservoir` does with
-`_ReservoirStep` in `core/analysis/_reservoirs.py`.
+See proposal.md for the motivation. `calibrate` already has its `method` argument (`'local'`, `'global'`,
+`'abc_smc'`, `'mcmc'`, `'variational'`), priors read from the bounds, the private `_CalibrationObjective` in
+`core/experiments/_calibration.py`, posterior fields of `CalibrationResult`, and `posterior_coverage` in
+`core/experiments/_coverage.py`, all from the archived `add-bayesian-calibration`. The drafted
+`add-neural-particle-simulators` gives `force_matching` in `core/analysis/_force_matching.py`, with `kind='linear'`
+and `kind='network'`, and particle mappings in `coarse_grain`. Its network kind holds the learned pair energy as a
+`learned_function` of `add-learning-foundation`, and its graph network runs a fitted Python map through an `UpdateLaw`
+with a vectorised `CallSpec`, as `reservoir` does with `_ReservoirStep` in `core/analysis/_reservoirs.py`.
 
 `add-learning-foundation` is a prerequisite. It adds `ObservedRunsSpec`, which `calibrate` and the surrogate analyses
 read, `split_runs`, `forecast_skill`, and the result convention `system`, `training_error`, `validation_error` of every
 function that learns a system. Its shared Optax loop and `learned_function` serve JAX models. Torch models stay in
 their own libraries.
 
-Pair potentials are symbolic today: `PairInteraction` with a potential, into which `move-recipes-to-systems` merges the
-former `PairCouplingInteraction`, and `GradientInteraction` take Sage expressions, and `LammpsSolver` in
-`core/engine/solvers/_lammps.py` translates them to LAMMPS styles. Interactions it cannot translate that only change
-velocities already run through `fix external`, evaluated by the framework. The installed LAMMPS wheel holds ML-IAP but
+Pair energies are symbolic today: an interaction bound with `within=` gives its pair energy as `ObjectiveLaw(V(r))`,
+from which the engine derives the forces, and `GradientInteraction` of `skcomplex.systems.general.gradients` takes a
+Sage expression. `LammpsSolver` in `core/engine/solvers/_lammps.py` translates native pair styles and prints other pair
+energies as Lepton expressions. Interactions it cannot translate that only set accelerations already run through
+`fix external`, evaluated by the framework. The installed LAMMPS wheel holds ML-IAP but
 not the PYTHON package, so `pair_style mliap unified` and `pair_style mace` are not available, while `fix external` with
 a callback is. The field systems `GrayScottSystem` (`chemistry/pattern_formation`), `KuramotoSivashinskySystem`
 (`physics/fluids`), `HeatDiffusionSystem` (`physics/heat`), and `AllenCahnSystem` (`physics/pattern_formation`) run on
 lattices with the spectral and stiff steppers. `lyapunov(kind='largest')` and `scaling(kind='correlation-dimension')`
 measure series. `chain_shape` measures chains.
 
-The general-mechanisms spec forbids field terms in core names, so a core class may say potential and kind but not
-force, energy, atom, or species.
+The core holds only `BaseInteraction`, `Interaction`, and the interactions the engine reads by type, and every recipe of
+core laws lives in `skcomplex.systems.general` when several fields share it, or in the `common` package of one field.
+The engine never names a class of the systems packages.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Wrap the torch libraries of the papers behind the existing main public methods: `calibrate`, analysis functions
-  with frozen results, interactions, and solvers. No estimator classes.
+- Wrap the torch libraries of the papers behind the existing public verbs and functions: `calibrate`, analysis
+  functions with frozen results, interactions of the systems packages, and solvers that are settings of a system. No
+  estimator classes.
 - Every learned or pretrained object ends as a runnable `system` or as a field of a frozen result.
 - Tests run offline, on CPU, in seconds, with small untrained or tiny networks.
 - Reuse the blocks of `add-learning-foundation` for data, splits, and forecast scores, so the torch methods differ from
@@ -97,11 +100,12 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
 ### Neural calibration
 
 - **Methods of the same argument.** `'npe'`, `'nle'`, and `'nre'` join the table of method and loss pairs of
-  `add-bayesian-calibration`, each accepting only `loss='squares'` there, read as the summaries being compared. They
+  `calibrate`, each accepting only `loss='squares'` there, read as the summaries being compared. They
   map to `sbi.inference.NPE`, `NLE`, and `NRE`. Alternative: a separate `neural_calibrate`, rejected because the result,
   the priors, and the objective are shared.
-- **Simulator.** `_CalibrationObjective` gains a method that maps a batch of parameter vectors to summaries. It runs
-  the batch through the executors of `core/experiments/_runs.py` and returns a float32 torch tensor. Runs that fail
+- **Simulator.** `_CalibrationObjective` gains a method that maps a batch of parameter vectors to summaries. It clones
+  the system, sets every vector through `set_params`, prepares, and simulates, with the batch spread over the executors
+  of `core/experiments/_runs.py`, and returns a float32 torch tensor. Runs that fail
   return NaN, and sbi drops them.
 - **Priors.** The SciPy priors of the bounds map to `torch.distributions` (`Uniform`, `Normal`, `LogNormal`, `Beta`,
   `Gamma`, `Exponential`) joined by `sbi.utils.MultipleIndependent`. Any other family raises `ValidationError` naming
@@ -118,7 +122,7 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
   on the series at the data times. Learned summaries are what 2508.12939 recommends when no expert summary exists.
 - **Diagnostics.** The training and validation losses come from the inference object. `posterior_coverage` with a
   neural method trains once on `budget` runs and conditions on every truth, and adds the TARP curve from
-  `sbi.diagnostics.run_tarp` and the ranks from `run_sbc`. The shared `predictive` checks of change 1 apply unchanged.
+  `sbi.diagnostics.run_tarp` and the ranks from `run_sbc`. The `predictive` checks of `CalibrationResult` apply unchanged.
 - **Result.** `CalibrationResult` gains `estimator: object | None`. Pickling the result pickles the estimator, as sbi
   supports.
 
@@ -133,10 +137,12 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
   stacked over the training runs, with fields as channels and swept parameters
   as constant extra channels. A plain torch loop with Adam and the relative L2 loss of `neuralop.losses.LpLoss`.
   Alternative: neuraloperator's `Trainer`, rejected because it is tied to its config files and to wandb logging.
-- **System.** As in `reservoir`, a private `_OperatorStep` holds the network and its normalisation, and the result's
-  `system` is one field element on a `LatticeSpace` of the source's geometry under `DiscreteTime`, with one `UpdateLaw`
-  per field through a vectorised `CallSpec`. Swept parameters become model parameters of the element, read by the step.
-  The system takes `shape` so a Fourier operator runs on another grid, which is the discretisation convergence of
+- **System.** As in `reservoir`, a private `_OperatorStep` holds the network and its normalisation. The result's
+  `system` is a private ready-made system whose model parameters are `shape` and the swept parameters, and whose
+  `_prepare` sets `system_` to a `System` of one `Element` placed on a `LatticeSpace` of that shape with `space=` and
+  one `Interaction` whose `UpdateLaw` per field calls the step through a vectorised `CallSpec`. Its time is discrete,
+  since its laws are updates. The swept parameters are parameters of that interaction, read by the step. Changing
+  `shape` through `set_params` runs a Fourier operator on another grid, which is the discretisation convergence of
   2412.10354.
 - **Result.** `NeuralOperatorResult` holds `system`, `network`, `variables`, `parameters`, `lead`, `dt`,
   `training_error`, `validation_error`, and `forecast`.
@@ -165,35 +171,41 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
 
 ### Equivariant potentials
 
-- **Core primitive.** Both new systems drive one new core interaction, `EquivariantPotentialInteraction`, in
-  `core/components/interactions/_equivariant_potential.py`. It is the numeric counterpart of `GradientInteraction`:
-  arguments `label`, `target`, `states`, `network` (a path to a saved model or a loaded torch module), `kinds` (one
-  integer per member), and `divisor`. Its law is one `RateLaw` on the highest derivative of the states, with a
-  vectorised `CallSpec` that builds the neighbour graph within the network's cutoff by the minimum image, evaluates the
-  potential, and returns minus its autograd gradient over the divisor. The potential is recorded as an observable.
-  Alternative: a symbolic `GradientInteraction` potential, rejected because a network is not an expression, as change 7
-  found for its Hamiltonian network.
+- **Shared recipe.** Both new systems drive one new interaction, `EquivariantPotentialInteraction`, in
+  `systems/general/mechanics/_equivariant_potential.py`, beside `EulerLagrangeInteraction`, since atomistic physics,
+  chemistry, materials, and coarse-grained biomolecules share it. It is the numeric counterpart of
+  `GradientInteraction`: arguments `label`, `target` (a `Role`), `network` (a path to a saved model or a loaded torch
+  module), `kinds` (one integer per member), and `divisor`. Its `_prepare` sets `laws_` to one `RateLaw` on the second
+  derivative `x.diff(t, 2)` of the positions of its target, whose value is a vectorised `CallSpec` that builds the
+  neighbour graph within the network's cutoff by the minimum image, evaluates the potential, and returns minus its
+  autograd gradient over the divisor. The potential is recorded as an observable. It is a recipe of core laws, so it
+  stays out of the core. Alternative: a symbolic pair energy or `GradientInteraction` potential, rejected because a
+  network is not an expression, as `add-neural-particle-simulators` found for its graph network.
 - **Field case.** `MaceInteraction` in `physics/common/particles/_mace.py` is a subclass that takes chemical symbols
   and a published model name (`'mace-mp-0-small'` by default) and loads it with `mace.calculators.mace_mp`, mapping
   symbols to kinds. Both new systems are physics, so the case lives in the field's `common`.
 - **Evaluation.** The network runs in float64 on CPU by default, so energy drift and the LAMMPS comparison meet tight
   tolerances. MACE takes the positions, the cell, the periodic flags, and one-hot kinds in its `AtomicData` layout,
   built from NumPy arrays without ASE in the loop.
-- **LAMMPS.** `LammpsSolver` treats the interaction as a `fix external` interaction. Its callback reads the positions,
-  calls the same `CallSpec`, and writes the gradient back as per-atom values, while LAMMPS keeps the integrator, the
-  thermostat, and the translated pair styles. Alternatives: `pair_style mace` and `pair_style mliap unified`, which
+- **LAMMPS.** `LammpsSolver` already runs every interaction that only sets accelerations and has no native style
+  through `fix external`, so it runs this interaction with no change and without naming it. Its callback reads the
+  positions, calls the same `CallSpec`, and writes the gradient back as per-atom values, while LAMMPS keeps the
+  integrator, the thermostat, and the translated pair styles. This change only tests it. Alternatives: `pair_style mace` and `pair_style mliap unified`, which
   need a LAMMPS built with libtorch or with the PYTHON package. The wheel has neither.
 - **Coarse-grained fits.** `force_matching(kind='equivariant')` builds a small MACE model (`mace.modules.MACE`, two
   interaction layers, few channels, cutoff from the argument) with one kind per bead type and trains it on the mapped
-  forces with a force-only loss in a plain torch loop, beside the repulsive prior `(σ / r)^12` of change 7's network
-  kind. The result system uses `EquivariantPotentialInteraction` for the network and a `PairInteraction` with a
-  potential for the prior. Alternative: mace-torch's training script, rejected because it reads files and a command
-  line.
+  forces with a force-only loss in a plain torch loop, beside the repulsive prior `(σ / r)^12` of the network kind of
+  `add-neural-particle-simulators`. The core cannot import `EquivariantPotentialInteraction` of the systems packages, so the result system holds
+  an `Interaction` whose `RateLaw` calls a private `_EquivariantForces` of `core/analysis/_force_matching.py`, as
+  `reservoir` holds `_ReservoirStep`, and an `Interaction` bound with `within=` whose pair energy `ObjectiveLaw` is the
+  prior. The result also holds the fitted `network`, which `EquivariantPotentialInteraction` takes. Alternative:
+  mace-torch's training script, rejected because it reads files and a command line.
 
 ### Physics-informed solver
 
 - **Solver.** `PinnSolver` in `core/engine/solvers/_pinn.py`, a solver of field systems with rate laws on rectangular
-  lattices in one or two dimensions, with arguments `layers=(64, 64, 64, 64)`, `fourier_features=0`, `iterations=10000`,
+  lattices in one or two dimensions, given as the `solver` setting of the system, as `System(..., solver=PinnSolver())`
+  or `HeatDiffusionSystem(solver=PinnSolver())`, with arguments `layers=(64, 64, 64, 64)`, `fourier_features=0`, `iterations=10000`,
   `refine=True` (L-BFGS after Adam), `collocation=4096`, `device='cpu'`, and `random_state=None`. It uses deepxde's
   `TimePDE`, `GeometryXTime`, `IC`, `DirichletBC`, and `PeriodicBC`, and returns frames at the requested times on the
   system lattice.
@@ -204,8 +216,8 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
 - **Residuals from the declared laws.** A private `_PinnResidual` walks the compiled field laws of the problem and
   prints each rate expression to torch through a subclass of `ExpressionPrinter` of
   `core/engine/problems/_expression_printer.py`. `partial(u, k)` becomes `dde.grad.jacobian` and `laplacian(u)` the sum
-  of `dde.grad.hessian` diagonals. Noise, jump, rule, callable, and algebraic laws are rejected in the solver's support
-  check, as `LammpsSolver` rejects unsupported laws.
+  of `dde.grad.hessian` diagonals. Noise, jump, update, constraint, event, and objective laws and callable values are
+  rejected in the solver's support check, which `prepare` runs, as `LammpsSolver` rejects unsupported laws.
 - **Fourier features** follow 2308.08468 as a fixed random feature layer applied to the space inputs through
   deepxde's `apply_feature_transform`. Causal weighting is left out, see the open questions.
 - **Inverse mode.** `calibrate(method='pinn')` builds the same network and residuals for a field system, declares the
@@ -222,13 +234,15 @@ Checked on PyPI on 2026-11-08, with the requirements each release declares.
   `n_molecules=32`, `density=0.997` (g/cm³), `temperature=300.0`, `friction=0.01` (1/fs), `model='mace-mp-0-small'`,
   `random_state`, and `label`. Molecules start on a cubic lattice with the experimental geometry. One group of atoms
   with masses per kind, a `MaceInteraction`, and the Langevin thermostat of `physics/common/particles`. MACE-MP-0 is the
-  model of 2401.00096 and is MIT licensed, unlike MACE-OFF. The tag set includes `stochastic` through the thermostat.
+  model of 2401.00096 and is MIT licensed, unlike MACE-OFF. The tags hold `stochastic` through the noise law of the
+  thermostat.
 - **`CgProteinFoldingSystem`** in `physics/soft_matter/_cg_proteins.py`. Arguments `resolution='coarse'`,
   `temperature`, `network=None`, `random_state`, and `label`. The fine resolution is a native-centric model of
   chignolin with a backbone and a side-chain bead per residue, harmonic bonds and angles, and Lennard-Jones 12-10
   native contacts, run with Langevin dynamics. It is the reference that the coarse model is fitted to, standing in for
   the all-atom data of 2310.18278. The coarse resolution keeps one bead per residue with bond, angle, and repulsion
-  priors, and adds an `EquivariantPotentialInteraction` when `network` is given. The native coordinates of the ten
+  priors, the repulsion an interaction with `within=` whose pair energy is an `ObjectiveLaw`, and adds an
+  `EquivariantPotentialInteraction` when `network` is given. The native coordinates of the ten
   residues are a small data file of the module, read with `importlib.resources.files`. No Biopython is needed, so the
   molecular-structures extras stay optional, and `chain_shape` measures both resolutions.
 
@@ -257,6 +271,11 @@ No data migration. Calls without the new methods keep their results. The changel
 `CalibrationResult`, the new runtime dependencies, the install size, and the CPU-only install steps.
 
 ## Open Questions
+
+- `EquivariantPotentialInteraction` lives in `skcomplex.systems.general.mechanics`, so `force_matching` of the core
+  builds its result system with a private callable of its own, and the evaluation of an equivariant network is written
+  twice. The alternative is a public law function of `skcomplex.core.components.laws.utils` that evaluates a network
+  potential, which both would call. To be decided before the interaction is built.
 
 - Causal training weights of 2308.08468 are not part of deepxde. They can be added later as a solver option without
   changing the specs.

@@ -10,25 +10,26 @@ record replays. Without that, a run that costs money and time cannot be reproduc
 
 ## What Changes
 
-- New frozen spec `OracleSpec(respond, name, cache)` in `skcomplex.core.specs`. An oracle is any function
-  `respond(request, *, seed)` that returns a text or a JSON value, such as a language model, a remote simulator, or a
-  human operator.
-- `simulate` gains `oracles`, a mapping from the name a rule uses to an `OracleSpec`, chosen by the caller and never by
-  the system.
-- The agent system view gains `query(name, request)`. It draws a call seed from the random stream of the run, returns a
-  cached answer for the same oracle, request, and seed when one exists, and calls the oracle otherwise.
-- Every query is kept in the trajectory as a `QueryRecordSpec` with the oracle name, the time, the agent, the request,
-  the seed, and the answer. `simulate(replay=...)` returns the recorded answers without calling the oracle and raises
-  `ValidationError`, as a replay of draws does, when a rule sends a request that differs from the record.
-  `save_queries` and `load_queries` write and read the record as JSON lines, so a run can be replayed on a machine
-  without credentials.
-- New concept subpackage `skcomplex.systems.general.language_models` with `chat_oracle(model, *, base_url,
-  api_key_variable, temperature, system_prompt)`, which returns an `OracleSpec` that calls any endpoint compatible with
-  the OpenAI chat API, and `parse_options(answer, options, count)`, which reads the chosen options from a free-text
-  answer. It sits behind the new optional extra `language-models`.
+- New frozen value `OracleSpec(respond, name, cache)` in `skcomplex.core.engine.runtime`, beside `Trajectory`, since
+  the runtime reads it. An oracle is any function `respond(request, *, seed)` that returns a text or a JSON value, such
+  as a language model, a remote simulator, or a human operator.
+- `System.simulate` gains `oracles`, a mapping from the name a rule uses to an `OracleSpec`, chosen by the caller and
+  never by the system. Like `replay` and `observers`, it is an argument of the run, not a setting of the system.
+- The system view that agent rules receive, `SystemView` of the agent solver, gains `query(name, request)`, and
+  `SystemViewProtocol` declares it. A query draws a call seed from a random stream of the run kept for queries, returns
+  a cached answer for the same oracle, request, and seed when one exists, and calls the oracle otherwise.
+- Every query is kept in the trajectory as a `QueryRecordSpec`, a public value beside `Trajectory`, with the oracle
+  name, the time, the agent, the request, the seed, and the answer. `system.simulate(replay=...)` returns the recorded
+  answers without calling the oracle and raises `ValidationError`, as a replay of draws does, when a rule sends a
+  request that differs from the record. `save_queries` and `load_queries` write and read the record as JSON lines, so a
+  run can be replayed on a machine without credentials.
+- New concept subpackage `skcomplex.systems.general.language_models`, which needs the maintainer's approval, with
+  `chat_oracle(model, *, base_url, api_key_variable, temperature, system_prompt)`, which returns an `OracleSpec` that
+  calls any endpoint compatible with the OpenAI chat API, and `parse_options(answer, options, count)`, which reads the
+  chosen options from a free-text answer. It sits behind the new optional extra `language-models`.
 - New systems, each with a rule-based player beside the oracle player, so that tests and comparisons need no model.
-  Each declares its decisions as the actions of an `EnvironmentSpec` of `add-learning-foundation`, so the oracle, the
-  rules, and a learned `PolicyInteraction` play the same game, and the naming game gains `player='learned'`, trained by
+  Each declares its decisions as the actions of an environment of `add-learning-foundation`, so the oracle, the rules,
+  and a learned `PolicyInteraction` play the same game, and the naming game gains `player='learned'`, trained by
   `train_policy`, as a third baseline:
   - `LlmNamingGameSystem` in `social/language`, the pairwise naming game with a memory of past rounds, rewards, and a
     committed minority (2410.08948)
@@ -53,14 +54,16 @@ record replays. Without that, a run that costs money and time cannot be reproduc
 
 ## Impact
 
-- Core: `skcomplex.core.specs` (`OracleSpec`, `QueryRecordSpec`), the Mesa system view in `core/engine/solvers/_mesa.py`, `simulate` and `Trajectory` in
-  `core/engine/runtime`, and `SystemViewProtocol` in `core/components/types.py`. No change to non-agent forms.
+- Core: `OracleSpec` and `QueryRecordSpec` in new private modules of `core/engine/runtime`, `save_queries` and
+  `load_queries` in the same package, `Trajectory` in `core/engine/runtime/_trajectories.py`, `BaseSystem.simulate` in
+  `core/systems/_base.py`, the agent system view in `core/engine/solvers/_mesa.py`, and `SystemViewProtocol` in
+  `core/components/types.py`. No change to the law kinds, and runs without agent rules are unchanged.
 - Systems: a new concept subpackage `skcomplex.systems.general.language_models`, and new modules in
   `social/language`, `mathematics/networks`, and `social/organizations`.
 - Dependencies: the optional extra `language-models` holds `openai` 3.49.0, released 2026-11-10. The core uses only
   the standard library (`hashlib`, `json`, `sqlite3`) for seeds, records, and the cache.
-- Docs: the agent section of the user guide, a gallery example of each probe that replays recorded queries, and the inventory
-  with the primitive `oracle-queries`.
+- Docs: the agent section of the user guide, a gallery example of each probe that replays recorded queries, and the
+  inventory with the primitive `oracle-queries`.
 - Depends on `add-learning-foundation` only for the environments of the probes and the learned player. The oracle
   primitive, its record, and its replay do not need it.
 - `extend-network-and-emergence-measures` adds the synergy measures that the gallery example of the group guessing game

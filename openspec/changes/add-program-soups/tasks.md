@@ -1,10 +1,12 @@
 ## 1. Array updates of well-mixed groups
 
-- [ ] 1.1 Allow groups without a space in the requirement of `ArrayUpdateLaw` and lower them on the NumPy and Numba
-  backends as in the network case, and verify the swap-of-paired-rows and wrong-shape scenarios in
-  `tests/core/components/laws/test_array_update.py`
-- [ ] 1.2 Document the well-mixed case in the docstring of `ArrayUpdateLaw` with a runnable example, and verify the
-  doctest
+- [ ] 1.1 Allow groups without a space in the requirement of the private `ArrayUpdateLaw` in
+  `src/skcomplex/core/engine/compile/_array_update_law.py` and lower them on the NumPy and Numba backends as in the
+  network case, and verify the swap-of-paired-rows and wrong-shape scenarios through the public `UpdateLaw` and
+  `System` in `tests/core/engine/compile/test_array_update_law.py`
+- [ ] 1.2 Document the well-mixed case in the docstring of `UpdateLaw` in
+  `src/skcomplex/core/components/laws/_update.py`
+  with a runnable example, and verify the doctest
 
 ## 2. High-order entropy
 
@@ -20,8 +22,10 @@
 
 - [ ] 3.1 Add the Numba interpreter and `BffSoupSystem` in
   `src/skcomplex/systems/computer_science/evolutionary_computation/_bff_soup.py`, export the system, and verify the
-  instruction-set, replicator, and defaults scenarios
-- [ ] 3.2 Add the observable `high_order_entropy` and the seeds, and verify the seeded-replicator scenario, marked slow
+  instruction-set, replicator, and defaults scenarios in
+  `tests/systems/computer_science/evolutionary_computation/test_bff_soup.py`
+- [ ] 3.2 Add the observable `high_order_entropy`, which calls the public `entropy`, and the seeds, and verify the
+  seeded-replicator scenario, marked slow, in the same test module
 - [ ] 3.3 Add the inventory entry `bff_primordial_soup` with the source 2406.19108 and the primitive
   `compression-entropy` with `change = "add-program-soups"`, and verify the inventory check passes
 - [ ] 3.4 Add the gallery example `docs/examples/computer_science/evolutionary_computation/plot_bff_soup.py`, which

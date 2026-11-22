@@ -20,7 +20,7 @@ that reports `cv_results`, `best_params`, and `best_score`.
 #### Scenario: Grid of learning rates
 - **WHEN** `identify` searches 3 learning rates with 3 folds and `scoring='r2'`
 - **THEN** `best_params` holds the learning rate of the highest mean test score, `best_score` equals that score, and
-  the `system` of the result is a system that `simulate` runs
+  the `system` of the result prepares and simulates
 
 #### Scenario: Same seed, same search
 - **WHEN** the search runs twice with the same `random_state`
@@ -82,5 +82,5 @@ systems and the standard deviation of every estimate over them, keeping the fit 
 
 #### Scenario: Spread of a network
 - **WHEN** a universal Lotka-Volterra system is identified with `replicates=5`
-- **THEN** the result holds 5 systems that `simulate` runs, `spread` holds one value per estimate, and `system` equals
+- **THEN** the result holds 5 systems that prepare and simulate, `spread` holds one value per estimate, and `system` equals
   the result of a call with `replicates=1` and the same `random_state`

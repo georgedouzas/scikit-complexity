@@ -2,8 +2,10 @@
 
 See proposal.md for the motivation and the reason the change is postponed. The relevant state:
 
-- `redesign-core-api` gives `System`, `prepare`, `simulate`, and `ObjectiveLaw`. An `ObjectiveLaw` outside a pair
-  interaction is an objective to minimise, so a field whose laws are one `ObjectiveLaw` already states its energy.
+- The code has `System`, `prepare`, `simulate`, and `ObjectiveLaw` since `redesign-core-api` was archived. An
+  `ObjectiveLaw` stated by an interaction without `within=` is an objective to minimise, so a field whose interaction
+  states one `ObjectiveLaw` already states its energy. A space holds the boundary of each state, such as
+  `LatticeSpace(64, boundary={'u': ('fixed', 0.0)})`, and the solver and the backend are settings of the system.
 - `add-torch-surrogates` adds torch with CPU wheels in CI, `PinnSolver` on deepxde for single physics-informed solves,
   and `neural_operator` on neuraloperator for maps learned from runs.
 - Surrogate results follow `add-learning-foundation`: `system`, `training_error`, `validation_error`.
@@ -15,8 +17,8 @@ See proposal.md for the motivation and the reason the change is postponed. The r
 
 **Goals:**
 
-- Lower a prepared field system to a TorchPhysics problem: its space to a domain, its laws to conditions, its fixed
-  boundary values to boundary conditions, and its named parameters to parameter variables.
+- Lower a prepared field system to a TorchPhysics problem: its space to a domain, its laws to conditions, the fixed
+  boundary values of its space to boundary conditions, and its named parameters to parameter variables.
 - One adapter module per method, holding only that lowering and the reading of the trained network back to values.
 
 **Non-Goals:**
@@ -43,24 +45,27 @@ Libraries surveyed for the two methods:
 
 ### The method follows from the laws and the solver
 
-`DeepRitzSolver` is a solver like any other, chosen with `solver=` on the system. It accepts a system whose only laws
-are one `ObjectiveLaw` over a field and fixed boundary values, and the census of `prepare` checks this, so a wrong
-system fails at `prepare` with the names of the laws it cannot read. `parametric_surrogate` is an analysis function,
+`DeepRitzSolver` is a solver like any other, the `solver` setting of the system. It accepts a system whose only law is
+one `ObjectiveLaw` over a field on a space with fixed boundary values, and its support check, which `prepare` runs,
+checks this, so a wrong system fails at `prepare` with the names of the laws it cannot read. `parametric_surrogate` is an analysis function,
 not a solver, because its product is a new system over a range of parameters, the same shape as the other surrogate
 functions.
 
 ### Lowering through the prepared problem
 
-Both adapters read the prepared problem of the system, its symbolic laws, space, and boundary values, never the
-classes the user wrote. The energy or the rate laws are turned into torch functions from their symbolic form, the
+Both adapters read the compiled problem of the prepared system, its symbolic laws, space, and boundary values, never
+the classes the user wrote. The energy or the rate laws are turned into torch functions from their symbolic form, the
 same path `PinnSolver` uses for deepxde, so the conversion from symbolic laws to torch exists once and both adapters
 share it.
 
 ### The surrogate system
 
-The `system` of a `parametric_surrogate` result is a `System` whose single element holds the trained network and the
-parameter ranges. Simulating it at a parameter value evaluates the network on the points of the space at the frames
-asked for. Its parameters keep the names of the original system, so `set_params(k=1.3)` works on both.
+The `system` of a `parametric_surrogate` result is a private ready-made system whose model parameters keep the names
+and the trained ranges of the parameters of the original system, so `set_params(k=1.3)` works on both. Its `_prepare`
+sets `system_` to one `Element` on the space of the original and one `Interaction` whose `UpdateLaw` sets the field to
+the trained network evaluated at the time of every frame, through a vectorised `CallSpec`, as `reservoir` runs its
+readout. Elements hold values only, so the network sits in the callable of the law, not in the element. Preparing it
+with a value outside a trained range raises `ValidationError`.
 
 ### Seeds and devices
 

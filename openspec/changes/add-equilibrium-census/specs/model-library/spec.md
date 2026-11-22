@@ -15,7 +15,7 @@ part weighted by the reciprocity `tau`, scaled by the rescaled disorder `gamma`.
 - **THEN** the divergence of `F` at random points is 0 within 1e-8
 
 #### Scenario: Relaxation without disorder
-- **WHEN** the system runs with `gamma = 0`
+- **WHEN** the system is prepared and simulated with `gamma = 0`
 - **THEN** every unit decays to 0 at the rate `mu` within 1e-6
 
 #### Scenario: Recorded in the inventory

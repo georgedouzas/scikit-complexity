@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: Flow-Lenia
-The library SHALL provide `FlowLeniaSystem` in `computer_science/automata` (Plantec et al. 2023, arXiv 2212.07906):
-`C` channels of nonnegative mass, kernels from a source channel to a target channel with their growth maps, the
+The library SHALL provide `FlowLeniaSystem` in `skcomplex.systems.computer_science.automata` (Plantec et al. 2023,
+arXiv 2212.07906): `C` channels of nonnegative mass, kernels from a source channel to a target channel with their growth maps, the
 affinity `U` of every channel, the flow `F_i = (1 - alpha) grad U_i - alpha grad A_sum` with
 `alpha = clip((A_sum / theta_A)^n, 0, 1)` and Sobel gradients, and the update of every channel by `reintegrate`.
 
 #### Scenario: Mass conserved
-- **WHEN** the system runs 500 steps from a 40 by 40 patch of uniform random mass with parameters drawn from Table 1
-  of the paper
+- **WHEN** the system is prepared and simulated for 500 steps from a 40 by 40 patch of uniform random mass with
+  parameters drawn from Table 1 of the paper
 - **THEN** the mass of every channel equals its initial mass within a relative error of 1e-10
 
 #### Scenario: Patterns stay localised

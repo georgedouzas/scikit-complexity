@@ -5,8 +5,7 @@
 - [ ] 1.1 Open a pull request to Qewton-Labs/torchphysics that allows numpy 2 and moves `jupyter` to an extra, and stop
   the change until a release contains it. Verify that `pip install torchphysics` beside `numpy>=2.1` resolves on
   Python 3.14 from the package index
-- [ ] 1.2 Check that `add-torch-surrogates` and `redesign-core-api` are applied, so torch, `PinnSolver`, `System`, and
-  `ObjectiveLaw` exist, and stop if they are not
+- [ ] 1.2 Check that `add-torch-surrogates` is applied, so torch and `PinnSolver` exist, and stop if it is not
 
 ## 2. Dependency
 
@@ -23,8 +22,9 @@
   energy to an integral condition, and the fixed boundary values to a penalty, and training with Lightning logging and
   checkpoints off. Test the loaded membrane scenario in `tests/core/engine/solvers/test_deep_ritz.py`, marked slow
   where it passes 10 seconds
-- [ ] 3.2 Reject at `prepare` a system whose laws are not one energy over a field. Test the heat equation scenario and
-  check that the message names its rate laws
+- [ ] 3.2 Reject at `prepare`, in the support check of the solver, a system whose laws are not one energy over a field.
+  Test the heat equation scenario in `tests/core/engine/solvers/test_deep_ritz.py` and check that the message names
+  its rate laws
 - [ ] 3.3 Compare with finite elements on the same square. Test the scenario of agreement within 2e-2
 - [ ] 3.4 Add the docstring with a short example, export the solver, and add the gallery example of the loaded
   membrane. Verify with the doctests and the gallery sample
@@ -37,8 +37,8 @@
   `tests/core/analysis/test_parametric_surrogate.py`
 - [ ] 4.2 Compute the validation error against solves of the system at held out parameter values. Test the validation
   scenario
-- [ ] 4.3 Make the surrogate system reject a parameter value outside its range. Test the scenario at `k = 3.0` and the
-  message naming `k` and its range
+- [ ] 4.3 Make the surrogate system reject at `prepare` a parameter value outside its range. Test the scenario at
+  `k = 3.0` and the message naming `k` and its range in `tests/core/analysis/test_parametric_surrogate.py`
 - [ ] 4.4 Add the docstring with a short example, export the function, and add the gallery example of the diffusion
   sweep. Verify with the doctests and the gallery sample
 

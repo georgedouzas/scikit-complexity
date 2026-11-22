@@ -4,13 +4,20 @@
   rejects reductions over neighbourhoods. `add-device-execution` gives it loops on a device for maps, ODEs, SDEs, and
   jumps.
 - The Numba backend supports every space. `_numba_neighbours.py` bins members into cell grids, with periodic boxes,
-  cones, and nearest neighbours, and `_numba_stencils.py` writes lattice stencils. `LatticeSolver` applies local rules,
-  array updates, cascades, and extremal laws once per step, and `MonteCarloSolver` adds checkerboard and random-order
-  Monte Carlo updates.
-- Neighbourhoods are components of `core/components/spaces`: `LatticeNeighborhood`, `RadiusNeighborhood`,
-  `NearestNeighborhood`, `AdjacencyNeighborhood`, `DelaunayNeighborhood`, `CofaceNeighborhood`, and
-  `StateTranslationNeighborhood`. Reductions over them are `NeighborReductionSpec` and reads are `NeighborReadSpec`.
-- Fields on unstructured meshes assemble sparse matrices with scikit-fem on the host.
+  cones, and nearest neighbours, and `_numba_stencils.py` writes lattice stencils. `LatticeSolver` applies every
+  `UpdateLaw` of a lattice once per step: local rules with `neighborhood=`, updates of whole arrays with `arrays=True`,
+  drives, and relaxations written with the core operator `relax`. `MetropolisSolver` samples an `ObjectiveLaw` and
+  sweeps the sites of a lattice through the private `_MemberMetropolisSolver`, a `MonteCarloSolver`, in the order of
+  its `schedule`, `'checkerboard'`, `'random-sequential'`, or `'colored'`.
+- Since `redesign-core-api`, laws are values of seven kinds. A transition of agents is an `UpdateLaw` whose value holds
+  a draw (`DrawSpec`), a Monte Carlo sampler is an `ObjectiveLaw` run by `MetropolisSolver`, and an agent rule is an
+  `UpdateLaw` on a group whose value is a Python function `rule(agent, system)`. The engine lowers them onto its private
+  records, such as `_SampleLaw`, `_RuleLaw`, and `_LocalRuleLaw`.
+- The neighbourhoods of the core live in `core/components/spaces`: `LatticeNeighborhood`, `RadiusNeighborhood`, with
+  its cone, `NearestNeighborhood`, `AdjacencyNeighborhood`, `DelaunayNeighborhood`, and `CofaceNeighborhood`. The
+  engine reads them through its private reduction and read records.
+- A mesh is a `CellComplexSpace(points=..., cells=...)`, whose fields assemble sparse matrices with scikit-fem on the
+  host.
 - Observables are evaluated on the host from every recorded frame, and a trajectory holds every state of every frame.
 - `add-neural-particle-simulators` uses the Numba neighbour search for its graph networks on the CPU and keeps GPUs out
   of scope.
@@ -19,16 +26,17 @@
 
 **Goals:**
 - Every large system of the library whose laws have a parallel form runs on the JAX backend: lattices, fields on
-  lattices, particles, flocks, networks, explicit fields on meshes, and vectorised agent groups.
+  lattices, particles, flocks, networks, explicit fields on meshes, and agent groups whose laws are symbolic.
 - Neighbour search on the device in memory linear in the members.
 - Runs that copy only their observables to the host.
 
 **Non-Goals:**
 - Implicit and exponential field steppers on the device, such as Crank-Nicolson and ETDRK4, whose linear solves need
   sparse factorisations that JAX lacks. They stay on the NumPy and Numba backends.
-- Cascades and extremal laws on the device. Both are serial by nature: a cascade topples one site after another, and an
-  extremal law picks one site per step.
-- Delaunay, coface, and state translation neighbourhoods on the device, which need geometry libraries on the host.
+- Relaxations and extremal updates on the device. Both are serial by nature: a relaxation by `relax` topples one site
+  after another, and an extremal update, such as Bak-Sneppen, changes the site where `argmin` falls once per step.
+- Delaunay and coface neighbourhoods on the device, which need geometry libraries on the host, and the neighbourhoods
+  of `skcomplex.systems.computer_science.common.automata`, which bring their own engine support.
 - Splitting one system over devices. `add-multi-device-sharding` does it on these kernels.
 
 ## Decisions
@@ -38,10 +46,10 @@
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | JAX cell list and neighbour reads | 2, backend lowerings of the neighbourhoods of `core/components/spaces` | new private module `core/engine/backends/_jax_neighbours.py` | physics (particles, granular matter), active matter and collective behaviour (flocks, swarms), ecology (foraging agents), epidemiology (spatial contacts), chemistry (Brownian reactants) |
-| Lattice gathers and the `lattice` loop | 2, backend lowerings and a loop the solvers read | `core/engine/backends/_jax.py`, `_jax_loops.py`, and `core/specs/_accelerated_spec.py` | statistical physics (Ising, Potts), epidemiology (contact process), ecology (forest fires), computer science (cellular automata), chemistry (pattern formation) |
+| Lattice gathers and the `lattice` loop | 2, backend lowerings and a loop the solvers read | `core/engine/backends/_jax.py`, `_jax_loops.py`, and the private `_AcceleratedSpec` of `core/engine/problems/_accelerated_spec.py` | statistical physics (Ising, Potts), epidemiology (contact process), ecology (forest fires), computer science (cellular automata), chemistry (pattern formation) |
 | Sparse sums over edges and mesh operators | 2, backend lowerings of network and mesh reductions | `core/engine/backends/_jax.py` | network science, epidemiology (contact networks), neuroscience (connectomes), power systems (grids), engineering (meshes) |
-| Lowering of `TransitionLaw` and `SampleLaw` | 2, backend lowerings of law kinds | `core/engine/backends/_jax.py` | social science (opinion and choice), economics (agents choosing), epidemiology (agent states), ecology (behaviour) |
-| `record_states` and observables on the device | 2, an option of `simulate` and a backend lowering of observables | `core/engine/runtime/_simulate.py`, `_recorder.py`, and `core/engine/backends/_jax.py` | every field with large systems |
+| Lowering of update laws with draws and of lattice sampling | 2, backend lowerings of the law kinds `UpdateLaw` and `ObjectiveLaw` | `core/engine/backends/_jax.py` | social science (opinion and choice), economics (agents choosing), epidemiology (agent states), ecology (behaviour) |
+| `record_states` and observables on the device | 2, an option of `System.simulate` and a backend lowering of observables | `core/systems/_base.py`, `core/engine/runtime/_simulate.py`, `_recorder.py`, and `core/engine/backends/_jax.py` | every field with large systems |
 
 No new package and no new concept. Each part lowers a concept the core already has to one more backend.
 
@@ -65,10 +73,16 @@ Sparse sums use `jax.ops.segment_sum`, a stable API, rather than `jax.experiment
   on the host from the geometry the Numba stencils use and put on the device. A read of a neighbour is a gather from
   the table, which covers every lattice geometry and boundary, where a shift by `jnp.roll` would cover only periodic
   square lattices.
-- The `lattice` loop runs the laws of one step in the order they are declared, as `LatticeSolver` does. The schedules
-  `'synchronous'`, `'checkerboard'`, and `'colored'` of local rules and samplers run in parallel, one colour after the
-  other. `'random-sequential'` and `'random-site'` have no parallel form and raise `BackendError` that names
+- The `lattice` loop runs the update laws of one step in the order they are declared, as `LatticeSolver` does, and
+  the sweeps of `MetropolisSolver` on a lattice. The schedules `'synchronous'`, `'checkerboard'`, and `'colored'` of
+  local rules, and `'checkerboard'` and `'colored'` of `MetropolisSolver`, run in parallel, one colour after the other.
+  `'random-sequential'` and `'random-site'` have no parallel form and raise `BackendError` that names
   `schedule='checkerboard'` and `'colored'`.
+- Local rules given as a `TableSpec`, a `TotalisticSpec`, an `OuterTotalisticSpec`, a `LinearRuleSpec`, or a symbolic
+  expression lower to gathers and lookup tables. A Python function of a local rule, `f(*neighbours, **kwargs)`, or of a
+  whole array, `f(values, **kwargs)` with `arrays=True`, is called on JAX arrays inside the loop, so it runs on the
+  device when JAX can trace it. A function that JAX cannot trace raises `BackendError` that names the NumPy and Numba
+  backends. This choice is an open question below.
 - Draws use one key per step, split per site, so a seeded lattice run repeats on one device. It agrees with the Numba
   run in distribution only.
 
@@ -93,19 +107,22 @@ Sparse sums use `jax.ops.segment_sum`, a stable API, rather than `jax.experiment
   the same sums over their nonzero entries. Implicit steppers on meshes raise `BackendError` that names the NumPy and
   Numba backends.
 
-### Agents in their vectorised form
+### Symbolic agent laws
 
-- `TransitionLaw` draws the next discrete state of every member from its row of probabilities with
-  `jax.random.categorical`, and `SampleLaw` draws from the categorical or normal laws it names. Both read neighbour
-  reductions through the parts above.
-- `RuleLaw` and `MatchLaw`, the laws of the agent form, need sequential orders and Python callables and raise
-  `BackendError` whose message names `form='symbolic'`.
+- An `UpdateLaw` on the members of a group whose value holds draws lowers to draws per member: a categorical draw of
+  the next discrete state from its row of probabilities with `jax.random.categorical`, and Bernoulli, uniform, and
+  normal draws with the matching functions of `jax.random`. The laws read neighbour reductions through the parts above.
+  A recipe such as `ChoiceInteraction` without a `schedule` sets these laws, so it runs on the device.
+- An `UpdateLaw` whose value is a Python rule, `rule(agent, system)` on a group or `rule(system)` on the whole system,
+  needs sequential orders and Python calls. It raises `BackendError`, whose message names symbolic update laws and a
+  recipe without `schedule`. Pairs of agents matched with `pairs` inside a rule fall under the same error.
 
 ### Observables on the device
 
 - The JAX backend traces every observable of the problem into one function of `(t, x, p)` that returns their values,
   and the recorder calls it on the device after every frame.
-- `simulate(..., record_states=True)`. With `False` the trajectory holds the times and the observables and no states.
+- `system.simulate(..., record_states=True)`. With `False` the trajectory holds the times and the observables and no
+  states.
   Reading a state then raises `ValidationError` naming `record_states`. On the NumPy and Numba backends the observables
   are evaluated on the host as today and only the states are dropped.
 - The experiments set `record_states=False` when every output is an observable path or a function of observables, so
@@ -138,8 +155,8 @@ epidemic threshold, and the agreement of the Gray-Scott field with the Numba run
 - [Scatter sums on a GPU change order between runs] → The tests compare within 1e-10, and the deterministic XLA flag of
   `add-device-execution` makes them exact.
 - [Lattice draws differ from Numba draws] → Lattice probes compare in distribution.
-- [Runs without states cannot be replayed frame by frame] → `record_states` is opt-in for `simulate`, and the
-  experiments drop states only when no output needs them.
+- [Runs without states cannot be replayed frame by frame] → `record_states=False` is opt-in for `system.simulate`, and
+  the experiments drop states only when no output needs them.
 
 ## Migration Plan
 
@@ -150,3 +167,6 @@ every trajectory as it was.
 
 - Should the automatic backend choice ever pick the JAX backend for very large systems when a GPU is present? This
   change keeps the answer of `add-device-execution`, no.
+- Python functions of local rules and of whole arrays are NumPy functions today. Should the JAX backend call them on
+  JAX arrays and raise `BackendError` when JAX cannot trace them, as this design proposes, or should it reject every
+  Python function and run only tables and symbolic rules on the device?

@@ -26,7 +26,7 @@ devices and nodes, and streams the frames of runs larger than one host to a Zarr
 - **Several nodes.** With one process per node, started by `srun`, `mpirun`, or the Ray and Dask recipes, and
   `jax.distributed.initialize()` called by the user in each, `jax.devices()` lists the devices of every node and the
   same backend spans the cluster. Every process runs the same script, as multi-controller JAX requires.
-- **Frames of runs larger than a host.** `simulate` gains `store=None`. With a store each process writes the shards of
+- **Frames of runs larger than a host.** `System.simulate` gains `store=None`. With a store each process writes the shards of
   the states it holds to a Zarr array per state as frames are recorded, and the trajectory reads them from the store.
   Observables are reduced on the devices and copied to every process.
 - **Same draws on any sharding.** The keys of `add-device-execution` are split by the partitionable threefry generator
@@ -46,8 +46,8 @@ devices and nodes, and streams the frames of runs larger than one host to a Zarr
 
 - Core: new private module `core/engine/backends/_jax_sharding.py` with the mesh, the shardings of states and
   parameters, and the halo exchange of lattices. `core/engine/backends/_jax.py` and `_jax_loops.py` place their inputs
-  with those shardings. `core/engine/runtime/_simulate.py` and the recorder gain `store`, through the Zarr writer of
-  `add-cluster-executors`.
+  with those shardings. `System.simulate` in `core/systems/_base.py`, `core/engine/runtime/_simulate.py`, and the
+  recorder gain `store`, through the Zarr writer of `add-cluster-executors`.
 - Dependencies: none new. `jax` and `zarr`, the latter added by `add-cluster-executors`.
 - Tests: emulated CPU devices through `XLA_FLAGS=--xla_force_host_platform_device_count=4` in CI, two local processes
   with the gloo collectives of the CPU for the multi-process tests, and `gpu` tests for real GPUs, which the GPU job of

@@ -8,10 +8,15 @@
 - [ ] 2.1 Add `diversity_search` and `DiversitySearchResult` in `src/skcomplex/core/experiments/_diversity_search.py`
   on the runner of `sweep`, export them, and verify the unknown-method and same-seed scenarios in
   `tests/core/experiments/test_diversity_search.py`
-- [ ] 2.2 Add `'map-elites'` and `'cma-me'` on pyribs grid archives, and verify the map-of-a-known-function scenario
-- [ ] 2.3 Add `'novelty'` on the proximity archive, and verify the novelty-without-an-objective scenario
-- [ ] 2.4 Add `'goal-exploration'` with nearest neighbours of scikit-learn, and verify the goals-reached scenario
-- [ ] 2.5 Accept shaped parameters by their entries, and verify a search over a two by two matrix parameter
+- [ ] 2.2 Add `'map-elites'` and `'cma-me'` on pyribs grid archives, and verify the map-of-a-known-function scenario in
+  `tests/core/experiments/test_diversity_search.py`
+- [ ] 2.3 Add `'novelty'` on the proximity archive, and verify the novelty-without-an-objective scenario in the same
+  test
+  module
+- [ ] 2.4 Add `'goal-exploration'` with nearest neighbours of scikit-learn, and verify the goals-reached scenario in the
+  same test module
+- [ ] 2.5 Accept shaped parameters by an array of bounds per entry, and verify a search over a two by two matrix
+  parameter in the same test module
 - [ ] 2.6 Once `add-learning-foundation` is applied, accept the weights of a learned function or a policy as a searched
   parameter, and verify the diverse-cart-pole-policies scenario, marked slow
 - [ ] 2.7 Write the docstring with a runnable example and a section of `docs/overview/user_guide/run_experiments.md`,
@@ -23,13 +28,15 @@
   `'historical-novelty'`, and verify the fixed-point and orthogonal-frames scenarios in
   `tests/core/analysis/test_open_endedness.py`
 - [ ] 3.2 Add `'observer'` with the loss matrix and the two tests, and verify the noise and drifting-stream scenarios
+  in `tests/core/analysis/test_open_endedness.py`
 - [ ] 3.3 Export the function, declare its analysis tags, and document it in `docs/overview/user_guide/analyse.md`
   with a runnable example
 
 ## 4. Particle life
 
 - [ ] 4.1 Add `ParticleLifeSystem` in `src/skcomplex/systems/computer_science/automata/_particle_life.py`, export it,
-  and verify the no-interaction and chasing-species scenarios in `tests/systems/computer_science/automata/`
+  and verify the no-interaction and chasing-species scenarios in
+  `tests/systems/computer_science/automata/test_particle_life.py`
 - [ ] 4.2 Add the inventory entry `particle_life` with the source 2412.17799 and the primitive `diversity-search` with
   `change = "add-diversity-search"`, and verify the inventory check passes
 - [ ] 4.3 Add the gallery example `docs/examples/computer_science/automata/plot_particle_life.py`, which maps particle

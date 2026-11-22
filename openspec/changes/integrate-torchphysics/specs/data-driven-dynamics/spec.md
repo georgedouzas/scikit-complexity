@@ -32,5 +32,5 @@ names the parameter and its range.
 
 #### Scenario: Value outside the range
 
-- **WHEN** the surrogate of the diffusion sweep is simulated at `k = 3.0`
-- **THEN** it raises an error that names `k` and the range `(0.5, 2.0)`
+- **WHEN** the system of the surrogate of the diffusion sweep is set to `k = 3.0` and prepared
+- **THEN** `prepare` raises `ValidationError` that names `k` and the range `(0.5, 2.0)`

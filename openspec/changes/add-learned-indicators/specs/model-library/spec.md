@@ -12,7 +12,7 @@ over the run, as in 2303.09669.
 
 #### Scenario: Unknown kind
 - **WHEN** the system is built with a kind that is not one of the five
-- **THEN** preparing it raises `ValidationError` naming the kinds
+- **THEN** building succeeds, and `prepare()` raises `ValidationError` naming the kinds
 
 ### Requirement: Fox cardiac alternans map
 The library SHALL provide `FoxCardiacAlternansSystem` in `biology/physiology`, the Fox map of the action potential
@@ -29,7 +29,7 @@ national income driven by consumer sentiment, with additive noise and an autonom
 with the defaults of 2303.09669 (b = 0.45, c = 0.1, d = 0), whose Neimark-Sacker bifurcation lies at a = 20.
 
 #### Scenario: Fixed point and cycles
-- **WHEN** the model runs without noise at the autonomous expenditures 10 and 22
+- **WHEN** the model is prepared and simulated without noise at the autonomous expenditures 10 and 22
 - **THEN** income settles at the fixed point `2 a` at 10, and keeps oscillating at 22 with an amplitude above 1
 
 ### Requirement: Learned-indicator systems are recorded in the inventory

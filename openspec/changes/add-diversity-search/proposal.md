@@ -11,10 +11,12 @@ space of behaviours, and no measure of novelty or learnability of a run.
 ## What Changes
 
 - New experiment `diversity_search(system, parameters, *, descriptors, objective, method, ...)` in
-  `skcomplex.core.experiments`. It searches the bounds of the parameters for runs whose descriptors, functions of a
+  `skcomplex.core.experiments`, a function that clones the system, sets the parameters of each row, prepares, and
+  simulates, as `sweep` does. It searches the bounds of the parameters for runs whose descriptors, functions of a
   trajectory, cover a space of behaviours. The methods are `'map-elites'`, `'cma-me'`, and `'novelty'` on pyribs, and
   `'goal-exploration'`, the intrinsically motivated goal exploration of 2402.10236. It returns a frozen
-  `DiversitySearchResult` with the archive of parameters, descriptors, and objectives, the coverage, the quality-diversity
+  `DiversitySearchResult` with the archive of parameters, descriptors, and objectives, the coverage, the
+  quality-diversity
   score, the nearest-neighbour diversity of ASAL, and the history over iterations.
 - New analysis `open_endedness(source, *, kind, embedding, observer, ...)` in `skcomplex.core.analysis`. The kind
   `'historical-novelty'` gives the novelty of every frame against its closest earlier frame in an embedding, and the
@@ -22,8 +24,8 @@ space of behaviours, and no measure of novelty or learnability of a run.
   matrix `l(t, T)`, the novelty and learnability tests of 2406.04268, and the verdict.
 - `embedding` takes any function from a frame to a vector, so a pretrained vision model can be plugged in by the user.
 - The searched parameters may be the weights of a learned function or of a policy of `add-learning-foundation`, so
-  diversity search over policies is neuroevolution with archives, and the observer of `open_endedness` may be a
-  learned density model trained on the shared Optax loop of the foundation.
+  diversity search over policies is neuroevolution with archives. The observer of `open_endedness` is any estimator with
+  `fit` and `score_samples`, used inside the analysis.
 - New system `ParticleLifeSystem` in `computer_science/automata`, particles of several species that attract or repel
   one another through an asymmetric matrix, one of the substrates of 2412.17799.
 - New runtime dependency `ribs` (pyribs).
@@ -49,6 +51,6 @@ None.
   the nearest neighbours.
 - Docs: the experiments and analysis guides, a gallery example of particle life searched by MAP-Elites, a gallery
   example of goal exploration on Lenia, and the inventory with the primitive `diversity-search`.
-- Depends on `add-learning-foundation` only for the search over learned weights and for learned observers. The
-  search, the measures, and particle life do not need it. `add-torch-surrogates` makes torch a runtime dependency, after which a later change
+- Depends on `add-learning-foundation` only for the search over learned weights. The search, the measures, and particle
+  life do not need it. `add-torch-surrogates` makes torch a runtime dependency, after which a later change
   can add a CLIP embedding beside the user function.

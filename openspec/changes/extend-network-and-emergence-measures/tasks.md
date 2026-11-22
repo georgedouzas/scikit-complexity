@@ -13,8 +13,10 @@
 
 ## 3. Surviving by serving
 
-- [ ] 3.1 Add `SurvivingByServingSystem` and its elements and interactions in a new module of `src/skcomplex/systems/biology/evolution/`, exported from the subfield, with the defaults of Table 1 of 2606.26733, and verify its doctest
-- [ ] 3.2 Add tests in `tests/systems/biology/evolution/` for the pool without agents, the exclusion rules, the credit balance, and the Hill adaptation
+- [ ] 3.1 Add `SurvivingByServingSystem`, whose `_prepare` sets a `System` of the pool and agent elements and the
+  interaction that states the episode rule `UpdateLaw(s, episode)`, in `src/skcomplex/systems/biology/evolution/_serving.py`,
+  exported from the subfield, with the defaults of Table 1 of 2606.26733, and verify its doctest
+- [ ] 3.2 Add tests in `tests/systems/biology/evolution/test_serving.py` for the pool without agents, the exclusion rules, the credit balance, and the Hill adaptation
 - [ ] 3.3 Add the inventory entry `surviving_by_serving` under `biology.evolution` with source `2606.26733` and status `implemented`, and verify the inventory check passes
 - [ ] 3.4 Add the gallery example `docs/examples/biology/evolution/plot_surviving_by_serving.py` that runs 24 agents for 1000 episodes and detects the core of the transfer network over time windows, and verify the gallery check passes
 - [ ] 3.5 Commit the work as conventional `feat` commits, with the breaking `method` default marked, and verify `nox -s changelog` lists them

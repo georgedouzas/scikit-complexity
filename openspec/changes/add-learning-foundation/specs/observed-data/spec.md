@@ -18,8 +18,8 @@ probability in `(0, 1]`. It SHALL refuse an unknown noise, a negative
 scale, and a scale given for noise that has none.
 
 #### Scenario: Unknown noise
-- **WHEN** an observation is declared with `noise='laplace'`
-- **THEN** `prepare` raises `ValidationError` that names the noise and lists the six allowed ones
+- **WHEN** an observation declared with `noise='laplace'` is passed to `observe`
+- **THEN** `observe` raises `ValidationError` that names the noise and lists the six allowed ones
 
 #### Scenario: Under-reported counts
 - **WHEN** an observation names the infected compartment of an SIR system of 1000 members with binomial noise and a
@@ -35,16 +35,25 @@ scale, and a scale given for noise that has none.
 ### Requirement: Observed runs hold irregular, partial, and conditioned data
 `ObservedRunSpec(series, inputs, conditions)` SHALL hold, for one run, the times and values of every observed path with
 its own times and NaN for missing values, the times and values of parameter inputs held between their times, and the
-conditions set before the run. `ObservedRunsSpec(runs, observation)` SHALL hold several runs and the observation model,
-and SHALL refuse no runs, paths that differ between runs, and times that do not increase.
+conditions set before the run, parameters by their nested names and initial states by their dotted paths.
+`ObservedRunsSpec(runs, observation)` SHALL hold several runs and the observation model, and every function that reads
+it SHALL refuse no runs, paths that differ between runs, and times that do not increase.
 
 #### Scenario: Paths with their own times
 - **WHEN** a run observes `prey.x` at 21 yearly times and `predators.x` at 7 of them
 - **THEN** the spec keeps both sets of times, and a fit compares each path only at its own times
 
 #### Scenario: Times that decrease
-- **WHEN** a run gives the times `0, 2, 1` for a path
-- **THEN** `prepare` raises `ValidationError` that names the run, the path, and the first time out of order
+- **WHEN** a run gives the times `0, 2, 1` for a path and the runs are passed to `split_runs`
+- **THEN** `split_runs` raises `ValidationError` that names the run, the path, and the first time out of order
+
+### Requirement: Observed data specs live with the components
+`ObservationSpec`, `ObservedRunSpec`, and `ObservedRunsSpec` SHALL be imported from `skcomplex.core.components`, beside
+`Observable`, since interactions read them.
+
+#### Scenario: Imports
+- **WHEN** a user imports the three specs from `skcomplex.core.components`
+- **THEN** every import succeeds, and no module of the components imports `skcomplex.core.data`
 
 ### Requirement: Runs are read from pandas and xarray
 `read_runs(frame, ...)` SHALL read observed runs from a pandas data frame in long or wide form, or from an xarray

@@ -40,9 +40,9 @@
 
 ## 6. Stores of trajectories
 
-- [ ] 6.1 Add `store` to `simulate` and the recorder through the Zarr writer of `add-cluster-executors`, read states of
+- [ ] 6.1 Add `store` to `System.simulate`, `run_problem`, and the recorder through the Zarr writer of `add-cluster-executors`, read states of
   a stored trajectory from the store, and verify the run-on-one-device-with-a-store scenario in
-  `tests/core/engine/runtime/test_simulate.py`
+  `tests/core/systems/test_base.py`
 - [ ] 6.2 Write the shards of every process at every frame, and verify the sharded-run-with-a-store scenario
 
 ## 7. Benchmarks
@@ -63,7 +63,7 @@
   what splits and what is copied, `store`, and `jax.distributed.initialize`, with a runnable example on emulated CPU
   devices, and verify the markdown tests run it
 - [ ] 8.2 Add launch recipes for SLURM with `srun`, for Open MPI with `mpirun`, and for a Ray cluster, as code that the
-  tests do not run, and the pointer to the LAMMPS backend for the largest particle systems, and verify the docs build
+  tests do not run, and the pointer to `LammpsSolver` for the largest particle systems, and verify the docs build
 
 ## 9. Integration
 

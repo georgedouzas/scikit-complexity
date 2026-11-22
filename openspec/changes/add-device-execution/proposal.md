@@ -21,6 +21,8 @@ changes for massive simulations, and the batched, sharded, and large-system chan
   `'rocm'`, a `jax.Device`, or `None` for the default device of JAX. `precision` is `'float64'` or `'float32'`. An
   unknown or absent device raises `BackendError`, whose message lists the devices JAX sees and the install command of
   the plugin.
+  The backend stays a setting of the system, as `KuramotoSystem(backend=JaxBackend(device='gpu')).prepare()`, and
+  `simulate` takes no device.
 - **Runs that stay on the device.** The JAX backend fills `accelerated` with the loops `iterate`, `rk4`,
   `velocity_verlet`, `yoshida4`, `euler_maruyama`, and `gillespie`, each a `jax.jit` function of a whole frame built on
   `jax.lax.fori_loop` or `jax.lax.while_loop`. The state of a run lives on the device between frames, and a frame is

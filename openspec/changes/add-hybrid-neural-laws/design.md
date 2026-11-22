@@ -3,15 +3,19 @@
 ## Context
 
 - `add-learning-foundation` is a prerequisite. It adds `learned_function` and `learned_weights` in
-  `components/laws/utils/_learned.py`, whole-number sizes of `ParameterSpec.shape`, `ObservedRunsSpec` with one column
-  per member for a group and NaN for missing samples, the losses `'squares'`, `'log'`, and `'likelihood'`, the shared
+  `components/laws/utils/_learned.py`, whose weights are array parameters of the interaction that states the law,
+  `ObservedRunsSpec` in `skcomplex.core.components` with one column per member for a group and NaN for missing
+  samples, the losses `'squares'`, `'log'`, and `'likelihood'`, the shared
   `_OptaxLoop` of `GradientDescentSolver`, and `identify(system, data, *, trained, ...)` with its
-  `IdentificationResult`. The Diffrax solver, tolerances, and adjoint are module constants that the solver, `identify`,
-  and `calibrate(method='variational')` read.
+  `IdentificationResult`, whose `trained` names parameters as `get_params` names them. The Diffrax solver, tolerances,
+  and adjoint are module constants that the solver, `identify`, and `calibrate(method='variational')` read.
+- A group is one `Element` with `size=N`, whose per-member values are arrays with one entry per member. `get_params`
+  lists every value of an element as `<element>__<name>`, so per-member covariates and effects are set and named like
+  any parameter.
 - `DosingInteraction` (`systems/biology/common/pharmacokinetics/_dosing.py`) doses a state by infusions, a rate law
   with `pulse_train`, so it already lowers to JAX. The NumPy path respects the breakpoints of pulses, but the Diffrax
-  calls of the JAX path do not pass them to the step size controller, so a short infusion can be stepped over.
-  `ImpulseInteraction` resets states through `CrossingLaw`, which has no JAX form.
+  calls of the JAX path do not pass them to the step size controller, so a short infusion can be stepped over. A bolus
+  that resets a state is an `EventLaw`, which has no JAX form.
 - Pharmacokinetics lives in `systems/biology/physiology` (`_pharmacokinetics.py`), with shared components in
   `systems/biology/common/pharmacokinetics`. There is no `biology/pharmacology` subfield and none is created.
 
@@ -46,8 +50,8 @@
 
 ### Doses on JAX
 
-- Doses are infusions of the existing `DosingInteraction`, rate laws that JAX already lowers. Bolus resets by
-  `ImpulseInteraction` stay on the NumPy path, since a reset has no JAX form and a short infusion approximates a bolus
+- Doses are infusions of the existing `DosingInteraction`, rate laws that JAX already lowers. Bolus resets by an
+  `EventLaw` stay on the NumPy path, since a reset has no JAX form and a short infusion approximates a bolus
   as closely as needed.
 - The breakpoints of `pulse` and `pulse_train` inputs, which the compiled problem already collects for the SciPy
   integrators, are passed as `jump_ts` to `diffrax.PIDController` through the shared Diffrax constants, so
@@ -55,8 +59,9 @@
 
 ### Mixed effects in identify
 
-- `identify(..., individual=None)` takes a mapping from per-member parameters, declared
-  `ParameterSpec(per=True, adaptive=True)`, to the standard deviation of their Gaussian prior. The loss of the shared
+- `identify(..., individual=None)` takes a mapping from per-member values of a group element, named as `get_params`
+  names them, such as `patients__eta_CL`, to the standard deviation of their Gaussian prior. They need no declaration,
+  since every value of an element is a parameter and `individual` makes them trained. The loss of the shared
   loop adds `sum(eta^2) / (2 sigma^2)` divided by the number of samples, so its minimum is the maximum a posteriori
   estimate. A group compiles once for any size, so all members solve in one call.
 - `IdentificationResult` gains `effects`, a mapping from each individual parameter to one value per member, and
@@ -75,25 +80,28 @@
   share, such as a first-order transfer chain of compartments, go to `biology/common/pharmacokinetics` beside it, and
   components that only one uses stay in its module.
 - **`tacrolimus_population_pk`.** One `BaseSystem` with `form='linear'`, `'saturable'`, or `'latent'`, `n_patients`,
-  `hematocrit`, and `random_state`. The group `patients` holds the states `A1` to `A4`, `Ac`, and `Ap`, and the
-  per-member covariates `CYP` and `ST` and effects `eta_Ktr`, `eta_CL`, `eta_Vc`, `eta_Q`, and `eta_Vp`, drawn at
-  construction from the values of the supplementary tables of 2602.03215. Doses are a `DosingInteraction` into `A1`
+  `hematocrit`, and `random_state`, whose `_prepare` sets `system_`. The element `patients`, of size `n_patients`, holds
+  the amounts `A1` to `A4`, `Ac`, and `Ap`, which the laws make states, and the per-member covariates `CYP` and `ST`
+  and effects `eta_Ktr`, `eta_CL`, `eta_Vc`, `eta_Q`, and `eta_Vp`, drawn in `_prepare` from `random_state` with the
+  values of the supplementary tables of 2602.03215. The rate constants are parameters of the transfer and elimination
+  interactions, which read the effects of every member. Doses are a `DosingInteraction` into `A1`
   every 12 hours, an infusion of 0.1 hours with a per-member dose. The observable is `Cc = 1000 Ac / Vc`. The latent
   form holds a depot that receives the doses, latent states whose rate is a `learned_function` of the latent states,
   the depot, the covariates, and per-member effects, and a linear readout as `Cc`. Primitives: `rates`, `time-inputs`,
   `groups`, `draws`, `observables`, and `learned-functions` for the latent form.
 - **`oral_iv_pk_hybrid`.** One `BaseSystem` with `form='reference'` or `'learned'`, `n_compounds`, and
-  `random_state`. The group `compounds` has per-member descriptors and two arms, intravenous (central and peripheral)
+  `random_state`. The element `compounds`, of size `n_compounds`, has per-member descriptors and two arms, intravenous (central and peripheral)
   and oral (gut, liver, central, and peripheral). The absorption rate, the absorbed fraction, and the hepatic and renal
   clearances follow from the descriptors through a fixed smooth map in the reference form and through one
-  `learned_function` in the learned form, whose last layer at zero gives the typical rates. Areas under the curves are
+  `learned_function` in the learned form, whose weights are a parameter of the interaction that states the rates and
+  whose last layer at zero gives the typical rates. Areas under the curves are
   states with the concentration as rate, and the observable `F` is their dose-scaled ratio. Primitives: `rates`,
   `time-inputs`, `groups`, `observables`, and `learned-functions`.
 - **`growing_neural_cellular_automaton`.** Added from the survey of complex adaptive systems, since the neural
   cellular automata that Hartl, Levin, and Pio-Lopez (2025, arXiv 2509.11131) review need exactly `learned_function`
   on the sites of a lattice. One `BaseSystem` with `n_channels=16`, `hidden=128`, `size`, `fire_rate=0.5`, `target`, and
-  `random_state`. A site element holds the channels, of which the first four are colour and alpha. One update
-  interaction perceives every channel through `convolve` with the identity and the two Sobel kernels, feeds the
+  `random_state`. One element placed on a `LatticeSpace` with `space=`, one member per site, holds the channels, of
+  which the first four are colour and alpha. One interaction states an `UpdateLaw` that perceives every channel through `convolve` with the identity and the two Sobel kernels, feeds the
   perception to one `learned_function` of two layers whose last layer starts at zero, multiplies the change by a
   `bernoulli` draw of each cell with probability `fire_rate`, and keeps a cell alive when the largest alpha in its 3 by
   3 neighbourhood, a `maximum` reduction, exceeds 0.1 before and after the step. Training is the growing experiment of

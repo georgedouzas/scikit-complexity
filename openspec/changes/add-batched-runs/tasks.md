@@ -2,8 +2,8 @@
 
 ## 1. Prerequisite and baselines
 
-- [ ] 1.1 Check that `add-device-execution` is applied, so the JAX backend fills `AcceleratedSpec`, and stop if it is
-  not
+- [ ] 1.1 Check that `add-device-execution` is applied, so the JAX backend fills the private `_AcceleratedSpec`, and
+  stop if it is not
 - [ ] 1.2 Time the current ensemble of 100000 stochastic SIR runs with `executor='process'` and the current
   `orbit_diagram` of the logistic map over 1000000 values with `vectorized=True`, write the times and the machine in
   the benchmark docstrings, and verify they repeat within 10% over three runs
@@ -28,8 +28,8 @@
   returns one trajectory per run, and verify it through the public experiments in task 5.1
 - [ ] 3.2 Raise `ValidationError` in `_simulate_batch` for a solver without an accelerated loop, check the solver in
   `_run_experiment` before batching, run such a structure one by one with one `BackendWarning` that names the solver
-  and the solvers that batch, and verify the solver-without-a-loop scenario through `ensemble` in
-  `tests/core/experiments/test_ensemble.py`
+  and the solvers that batch, and verify the solver-without-a-loop scenario through `sweep` in
+  `tests/core/experiments/test_sweep.py`
 - [ ] 3.3 Size batches from the bytes of one run and the free memory of the device or the host, wrap out-of-memory
   errors in `ExperimentError`, and verify the automatic-size scenario with a fake memory report and the
   too-large-a-batch scenario on the CPU device
@@ -47,10 +47,9 @@
 - [ ] 5.2 Move `orbit_diagram` and `basin_stability` to batched runs, add `batch_size`, and verify the bistable-system
   and system-of-groups scenarios in `tests/core/experiments/test_basin_stability.py` and the existing orbit diagram
   tests unchanged
-- [ ] 5.3 Remove `core/experiments/_replicate.py` and `tests/core/experiments/test_replicate.py`, rewrite the two
-  replication tests of `tests/core/components/elements/test_declared.py` and the member test of
-  `tests/core/engine/runtime/test_trajectories.py` as batched ensembles through the public API, and verify no module
-  imports `_replicate`
+- [ ] 5.3 Remove `core/experiments/_replicate.py` and `tests/core/experiments/test_replicate.py`, rewrite the member
+  test of `tests/core/engine/runtime/test_trajectories.py` as a batched ensemble through the public API, and verify no
+  module imports `_replicate` or `_replicate_prepared`
 - [ ] 5.4 Verify that a batched ensemble on a thread executor and on a process executor gives the result of the serial
   executor
 
@@ -61,7 +60,7 @@
   `add-device-execution`, or record that none was available
 - [ ] 6.3 Add the gate benchmarks, one per experiment of runs, that time `vectorized=True` against `vectorized=False`
   on the NumPy and Numba backends and the CPU device of JAX, at 1, 10, 1000, and 100000 runs, for a map of single
-  elements, an ODE system of groups, and a stochastic reaction network, with the GPU cases marked `gpu`, and verify
+  elements, an ODE system of an element of many members, and a stochastic reaction network, with the GPU cases marked `gpu`, and verify
   the small-ensemble-does-not-lose scenario
 - [ ] 6.4 Run the gate benchmarks on an idle machine and on the GPU runner, write the outcome of every case in the
   benchmark docstrings and the design, and verify that batched runs take at most the unbatched time in every case,

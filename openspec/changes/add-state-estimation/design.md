@@ -3,10 +3,13 @@
 - `add-learning-foundation` adds `ObservationSpec(paths, noise, scale)`, the paths or observable readouts a sensor sees
   and the noise of each, and `ObservedRunSpec` and `ObservedRunsSpec`, runs with their own times, missing values,
   inputs, and conditions. `forecast_skill` scores deterministic forecasts by lead time.
-- Systems hold their process noise as laws: SDE terms, noise of maps, and jump laws. `simulate` runs any of them on its
-  backend, the JAX backend traces deterministic and SDE steps, and the runtime advances a system step by step.
-- `calibrate` (`core/experiments/_calibration.py`) has the methods `local`, `global`, `abc_smc`, `mcmc`, and
-  `variational`, with priors, and its likelihoods need every random draw observed or the system deterministic.
+- Systems hold their process noise as laws that their interactions state: `NoiseLaw` terms, noise drawn inside an
+  `UpdateLaw`, and `JumpLaw` channels. `system.prepare()` compiles the problem once and `system.simulate(until, ...)`
+  runs it on the system's backend, the JAX backend traces deterministic and SDE steps, and the runtime advances a
+  prepared problem step by step. The compiled problem is private to the engine.
+- `calibrate` (`core/experiments/_calibration.py`) has the methods of `CalibrationMethodKind` in `core/enums.py`,
+  `local`, `global`, `abc_smc`, `mcmc`, and `variational`, with priors, and its likelihoods need every random draw
+  observed or the system deterministic.
 - `Lorenz96System` is in `physics/climate/_low_order.py`. `PendulumSystem` is in `physics/mechanics/_mechanics.py`.
 - The gap report of the learning drafts (2026-11-10) found filtering, smoothing, ensemble and particle methods, joint
   state and parameter estimation, and particle likelihoods missing, and the user approved this change the same day.
@@ -35,10 +38,10 @@
 
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
-| `assimilate`, `AssimilationResult` | 2, an experiment over any system that reads its compiled step and the `ObservationSpec` of the data by type | `skcomplex.core.experiments` | climate and weather (Lorenz-96, station data), epidemiology (nowcasting from reported cases), neuroscience (hidden membrane states), engineering (tracking, sensor fusion), ecology (populations from counts), pharmacology (concentrations of individuals) |
+| `assimilate`, `AssimilationResult` | 2, an experiment over any system that advances a prepared clone and reads the `ObservationSpec` of the data by type | `skcomplex.core.experiments` | climate and weather (Lorenz-96, station data), epidemiology (nowcasting from reported cases), neuroscience (hidden membrane states), engineering (tracking, sensor fusion), ecology (populations from counts), pharmacology (concentrations of individuals) |
 | `calibrate(method='pmmh')` | 2, an option of an experiment over any system | `core/experiments/_calibration.py` | epidemiology (stochastic outbreaks), ecology (stochastic populations from counts), finance (stochastic volatility), systems biology (stochastic gene expression) |
 | Probabilistic scores of `forecast_skill` | 2, an option of an analysis that reads series by their tags | `core/analysis/_forecast_skill.py` | climate and weather (ensemble forecasts), epidemiology (forecast hubs), ecology, finance, and every replicated fit |
-| `noise` of `PendulumSystem` | 3, a model parameter of one system | `physics/mechanics/_mechanics.py` | physics |
+| `noise` of `PendulumSystem` | 3, a model parameter of one system, stated as a `NoiseLaw` by its interaction | `physics/mechanics/_mechanics.py` | physics |
 
 No new package and no new concept. The measurement model is the `ObservationSpec` of the foundation and the process
 model is the system with its own noise laws, so a filter is a procedure applied to a system, as calibration and
@@ -67,18 +70,21 @@ backward simulation smoother are a few lines on numpy and the resampling of filt
 - **Data.** `data` is an `ObservedRunsSpec` whose observation model is the measurement model, or a mapping that the
   foundation reads as one run. With several runs, `run` names the label to filter, and without it `ValidationError`
   names `run`. Missing values skip the rows of the update they belong to, and observation times may be irregular.
+- **Preparing.** `assimilate` clones the system, sets the conditions of the run with `set_params`, and prepares the
+  clone once, as every experiment does. The members, sigma points, and particles differ only in their states and in
+  the values of augmented parameters, so no member prepares again.
 - **Process model.** Every member, sigma point, or particle is advanced from one observation time to the next by the
-  compiled step of the system on its backend, vectorised over the members, with the inputs and conditions of the run
-  set. The Gaussian filters take the process noise covariance from the SDE terms and map noise of the system, `L L^T`
+  solver of the prepared clone on its backend, through the runtime that advances a prepared problem, vectorised over
+  the members, with the inputs of the run set. The Gaussian filters take the process noise covariance from the SDE terms and map noise of the system, `L L^T`
   times the time between observations to first order, or from `process_noise`, a matrix or one variance per state,
   which overrides it. A deterministic system has none unless `process_noise` is given.
-- **Measurement model.** The observation function is the readout of the paths of the `ObservationSpec`, compiled as
-  observables of the system. The Gaussian filters take `R` from Gaussian noise, and filter the logarithm of the
+- **Measurement model.** The observation function is the readout of the paths of the `ObservationSpec`, such as
+  `'bob.theta'`, or of its observables, which `prepare` compiles with the problem. The Gaussian filters take `R` from Gaussian noise, and filter the logarithm of the
   observations for log-normal noise. Count noise needs the particle filter, and the other methods raise
   `ValidationError` naming the noise and `'particle'`.
 - **Methods.**
-  - `'kalman'` needs linear laws, checked by a Jacobian of the compiled rates that holds no state, and raises
-    `ValidationError` naming the first nonlinear rate otherwise.
+  - `'kalman'` needs linear laws, checked on the equations of `equations_` of the prepared clone, whose Jacobian must
+    hold no state, and raises `ValidationError` naming the first nonlinear equation otherwise.
   - `'ekf'` linearises the step and the observation function with `jax.jacfwd` of the traced step, so it needs the
     differentiable tag.
   - `'ukf'` propagates the Merwe sigma points of filterpy through the step and the observation function, so it needs
@@ -93,23 +99,26 @@ backward simulation smoother are a few lines on numpy and the resampling of filt
   the forward pass), and `'ukf'` through filterpy, and the backward simulation smoother of Godsill, Doucet, and West
   (2004) after `'particle'`, as Särkkä (ch. 8 to 11) presents them. `'enkf'` raises `ValidationError` that names the
   smoothers available.
-- **Joint estimation.** `augmented` names parameters appended to the state with a random walk of variance
-  `augmented_noise` per unit time, and their final means and variances are the `estimates` of the result. This is the
+- **Joint estimation.** `augmented` names parameters by the names of `get_params`, such as `'g'` of a ready-made
+  system or `'swing__g'` of a `System`, appended to the state with a random walk of variance `augmented_noise` per unit
+  time, and their final means and variances are the `estimates` of the result. Each member carries its own values of
+  them, read as the vectorised ensembles of a system read per-replicate parameters. This is the
   augmented state method of Särkkä (ch. 12).
-- **Result.** `AssimilationResult` holds `system`, the system with its states set to the last estimate and its
-  augmented parameters to their estimates, `trajectory`, the filtered or smoothed means at the observation times,
+- **Result.** `AssimilationResult` holds `system`, a prepared clone of the system whose initial state is the last
+  estimate and whose augmented parameters are set to their estimates with `set_params`, `trajectory`, the filtered or smoothed means at the observation times,
   `covariances` for the Gaussian filters, `ensemble` for `'enkf'` and `'particle'` (members by times by states, after
   resampling), `innovations`, the observation minus its prediction at every time, `log_likelihood`, the sum of the
   predictive log densities of the observations, `estimates`, and `effective_sizes` for `'particle'`.
-- **Forecasts.** `simulate(result.system, ...)` forecasts from the last estimate, and an ensemble forecast runs the
-  members of `ensemble` through `ensemble` of the experiments with their states as initial states.
+- **Forecasts.** `result.system.simulate(until=...)` forecasts from the last estimate, and an ensemble forecast runs the
+  members of `ensemble` through the experiment `ensemble` with their states as initial states, which prepares once.
 
 ### Particle marginal Metropolis-Hastings
 
 - `calibrate(method='pmmh', particles=1000, ...)` runs a random walk Metropolis-Hastings chain on the parameters within
   their priors, with the log-likelihood of each proposal from a bootstrap particle filter over every run of the data,
-  after Andrieu, Doucet, and Holenstein (2010) and Särkkä (sect. 12.3). The particle filter is the private filter of
-  `_assimilation.py`, imported downward within the experiments package. The random walk scale adapts during warmup to
+  after Andrieu, Doucet, and Holenstein (2010) and Särkkä (sect. 12.3). Each proposal clones the system, sets the
+  proposed parameters, and prepares the clone once for all its particles. The particle filter is the private filter of
+  `_assimilation.py`, imported downward within the experiments package. `'pmmh'` is added to `CalibrationMethodKind`. The random walk scale adapts during warmup to
   an acceptance rate near 0.15, the advice for noisy likelihoods. The result holds the draws, the acceptance rate, and
   the posterior summaries that `'mcmc'` reports.
 - It is the method for stochastic systems seen through noise, such as an outbreak with jump laws observed through
@@ -126,7 +135,9 @@ backward simulation smoother are a few lines on numpy and the resampling of filt
 ### Probes
 
 - **Noisy pendulum.** `PendulumSystem(noise=qc)` adds a white noise of spectral density `qc` to the angular
-  acceleration, the model of Särkkä (Example 3.7), and stays deterministic at the default `noise=0`. Its angle is seen
+  acceleration, the model of Särkkä (Example 3.7). `PendulumSwingInteraction` states it as a `NoiseLaw` on
+  `bob.theta'` beside its rate law when `noise` is positive, and the system stays deterministic at the default
+  `noise=0`. Its angle is seen
   through `sin(theta)` with Gaussian noise, Example 5.1. The book reports the root mean squared error of the angle on
   one simulated run: 0.12 for the extended Kalman filter, 0.11 for the unscented, Gauss-Hermite, and cubature filters,
   0.12 for the bootstrap particle filter with 10 000 particles, 0.033 for the extended RTS smoother, and 0.028 for the

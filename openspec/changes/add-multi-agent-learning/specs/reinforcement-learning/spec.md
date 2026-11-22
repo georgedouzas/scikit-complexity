@@ -33,13 +33,14 @@ plays, refreshed from a league of past weights.
 - **THEN** the weights of the frozen copy stay equal between refreshes
 
 ### Requirement: Policies learn during a run
-`PolicyInteraction` with `online=True` SHALL apply one gradient step to its weights after the reward of every decision
-inside `simulate`, by one-step actor-critic with a critic or by the reward against a running baseline without one, and
-the trajectory SHALL record the weights at every frame. `train_policy` SHALL refuse a system with an online policy.
+`PolicyInteraction` with `online=True` SHALL state an `UpdateLaw` that applies one gradient step to its weights after
+the reward of every decision inside `system.simulate(...)`, by one-step actor-critic with a critic or by the reward
+against a running baseline without one, and the trajectory SHALL record the weights at every frame. `train_policy`
+SHALL refuse a system with an online policy.
 
 #### Scenario: Gradient bandit with a baseline
-- **WHEN** online policies with and without a baseline run 1000 steps of `MultiArmedBanditSystem(mean=4.0)` over 200
-  seeded tasks
+- **WHEN** online policies with and without a baseline run 1000 steps of
+  `MultiArmedBanditSystem(mean=4.0, learner='policy')` over 200 seeded tasks run by `ensemble`
 - **THEN** the share of optimal actions in the last 100 steps is higher with the baseline, as in Figure 2.5 of Sutton
   and Barto
 

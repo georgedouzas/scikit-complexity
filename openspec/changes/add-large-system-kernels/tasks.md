@@ -11,11 +11,13 @@
 - [ ] 2.1 Build the table of neighbour indices of a `LatticeSpace` and its neighbourhood on the host, lower lattice
   reads to gathers in `_jax.py`, and verify a lattice drift agrees with the Numba backend within 1e-12 on square,
   hexagonal, and bounded lattices in `tests/core/engine/backends/test_jax.py`
-- [ ] 2.2 Add `lattice` to `AcceleratedSpec`, fill it in `_jax_loops.py` for local rules and array updates with the
-  synchronous, checkerboard, and colored schedules, make `LatticeSolver` read it when a backend fills it, and verify an
+- [ ] 2.2 Add `lattice` to the private `_AcceleratedSpec`, fill it in `_jax_loops.py` for local rules and updates of
+  whole arrays with the synchronous, checkerboard, and colored schedules, calling Python functions on JAX arrays and
+  raising `BackendError` when JAX cannot trace them, make `LatticeSolver` read it when a backend fills it, and verify an
   elementary automaton and the contact process against the Numba backend
-- [ ] 2.3 Add checkerboard and colored Monte Carlo updates to the `lattice` loop, make `MonteCarloSolver` read it, and
-  verify the Ising-magnetisation scenario, marked slow
+- [ ] 2.3 Add the checkerboard and colored sweeps of `MetropolisSolver` to the `lattice` loop, make the
+  `MonteCarloSolver` that `MetropolisSolver` runs on a lattice read it, and verify the Ising-magnetisation scenario,
+  marked slow
 - [ ] 2.4 Raise `BackendError` for the random schedules, and verify the random-sequential-updates scenario
 
 ## 3. Neighbour search
@@ -39,16 +41,17 @@
 
 ## 5. Vectorised agent laws
 
-- [ ] 5.1 Lower `TransitionLaw` and `SampleLaw` to draws per member, and verify the transitions-in-distribution
-  scenario
-- [ ] 5.2 Raise `BackendError` for `RuleLaw` and `MatchLaw`, and verify the agent-form scenario
+- [ ] 5.1 Lower update laws whose values hold categorical, Bernoulli, uniform, or normal draws to draws per member,
+  and verify the transitions-in-distribution scenario
+- [ ] 5.2 Raise `BackendError` for update laws whose value is a Python rule, and verify the agent-rule scenario
 
 ## 6. Observables on the device
 
 - [ ] 6.1 Trace the observables of a problem into one function on the device and call it from the recorder, and verify
   the observables of a Kuramoto run equal those of the NumPy backend within 1e-12
-- [ ] 6.2 Add `record_states` to `simulate` and the recorder, and verify the order-parameter-of-a-large-flock and
-  reading-a-state-that-was-not-recorded scenarios in `tests/core/engine/runtime/test_simulate.py`
+- [ ] 6.2 Add `record_states` to `System.simulate`, `run_problem`, and the recorder, and verify the
+  order-parameter-of-a-large-flock and reading-a-state-that-was-not-recorded scenarios in
+  `tests/core/systems/test_base.py`
 - [ ] 6.3 Set `record_states=False` in experiments whose outputs are all observables, and verify the
   ensemble-of-observables scenario in `tests/core/experiments/test_runs.py`
 

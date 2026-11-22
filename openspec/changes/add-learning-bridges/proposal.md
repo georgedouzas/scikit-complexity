@@ -10,8 +10,9 @@ literature of system identification does, by information criteria, predictive sc
 Gymnasium or PettingZoo environment, and an environment of those ecosystems should be usable as a system of the
 library, so its policies train against it with `train_policy`.
 
-Systems are not scikit-learn estimators. A system is the model being simulated, and `prepare` and `run` stay the only
-verbs of the classes of the library, so scikit-learn enters inside the experiments, not around the systems.
+Systems are not scikit-learn estimators. A system is the model being simulated, prepared and simulated as an estimator
+is fitted and used to predict, and every family keeps `prepare` and its own verb, so scikit-learn enters inside the
+experiments, not around the systems.
 
 ## What Changes
 
@@ -35,14 +36,16 @@ verbs of the classes of the library, so scikit-learn enters inside the experimen
 - **Ensembles of fits.** `identify` gains `replicates`, the number of fits from different seeds, and its result holds
   the fitted systems and the spread of their estimates, the deep ensembles that Cheng et al. (2303.10462, sect. IV)
   review as the uncertainty of learned models.
-- New function `make_environment(system, ...)` in `skcomplex.core.engine.runtime`, which returns a Gymnasium
-  environment that steps the system through its `EnvironmentSpec`, so external agents run against any system.
+- New function `make_environment(system, ...)` in `skcomplex.core.systems`, which prepares the system and returns a
+  Gymnasium environment that steps it through its `EnvironmentSpec`, so external agents run against any system. It
+  leaves `skcomplex.core.engine.runtime`, where the earlier draft put it, since the runtime may not import the systems
+  of the core.
 - New function `make_parallel_environment(system, ...)` beside it, which returns a PettingZoo parallel environment
   with one agent per policy or per member of a group.
 - New systems `GymnasiumSystem` and `PettingZooSystem`, which wrap an external environment as a system whose actions
-  are adaptive parameters and whose observations are states, so `PolicyInteraction` and `train_policy` act on it. They
-  are recipes of core components in the new concept subpackage `skcomplex.systems.general.environments`, approved on
-  2026-11-10.
+  are parameters of its stepping interaction and whose observations are states, so `PolicyInteraction` and
+  `train_policy` act on it. They are recipes of core parts in the new concept subpackage
+  `skcomplex.systems.general.environments`, approved on 2026-11-10.
 - Dependencies: Gymnasium 1.4.0, PettingZoo 1.27.0, ArviZ 1.3.0, and statsmodels 0.15.0 become runtime dependencies.
 
 ## Capabilities
@@ -64,9 +67,10 @@ verbs of the classes of the library, so scikit-learn enters inside the experimen
 
 - Core: `core/experiments/_identification.py`, `_calibration.py`, and `_policy_training.py` gain the selection, with
   a private module `core/experiments/_selection.py` that the three share, the two fits gain criteria, residuals, and
-  replicates, and new modules `core/analysis/_whiteness.py` and `core/engine/runtime/_environments.py`.
-- Systems: the new concept subpackage `skcomplex.systems.general.environments` and a test of
-  `engineering/control/_cart_pole.py`.
+  replicates, and new modules `core/analysis/_whiteness.py` and `core/systems/_environments.py`.
+- Systems: the new concept subpackage `skcomplex.systems.general.environments`, a test of
+  `engineering/control/_cart_pole.py`, and environments as class attributes of `SIRVaccinationSystem` and
+  `PendulumSwingUpSystem`.
 - Dependencies: `gymnasium>=1.4.0` (1.4.0, released 2026-10-05), `pettingzoo>=1.27.0` (1.27.0, released
   2026-08-13), `arviz>=1.3.0` (1.3.0, released 2026-08-11), and `statsmodels>=0.15.0` (0.15.0, released 2026-08-27).
   scikit-learn is already a runtime dependency.

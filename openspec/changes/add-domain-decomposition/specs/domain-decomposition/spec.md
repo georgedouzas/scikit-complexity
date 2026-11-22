@@ -8,8 +8,8 @@ halo exchange, on the NumPy and Numba backends.
 ## ADDED Requirements
 
 ### Requirement: Runs split over MPI ranks
-`simulate` SHALL take `communicator`, an `mpi4py` communicator. With one, every rank SHALL compile and run the slab of
-every lattice along its first axis with a halo as wide as the reach of its neighbourhoods, exchanged before every
+`system.simulate` SHALL take `communicator`, an `mpi4py` communicator. With one, every rank SHALL compile and run the
+slab of every lattice along its first axis with a halo as wide as the reach of its neighbourhoods, exchanged before every
 evaluation of a drift or an update and once per colour of a checkerboard or colored schedule, and no rank SHALL build
 the whole lattice. A system whose lattices have different numbers of rows SHALL raise `ValidationError`.
 
@@ -46,11 +46,11 @@ whose message names the reductions that decompose.
 - **THEN** it raises `ValidationError`, whose message names sums, means, minima, and maxima
 
 ### Requirement: Decomposed stochastic runs are reproducible for a rank count
-Rank `r` of `n` SHALL draw from child `r` of the `SeedSequence` of the random state spawned into `n` children, so two
-decomposed runs with the same random state and number of ranks SHALL be equal.
+Rank `r` of `n` SHALL draw from child `r` of the `SeedSequence` of `random_state` spawned into `n` children, so two
+decomposed runs with the same `random_state` and number of ranks SHALL be equal.
 
 #### Scenario: Same seed and ranks
-- **WHEN** a contact process of 256 by 256 sites runs twice on four ranks with random state 5
+- **WHEN** a contact process of 256 by 256 sites runs twice on four ranks with `random_state=5`
 - **THEN** both runs are equal
 
 ### Requirement: Decomposed runs scale weakly

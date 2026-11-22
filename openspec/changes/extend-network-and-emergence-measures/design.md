@@ -10,7 +10,9 @@ found by `_greedy` or `_exhaustive`. `scaling(kind='allometric')` in `_scaling.p
 with the settings `resamples`, `confidence`, and `random_state`, and stores the interval as `interval`.
 
 Agent systems with a shared pool exist, such as `PolymerAssemblyPoolSystem` in `systems/biology/evolution/_assembly.py`,
-a variable group with an interaction that draws from it every step.
+a ready-made system whose `_prepare` sets `system_`, a `System` of one element whose members a rule adds and removes,
+and one interaction that draws from it every step. The engine enlarges the arrays of a group as members are added, so
+a pool needs no capacity.
 
 `partial_information` in `_partial_information.py` decomposes the information that sources hold about a target with
 dit, with the minimum and the minimum mutual information redundancies. `surrogate_test` in `_surrogates.py` shuffles
@@ -62,11 +64,15 @@ every variable independently and compares a scalar field of an analysis on the d
   fraction of `bootstrap_distribution` at or below zero. A matrix whose entries are not whole numbers raises
   `AnalysisError`, since probabilities carry no sample size. `EmergenceResult` gains `gains`, `interval`, and
   `p_value`. `'causal'` reads `resamples` (0, the default, for none), `confidence`, and `random_state`.
-- **Surviving by serving as an agent system.** The pool is a variable group of unit vectors in five dimensions, with
-  the generating agent and the raw type of every vector as states. Agents are a group with requirement vectors, the
-  coefficients `a` and `b`, the modification vector `R`, credit, and the uncredited count. Phases of the discrete time
-  run in the order of the paper: source, ageing, transformation, evaluation. The transformation interaction keeps the
-  cumulative transfer counts between agents as a shaped state, the network the paper reads. Defaults follow Table 1
+- **Surviving by serving as an agent system.** `SurvivingByServingSystem(BaseSystem)` lives in a new module
+  `systems/biology/evolution/_serving.py`, and its `_prepare` sets `system_`. The pool is an `Element` of unit vectors
+  in five dimensions whose members rules add and remove, with the generating agent, `Annotated[int, Member('agents')]`,
+  and the raw type of every vector as values. The agents are an `Element` with `size=` members, whose values are the
+  requirement vectors, the coefficients `a` and `b`, the modification vector `R`, the credit, the uncredited count, and
+  one row of cumulative transfer counts to every other agent, the network the paper reads. The four phases of an
+  episode run in the order of the paper, source, ageing, transformation, evaluation, inside one rule of the whole
+  system, `UpdateLaw(s, episode)`, that one interaction states, since each phase reads what the one before left. The
+  rule draws from `system.rng`. Defaults follow Table 1
   of the paper: `T_ada = 30`, `n = 4`, `sigma_ada = 0.05`, two raw types, two evaluators, five dimensions, and the
   threshold 0.48 of its first run.
 - **Libraries surveyed.** `cpnet` 0.0.21 (2022-07-11) implements Borgatti and Everett and several other models but is

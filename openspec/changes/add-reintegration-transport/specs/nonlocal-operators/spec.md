@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Fields move along a flow by reintegration
-Laws of a `FieldElement` on a lattice SHALL update an expression of the field by `reintegrate(expression, flow, dt,
+Update laws of an element on a lattice SHALL update an expression of its values by `reintegrate(expression, flow, dt,
 spread, reach)`, which moves the value of every site to a square of half side `spread` sites centred at the site plus
 `dt` times the flow there, and gives every site the sum of the shares of the squares that overlap it, each share being
 the overlap area over the area of the square. Displacements longer than `reach` sites minus `spread` SHALL be clipped

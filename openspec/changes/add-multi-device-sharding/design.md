@@ -10,7 +10,10 @@
   communication, `jax.distributed.initialize` for one process per node with automatic detection of SLURM and Open MPI,
   the gloo collectives for several CPU processes, and the partitionable threefry generator, on by default, which gives
   the same random bits whatever the sharding. The installed version confirms all of them.
-- The LAMMPS backend already runs particle systems over MPI ranks, with the domain decomposition of LAMMPS.
+- `LammpsSolver` already runs particle systems over MPI ranks, with the domain decomposition of LAMMPS.
+- Since `redesign-core-api`, the backend is a setting of `System` and of every ready-made system, which `prepare`
+  prepares, and runs go through `system.simulate(until, ...)`. Run options such as `store` are arguments of
+  `simulate`, and the devices are a setting of the backend.
 
 ## Goals / Non-Goals
 
@@ -36,7 +39,7 @@
 | --- | --- | --- | --- |
 | Mesh and shardings of states, parameters, and batches | 2, a backend lowering the engine runs on any problem | new private module `core/engine/backends/_jax_sharding.py` | every field with ensembles or large systems: statistical physics, active matter, epidemiology, climate, neuroscience |
 | Halo exchange of lattices | 2, a backend lowering of `LatticeNeighborhood` reads | `core/engine/backends/_jax_sharding.py` | statistical physics, chemistry (pattern formation), ecology, cellular automata |
-| `store` of `simulate` | 2, an option of the runtime | `core/engine/runtime/_simulate.py`, `_recorder.py` | every field with runs larger than a host |
+| `store` of `System.simulate` | 2, an option of the runtime | `core/systems/_base.py`, `core/engine/runtime/_simulate.py`, `_recorder.py` | every field with runs larger than a host |
 
 No new package and no new concept. A set of devices is a setting of the backend, and a store is where a trajectory
 lives.
@@ -95,7 +98,7 @@ None new. The table records the libraries surveyed for communication across node
 
 ### Stores of trajectories
 
-- `simulate(..., store=None)` takes a path or a Zarr store. With one, the recorder creates one array per state with
+- `system.simulate(..., store=None)` takes a path or a Zarr store. With one, the recorder creates one array per state with
   shape `(frames, *shape)` chunked as the shards, and every process writes the shards it holds at every frame. The
   trajectory holds the times and observables in memory and reads states from the store.
 - On one device and one process a store works the same way, so a long run of a large system on one GPU fits in host

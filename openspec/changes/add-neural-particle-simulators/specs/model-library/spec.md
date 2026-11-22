@@ -7,12 +7,12 @@ artificial viscosity, and gravity, whose water column of height `H` and width `2
 break of 2309.16342.
 
 #### Scenario: Surge front
-- **WHEN** the system runs with its defaults
+- **WHEN** the system is prepared and simulated with its defaults
 - **THEN** the front of the surge stays behind the dry-bed front `2 H + 2 sqrt(g H) t` of shallow water at every frame
   before it reaches the right wall, and it reaches that wall before `t sqrt(g / H) = 3.5`
 
 #### Scenario: Mass and density
-- **WHEN** the system runs until the surge reaches the right wall
+- **WHEN** the system is simulated until the surge reaches the right wall
 - **THEN** no fluid particle leaves the tank, and the density of every fluid particle stays within 3% of the rest
   density
 

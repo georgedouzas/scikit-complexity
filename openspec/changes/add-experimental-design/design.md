@@ -41,7 +41,7 @@
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `design_experiment`, `DesignResult` | 2, an experiment over any system with an observation model | `skcomplex.core.experiments` | pharmacology (sampling times), epidemiology (allocation of tests), ecology (survey times), engineering (excitation signals), systems biology (perturbations), physics (measurement settings) |
-| The adaptive design system | 2, a private system that the experiment builds from a `PolicyInteraction` and the system | `core/experiments/_experimental_design.py` | as above |
+| The adaptive design system | 2, a private `System` that the experiment builds from a `PolicyInteraction` and a clone of the system | `core/experiments/_experimental_design.py` | as above |
 | `optimize`, `OptimizationResult` | 2, an experiment over any system | `skcomplex.core.experiments` | engineering (controller tuning), epidemiology (timing of interventions), ecology (harvest quotas), chemistry and materials (inverse design), economics (policy parameters) |
 | `identifiability(method='structural')` | 2, an option of an experiment over any system with symbolic laws | `core/experiments/_identifiability.py` | systems biology, pharmacology, epidemiology, ecology |
 | `control='open-loop'` of `MinimumTimeControlSystem` | 3, a model parameter of one system | `engineering/control/_minimum_time_control.py` | engineering |
@@ -64,8 +64,11 @@ written on JAX and numpyro, a few lines each.
   `core/experiments/_experimental_design.py`.
 - `candidates` maps a design variable to a sequence of candidate values or to bounds. A variable is `'times'`, the
   observation times of the run, or the path of an initial state, a model parameter, or an input held over the run.
-  The experiment chooses `size` points, with repeats allowed, among the candidates, by the exchange algorithm of
-  Fedorov over a finite set, or by CMA-ES within bounds.
+  A model parameter is named as `get_params` names it, such as `'k'` of a ready-made system or `'decay__k'` of a
+  `System`, and a state by its dotted path, such as `'cell.x'`. The experiment chooses `size` points, with repeats
+  allowed, among the candidates, by the exchange algorithm of Fedorov over a finite set, or by CMA-ES within bounds.
+  Every candidate that changes a parameter clones the system, sets it with `set_params`, and prepares the clone, and
+  candidates that change only times or initial states share one prepared clone, as the experiments of the core do.
 - `parameters` maps the parameters of interest to their values, the point of a local design. `observation` is the
   `ObservationSpec` of the measurements, whose Gaussian scale gives the noise of the Fisher information.
 - **Local criteria.** The Fisher information of a design is `J^T R^-1 J`, with `J` the Jacobian of the observed values
@@ -76,7 +79,7 @@ written on JAX and numpyro, a few lines each.
   with `samples` outer and inner draws, and with the noise of the observation model as the likelihood.
 - `DesignResult` holds `design` (variable to chosen values), `value` (the criterion of the design), `values` (the
   criterion of every single candidate), `information` (the Fisher information of the design for local criteria), and
-  `system`, the system set to the chosen conditions and inputs.
+  `system`, a prepared clone of the system set to the chosen conditions and inputs.
 
 ### Adaptive design
 
@@ -86,28 +89,29 @@ written on JAX and numpyro, a few lines each.
   reward of the last round is the sequential prior contrastive estimate of the information gain of Foster et al.
   (2021), the bound of policy-based adaptive design that Rainforth et al. (sect. 6) review. `train_policy` trains the
   policy on it with `'reinforce'` or `'pathwise'`.
-- The result's `system` is that system with the trained policy, so `simulate` runs an adaptive experiment of `k`
-  rounds, and `value` is the estimated information gain of the policy.
+- The result's `system` is that system with the trained policy, prepared, so `result.system.simulate(...)` runs an
+  adaptive experiment of `k` rounds, and `value` is the estimated information gain of the policy.
 
 ### Design optimisation
 
 - `optimize(system, parameters, objective, *, method='bayesian', direction='minimize', budget=100, until=None,
   replicates=1, constraints=(), executor='serial', random_state=None)` in `core/experiments/_optimization.py`.
-- `parameters` maps parameter paths to bounds. `objective` is the path of an observable, read at the end of the run, or
+- `parameters` maps parameter names, as `get_params` gives them, to bounds. `objective` is the path of an observable, read at the end of the run, or
   a callable of the trajectory, or a sequence of them for `'nsga2'`, with `direction` one value or one per objective.
   With `replicates` above 1, stochastic systems are scored by the mean over seeded runs. `constraints` are callables of
   the trajectory that must be at most zero.
-- Every evaluation is a run of `simulate` with the parameters set through `set_params`, and evaluations of one batch run
-  on the executor.
+- Every evaluation clones the system, sets the parameters with `set_params`, prepares the clone, and calls its
+  `simulate`, as `sweep` does, and evaluations of one batch run on the executor.
 - `OptimizationResult` holds `best_params`, `best_value`, `history` (every evaluated point and value), `front` (the
-  Pareto set and its values for several objectives, `None` otherwise), and `system`, set to the best parameters, or to
-  the point of the front closest to the ideal point for several objectives.
+  Pareto set and its values for several objectives, `None` otherwise), and `system`, a prepared clone set to the best
+  parameters, or to the point of the front closest to the ideal point for several objectives.
 
 ### Structural identifiability
 
 - `identifiability(system, data, bounds, method='structural', order=None)` reads only the paths of the observation
-  model of `data` and the names of `bounds`. It differentiates the observed outputs along the rates of the system with
-  Sage, `order` times (the number of states plus one by default), evaluates the Jacobian of these Taylor coefficients
+  model of `data` and the names of `bounds`. It prepares a clone of the system and differentiates the observed outputs
+  along the symbolic right-hand sides that `prepare` derives, the equations that `equations_` prints, with Sage, `order`
+  times (the number of states plus one by default), evaluates the Jacobian of these Taylor coefficients
   in the parameters at a random rational point within the bounds, and reports a parameter as not identifiable when
   removing its column does not lower the rank. The verdicts are `'identifiable'` and `'not identifiable'`, the names
   the profile method uses, and the result gains `rank`.
@@ -129,7 +133,8 @@ written on JAX and numpyro, a few lines each.
   hidden source sensed with an intensity that falls with distance. The check is relative: the trained policy gains more
   information over 10 rounds than random and fixed designs.
 - **Switch time.** `MinimumTimeControlSystem(control='open-loop', switch=...)` applies `u = -1` until `switch` and
-  `u = 1` after it. For the free particle from `(3, 2)`, the state reaches the origin at `2 + 2 sqrt(5)` exactly when
+  `u = 1` after it. `BangBangPlantInteraction` reads the time `t` against `switch` in place of the sampled feedback when
+  `control='open-loop'`. For the free particle from `(3, 2)`, the state reaches the origin at `2 + 2 sqrt(5)` exactly when
   `switch = 2 + sqrt(5)`, about 4.236, the switch of the Pontryagin solution. `optimize` minimises the distance from the
   origin at that time over the switch.
 - **Structural cases.** `x' = -(k1 + k2) x` observed in `x` leaves `k1` and `k2` not identifiable, and the

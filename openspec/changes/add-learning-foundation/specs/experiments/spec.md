@@ -3,10 +3,10 @@
 ## ADDED Requirements
 
 ### Requirement: Identification creates a system from data
-`identify(system, data, trained=...)` SHALL fit the adaptive parameters named by `trained`, learned weights included, to
-observed runs, and SHALL return a frozen `IdentificationResult` whose `system` is the system with the fitted values set
-through `set_params`, with the estimates, the training and validation losses of every epoch, the training and validation
-errors, and the trajectory of the training system.
+`identify(system, data, trained=...)` SHALL clone the system and fit the parameters named by `trained`, as `get_params`
+names them, learned weights included, to observed runs, and SHALL return a frozen `IdentificationResult` whose `system`
+is the clone with the fitted values set through `set_params`, with the estimates, the training and validation losses of
+every epoch, the training and validation errors, and the trajectory of the training system.
 
 #### Scenario: Universal differential equation
 - **WHEN** the predation terms of a Lotka-Volterra system are replaced by a network, and its weights are identified on
@@ -23,21 +23,21 @@ errors, and the trajectory of the training system.
 - **THEN** the losses of every epoch are equal
 
 #### Scenario: Fitted system is a system
-- **WHEN** the `system` of the result is simulated on the NumPy backend
+- **WHEN** the `system` of the result is prepared with the NumPy backend and simulated
 - **THEN** its run equals the run of the training system's inner system with the fitted parameters within 1e-10
 
 ### Requirement: Identification checks its parameters and system
-`identify` SHALL raise `ValidationError` before any fit when a trained name is not an adaptive parameter of the system,
-or when the method is `'gradient'` and the system holds stochastic laws other than SDE terms, naming the parameter
-or the law kind.
+`identify` SHALL raise `ValidationError` before any fit when a trained name is not a parameter of the system, or when
+the method is `'gradient'` and the system holds random laws other than noise laws, naming the parameter or the law
+kind.
 
-#### Scenario: Parameter not adaptive
-- **WHEN** `trained` names a parameter not declared `adaptive=True`
-- **THEN** it raises `ValidationError` whose message says to declare the parameter `ParameterSpec(adaptive=True)`
+#### Scenario: Unknown parameter
+- **WHEN** `trained` names `predation__wieghts` and the system has no such parameter
+- **THEN** it raises `ValidationError` that names `predation__wieghts` and lists the parameters of the system
 
 #### Scenario: Jump laws
 - **WHEN** the system holds jump laws and the method is `'gradient'`
-- **THEN** it raises `ValidationError` that names the law kind `jump` and the tag `differentiable`, and says SDE terms
+- **THEN** it raises `ValidationError` that names the law kind `jump` and the tag `differentiable`, and says noise laws
   are allowed
 
 ### Requirement: Identification fits initial states and noise scales
@@ -74,8 +74,8 @@ between consecutive windows. Without either it SHALL score the whole run.
 - **WHEN** `horizon=1` is given and a state of the system is not observed
 - **THEN** it raises `ValidationError` that names the state and says `windows` allows unobserved states
 
-### Requirement: Identification fits SDE terms
-`identify(method='gradient')` SHALL accept systems whose only stochastic laws are SDE terms, draw `paths` Brownian paths
+### Requirement: Identification fits noise laws
+`identify(method='gradient')` SHALL accept systems whose only random laws are noise laws, draw `paths` Brownian paths
 per run and epoch from `random_state`, and fit the drift and diffusion by the mean and the variance of the paths at
 the observation times.
 

@@ -1,10 +1,12 @@
 ## Context
 
-`convolve`, `shifted`, `gradient`, `advection`, and `upwind` in `core/components/laws/utils/_operators.py` give the
-nonlocal and differential operators of fields on lattices. `convolve` takes a kernel of `displacement(axis)` and a
+`convolve`, `shifted`, `gradient`, `divergence`, and `advection` in `core/components/laws/utils/_operators.py` give
+the nonlocal and differential operators of fields on lattices, which laws call on the values of an element on a
+lattice, `Element(..., space=LatticeSpace(...))`. `convolve` takes a kernel of `displacement(axis)` and a
 radius, and the backends lower it as a sum over a window of offsets with the boundary of the lattice. `shifted` reads a
 field at a fractional displacement by interpolation, which is semi-Lagrangian but not conservative. `LeniaSystem` in
-`computer_science/automata/_lenia.py` writes Lenia as an `UpdateLaw` with `convolve`, `where`, and `clip`.
+`computer_science/automata/_lenia.py` writes Lenia as an `UpdateLaw` with `convolve`, `where`, and `clip`, set by an
+interaction in `laws_`, and builds its `System` in `_prepare`.
 
 ## Goals / Non-Goals
 
@@ -27,7 +29,7 @@ field at a fractional displacement by interpolation, which is semi-Lagrangian bu
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
 | `reintegrate` | 2, an operator the backends lower | `skcomplex.core.components.laws.utils` | artificial life, conservative tracer advection in oceanography and climate, densities of cells and morphogens in biology, crowd densities in social systems, sediment and granular transport in physics |
-| `FlowLeniaSystem` | 3, one system | `computer_science/automata/_flow_lenia.py` | computer science |
+| `FlowLeniaSystem` | 3, one system | `skcomplex/systems/computer_science/automata/_flow_lenia.py` | computer science |
 
 ### The operator
 
@@ -56,11 +58,14 @@ operator is added.
 
 ### Flow-Lenia
 
-- `FlowLeniaSystem(n_channels=1, kernels=None, theta_A=1.0, n=2, dt=0.2, spread=0.65, size=128, localized=False,
-  mutation_rate=0.0, random_state=None)`. A `kernels` of `None` draws the parameters of every kernel from the ranges
-  of Table 1 of the paper: `R` in `[2, 25]`, `r` in `[0.2, 1]`, `a`, `b`, and `w` of three bumps, `h` in `[0, 1]`, `mu`
+- `FlowLeniaSystem(shape=(128, 128), *, channels=1, kernels=None, theta_A=1.0, n=2, dt=0.2, spread=0.65,
+  localized=False, mutation_rate=0.0, random_state=None, label='system', solver='auto', backend='auto')`, a
+  `BaseSystem` whose constructor stores its model parameters and whose `_prepare` sets `system_`, as `LeniaSystem`
+  does, with the names `shape` and `channels` of `LeniaSystem`. A `kernels` of `None` draws the parameters of every
+  kernel from the ranges of Table 1 of the paper: `R` in `[2, 25]`, `r` in `[0.2, 1]`, `a`, `b`, and `w` of three bumps, `h` in `[0, 1]`, `mu`
   in `[0.05, 0.5]`, and `sigma` in `[0.001, 0.2]`, with an adjacency matrix of channels.
-- A site element holds the mass of every channel. One update interaction computes `U_j = sum_i h_i G_i(K_i * A_c_i)`
+- An element on a `LatticeSpace` holds the mass of every channel as its values. One interaction sets an `UpdateLaw`
+  per channel in `laws_`. It computes `U_j = sum_i h_i G_i(K_i * A_c_i)`
   over the kernels that target `j`, the Sobel gradients of `U_j` and of `A_sum` by `convolve` with the Sobel kernel,
   the flow, and the new mass by `reintegrate`.
 - With `localized=True` the weights `h` become states of the sites, the affinity reads them per site (equation 8), and

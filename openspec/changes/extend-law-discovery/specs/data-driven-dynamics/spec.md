@@ -33,13 +33,13 @@ the median coefficients of the models.
 ### Requirement: Parametric sparse identification
 `sparse_identification` SHALL take `parameters`, the names of conditions of the observed runs of its source, with one
 value per run, and SHALL fit a library of products of the terms of the states and of the parameters, so coefficients
-depend on the parameters. The fitted system SHALL declare every parameter, which `set_params` and the `schedule` of
-`simulate` change.
+depend on the parameters. Every parameter SHALL be a value of the fitted system that `set_params` changes before
+`prepare` and that the `schedule` argument of `System.simulate` drives.
 
 #### Scenario: Lorenz over rho
 - **WHEN** it runs on observed Lorenz runs whose conditions set `rho` to 20, 28, and 35, with `parameters=('rho',)`
 - **THEN** the rate of `y` holds the term `rho x` with a coefficient within 1% of 1, and its system with `rho=24` set
-  through `set_params` matches a Lorenz run at `rho=24` within 1% for one time unit
+  through `set_params` and prepared again matches a Lorenz run at `rho=24` within 1% for one time unit
 
 #### Scenario: Run without the condition
 - **WHEN** one of three runs has no condition `rho`
@@ -47,8 +47,9 @@ depend on the parameters. The fitted system SHALL declare every parameter, which
 
 ### Requirement: Sparse identification with control inputs
 `sparse_identification` SHALL take `inputs`, the names of variables that are control inputs, or the inputs of the
-observed runs of its source, and SHALL fit the laws of the other variables over a library of the states and inputs. Its system SHALL take every input as a bounded adaptive
-parameter that its rate laws read, as the system of `mode_decomposition` does.
+observed runs of its source, and SHALL fit the laws of the other variables over a library of the states and inputs.
+Its system SHALL hold every input as a value whose allowed values are the range of the observed input and that its
+rate laws read, as the system of `mode_decomposition` does.
 
 #### Scenario: Forced oscillator
 - **WHEN** it runs on runs of a damped oscillator forced by a random piecewise-constant input `u`, with `inputs=['u']`
@@ -56,7 +57,7 @@ parameter that its rate laws read, as the system of `mode_decomposition` does.
   `u`
 
 #### Scenario: Input as a control
-- **WHEN** the `system` of the result is simulated with a schedule of its input parameter
+- **WHEN** the `system` of the result is prepared and simulated with `schedule={'<element>.u': f}`
 - **THEN** the trajectory records the input at every frame, and the states follow the fitted laws
 
 ### Requirement: Sparse identification from experiment results
@@ -88,17 +89,17 @@ samples, `|phi(g(t + dt)) - mu phi(g(t))|` over `|phi(g(t))|`.
 - **THEN** every eigenfunction whose error is above 0.1 is marked as not valid in the result
 
 ### Requirement: Lifted systems record the original variables
-With a dictionary, `mode_decomposition` SHALL fit a linear readout of the variables from the observables, and its
-system SHALL declare one observable per variable through that readout, so trajectories of the system give the original
-variables.
+With a dictionary, `mode_decomposition` SHALL fit a linear readout of the variables from the observables, and SHALL
+prepare its system with one `Observable` per variable through that readout, so `observables_` holds them and
+trajectories of the system give the original variables.
 
 #### Scenario: Variables of a lifted run
 - **WHEN** the system of a fit with `PolynomialFeatures(2)` on runs of the slow manifold is simulated
 - **THEN** its trajectory records `x` and `y` as observables, within 1e-6 of a run of the true system
 
 ### Requirement: Time-delay observables
-`mode_decomposition` SHALL take `delays`, a number of past samples stacked with every sample as observables, and SHALL
-declare the delayed copies as states of its system, so a series of fewer variables than modes is decomposed.
+`mode_decomposition` SHALL take `delays`, a number of past samples stacked with every sample as observables, and the
+delayed copies SHALL be states of its system, so a series of fewer variables than modes is decomposed.
 
 #### Scenario: One sine series
 - **WHEN** it runs with `delays=1` on the series `sin(t)` sampled every 0.1
@@ -168,22 +169,23 @@ result SHALL hold the coefficients, the penalty, and the predictive standard dev
 
 ### Requirement: Learned interaction laws are group systems
 The result of `cluster_expansion` SHALL hold `system`, a system of one particle group under continuous time whose
-velocity follows the learned law through one interaction per body order, so `simulate`, `sweep`, and the analyses
-accept it like any group system.
+velocity follows the learned law through one interaction per body order, each stating a `RateLaw` on the second
+derivative of the position, so `prepare`, `simulate`, `sweep`, and the analyses accept it like any group system.
 
 #### Scenario: Law and system agree
 - **WHEN** the system of the result starts from a frame of a training run
 - **THEN** the rate of the velocity of every member equals the acceleration the law predicts within 1e-8
 
 #### Scenario: Free run
-- **WHEN** the system learned from `bird_swarm` runs from a held-out initial state until 20 time units
+- **WHEN** the system learned from `bird_swarm` is prepared and simulated from a held-out initial state with
+  `simulate(until=20, initial_state=...)`
 - **THEN** the group stays cohesive like the true system, with the mean distance to the centre within 10% of the true
   one at the end
 
 ### Requirement: Sparse identification recovers learned terms
 `sparse_identification` SHALL take a system whose laws call learned functions, evaluate the trained models at the states
 of the source, fit a sparse library to their outputs, and return the system with every recovered learned term replaced
-by the found expression.
+by the found expression, leaving the system passed in unchanged.
 
 #### Scenario: Interaction terms of Lotka-Volterra
 - **WHEN** the hybrid `UniversalLotkaVolterraSystem` is identified on 31 points over 3 time units of a Lotka-Volterra

@@ -39,7 +39,7 @@ of every candidate, and the system set to the chosen conditions.
 ### Requirement: Designs adapt round by round
 `design_experiment` with `rounds` and `policy` SHALL train a `PolicyInteraction` whose action is the next design and
 whose observation is the history of designs and outcomes, on the sequential information gain over the prior, and SHALL
-return the system holding the trained policy, so `simulate` runs an adaptive experiment.
+return the prepared system holding the trained policy, so `result.system.simulate(...)` runs an adaptive experiment.
 
 #### Scenario: Location finding
 - **WHEN** a design policy is trained for 10 rounds of the one-dimensional location finding of Foster et al. (2021)
@@ -48,14 +48,14 @@ return the system holding the trained policy, so `simulate` runs an adaptive exp
   points
 
 #### Scenario: Adaptive experiment runs
-- **WHEN** the system of the result is simulated
+- **WHEN** a user calls `result.system.simulate()` on the result
 - **THEN** it records 10 designs and 10 outcomes, each design within its bounds
 
 ### Requirement: Optimisation finds the best parameters of a system
 `optimize(system, parameters, objective, method=...)` SHALL search bounded parameters for the best value of one
 objective with `'bayesian'` or `'cma'`, or the Pareto front of several with `'nsga2'`, and SHALL return a frozen
-`OptimizationResult` with the best parameters and value, the history of every evaluation, the front, and the system set
-to the best parameters.
+`OptimizationResult` with the best parameters and value, the history of every evaluation, the front, and a prepared
+clone of the system set to the best parameters.
 
 #### Scenario: Switch time of a bang-bang control
 - **WHEN** the switch of the open-loop `MinimumTimeControlSystem` from `(3, 2)` is searched within `[0, 6.47]` to
@@ -74,3 +74,11 @@ to the best parameters.
 #### Scenario: Several objectives with one objective method
 - **WHEN** two objectives are given with `'bayesian'`
 - **THEN** it raises `ValidationError` that names `'nsga2'`
+
+### Requirement: Optimisation runs clones of the system
+Every evaluation of `optimize` SHALL clone the system, set the parameters with `set_params`, prepare the clone, and
+simulate it, as `sweep` does, and the system passed in SHALL stay unchanged.
+
+#### Scenario: The user's system is unchanged
+- **WHEN** a user calls `optimize` on an open-loop `MinimumTimeControlSystem` with `switch=1.0`
+- **THEN** the result's `system` holds the best switch, and the user's system keeps `switch=1.0`

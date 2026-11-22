@@ -14,11 +14,14 @@ accelerated loop SHALL run one by one, and the experiment SHALL warn with `Backe
 solver and the solvers that batch.
 
 #### Scenario: Batch of initial states
-- **WHEN** a Lorenz system runs as a batch of 8 initial states with `RK4Solver` on the NumPy backend
-- **THEN** each of the 8 trajectories equals the run of its initial state alone within 1e-12
+- **WHEN** a sweep of `LorenzSystem(solver=RK4Solver(dt=0.01))` over 8 initial states runs with `vectorized=True` on
+  the NumPy backend
+- **THEN** each of the 8 runs equals `system.prepare().simulate(until, initial_state=...)` of its initial state alone
+  within 1e-12
 
 #### Scenario: Solver without a loop
-- **WHEN** an ensemble of 10 runs of a system whose solver is `ScipyODESolver` executes with `vectorized=True`
+- **WHEN** a sweep of 10 values of a parameter of a system whose solver is `ScipyODESolver` executes with
+  `vectorized=True`
 - **THEN** it equals the result with `vectorized=False` and warns with `BackendWarning`, whose message names
   `ScipyODESolver` and `RK4Solver`
 
@@ -27,7 +30,8 @@ The JAX backend SHALL run a batch as one vectorised device program, the Numba ba
 run per thread, and the NumPy backend SHALL run it one run after another as the reference.
 
 #### Scenario: Backends agree on a batch
-- **WHEN** a batch of 64 seeded runs of a stochastic logistic map runs on the NumPy, Numba, and JAX backends
+- **WHEN** an ensemble of 64 seeded runs of a stochastic logistic map runs with `vectorized=True` on systems whose
+  `backend` is `NumpyBackend()`, `NumbaBackend()`, and `JaxBackend()`
 - **THEN** the NumPy and Numba batches are equal, and the JAX batch equals the JAX runs one by one within 1e-10
 
 ### Requirement: Batches do not change results
@@ -35,7 +39,7 @@ A run in a batch SHALL draw from the same random stream as the run alone, so a r
 runs are batched or on the batch size.
 
 #### Scenario: Batch sizes
-- **WHEN** an ensemble of 100 stochastic SIR runs with seed 7 executes with `vectorized=False`, and with
+- **WHEN** an ensemble of 100 stochastic SIR runs with `random_state=7` executes with `vectorized=False`, and with
   `vectorized=True` and batch sizes 1, 7, and 100, on the Numba backend
 - **THEN** the four results are equal
 

@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Diversity search is an experiment
-The experiments layer SHALL hold `diversity_search(system, parameters, *, descriptors, objective, method, ...)`, which
-runs the system at parameter rows inside the bounds and returns a frozen `DiversitySearchResult` with the archive of
-parameters, descriptors, and objectives, the coverage, the quality-diversity score, the nearest-neighbour diversity,
-and the history over iterations. An unknown method SHALL raise `ExperimentError` naming the methods.
+The experiments layer SHALL hold `diversity_search(system, parameters, *, descriptors, objective, method, ...)`, a
+function that clones the system, sets the parameters of each row inside the bounds, prepares, and simulates, as `sweep`
+does. It SHALL return a frozen `DiversitySearchResult` with the archive, the coverage, the quality-diversity score, the
+nearest-neighbour diversity, and the history over iterations. An unknown method SHALL raise `ExperimentError`.
 
 #### Scenario: Unknown method
 - **WHEN** a user calls `diversity_search` with `method='random-walk'`
@@ -13,7 +13,7 @@ and the history over iterations. An unknown method SHALL raise `ExperimentError`
 
 #### Scenario: Same seed
 - **WHEN** a user runs one search twice with the same random state
-- **THEN** both results hold the same archive
+- **THEN** both results hold the same archive of parameters, descriptors, and objectives
 
 ### Requirement: Quality diversity by pyribs
 The methods `'map-elites'` and `'cma-me'` SHALL fill a grid archive of the descriptor space through pyribs, keeping in

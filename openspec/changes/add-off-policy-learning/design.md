@@ -1,10 +1,14 @@
 ## Context
 
-`add-learning-foundation` adds `EnvironmentSpec`, `PolicyInteraction`, and `train_policy` with `'reinforce'`, `'ppo'`,
-and `'pathwise'`, on the private `_OptaxLoop` of `GradientDescentSolver`. Rollouts run through the runner of `ensemble`
-with recorded draws, and `observe` reads them as observed runs. Its design names the off-policy estimators as the work
-of this change. `PendulumSwingUpSystem` in `engineering/control/_control.py` swings a pendulum up with a bang-bang
-pivot acceleration of size `mu`.
+`add-learning-foundation` adds the environment of a system, `PolicyInteraction`, and the experiment `train_policy`
+with `'reinforce'`, `'ppo'`, and `'pathwise'`, on the private Optax loop of `GradientDescentSolver`. Rollouts run
+through the runner of `ensemble` with recorded draws, and `observe` reads them as observed runs. Its design names the
+off-policy estimators as the work of this change. This change uses the names that `add-learning-foundation` settles on
+and adds no concept of its own.
+
+`PendulumSwingUpSystem` in `engineering/control/_control.py` is a ready-made `DynamicalSystem` whose rate law swings a
+pendulum up with a bang-bang pivot acceleration of size `mu`, a value of its element. Every run in this change follows
+the current API: `system.prepare()` compiles once, and `system.simulate(until=...)` returns a `Trajectory`.
 
 ## Goals / Non-Goals
 
@@ -46,12 +50,17 @@ pivot acceleration of size `mu`.
   scikit-learn regressor refits with `fit`, an Equinox module trains for a few epochs of the shared loop per iteration.
   The policy of the result is greedy in the Q-function.
 - Every method returns the trained system with `q_function` in the result, and the policy of the system reads it.
+- The Q-function is used inside the experiment. A scikit-learn regressor is fitted by the experiment, and no system or
+  policy gains `fit` or `predict`.
 
 ### Pendulum environment
 
 - The environment of `PendulumSwingUpSystem` observes the cosine and sine of the angle and the angular velocity, acts
   on the pivot acceleration within `(-mu, mu)`, rewards `-(theta - pi)^2 - 0.1 * theta'^2 - 0.001 * u^2` wrapped to the
   nearest upright angle, and decides every 0.05. The energy-pumping controller of the system is the reference.
+- The environment is declared in the form `add-learning-foundation` gives environments, with the pivot acceleration as
+  the action and its bounds read from the allowed values of `mu`. When the policy is bound, it sets the acceleration in
+  place of the energy-pumping law, and without a policy the system runs as today.
 
 ## Risks / Trade-offs
 

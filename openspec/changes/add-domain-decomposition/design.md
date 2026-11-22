@@ -1,14 +1,19 @@
 ## Context
 
-- `LatticeSpace` has a shape and a boundary, `'periodic'`, `'fixed'`, or `'reflecting'`, and `LatticeNeighborhood`
-  gives the offsets of the neighbours of a site. Groups and fields compile independently of their size.
+- `LatticeSpace` has a shape and a boundary, `'periodic'`, `'fixed'`, or `'reflecting'`, or the edge of each state as a
+  mapping, and `LatticeNeighborhood` gives the offsets of the neighbours of a site. An element on a lattice,
+  `Element(..., space=lattice)`, holds one member per site and compiles independently of its size.
+- Since `redesign-core-api`, a system is prepared once with `system.prepare()` and run with
+  `system.simulate(until, ...)`. Run options such as clocks, observers, and the store of `add-multi-device-sharding`
+  are arguments of `simulate`, and the solver and backend are settings of the system. A communicator says where a run
+  executes, as a clock says when, so it is an argument of `simulate` too.
 - The Numba backend writes lattice stencils in `_numba_stencils.py` and runs the steps of a frame inside compiled loops,
   which cannot call MPI. The forward functions in `functions_` evaluate one drift or update per call.
 - `mpich` is a runtime dependency, because the LAMMPS wheel links an MPI library it does not bundle. It installs
   `mpiexec`.
-- `add-multi-device-sharding` splits lattices over GPUs and nodes with halo exchange in JAX, and adds `simulate(...,
-  store=...)`, which writes the shards of every process to Zarr.
-- The LAMMPS backend decomposes particle domains over MPI ranks for the systems it runs.
+- `add-multi-device-sharding` splits lattices over GPUs and nodes with halo exchange in JAX, and adds
+  `system.simulate(..., store=...)`, which writes the shards of every process to Zarr.
+- `LammpsSolver` decomposes particle domains over MPI ranks for the systems it runs.
 
 ## Goals / Non-Goals
 
@@ -18,7 +23,7 @@
 - No rank holds the whole lattice.
 
 **Non-Goals:**
-- Particles, networks, and meshes. Particles run over MPI through the LAMMPS backend, and networks and meshes need graph
+- Particles, networks, and meshes. Particles run over MPI through `LammpsSolver`, and networks and meshes need graph
   partitioning, which can follow if a user needs it.
 - Implicit and spectral steppers, whose global solves and FFTs need distributed linear algebra.
 - Decomposition along more than one axis. Slabs along the first axis suffice up to hundreds of ranks for lattices of
@@ -32,10 +37,10 @@
 
 | Component | Placement step | Where | Domains that use it |
 | --- | --- | --- | --- |
-| `communicator` of `simulate`, slabs, halo exchange, and reductions of observables | 2, a runtime procedure the engine runs on any lattice problem | new private module `core/engine/runtime/_decomposition.py` | statistical physics (Ising, Potts, contact process), chemistry (reaction-diffusion), ecology (spatial populations), climate (gridded models), materials science (phase field) |
+| `communicator` of `System.simulate`, slabs, halo exchange, and reductions of observables | 2, a runtime procedure the engine runs on any lattice problem | new private module `core/engine/runtime/_decomposition.py` | statistical physics (Ising, Potts, contact process), chemistry (reaction-diffusion), ecology (spatial populations), climate (gridded models), materials science (phase field) |
 | Slab shape of the lattice compile pass | 2, a compile pass of lattices | `core/engine/compile/passes/_lattices.py` | the same fields |
 
-No new package. A communicator is a setting of a run, as a clock is.
+No new package. A communicator is an argument of a run, as a clock is.
 
 ### Dependencies
 
@@ -58,8 +63,7 @@ Checked on PyPI on 2026-11-11.
 - Every rank compiles the system with each lattice replaced by its slab plus `h` halo rows on each side, where `h` is
   the largest reach of its neighbourhoods along the first axis. The halo rows are states that no law writes, so the
   compiled problem is the problem of a smaller lattice with a fixed boundary that the exchange fills.
-- Initial values that are numbers, or functions of the coordinates of a site, are evaluated on the rows of the slab. A
-  full array is sliced, which needs the array to fit on every rank, and the docs say so.
+- Values of an element on the lattice that are numbers apply to every row of the slab. A full array is sliced, which needs the array to fit on every rank, and the docs say so.
 
 ### Halo exchange
 

@@ -7,7 +7,7 @@ of moral judgment compete, and find that Stern Judging spreads (2204.10811). Wan
 replicator equation of any multiplayer game on regular graphs and an exact threshold of peer punishment beyond which
 defection dies out (2401.11686). Each model exercises a combination of core primitives that no system of the library
 uses yet, and each gives analytic reference values against which the core can be checked: a network whose layer is
-chosen by a Markov state, states on the edges of a complete network read through lookup tables, and payoffs summed over
+chosen by a Markov state, values on the edges of a complete network read through lookup tables, and payoffs summed over
 the groups a node forms with its neighbours on random regular graphs.
 
 ## What Changes
@@ -37,8 +37,8 @@ None.
 
 ## Impact
 
-- Systems: a new module per system in `skcomplex.systems.social.cooperation`, and the shared components they need, if
-  any, in `social/common/games`.
+- Systems: a new module per system in `skcomplex.systems.social.cooperation`. A component that two of them share stays
+  in each module unless the maintainer approves a new family `social/common/games`.
 - No new dependency. NetworkX generates the random regular graphs, and SciPy solves the linear systems of the critical
   ratio.
 - Docs: a gallery example and an inventory entry per system. They exercise the existing primitives `networks`,
