@@ -171,7 +171,7 @@ class CurieWeissSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem
-        >>> trajectory = CurieWeissSystem(10).prepare().simulate(until=0.2, random_state=0)
+        >>> trajectory = CurieWeissSystem(10).prepare().simulate(until=2.0, random_state=0)
         >>> trajectory.get_values('spins.spin').shape
         (3, 10)
     """
@@ -180,7 +180,7 @@ class CurieWeissSystem(BaseSystem):
     topics = ('mean field', 'phase transition', 'spins', 'jump process')
     references = ('Bertin 2021', 'Glauber 1963')
     until = 30.0
-    dt = 0.1
+    dt = 1.0
     observables = (_get_magnetization(),)
 
     @staticmethod

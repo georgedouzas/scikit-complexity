@@ -40,3 +40,9 @@ def test_sherrington_kirkpatrick_energy_and_freezing():
             assert energy < -0.65
     assert frozen[0] < 0.1
     assert frozen[1] > 0.6
+
+
+def test_curie_weiss_records_one_frame_per_sweep_by_default():
+    """Test that a Curie-Weiss run records one frame per unit of time, one sweep of the spins."""
+    trajectory = CurieWeissSystem(10).prepare().simulate(until=20.0, random_state=0)
+    assert len(trajectory.times) == 21
