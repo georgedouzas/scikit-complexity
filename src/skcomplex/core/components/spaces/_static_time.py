@@ -33,4 +33,3 @@ class _StaticTime(_BaseTime):
         """Set no schedule."""
         super()._prepare(context)
         self.schedule_ = None
-

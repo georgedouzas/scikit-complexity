@@ -6,6 +6,7 @@ import pytest
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
+from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
 from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction, XYSamplingInteraction
@@ -103,3 +104,16 @@ def test_lattice_recording_is_saved(tmp_path):
     IsingSystem(16).prepare().simulate(until=5, observers=[observer])
     assert observer.logged_frames_ == 6
     assert (tmp_path / 'ising.rrd').stat().st_size > 0
+
+
+def test_ising_runs_on_an_odd_periodic_lattice():
+    """Test that an Ising system of odd side samples its spins in a random order instead of a checkerboard."""
+    trajectory = IsingSystem(9, temperature=2.0).prepare().simulate(until=2, random_state=0)
+    assert trajectory.get_values('spins.spin').shape == (3, 81)
+
+
+def test_ising_names_the_solver_setting_when_its_checkerboard_cannot_run():
+    """Test that an explicit checkerboard on an odd periodic lattice raises an error naming the solver setting."""
+    solver = MetropolisSolver(moves={'spins.spin': 'flip'}, schedule='checkerboard')
+    with pytest.raises(ValidationError, match=r"solver=MetropolisSolver\(moves=\.\.\., schedule='random-sequential'\)"):
+        IsingSystem(9, solver=solver).prepare()

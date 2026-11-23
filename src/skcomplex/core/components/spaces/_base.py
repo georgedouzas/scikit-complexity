@@ -384,4 +384,3 @@ class _BaseTime(BaseComponent[None]):
     def _get_tags(self) -> Tags:
         """Return the tags of the time: the time tag of its class, and no laws."""
         return Tags(time=frozenset({self.time_tag} - {''}))
-

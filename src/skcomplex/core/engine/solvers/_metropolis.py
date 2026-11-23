@@ -53,7 +53,7 @@ class MetropolisSolver(BaseObjectiveSolver):
         step: float = 0.1,
         moves: Mapping[str, str | Callable[..., object]] | None = None,
         rule: str = 'metropolis',
-        schedule: str = 'checkerboard',
+        schedule: str = 'auto',
         neighborhood: BaseNeighborhood | None = None,
         values: Mapping[str, Sequence[float]] | None = None,
         width: float = 1.0,
@@ -77,7 +77,8 @@ class MetropolisSolver(BaseObjectiveSolver):
                 The acceptance of the moves of members, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
 
             schedule:
-                The order of the moves of members, `'checkerboard'`, `'colored'`, or `'random-sequential'`.
+                The order of the moves of members, `'checkerboard'`, `'colored'`, `'random-sequential'`, or `'auto'`
+                for the checkerboard when the lattice allows it and the random sequential order otherwise.
 
             neighborhood:
                 The neighbourhood the local objective of a member reduces over, or `None` for the von Neumann

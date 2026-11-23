@@ -34,7 +34,8 @@ class SamplerSpec(BaseSpec):
         schedule:
             `'checkerboard'` to update the two halves of a square lattice in turn, like the squares of a chessboard,
             `'colored'` to update groups of sites with no neighbours in common in turn, or `'random-sequential'` to
-            visit the sites one at a time in a random order.
+            visit the sites one at a time in a random order, or `'auto'` for the checkerboard when the lattice allows
+            it, the colored schedule for sums over cofaces, and the random order otherwise.
 
     See Also:
         MoveSpec: The change of a site that a sweep proposes.

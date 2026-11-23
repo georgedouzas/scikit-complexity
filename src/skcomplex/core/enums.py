@@ -551,7 +551,8 @@ class SweepKind(StrEnum):
     """A kind of order in which a sampling sweep visits the sites of a lattice.
 
     A sweep visits every site once, in two colours like a chessboard, `'checkerboard'`, in a random order, or in more
-    colours so no two neighbours update together. It samples the spins of a magnet, the gas on a grid, and the cells of
+    colours so no two neighbours update together, and `'auto'` takes the chessboard when the lattice allows it and a
+    random order otherwise. It samples the spins of a magnet, the gas on a grid, and the cells of
     a tissue.
 
     Read more in the user guide, under Laws.
@@ -562,12 +563,13 @@ class SweepKind(StrEnum):
     Examples:
         >>> from skcomplex.core.enums import SweepKind
         >>> [kind.value for kind in SweepKind]
-        ['checkerboard', 'random-sequential', 'colored']
+        ['checkerboard', 'random-sequential', 'colored', 'auto']
     """
 
     CHECKERBOARD = 'checkerboard'
     RANDOM_SEQUENTIAL = 'random-sequential'
     COLORED = 'colored'
+    AUTO = 'auto'
 
 
 class TimeTag(StrEnum):

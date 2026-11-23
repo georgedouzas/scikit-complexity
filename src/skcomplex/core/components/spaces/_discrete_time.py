@@ -56,4 +56,3 @@ class _DiscreteTime(_BaseTime):
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a ScheduleSpec.'
             raise ValidationError(error_msg)
         self.schedule_ = self.schedule
-

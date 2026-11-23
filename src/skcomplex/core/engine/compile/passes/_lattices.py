@@ -263,22 +263,45 @@ class LatticeProblemPass(BasePass):
 
         An error is raised when neighbours change together.
         """
-        offsets = neighborhood._get_offsets(space.n_dim_) if isinstance(space, LatticeSpace) else None
-        if not isinstance(space, LatticeSpace) or space.geometry != 'square' or offsets is None:
+        misfit = LatticeProblemPass._get_checkerboard_misfit(space, neighborhood)
+        if not isinstance(space, LatticeSpace) or misfit == 'square':
             error_msg = (
                 f"{owner} uses a checkerboard schedule, which needs a square lattice. Use the 'colored' schedule, "
                 'which updates the classes of a proper coloring of the neighbour graph in turn.'
             )
             raise ValidationError(error_msg)
-        odd = all(sum(offset) % 2 for offset in offsets)
-        even = space._get_edges() != 'periodic' or all(size % 2 == 0 for size in space.shape_)
-        if not (odd and even):
+        if misfit == 'parity':
             error_msg = (
                 f'{owner} uses a checkerboard schedule, which needs neighbours on the other sublattice and even sizes '
-                "on periodic lattices. Use the 'random-sequential' schedule instead."
+                "on periodic lattices. Choose another schedule in the solver, such as "
+                "solver=MetropolisSolver(moves=..., schedule='random-sequential'), or leave the schedule 'auto'."
             )
             raise ValidationError(error_msg)
         return space
+
+    @staticmethod
+    def _get_checkerboard_misfit(space: BaseSpace, neighborhood: BaseNeighborhood) -> str | None:
+        """Return why a checkerboard update does not fit a lattice, `'square'` or `'parity'`, or `None` when it fits."""
+        offsets = neighborhood._get_offsets(space.n_dim_) if isinstance(space, LatticeSpace) else None
+        if not isinstance(space, LatticeSpace) or space.geometry != 'square' or offsets is None:
+            return 'square'
+        odd = all(sum(offset) % 2 for offset in offsets)
+        even = space._get_edges() != 'periodic' or all(size % 2 == 0 for size in space.shape_)
+        return None if odd and even else 'parity'
+
+    @staticmethod
+    def _resolve_schedule(sampler: SamplerSpec, space: BaseSpace, over: object, cofaces: bool) -> SamplerSpec:
+        """Return the sampler with an `'auto'` schedule replaced by one that fits the lattice.
+
+        Sums over cofaces take the colored schedule, and other sums take the checkerboard when it fits and the random
+        sequential order otherwise.
+        """
+        if sampler.schedule != 'auto':
+            return sampler
+        if cofaces:
+            return replace(sampler, schedule='colored')
+        fits = isinstance(over, BaseNeighborhood) and LatticeProblemPass._get_checkerboard_misfit(space, over) is None
+        return replace(sampler, schedule='checkerboard' if fits else 'random-sequential')
 
     @staticmethod
     def _get_coloring(size: int, rows: Indices, columns: Indices) -> tuple[Indices, ...]:
@@ -919,6 +942,7 @@ class LatticeProblemPass(BasePass):
         if cofaces and move.kind == 'cluster':
             error_msg = f'{owner} make cluster moves on a sum over cofaces. Use a rotate or a random-value move.'
             raise ValidationError(error_msg)
+        sampler = LatticeProblemPass._resolve_schedule(sampler, target.space, objective.over, cofaces)
         lower = LatticeProblemPass._lower_cofaces if cofaces else LatticeProblemPass._lower_neighbors
         table, classes, neighbours, masks, expression, faces = lower(objective, move, sampler, context, target)
         masked = any(item in masks for item in expression.variables())
