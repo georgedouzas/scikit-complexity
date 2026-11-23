@@ -33,7 +33,8 @@ class OrbitDiagramResult:
             The kept values of the observable for every value of the parameter.
 
         periods:
-            The number of distinct kept values for every value of the parameter, the period of periodic orbits.
+            The period of the orbit for every value of the parameter, the smallest shift after which the rounded kept
+            values repeat at least once in full, or 0 when they never do, as for a chaotic orbit.
 
     See Also:
         orbit_diagram: Returns this result.
@@ -97,7 +98,7 @@ def orbit_diagram(
             `dt`, or of 1, the step of maps, when it is `None`.
 
         decimals:
-            The decimals the kept values are rounded to before counting the period of every orbit.
+            The decimals the kept values are rounded to before the period of every orbit is found.
 
         random_state:
             The seed of stochastic runs.
@@ -106,7 +107,9 @@ def orbit_diagram(
             `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor of the separate runs.
 
         vectorized:
-            Whether to run every value as a member of one simulation of the replicated system.
+            Whether to run every value as a member of one simulation of the replicated system, with `parameter` a
+            dotted path such as `'map.r'`. It is much faster for many values, such as a scan of a map over 1200
+            values in about a second.
 
     Returns:
         result:
@@ -159,5 +162,13 @@ def orbit_diagram(
             executor=executor,
         )
         points = [np.asarray(run.series[observable], dtype=float) for run in result.runs]
-    periods = np.asarray([np.unique(np.round(series, decimals)).size for series in points], dtype=np.int64)
+    periods = np.asarray([_get_period(np.round(series, decimals)) for series in points], dtype=np.int64)
     return OrbitDiagramResult(points, periods)
+
+
+def _get_period(series: Array) -> int:
+    """Return the smallest shift after which a series repeats at least once in full, or 0 when none does."""
+    for shift in range(1, len(series) // 2 + 1):
+        if np.array_equal(series[shift:], series[:-shift]):
+            return shift
+    return 0

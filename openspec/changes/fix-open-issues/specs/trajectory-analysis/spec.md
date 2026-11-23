@@ -32,8 +32,9 @@ by mean, for one snapshot or every frame of a trajectory.
 - **THEN** an error names the side and the block size
 
 ### Requirement: Orbit diagrams scan many values quickly
-`orbit_diagram` SHALL scan the logistic map over 1200 parameter values with 1000 transient steps in a few seconds.
+`orbit_diagram` SHALL scan the logistic map over 1200 parameter values with 1000 transient steps in a few seconds when
+it runs vectorized, and its docstring SHALL point large scans to the vectorized run.
 
 #### Scenario: Scan time
-- **WHEN** the scan runs on a laptop
-- **THEN** it finishes in under 10 seconds
+- **WHEN** the vectorized scan runs on a laptop
+- **THEN** it finishes in under 10 seconds with the same orbits as separate runs

@@ -64,3 +64,17 @@ def test_orbit_diagram_of_a_system_by_nested_name_and_path():
     for first, second in zip(by_name.points, by_path.points, strict=True):
         np.testing.assert_allclose(first, second, atol=1e-12)
     assert by_name.periods.tolist() == [1, 2]
+
+
+def test_orbit_diagram_gives_period_zero_to_aperiodic_orbits():
+    """Test that a chaotic orbit has period 0 while a cycle of two values has period 2."""
+    diagram = orbit_diagram(LogisticMapSystem(), 'r', [3.9, 3.2], 'map.x', transient=1000, keep=64)
+    assert diagram.periods.tolist() == [0, 2]
+
+
+def test_vectorised_orbit_diagram_scans_many_values():
+    """Test that a vectorised scan of a map over 1200 values keeps one orbit per value."""
+    values = np.linspace(2.5, 4.0, 1200)
+    diagram = orbit_diagram(LogisticMapSystem(), 'map.r', values, 'map.x', transient=1000, keep=64, vectorized=True)
+    assert len(diagram.points) == 1200
+    assert diagram.periods[0] == 1

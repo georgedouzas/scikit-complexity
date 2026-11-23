@@ -39,7 +39,9 @@ Non-goals: drawing initial states at run time inside the engine, and a general f
    function for coarse graining, which is cross-domain (images, lattices, grids).
 8. **Normal forms need no new API.** `DynamicalSystem` already takes states and equations in one call. The docstring of
    `stability` and the guide show `dm/dt = a m - b m^3` this way.
-9. **Performance by measurement.** Profile `orbit_diagram` on the logistic map over 1200 values and fix what dominates.
+9. **Performance by measurement.** On 0.10.0 separate runs of the logistic map take about 20 ms each, so 1200 values
+   take about 25 s, while the vectorized run takes under a second with the same orbits. Separate runs stay the default,
+   because not every system replicates, and the docstring points large scans to `vectorized=True`.
    `CurieWeissSystem` gets a default `dt` of 1, one sweep per frame.
 10. **`LoweredFunctionsSpec` becomes `_LoweredFunctionsSpec`.** It is only used inside the engine and in its test,
     which moves to the private name through the backend.
