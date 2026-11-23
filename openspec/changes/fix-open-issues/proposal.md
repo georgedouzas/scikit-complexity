@@ -15,7 +15,8 @@ constitution still names removed parts, and the engine record `LoweredFunctionsS
   derived from the experiment's seed, so replicates start from different initial states. **BREAKING:** `seed=` is gone.
 - **Ising sizes (#26):** a lattice system on an odd periodic lattice uses the random sequential schedule when its solver
   is `'auto'`, and the checkerboard error names how to choose a schedule through the `solver` setting.
-- **Coevolving voters (#27):** derived states such as `voters.degree` are recorded at frame 0 from the initial network.
+- **Coevolving voters (#27):** the degree of every voter starts at its degree in the initial network, so frame 0
+  records it.
 - **Fixed points (#25):** `stability` returns fixed points in a fixed order, sorted by their values, and exact solutions
   convert to floats without solver noise.
 - **Orbit periods (#29):** `orbit_diagram` reports a period of 0 when no period is found among the kept values.
@@ -38,8 +39,7 @@ None.
 
 - `experiments`: ensembles vary the seed of each replicate's system.
 - `model-catalog`: ready-made systems name their seed `random_state` with one meaning, and lattice systems choose a
-  schedule that fits their size.
-- `simulation`: derived states are recorded at the first frame.
+  schedule that fits their size, and coevolving networks start with their initial degrees.
 - `trajectory-analysis`: stable fixed point order, aperiodic orbits, and block coarse graining.
 
 ## Impact

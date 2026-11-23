@@ -53,3 +53,11 @@ def test_join_a_club_separates_members_from_outsiders_at_strong_coupling():
 def test_opinion_network_systems_build_their_components(system):
     """Test that the systems build their components with their default parameters."""
     assert system().prepare().system_.elements
+
+
+def test_coevolving_voters_record_the_degrees_of_the_initial_network():
+    """Test that the first frame holds the degrees of the initial network, twice its number of edges in sum."""
+    system = CoevolvingVoterSystem(200, mean_degree=4, rewiring=0.6).prepare()
+    degrees = system.simulate(until=3, random_state=0).get_values('voters.degree')
+    edges = system.system_.elements[0].space.graph.number_of_edges()
+    assert float(np.sum(degrees[0])) == 2 * edges

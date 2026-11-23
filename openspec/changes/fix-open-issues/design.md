@@ -23,11 +23,13 @@ Non-goals: drawing initial states at run time inside the engine, and a general f
    then independent in both its start and its dynamics, as the ensemble requirement already promises. Preparing per
    replicate costs a compile per replicate only for such systems. A user who wants one fixed start passes
    `initial_state`.
-3. **Schedules follow the lattice.** With the solver `'auto'`, a Metropolis sampler on a periodic lattice with an odd
-   side uses the random sequential schedule. An explicit checkerboard schedule on such a lattice still raises, and the
-   message shows `solver=MetropolisSolver(schedule='random-sequential')`.
-4. **Frame 0 holds derived states.** States computed from the structure, such as a degree, are evaluated on the
-   initial structure before the first frame is recorded.
+3. **Schedules follow the lattice.** `MetropolisSolver` gets the schedule `'auto'` as its default: the checkerboard
+   when the lattice allows it, the colored schedule for sums over cofaces, and the random sequential order otherwise.
+   An explicit checkerboard schedule on an odd periodic lattice still raises, and the message shows
+   `solver=MetropolisSolver(moves=..., schedule='random-sequential')`.
+4. **Initial degrees come from the network.** The degree of a voter is an ordinary state that an update law sets each
+   step, so it started at its declared 0. The coevolving systems now start it at the degree in the initial network.
+   The engine does not evaluate update laws before the first frame, which would change every map.
 5. **Fixed points are sorted.** Points are sorted by their values in the order of `names`, using values rounded to 10
    decimals for the key only. Exact Sage solutions are converted with full precision, and numerical roots are polished
    with one Newton step before rounding is considered.

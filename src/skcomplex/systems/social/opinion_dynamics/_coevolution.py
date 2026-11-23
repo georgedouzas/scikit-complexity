@@ -287,9 +287,10 @@ class CoevolvingVoterSystem(BaseSystem):
     ) -> System:
         """Return a coevolving network of agents with opinions and its variable ties.
 
-        The ties are rewired by separation.
+        The ties are rewired by separation, and the degrees start at those of the initial network.
         """
-        agents = element('voters', opinion=opinions, space=space, **values)
+        degrees = np.asarray([degree for _, degree in sorted(space.graph.degree())], dtype=float)
+        agents = element('voters', opinion=opinions, degree=degrees, space=space, **values)
         ties = Element('ties', space=space, on='edges')
         interactions = [
             Interaction(

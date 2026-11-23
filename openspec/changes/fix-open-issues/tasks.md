@@ -12,7 +12,8 @@
 
 - [ ] 2.1 Choose the random sequential schedule for odd periodic lattices when the solver is `'auto'`, and name the
       `solver` setting in the checkerboard error, with tests mirroring the changed modules
-- [ ] 2.2 Record derived states at frame 0 from the initial structure, with a test for `CoevolvingVoterSystem`
+- [ ] 2.2 Start the degrees of the coevolving systems at those of the initial network, with a test for
+      `CoevolvingVoterSystem`
 
 ## 3. Analysis (#25, #29, #30, #31)
 
