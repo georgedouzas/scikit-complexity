@@ -19,6 +19,7 @@ from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
+from skcomplex.systems.general.dynamics import DynamicalSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
@@ -216,3 +217,26 @@ def test_dispersion_relation_of_a_system_of_a_plain_element():
     relation = stability(System(elements=[plate], interactions=[_Fisher('fisher')]), kind='dispersion')
     assert relation.uniform == pytest.approx({'u': 1.0})
     assert relation.growth_rates == pytest.approx(-0.5 - (2 - 2 * np.cos(relation.magnitudes)))
+
+
+def test_stability_gives_exact_multipliers_of_float_parameters():
+    """Test that the multiplier `2 - r` of the logistic map at `r = 3.2` is exactly -1.2, after the point at 0."""
+    result = stability(LogisticMapSystem(r=3.2))
+    assert [str(point['map.x']) for point in result.fixed_points] == ['0', '(r_map - 1)/r_map']
+    assert [complex(item[0]) for item in result.eigenvalues] == [3.2, -1.2]
+
+
+def test_stability_of_a_normal_form_written_as_a_dynamical_system():
+    """Test that the pitchfork normal form gives two stable branches around an unstable origin, in order."""
+    pitchfork = DynamicalSystem(
+        {'m': 0.1},
+        {'m': lambda s: s.target.a * s.target.m - s.target.b * s.target.m**3},
+        parameters={'a': 1.0, 'b': 4.0},
+    )
+    result = stability(pitchfork)
+    assert [float(SR(point['state.m']).subs(a_state=1.0, b_state=4.0)) for point in result.fixed_points] == [
+        -0.5,
+        0.0,
+        0.5,
+    ]
+    assert result.classifications == ['stable node', 'unstable node', 'stable node']

@@ -127,6 +127,26 @@ The model has two fixed points.
 
 The imaginary part 0.663 is an angular frequency. Small cycles around the centre last `2 pi / 0.663`, about 9.5 years.
 The result also holds the Jacobian, the nullclines, where one rate is zero, and the divergence of the vector field.
+The fixed points come sorted by their values, so the order is the same in every run.
+
+A plain equation needs no system class of its own. The normal form `dm/dt = a m - b m^3` of a pitchfork bifurcation
+is a [DynamicalSystem][skcomplex.systems.general.dynamics.DynamicalSystem] of one line:
+
+```python continuation
+from skcomplex.core.analysis import stability
+from skcomplex.systems.general.dynamics import DynamicalSystem
+
+pitchfork = DynamicalSystem(
+    {'m': 0.1},
+    {'m': lambda s: s.target.a * s.target.m - s.target.b * s.target.m**3},
+    parameters={'a': 1.0, 'b': 1.0},
+)
+normal = stability(pitchfork)
+[str(point['state.m']) for point in normal.fixed_points], normal.classifications
+```
+
+The origin is unstable and the two branches `±sqrt(a / b)` are stable, as for the magnetisation of a magnet below its
+critical temperature.
 
 ## Chaos and long-term behaviour
 

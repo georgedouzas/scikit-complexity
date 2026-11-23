@@ -6,6 +6,7 @@
 import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from types import SimpleNamespace
 
 import numpy as np
@@ -331,8 +332,20 @@ def stability(
         >>> from skcomplex.core.analysis import stability
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> result = stability(LogisticGrowthSystem())
-        >>> sorted(str(point['population.x']) for point in result.fixed_points)
+        >>> [str(point['population.x']) for point in result.fixed_points]
         ['0', 'K_growth']
+
+        A plain equation, such as the normal form `dm/dt = a m - b m^3` of a pitchfork bifurcation, is a
+        `DynamicalSystem` of one line:
+
+        >>> from skcomplex.systems.general.dynamics import DynamicalSystem
+        >>> pitchfork = DynamicalSystem(
+        ...     {'m': 0.1},
+        ...     {'m': lambda s: s.target.a * s.target.m - s.target.b * s.target.m**3},
+        ...     parameters={'a': 1.0, 'b': 1.0},
+        ... )
+        >>> stability(pitchfork).classifications
+        ['stable node', 'unstable node', 'stable node']
     """
     system = _get_system(source)
     source = _composite(system)
@@ -361,7 +374,9 @@ def stability(
         for name, item, rate in zip(dynamics.names, dynamics.symbols, dynamics.rates, strict=True)
     }
     fixed_points = (
-        _find_points(dynamics, substitute=bool(parameters)) if points is None else [dict(item) for item in points]
+        _sort_points(dynamics, _find_points(dynamics, substitute=bool(parameters)))
+        if points is None
+        else [dict(item) for item in points]
     )
     eigenvalues = [_eigenvalues_at(dynamics, jacobian, point) for point in fixed_points]
     return StabilityResult(
@@ -399,19 +414,51 @@ def _find_points(dynamics: _DynamicsSpec, *, substitute: bool) -> list[dict[str,
     return found or _numeric_points(dynamics)
 
 
+def _sort_points(
+    dynamics: _DynamicsSpec,
+    points: list[dict[str, Expression | float]],
+) -> list[dict[str, Expression | float]]:
+    """Return fixed points sorted by their values at the parameter values, in the order of the state names.
+
+    The values are rounded to 10 decimals for the order only, and a value that stays symbolic sorts by its text after
+    the numbers, so the order is the same in every process.
+    """
+
+    def get_key(point: Mapping[str, Expression | float]) -> tuple[tuple[int, float, str], ...]:
+        key = []
+        for name in dynamics.names:
+            value = SR(point[name]).subs(dynamics.parameters)
+            try:
+                key.append((0, round(float(value), 10), ''))
+            except TypeError:
+                key.append((1, 0.0, str(value)))
+        return tuple(key)
+
+    return sorted(points, key=get_key)
+
+
 def _eigenvalues_at(dynamics: _DynamicsSpec, jacobian: Matrix, point: Point) -> npt.NDArray[np.complex128]:
     """Return the eigenvalues of the Jacobian at a point.
 
-    The parameters are at their values.
+    The parameters are at their values, a float as the exact decimal it is written as, so `2 - 3.2` is -1.2.
     """
     location = {item: SR(point[name]) for name, item in zip(dynamics.names, dynamics.symbols, strict=True)}
-    numbers = {**location, **dynamics.parameters}
+    exact = {item: _get_exact(value) for item, value in dynamics.parameters.items()}
+    numbers = {**location, **exact}
     values = jacobian.subs(location)
     numeric = np.array(
         [[complex(SR(entry).subs(numbers)) for entry in row] for row in values.rows()],
         dtype=complex,
     )
     return np.linalg.eigvals(numeric)
+
+
+def _get_exact(value: object) -> object:
+    """Return a float as the exact rational of the decimal it is written as, and other values as they are."""
+    if not isinstance(value, float):
+        return value
+    fraction = Fraction(repr(value))
+    return SR(fraction.numerator) / fraction.denominator
 
 
 def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expression]) -> bool:
