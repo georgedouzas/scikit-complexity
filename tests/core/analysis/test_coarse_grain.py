@@ -18,6 +18,7 @@ from skcomplex.core.components.spaces import BaseSpace, LatticeSpace
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.systems import System
 from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 CLASSES = np.arange(9.0)
 
@@ -127,3 +128,40 @@ def test_density_over_a_state_rejects_bad_settings(settings, message):
     """Test that the analysis rejects values that are not increasing, weights, and a state without values."""
     with pytest.raises(AnalysisError, match=message):
         coarse_grain(np.zeros((3, 2)), **settings)
+
+
+def test_coarse_grain_takes_the_majority_of_every_block():
+    """Test that 3 by 3 blocks of a 9 by 9 spin lattice hold the sign of the sum of their spins."""
+    spins = np.random.default_rng(0).choice([-1.0, 1.0], size=(9, 9))
+    field = coarse_grain(spins, blocks=3).field
+    expected = np.sign(spins.reshape(3, 3, 3, 3).sum(axis=(1, 3)))
+    assert field.shape == (3, 3)
+    np.testing.assert_array_equal(field, expected)
+
+
+def test_coarse_grain_takes_the_mean_of_every_block():
+    """Test that the mean rule gives the mean of every block, one side per axis."""
+    lattice = np.arange(24.0).reshape(4, 6)
+    field = coarse_grain(lattice, blocks=(2, 3), rule='mean').field
+    np.testing.assert_allclose(field, [[4.0, 7.0], [16.0, 19.0]])
+
+
+def test_coarse_grain_breaks_ties_of_blocks_by_its_tie_rule():
+    """Test that a block of two up and two down spins takes the tie value, or one of both spins at random."""
+    spins = np.array([[1.0, -1.0], [-1.0, 1.0]])
+    assert coarse_grain(spins, blocks=2, tie=0.0).field.tolist() == [[0.0]]
+    assert coarse_grain(spins, blocks=2, random_state=0).field.item() in {-1.0, 1.0}
+
+
+def test_coarse_grain_needs_blocks_that_divide_the_lattice():
+    """Test that blocks that do not divide a side raise an error naming the sides and the blocks."""
+    with pytest.raises(AnalysisError, match=r'blocks=3 for a lattice of sides \(10, 10\)'):
+        coarse_grain(np.ones((10, 10)), blocks=3)
+
+
+def test_coarse_grain_gives_the_blocks_of_every_frame_of_a_trajectory():
+    """Test that a trajectory of an Ising lattice gives one lattice of block spins per frame."""
+    trajectory = IsingSystem(8, temperature=2.0).prepare().simulate(until=2, random_state=0)
+    field = coarse_grain(trajectory, blocks=2).field
+    assert field.shape == (3, 4, 4)
+    assert set(np.unique(field)) <= {-1.0, 1.0}
