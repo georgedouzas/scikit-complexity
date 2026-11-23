@@ -349,29 +349,33 @@ to fill in as the project takes shape.
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
-- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
-  `skcomplex.core.components` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
-  `systems`, and `specs`, and nothing about how it runs. `skcomplex.core.engine` holds what runs a system, in the order
-  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and `translators`. `skcomplex.core.analysis` builds on the
-  engine, and `skcomplex.core.experiments` on the analysis. What every package shares lives in the root modules
-  `skcomplex.core.base` (`BaseConfig`, the root of every configurable class), `skcomplex.core.types`, `skcomplex.core.specs`, and
-  `skcomplex.core.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages
-  listed before it. Every kind of dynamics, such as agents, lattices, fields, kinetics, operators, or particles, is no
-  package of its own: its elements and spaces are components of the core, its laws are values of the core, and its passes,
-  solvers, and visuals belong to the engine. Every name of `core` and `engine` is a mathematical, modelling, or engineering term, and none of
-  them imports `skcomplex.systems`. The test tree mirrors the source tree with no exceptions, so every test module
-  tests one module of `skcomplex`, and no test module checks repository conventions, documentation tooling, or
+- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds `skcomplex.core`
+  and `skcomplex.systems`. `skcomplex.core.components` holds what a system is made of, in the order `base`, `spaces`,
+  `laws`, and `elements` and `interactions`, and nothing about how it runs. `skcomplex.core.engine` holds what runs a
+  system, in the order `types` and `enums`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and
+  `translators`. `skcomplex.core.systems` holds `BaseSystem` and `System` and builds on the engine,
+  `skcomplex.core.analysis` builds on the systems, and `skcomplex.core.experiments` on the analysis. What every package
+  shares lives in the root modules `skcomplex.core.base` (`BaseConfig`, the root of every configurable class),
+  `skcomplex.core.types`, `skcomplex.core.enums`, and `skcomplex.core.errors`, which import no package. A public value
+  lives beside the classes that read it, such as `RoleSpec` in the interactions package, and engine records are
+  private. Within `components` and within `engine`, a package imports only the packages listed before it. Every kind
+  of dynamics, such as agents, lattices, fields, kinetics, operators, or particles, is no package of its own: its
+  elements and spaces are components of the core, its laws are values of the core, and its passes, solvers, and
+  visuals belong to the engine. Every name of `core` and `engine` is a mathematical, modelling, or engineering term,
+  and none of them imports `skcomplex.systems`. The test tree mirrors the source tree with no exceptions, so every test
+  module tests one module of `skcomplex`, and no test module checks repository conventions, documentation tooling, or
   documentation data.
 - General core: a core element or interaction class names a mathematical operation, configured by the roles it binds,
   the names of the states it reads and writes, and functions the user passes, and MUST NOT name a field quantity such
   as a force, a position, a price, an infection, or a harvest. A class enters the core only when it is a fundamental
   paradigm, such as a variational principle, a conservation law, a Markov jump process, a reaction network, or
-  imitation dynamics, that applies in principle to other domains than the one that first needs it. A class whose
-  operation agent models use takes `form='symbolic'` or `form='agent'`, and a matching algorithm is a frozen rule spec
-  of `skcomplex.core.specs`.
+  imitation dynamics, that applies in principle to other domains than the one that first needs it. Laws are values
+  that interactions state, of seven kinds, `RateLaw`, `NoiseLaw`, `JumpLaw`, `UpdateLaw`, `ConstraintLaw`,
+  `EventLaw`, and `ObjectiveLaw`, and a variant of an operation is a value of its law, not a class of its own.
 - Model library: `skcomplex.systems` is organised by scientific field and subfield, as
   `skcomplex.systems.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
-  are examples built only from the public names of `core`, `engine`, `analysis`, and `experiments`. Every model
+  are examples built only from the public names of `core`, `engine`, `analysis`, and `experiments`. Realizations
+  that several fields share live in `skcomplex.systems.general.<concept>` and import no field package. Every model
   package is self-contained, so no model package imports another, except that the packages of one field may import
   the code they share from `skcomplex.systems.<field>.common.<family>`, such as `physics.common.particles` or
   `biology.common.populations`, which never lives in the core. A case of one field of a general core class is a thin
@@ -384,15 +388,12 @@ to fill in as the project takes shape.
 - Surface: the top-level package, `skcomplex.core.components`, and `skcomplex.core.engine` re-export nothing, so every public name is
   imported from the subpackage that owns it.
 - Extension points: classes users subclass are the bases `BaseElement`, `Element`, `BaseInteraction`, `Interaction`,
-  `NeighborInteraction`, `PairInteraction`, `HyperedgeInteraction`, `BaseLaw`, and the systems `BaseSystem`,
-  `CompositeSystem`, and `ReactionNetworkSystem` of the package `systems`; the general interactions, such as
-  `RateInteraction`, `GradientInteraction`, `EulerLagrangeInteraction`, `ConservationInteraction`,
-  `CouplingInteraction`, `PairCouplingInteraction`, `MapInteraction`, `JumpInteraction`, `ReactionInteraction`,
-  `TransitionInteraction`, and `SamplingInteraction`, and the agent interactions `ChoiceInteraction`,
-  `ImitationInteraction`, `ReinforcementInteraction`, `EvolutionInteraction`, `MovementInteraction`,
-  `TransferInteraction`, `LifeCycleInteraction`, `GroupingInteraction`, `MatchingInteraction`, `FeedbackInteraction`,
-  and `TopologyInteraction`, whose field cases override a private hook; and in the engine `BaseBackend`,
-  `BaseSolver`, `Solver`, `ExternalSolver`, `BaseCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`. Law
-  kinds, forms, space kinds, and traits are open vocabularies.
+  and `BaseSpace` of the components, and `BaseSystem` and `System` of `skcomplex.core.systems`; the general
+  realizations of `skcomplex.systems.general`, such as `ReactionNetworkSystem`, `ReactionInteraction`,
+  `GradientInteraction`, `EulerLagrangeInteraction`, `ChoiceInteraction`, `ImitationInteraction`,
+  `EvolutionInteraction`, `MovementInteraction`, and `MatchingInteraction`, whose field cases override a private hook;
+  and in the engine `BaseBackend`, `BaseSolver`, `Solver`, `ExternalSolver`, `BaseCompiler`, `BaseClock`,
+  `BaseObserver`, and `BaseVisual`. Forms, space kinds, and traits are open vocabularies, and the law kinds are the
+  seven above.
 
-**Version**: 1.13.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-02
+**Version**: 1.13.2 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-23
