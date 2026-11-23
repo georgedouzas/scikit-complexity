@@ -17,7 +17,7 @@ from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._output_spec import OutputSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..types import OptionalPairs
-from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._lowered_functions_spec import _LoweredFunctionsSpec
 from ._support_spec import SupportSpec
 
 AUTO_MEMBERS = 1000
@@ -48,7 +48,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         True
     """
 
-    functions_: LoweredFunctionsSpec
+    functions_: _LoweredFunctionsSpec
 
     def _prepare(self, context: None) -> None:
         """Derive nothing from the context.

@@ -6,7 +6,6 @@ gives their derivatives, such as `LogisticGrowthSystem(backend=NumbaBackend())`.
 
 from ._base import BaseBackend
 from ._jax import JaxBackend
-from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._numba import NumbaBackend
 from ._numpy import NumpyBackend
 from ._support_spec import SupportSpec
@@ -14,7 +13,6 @@ from ._support_spec import SupportSpec
 __all__: list[str] = [
     'BaseBackend',
     'JaxBackend',
-    'LoweredFunctionsSpec',
     'NumbaBackend',
     'NumpyBackend',
     'SupportSpec',

@@ -46,7 +46,7 @@ from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
 from . import _numba_components, _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
-from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._lowered_functions_spec import _LoweredFunctionsSpec
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
 from ._support_spec import SupportSpec
@@ -247,7 +247,7 @@ class NumbaBackend(BaseBackend):
         module: ModuleType,
         layout: tuple[np.ndarray, list[tuple[int, np.ndarray]]],
         reductions: ReductionScheduleSpec,
-    ) -> LoweredFunctionsSpec:
+    ) -> _LoweredFunctionsSpec:
         """Return the lowering that binds the compiled functions to the layout.
 
         It has NumPy fallbacks. The layout comes with the orders drawn at every step and the start of their data in it,
@@ -291,7 +291,7 @@ class NumbaBackend(BaseBackend):
             )
             for kind in needed
         }
-        lowering = LoweredFunctionsSpec(
+        lowering = _LoweredFunctionsSpec(
             drift=functions[RateLaw] if form in RATE_FORMS else None,
             diffusion=(
                 functions.get(NoiseLaw, BaseBackend._get_concatenating_function([])) if form == FormKind.SDE else None
@@ -319,7 +319,7 @@ class NumbaBackend(BaseBackend):
         loop: str,
         module: ModuleType,
         layout: np.ndarray,
-        lowering: LoweredFunctionsSpec,
+        lowering: _LoweredFunctionsSpec,
         draws: DrawKernel | None,
     ) -> _AcceleratedSpec:
         """Return the compiled stepper loop of a form bound to the layout."""
@@ -464,7 +464,7 @@ class NumbaBackend(BaseBackend):
         return True
 
     @staticmethod
-    def _get_noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[object, ...]:
+    def _get_noise_arrays(lowering: _LoweredFunctionsSpec) -> tuple[object, ...]:
         """Return the arrays of the noise of a lowering.
 
         They are the rows, columns, process count, and flattened covariance blocks.
@@ -484,7 +484,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _get_channel_arrays(lowering: LoweredFunctionsSpec) -> tuple[np.ndarray, np.ndarray]:
+    def _get_channel_arrays(lowering: _LoweredFunctionsSpec) -> tuple[np.ndarray, np.ndarray]:
         """Return the state targets and increments of every jump channel.
 
         They are padded with -1 targets.

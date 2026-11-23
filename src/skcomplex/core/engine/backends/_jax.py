@@ -29,7 +29,7 @@ from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseBackend
-from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._lowered_functions_spec import _LoweredFunctionsSpec
 from ._support_spec import SupportSpec
 
 FORMS = (FormKind.ODE, FormKind.DISCRETE)
@@ -520,7 +520,7 @@ class JaxBackend(BaseBackend):
                 self._get_adding(kernels.get(RateLaw, []), inputs.size),
                 inputs.reductions,
             )
-            self.functions_ = LoweredFunctionsSpec(drift=self._get_forward(self.traced_))
+            self.functions_ = _LoweredFunctionsSpec(drift=self._get_forward(self.traced_))
             return
         self.traced_ = self._get_extending(self._get_assigning(kernels.get(UpdateLaw, [])), inputs.reductions)
-        self.functions_ = LoweredFunctionsSpec(update=self._get_forward(self.traced_))
+        self.functions_ = _LoweredFunctionsSpec(update=self._get_forward(self.traced_))

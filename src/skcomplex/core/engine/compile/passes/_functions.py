@@ -19,7 +19,8 @@ from ....enums import FormKind
 from ....errors import BackendWarning, ValidationError
 from ....types import Array, Indices, VectorFunction
 from ..._utils import symbols_of
-from ...backends import BaseBackend, LoweredFunctionsSpec, NumpyBackend
+from ...backends import BaseBackend, NumpyBackend
+from ...backends._lowered_functions_spec import _LoweredFunctionsSpec
 from ...enums import ReadKind
 from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._composite_system import _CompositeSystem
@@ -181,7 +182,7 @@ class FunctionsPass(BasePass):
         form: FormKind,
         kernels: Mapping[type, list[LawKernel]],
         name: str,
-        lowering: LoweredFunctionsSpec,
+        lowering: _LoweredFunctionsSpec,
     ) -> dict[str, str]:
         """Return the backend that runs the form and every law kind with kernels.
 

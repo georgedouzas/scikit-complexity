@@ -23,7 +23,7 @@ from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ._base import BaseBackend
-from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._lowered_functions_spec import _LoweredFunctionsSpec
 from ._support_spec import SupportSpec
 
 
@@ -97,7 +97,7 @@ class NumpyBackend(BaseBackend):
             raise ValidationError(error_msg)
         form, size, kernels = inputs.form, inputs.size, inputs.kernels
         boundary = kernels.get(_BoundaryLaw)
-        lowering = LoweredFunctionsSpec(
+        lowering = _LoweredFunctionsSpec(
             drift=(
                 BaseBackend._get_adding_function(kernels.get(RateLaw, []), size)
                 if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE, FormKind.STATIC)
@@ -132,10 +132,10 @@ class NumpyBackend(BaseBackend):
 
     @staticmethod
     def _copy_with_reductions(
-        lowering: LoweredFunctionsSpec,
+        lowering: _LoweredFunctionsSpec,
         reductions: ReductionScheduleSpec | None,
         kernels: Mapping[type, list[LawKernel]] | None = None,
-    ) -> LoweredFunctionsSpec:
+    ) -> _LoweredFunctionsSpec:
         """Return a lowering whose functions evaluate the reductions before their kernels.
 
         The reductions are evaluated at the state they receive.

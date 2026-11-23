@@ -21,7 +21,6 @@ from skcomplex.core.engine._utils import vector
 from skcomplex.core.engine.backends import (
     BaseBackend,
     JaxBackend,
-    LoweredFunctionsSpec,
     NumbaBackend,
     NumpyBackend,
     _numba,
@@ -267,7 +266,7 @@ def test_backend_runs_the_kernels_of_a_form(backend):
     """Test that a checked and prepared backend returns the functions of the form of the kernels it runs."""
     kernels = LoweredKernelsSpec(defaultdict(list), {}, {}, form=FormKind.ODE, size=2)
     lowering = backend().prepare().run(kernels).functions_
-    assert isinstance(lowering, LoweredFunctionsSpec)
+    assert callable(lowering.drift)
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
 
