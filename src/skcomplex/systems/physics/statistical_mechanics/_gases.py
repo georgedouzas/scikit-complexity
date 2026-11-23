@@ -37,7 +37,7 @@ class IdealGasSystem(BaseSystem):
 
     Positions are uniform in the box and velocity components are normal with variance `kT / mass`, with the mean
     velocity removed. The molecules need no law: given their starting velocities `x'`, they keep them between the
-    walls, as Newton's first law says. The molecules are drawn as points colored by speed. NOTE-RETURNS: The gas.
+    walls, as Newton's first law says. The molecules are drawn as points colored by speed.
 
     Args:
         n_molecules:

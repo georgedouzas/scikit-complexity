@@ -374,7 +374,8 @@ class SznajdSystem(BaseSystem):
             The NetworkX graph, or `None` for a ring of 50 agents.
 
         share:
-            The share of agents with opinion 1.
+            The probability that each agent starts with opinion 1, so the share that starts with it fluctuates
+            around this value.
 
         random_state:
             The seed or generator of the opinions.

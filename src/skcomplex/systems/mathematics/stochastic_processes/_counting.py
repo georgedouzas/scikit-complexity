@@ -176,7 +176,8 @@ class BernoulliProcessSystem(BaseSystem):
 
     Their success counts are binomial.
 
-    The system has the group `trials` of states `outcome` and `successes`.
+    The trials are agents whose values `outcome` and `successes` are read with `Trajectory.get_agents`, and the
+    trajectory records their number `trials.count`.
 
     Args:
         n_sequences:
