@@ -120,7 +120,7 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         p:
             The initial probability that every node is infected.
 
-        seed:
+        random_state:
             The seed of the default network.
 
         label:
@@ -153,7 +153,7 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         m: int = 3,
         lam: float = 0.2,
         p: float = 0.05,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -164,11 +164,13 @@ class QuenchedMeanFieldSISSystem(NetworkDynamicalSystem):
         self.m = m
         self.lam = lam
         self.p = p
-        self.seed = seed
+        self.random_state = random_state
 
     def _get_graph(self) -> nx.Graph:
         """Return the graph, a Barabási-Albert network of `n` nodes by default."""
-        return self.graph if self.graph is not None else nx.barabasi_albert_graph(self.n, self.m, seed=self.seed)
+        return (
+            self.graph if self.graph is not None else nx.barabasi_albert_graph(self.n, self.m, seed=self.random_state)
+        )
 
     def _get_element_label(self) -> str:
         """Return the label of the field of the nodes."""
@@ -218,7 +220,7 @@ class AdaptiveSISSystem(BaseSystem):
         infected:
             The initial share of infected nodes.
 
-        seed:
+        random_state:
             The seed of the network and of the initial infections.
 
         label:
@@ -251,7 +253,7 @@ class AdaptiveSISSystem(BaseSystem):
         gamma: float = 1.0,
         w: float = 1.0,
         infected: float = 0.2,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -263,7 +265,7 @@ class AdaptiveSISSystem(BaseSystem):
         self.gamma = gamma
         self.w = w
         self.infected = infected
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_susceptible(node: SimpleNamespace) -> object:
@@ -301,8 +303,8 @@ class AdaptiveSISSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        space = self._get_random_network(self.n, self.k, self.seed)
-        initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
+        space = self._get_random_network(self.n, self.k, self.random_state)
+        initial = (np.random.default_rng(self.random_state).random(self.n) < self.infected).astype(float)
         hosts = AdaptiveHostElement('hosts', i=initial, w=self.w, space=space)
         contacts = ContactEdgeElement('contacts', space=space, on='edges')
         spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=self.beta, gamma=self.gamma)
@@ -345,7 +347,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         infected:
             The initial share of infected nodes.
 
-        seed:
+        random_state:
             The seed of the activities and the initial infections.
 
         label:
@@ -359,7 +361,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.epidemiology import ActivityDrivenEpidemicsSystem
-        >>> float(ActivityDrivenEpidemicsSystem(n=10, seed=0).prepare().system_.elements[0].a.min()) >= 0.01
+        >>> float(ActivityDrivenEpidemicsSystem(n=10, random_state=0).prepare().system_.elements[0].a.min()) >= 0.01
         True
     """
 
@@ -379,7 +381,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         lam: float = 0.9,
         mu: float = 0.1,
         infected: float = 0.05,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -392,7 +394,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
         self.lam = lam
         self.mu = mu
         self.infected = infected
-        self.seed = seed
+        self.random_state = random_state
 
     def _get_firing(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the new edges of a node that fires at a step with the probability of its activity."""
@@ -426,7 +428,7 @@ class ActivityDrivenEpidemicsSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         activities = np.minimum(self.least * (1 - rng.random(self.n)) ** (-1 / (self.exponent - 1)), 1.0)
         initial = (rng.random(self.n) < self.infected).astype(float)
         space = NetworkSpace(nx.empty_graph(self.n))

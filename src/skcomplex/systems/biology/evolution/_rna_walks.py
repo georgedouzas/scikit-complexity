@@ -223,7 +223,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         regime:
             `'neutral'` or `'adaptive'`.
 
-        seed:
+        random_state:
             The seed of the random starting sequences.
 
         label:
@@ -261,7 +261,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         start: str | None = START,
         target: str = TARGET,
         regime: str = 'neutral',
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -272,7 +272,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         self.start = start
         self.target = target
         self.regime = regime
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _score_row(target: str, regime: str, row: np.ndarray) -> float:
@@ -302,7 +302,7 @@ class RNANeutralNetworksSystem(BaseSystem):
             )
             raise ValidationError(error_msg)
         if self.start is None:
-            bases = np.random.default_rng(self.seed).integers(0, len(BASES), size=(self.walkers, self.length))
+            bases = np.random.default_rng(self.random_state).integers(0, len(BASES), size=(self.walkers, self.length))
         else:
             bases = np.tile([BASES.index(letter) for letter in self.start], (self.walkers, 1))
         self.system_ = System(

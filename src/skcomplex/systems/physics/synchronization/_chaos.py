@@ -458,7 +458,7 @@ class CoupledRosslerSystem(BaseSystem):
         c:
             The third Rössler parameter.
 
-        seed:
+        random_state:
             The seed of the initial states.
 
         label:
@@ -493,7 +493,7 @@ class CoupledRosslerSystem(BaseSystem):
         a: float = 0.2,
         b: float = 0.2,
         c: float = 5.7,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -505,7 +505,7 @@ class CoupledRosslerSystem(BaseSystem):
         self.a = a
         self.b = b
         self.c = c
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of chaotic Rössler oscillators on a ring.
@@ -516,7 +516,7 @@ class CoupledRosslerSystem(BaseSystem):
         """
         super()._prepare(context)
         omegas = np.linspace(1 - self.mismatch, 1 + self.mismatch, self.n_oscillators)
-        starts = np.random.default_rng(self.seed).uniform(-1.0, 1.0, (self.n_oscillators, 2))
+        starts = np.random.default_rng(self.random_state).uniform(-1.0, 1.0, (self.n_oscillators, 2))
         oscillators = [
             RosslerOscillatorElement(f'oscillator_{index}', x1=float(starts[index, 0]), x2=float(starts[index, 1]))
             for index in range(self.n_oscillators)

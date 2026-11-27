@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = GinelliNematicsSystem(n_particles=400, seed=0)
+system = GinelliNematicsSystem(n_particles=400, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = system.prepare().simulate(until=150, observers=[observer], random_state=0)
 
@@ -47,7 +47,7 @@ simulation = system.prepare().simulate(until=150, observers=[observer], random_s
 noises = np.linspace(0.04, 0.4, 10)
 nematic, polar = [], []
 for noise in noises:
-    system_system = GinelliNematicsSystem(n_particles=400, eta=noise, seed=1)
+    system_system = GinelliNematicsSystem(n_particles=400, eta=noise, random_state=1)
     trajectory = system_system.prepare().simulate(until=150, dt=5.0, random_state=1)
     nematic.append(np.mean(np.asarray(trajectory.get_values('nematic_order'), dtype=float)[-10:]))
     polar.append(np.mean(np.asarray(trajectory.get_values('polarization'), dtype=float)[-10:]))

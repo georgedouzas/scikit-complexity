@@ -378,7 +378,7 @@ class LatticeYangMillsSystem(BaseSystem):
             The initial link matrices, one `N` by `N` complex matrix per link, or `None` for matrices drawn from the
             Haar measure of the group.
 
-        seed:
+        random_state:
             The seed of the initial link matrices.
 
         label:
@@ -447,7 +447,7 @@ class LatticeYangMillsSystem(BaseSystem):
         width: float = 0.5,
         hits: int = 4,
         links: npt.ArrayLike | None = None,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -461,7 +461,7 @@ class LatticeYangMillsSystem(BaseSystem):
         self.width = width
         self.hits = hits
         self.links = links
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_yang_mills_observables(space: CellComplexSpace, group: MatrixGroupSpec) -> list[Observable]:
@@ -494,7 +494,7 @@ class LatticeYangMillsSystem(BaseSystem):
         space = CellComplexSpace(LatticeSpace(shape)).prepare()
         count = space.incidences_[0].shape[0]
         if self.links is None:
-            matrices = group.get_uniform_of(np.random.default_rng(self.seed), count)
+            matrices = group.get_uniform_of(np.random.default_rng(self.random_state), count)
         else:
             matrices = np.asarray(self.links, dtype=complex)
         if matrices.shape != (count, self.colors, self.colors) or not np.allclose(

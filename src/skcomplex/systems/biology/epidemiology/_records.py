@@ -191,7 +191,7 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         n:
             The number of residents.
 
-        seed:
+        random_state:
             The seed of the resistances.
 
         label:
@@ -219,14 +219,14 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self,
         n: int = 10_000,
         *,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.n = n
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of yearly strains that infect less resistant residents.
@@ -236,7 +236,7 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        resistance = np.random.default_rng(self.seed).random(self.n)
+        resistance = np.random.default_rng(self.random_state).random(self.n)
         residents = ResidentElement('residents', R=resistance, size=self.n)
         self.system_ = System(
             self.label,

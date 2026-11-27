@@ -232,7 +232,7 @@ class DelayedKuramotoSystem(BaseSystem):
         spread:
             The width of the interval of natural frequencies around 1.
 
-        seed:
+        random_state:
             The seed of the initial phases.
 
         label:
@@ -263,7 +263,7 @@ class DelayedKuramotoSystem(BaseSystem):
         K: float = 2.0,
         tau: float = 1.0,
         spread: float = 0.2,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -273,7 +273,7 @@ class DelayedKuramotoSystem(BaseSystem):
         self.K = K
         self.tau = tau
         self.spread = spread
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of Kuramoto phase oscillators coupled all to all through delayed signals.
@@ -284,7 +284,7 @@ class DelayedKuramotoSystem(BaseSystem):
         """
         super()._prepare(context)
         phases = [
-            2 * math.pi * ((self.seed * 0.618 + index / self.n_oscillators) % 1.0)
+            2 * math.pi * ((self.random_state * 0.618 + index / self.n_oscillators) % 1.0)
             for index in range(self.n_oscillators)
         ]
         omegas = [
@@ -334,7 +334,7 @@ class KuramotoSystem(BaseSystem):
         sigma:
             The standard deviation of the natural frequencies.
 
-        seed:
+        random_state:
             The seed of the natural frequencies and the initial phases.
 
         label:
@@ -371,7 +371,7 @@ class KuramotoSystem(BaseSystem):
         *,
         K: float = 4.0,
         sigma: float = 1.0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -380,7 +380,7 @@ class KuramotoSystem(BaseSystem):
         self.n_oscillators = n_oscillators
         self.K = K
         self.sigma = sigma
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of Kuramoto oscillators coupled all to all.
@@ -390,10 +390,10 @@ class KuramotoSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         oscillators = PhaseOscillatorElement(
             'oscillators',
-            theta=KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
+            theta=KuramotoSystem._spread_phases(self.n_oscillators, self.random_state),
             omega=rng.normal(0.0, self.sigma, self.n_oscillators),
             size=self.n_oscillators,
         )
@@ -484,7 +484,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         spread:
             The width of the initial phases of the first population.
 
-        seed:
+        random_state:
             The seed of the initial phases.
 
         label:
@@ -519,7 +519,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         A: float = 0.2,
         beta: float = 0.1,
         spread: float = 0.1,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -529,7 +529,7 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
         self.A = A
         self.beta = beta
         self.spread = spread
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of two populations of identical phase oscillators with phase lag.
@@ -539,10 +539,10 @@ class KuramotoSakaguchiChimeraSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         alpha, mu, nu = math.pi / 2 - self.beta, (1 + self.A) / 2, (1 - self.A) / 2
         first = rng.normal(0.0, self.spread, self.n_oscillators)
-        second = KuramotoSystem._spread_phases(self.n_oscillators, self.seed + 1)
+        second = KuramotoSystem._spread_phases(self.n_oscillators, self.random_state + 1)
         populations = [
             Element('first', values={'theta': first}, size=self.n_oscillators),
             Element('second', values={'theta': second}, size=self.n_oscillators),
@@ -590,7 +590,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         omega:
             The natural frequency.
 
-        seed:
+        random_state:
             The seed of the initial phases.
 
         label:
@@ -622,7 +622,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         R: int = 14,
         alpha: float = 1.46,
         omega: float = 0.0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -632,7 +632,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         self.R = R
         self.alpha = alpha
         self.omega = omega
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of identical phase oscillators on a ring, each coupled to its `R` nearest neighbours.
@@ -644,7 +644,7 @@ class NonlocalRingChimeraSystem(BaseSystem):
         super()._prepare(context)
         ring = RingSitedOscillatorElement(
             'ring',
-            theta=KuramotoSystem._spread_phases(self.n_oscillators, self.seed),
+            theta=KuramotoSystem._spread_phases(self.n_oscillators, self.random_state),
             omega=self.omega,
             x=np.arange(self.n_oscillators, dtype=float).reshape(-1, 1),
             size=self.n_oscillators,

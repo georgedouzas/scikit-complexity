@@ -203,7 +203,7 @@ class SimplicialContagionSystem(BaseSystem):
         share:
             The share of infected nodes at the start.
 
-        seed:
+        random_state:
             The seed of the complex and the infected nodes.
 
         label:
@@ -239,7 +239,7 @@ class SimplicialContagionSystem(BaseSystem):
         mean_triangles: float = 6.0,
         recovery: float = 1.0,
         share: float = 0.4,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -252,7 +252,7 @@ class SimplicialContagionSystem(BaseSystem):
         self.mean_triangles = mean_triangles
         self.recovery = recovery
         self.share = share
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_simplicial_complex(
@@ -279,11 +279,11 @@ class SimplicialContagionSystem(BaseSystem):
         triples = math.comb(self.n_nodes - 1, TRIANGLE - 1)
         triangles = min(self.mean_triangles / triples, 1.0)
         links = min(max(self.mean_degree - 2 * self.mean_triangles, 0.0) / pairs, 1.0)
-        graph, hyperedges = self._get_simplicial_complex(self.n_nodes, links, triangles, self.seed)
+        graph, hyperedges = self._get_simplicial_complex(self.n_nodes, links, triangles, self.random_state)
         sizes = [len(members) for members in hyperedges]
         degree = max(PAIR * sizes.count(PAIR) / self.n_nodes, 1.0)
         shared = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_nodes, 1.0)
-        rng = np.random.default_rng(self.seed + 1)
+        rng = np.random.default_rng(self.random_state + 1)
         infected = (rng.permutation(self.n_nodes) < round(self.share * self.n_nodes)).astype(float)
         nodes = InfectiveElement(
             'nodes',

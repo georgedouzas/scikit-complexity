@@ -37,7 +37,7 @@ def _game(own, other, sucker, temptation):
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_hypergraph_public_goods_payoffs_sum_the_shares_of_every_hyperedge(backend):
     """Test that the payoffs of a step equal the shares of the pots of every hyperedge minus the contributions."""
-    system = HypergraphPublicGoodsSystem(60, synergy=3.5, seed=2).prepare().system_
+    system = HypergraphPublicGoodsSystem(60, synergy=3.5, random_state=2).prepare().system_
     players = system.elements[0]
     strategies = players.strategy
     expected = np.zeros(60)
@@ -56,7 +56,7 @@ def test_hypergraph_public_goods_depends_on_synergy():
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_simplicial_social_dilemmas_payoffs_follow_the_games_of_links_and_simplices(backend):
     """Test that the payoffs of a step equal a loop over the links of the triangles and the 2-simplices."""
-    system = SimplicialSocialDilemmasSystem(40, seed=3, **GAMES).prepare().system_
+    system = SimplicialSocialDilemmasSystem(40, random_state=3, **GAMES).prepare().system_
     players = system.elements[0]
     strategies, triangles = players.strategy, players.triangles
     expected = np.zeros(40)

@@ -525,6 +525,15 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
     )
 
 
+def _get_system_seed(seed: np.random.SeedSequence) -> int:
+    """Return the seed of what a system draws when prepared, spawned from a run stream.
+
+    The stream itself stays unchanged.
+    """
+    child = np.random.SeedSequence(seed.entropy, spawn_key=(*seed.spawn_key, 0))
+    return int(child.generate_state(1)[0])
+
+
 def _run_experiment(
     source: object,
     rows: Sequence[Row],
@@ -540,6 +549,7 @@ def _run_experiment(
     observables: Sequence[Observable],
     random_state: int | None,
     executor: str | Executor,
+    reseeded: bool = False,
 ) -> ExperimentResult:
     """Run a system once per row, scenario, and replicate.
 
@@ -587,6 +597,10 @@ def _run_experiment(
         executor:
             `'serial'`, `'thread'`, `'process'`, or a `concurrent.futures` executor.
 
+        reseeded:
+            Whether every row and replicate also sets the parameter `random_state` of the system, which seeds what it
+            draws when prepared, to a seed spawned from its stream.
+
     Returns:
         result:
             The results of every run.
@@ -610,10 +624,11 @@ def _run_experiment(
         for scenario in scenarios:
             for replicate in range(replicates):
                 seed = seeds[row_index * replicates + replicate]
+                values = {**row, 'random_state': _get_system_seed(seed)} if reseeded else dict(row)
                 task = _TaskSpec(
                     len(tasks),
                     system,
-                    dict(row),
+                    values,
                     scenario,
                     replicate,
                     seed,

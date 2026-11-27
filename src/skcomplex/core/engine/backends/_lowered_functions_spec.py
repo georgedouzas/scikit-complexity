@@ -65,11 +65,6 @@ class _LoweredFunctionsSpec(BaseSpec):
 
     See Also:
         BaseBackend: Writes these functions in `functions_`.
-
-    Examples:
-        >>> from skcomplex.core.engine.backends._lowered_functions_spec import _LoweredFunctionsSpec
-        >>> _LoweredFunctionsSpec().drift is None
-        True
     """
 
     drift: VectorFunction | None = None

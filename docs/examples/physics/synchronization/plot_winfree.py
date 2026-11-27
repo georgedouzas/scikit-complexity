@@ -18,7 +18,7 @@ from skcomplex.systems.physics.synchronization import WinfreeSystem
 
 SYSTEM = 'winfree'
 
-system = WinfreeSystem(n_oscillators=50, K=0.5, spread=0.1, seed=0)
+system = WinfreeSystem(n_oscillators=50, K=0.5, spread=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = system.prepare().simulate(dt=0.25, observers=[observer])
 
@@ -32,7 +32,7 @@ trajectory = system.prepare().simulate(dt=0.25, observers=[observer])
 couplings = np.linspace(0.0, 1.5, 31)
 means, spreads = [], []
 for coupling in couplings:
-    system_system = WinfreeSystem(n_oscillators=50, K=coupling, spread=0.1, seed=0)
+    system_system = WinfreeSystem(n_oscillators=50, K=coupling, spread=0.1, random_state=0)
     run = system_system.prepare().simulate(until=200, dt=0.25)
     times, phases = np.asarray(run.times), np.asarray(run.get_values('oscillators.theta'))
     late = times >= 100

@@ -254,7 +254,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         spread:
             The half-width of the uniform initial states around the centre.
 
-        seed:
+        random_state:
             The seed of the initial states.
 
         label:
@@ -288,7 +288,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         v1: float = 0.0,
         v2: float = 0.0,
         spread: float = 0.6,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -301,7 +301,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
         self.v1 = v1
         self.v2 = v2
         self.spread = spread
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set cells that choose among three fates on a compactified elliptic umbilic.
@@ -311,7 +311,7 @@ class ThreeWayFateDecisionSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         start = rng.uniform(-self.spread, self.spread, (2, self.cells))
         self.system_ = System(
             self.label,
@@ -359,7 +359,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         noise:
             The largest initial neural state, drawn uniformly from zero.
 
-        seed:
+        random_state:
             The seed of the initial states.
 
         label:
@@ -391,7 +391,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         length: float = 2.5,
         width: float = 0.127,
         noise: float = 0.05,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -402,7 +402,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         self.length = length
         self.width = width
         self.noise = noise
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a ring of cells that inhibit the neural fate of neighbours.
@@ -417,7 +417,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         distance = np.minimum(distance, self.cells - distance)
         kernel = self.strength * np.exp(-(distance**2) / (2 * self.length**2))
         np.fill_diagonal(kernel, 0.0)
-        states = np.random.default_rng(self.seed).uniform(0, self.noise, self.cells)
+        states = np.random.default_rng(self.random_state).uniform(0, self.noise, self.cells)
         group = ProneuralCellElement('cells', a=states, width=self.width, size=self.cells)
         inhibition = LateralInhibitionInteraction(
             'inhibition',

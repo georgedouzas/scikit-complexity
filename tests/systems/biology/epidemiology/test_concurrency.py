@@ -29,7 +29,7 @@ def test_pair_formation_concurrency_raises_the_prevalence():
         runs = []
         for seed in range(2):
             trajectory = (
-                PairFormationSISSystem(n=300, k=k, seed=seed)
+                PairFormationSISSystem(n=300, k=k, random_state=seed)
                 .prepare()
                 .system_.simulate(until=25, dt=0.5, random_state=seed)
             )

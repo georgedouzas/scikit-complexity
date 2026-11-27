@@ -10,7 +10,9 @@ def test_outbreaks_follow_records_of_the_strain_strength():
     outbreaks = []
     for seed in range(30):
         trajectory = (
-            RecordDynamicsEpidemicSystem(2000, seed=seed).prepare().system_.simulate(until=100, random_state=seed)
+            RecordDynamicsEpidemicSystem(2000, random_state=seed)
+            .prepare()
+            .system_.simulate(until=100, random_state=seed)
         )
         infected = trajectory.get_values('residents.infected').sum(axis=1)
         outbreaks.append((infected > 0).sum())

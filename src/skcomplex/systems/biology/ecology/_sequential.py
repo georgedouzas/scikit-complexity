@@ -159,7 +159,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         threshold:
             The abundance below which a species goes extinct.
 
-        seed:
+        random_state:
             The seed of the network and of the initial strengths.
 
         label:
@@ -190,7 +190,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         *,
         rate: float = 0.2,
         threshold: float = 1e-3,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -200,7 +200,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         self.k = k
         self.rate = rate
         self.threshold = threshold
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of an ecosystem.
@@ -210,7 +210,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))
         for node in range(self.n):

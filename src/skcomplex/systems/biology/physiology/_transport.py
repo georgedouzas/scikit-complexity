@@ -190,7 +190,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
             The flow into the source at the first corner, which the other nodes drain equally, or `None` for the number
             of edges.
 
-        seed:
+        random_state:
             The seed of the initial conductances.
 
         label:
@@ -222,7 +222,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         alpha2: float = 1.0,
         gamma: float = 2.0,
         inflow: float | None = None,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -233,7 +233,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.alpha2 = alpha2
         self.gamma = gamma
         self.inflow = inflow
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a square grid of vessels.
@@ -250,7 +250,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         supply = float(n_edges) if self.inflow is None else self.inflow
         h = np.full(n_nodes, -supply / (n_nodes - 1))
         h[0] = supply
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         vessels = VesselSegmentElement('vessels', C=rng.uniform(0.5, 1.5, n_edges), space=space, on='edges')
         adaptation = FlowAdaptationInteraction(
             'adaptation',

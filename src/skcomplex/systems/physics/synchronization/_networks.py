@@ -226,7 +226,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         sigma:
             The standard deviation of the natural frequencies.
 
-        seed:
+        random_state:
             The seed of the network, the frequencies, and the phases.
 
         label:
@@ -278,7 +278,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         rewiring: float = 0.1,
         K: float = 1.0,
         sigma: float = 0.5,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -290,7 +290,7 @@ class KuramotoOnNetworksSystem(BaseSystem):
         self.rewiring = rewiring
         self.K = K
         self.sigma = sigma
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of Kuramoto oscillators coupled along the edges of a network.
@@ -305,9 +305,9 @@ class KuramotoOnNetworksSystem(BaseSystem):
             self.n_oscillators,
             self.degree,
             self.rewiring,
-            self.seed,
+            self.random_state,
         )
-        rng = np.random.default_rng(self.seed + 1)
+        rng = np.random.default_rng(self.random_state + 1)
         mean_degree = 2 * space.graph.number_of_edges() / self.n_oscillators
         oscillators = NodeOscillatorElement(
             'oscillators',
@@ -353,7 +353,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         epsilon:
             The coupling between 0 and 1.
 
-        seed:
+        random_state:
             The seed of the network and the initial states.
 
         label:
@@ -391,7 +391,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         rewiring: float = 0.1,
         r: float = 4.0,
         epsilon: float = 0.9,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -403,7 +403,7 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
         self.rewiring = rewiring
         self.r = r
         self.epsilon = epsilon
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of chaotic logistic maps on the nodes of a network.
@@ -417,8 +417,14 @@ class CoupledMapLatticesOnNetworksSystem(BaseSystem):
                 The network is unknown.
         """
         super()._prepare(context)
-        space = KuramotoOnNetworksSystem._get_network(self.network, self.n_nodes, self.degree, self.rewiring, self.seed)
-        rng = np.random.default_rng(self.seed + 1)
+        space = KuramotoOnNetworksSystem._get_network(
+            self.network,
+            self.n_nodes,
+            self.degree,
+            self.rewiring,
+            self.random_state,
+        )
+        rng = np.random.default_rng(self.random_state + 1)
         maps = LogisticNodeElement(
             'maps',
             x=rng.uniform(0.0, 1.0, self.n_nodes),

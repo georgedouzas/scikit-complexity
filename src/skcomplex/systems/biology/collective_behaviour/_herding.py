@@ -323,7 +323,7 @@ class ShepherdingSystem(BaseSystem):
         goal:
             The position of the goal.
 
-        seed:
+        random_state:
             The seed of the initial positions.
 
         label:
@@ -352,7 +352,7 @@ class ShepherdingSystem(BaseSystem):
         *,
         size: float = 100.0,
         goal: tuple[float, float] = (5.0, 5.0),
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -361,7 +361,7 @@ class ShepherdingSystem(BaseSystem):
         self.n_sheep = n_sheep
         self.size = size
         self.goal = goal
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a shepherd that drives a scattered flock to a goal.
@@ -371,7 +371,7 @@ class ShepherdingSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         positions = rng.uniform(0.4 * self.size, 0.7 * self.size, (self.n_sheep, 2))
         space = ContinuousSpace(extent=(self.size, self.size))
         sheep = HerdedSheepElement(

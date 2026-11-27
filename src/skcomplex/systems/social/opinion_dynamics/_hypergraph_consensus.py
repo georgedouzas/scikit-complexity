@@ -192,7 +192,7 @@ class HypergraphConsensusSystem(BaseSystem):
         period:
             The period of the schedules of the triangles.
 
-        seed:
+        random_state:
             The seed of the hypergraph, the phases, and the opinions.
 
         label:
@@ -228,7 +228,7 @@ class HypergraphConsensusSystem(BaseSystem):
         triangles: float = 0.05,
         reinforcement: float = -1.0,
         period: float = 2.0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -238,12 +238,12 @@ class HypergraphConsensusSystem(BaseSystem):
         self.triangles = triangles
         self.reinforcement = reinforcement
         self.period = period
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         triads = [
             triad for triad in itertools.combinations(range(self.n_nodes), TRIANGLE) if rng.random() < self.triangles
         ]

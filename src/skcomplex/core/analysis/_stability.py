@@ -335,17 +335,6 @@ def stability(
         >>> [str(point['population.x']) for point in result.fixed_points]
         ['0', 'K_growth']
 
-        A plain equation, such as the normal form `dm/dt = a m - b m^3` of a pitchfork bifurcation, is a
-        `DynamicalSystem` of one line:
-
-        >>> from skcomplex.systems.general.dynamics import DynamicalSystem
-        >>> pitchfork = DynamicalSystem(
-        ...     {'m': 0.1},
-        ...     {'m': lambda s: s.target.a * s.target.m - s.target.b * s.target.m**3},
-        ...     parameters={'a': 1.0, 'b': 1.0},
-        ... )
-        >>> stability(pitchfork).classifications
-        ['stable node', 'unstable node', 'stable node']
     """
     system = _get_system(source)
     source = _composite(system)
@@ -418,7 +407,9 @@ def _sort_points(
     dynamics: _DynamicsSpec,
     points: list[dict[str, Expression | float]],
 ) -> list[dict[str, Expression | float]]:
-    """Return fixed points sorted by their values at the parameter values, in the order of the state names.
+    """Return fixed points sorted by their values, in the order of the state names.
+
+    The values are those at the parameter values.
 
     The values are rounded to 10 decimals for the order only, and a value that stays symbolic sorts by its text after
     the numbers, so the order is the same in every process.
@@ -454,7 +445,7 @@ def _eigenvalues_at(dynamics: _DynamicsSpec, jacobian: Matrix, point: Point) -> 
 
 
 def _get_exact(value: object) -> object:
-    """Return a float as the exact rational of the decimal it is written as, and other values as they are."""
+    """Return a float as the exact rational of its decimal, other values unchanged."""
     if not isinstance(value, float):
         return value
     fraction = Fraction(repr(value))

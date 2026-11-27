@@ -612,7 +612,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         duration:
             The duration of the pulse of a pulsed therapy.
 
-        seed:
+        random_state:
             The seed of the random factor of the mutation rate.
 
         label:
@@ -626,7 +626,7 @@ class StemCellDifferentiationSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import StemCellDifferentiationSystem
-        >>> 0.005 <= StemCellDifferentiationSystem(seed=1).prepare().system_.elements[0].m1 < 0.01
+        >>> 0.005 <= StemCellDifferentiationSystem(random_state=1).prepare().system_.elements[0].m1 < 0.01
         True
     """
 
@@ -645,7 +645,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         therapy: Literal['none', 'pulsed', 'continuous'] = 'continuous',
         start: float = 100.0,
         duration: float = 100.0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -657,7 +657,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         self.therapy = therapy
         self.start = start
         self.duration = duration
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_normal_renewal(target: SimpleNamespace) -> Expression:
@@ -700,7 +700,7 @@ class StemCellDifferentiationSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        m1 = self.m0 * (1 + np.random.default_rng(self.seed).uniform())
+        m1 = self.m0 * (1 + np.random.default_rng(self.random_state).uniform())
         tissue = StemCellDifferentiationElement(
             'tissue',
             m1=m1,

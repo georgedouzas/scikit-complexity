@@ -685,7 +685,7 @@ class TangledNatureSystem(BaseSystem):
         length:
             The number of bits of a genome.
 
-        seed:
+        landscape_seed:
             The seed of the couplings.
 
         random_state:
@@ -720,7 +720,7 @@ class TangledNatureSystem(BaseSystem):
         p_mut: float = 0.01,
         p_kill: float = 0.2,
         length: int = 8,
-        seed: int = 0,
+        landscape_seed: int = 0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -733,7 +733,7 @@ class TangledNatureSystem(BaseSystem):
         self.p_mut = p_mut
         self.p_kill = p_kill
         self.length = length
-        self.seed = seed
+        self.landscape_seed = landscape_seed
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -753,7 +753,7 @@ class TangledNatureSystem(BaseSystem):
             p_mut=self.p_mut,
             p_kill=self.p_kill,
             length=self.length,
-            seed=self.seed,
+            seed=self.landscape_seed,
         )
         self.system_ = System(
             self.label,
@@ -782,7 +782,7 @@ class AdaptiveClimbingSystem(BaseSystem):
         length:
             The number of loci of a genome.
 
-        seed:
+        landscape_seed:
             The seed of the fitness landscape.
 
         label:
@@ -811,7 +811,7 @@ class AdaptiveClimbingSystem(BaseSystem):
         *,
         u: float = 0.1,
         length: int = 20,
-        seed: int = 0,
+        landscape_seed: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -820,7 +820,7 @@ class AdaptiveClimbingSystem(BaseSystem):
         self.size = size
         self.u = u
         self.length = length
-        self.seed = seed
+        self.landscape_seed = landscape_seed
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a finite population.
@@ -830,7 +830,7 @@ class AdaptiveClimbingSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.seed)
+        fitness = AdaptiveClimbingInteraction._get_random_fitness(0, self.landscape_seed)
         self.system_ = System(
             self.label,
             elements=[ClimbingIndividualElement('population', trait=0.0, fitness=fitness, size=self.size)],
@@ -840,7 +840,7 @@ class AdaptiveClimbingSystem(BaseSystem):
                     target='population',
                     mutation=self.u,
                     length=self.length,
-                    seed=self.seed,
+                    seed=self.landscape_seed,
                 ),
             ],
         )
@@ -864,7 +864,7 @@ class NKLandscapeSystem(BaseSystem):
         k:
             The number of other bits each bit interacts with.
 
-        seed:
+        landscape_seed:
             The seed of the landscape.
 
         random_state:
@@ -896,7 +896,7 @@ class NKLandscapeSystem(BaseSystem):
         *,
         n: int = 10,
         k: int = 2,
-        seed: int = 0,
+        landscape_seed: int = 0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -906,7 +906,7 @@ class NKLandscapeSystem(BaseSystem):
         self.climbers = climbers
         self.n = n
         self.k = k
-        self.seed = seed
+        self.landscape_seed = landscape_seed
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -918,14 +918,16 @@ class NKLandscapeSystem(BaseSystem):
         """
         super()._prepare(context)
         genomes = np.random.default_rng(self.random_state).integers(0, 2**self.n, size=self.climbers)
-        fitness = [ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.seed) for genome in genomes]
+        fitness = [
+            ClimberElement._get_nk_fitness(int(genome), self.n, self.k, self.landscape_seed) for genome in genomes
+        ]
         climbers = ClimberElement(
             'climbers',
             genome=genomes.astype(float),
             fitness=np.asarray(fitness),
             n=float(self.n),
             k=float(self.k),
-            seed=float(self.seed),
+            seed=float(self.landscape_seed),
             size=self.climbers,
         )
         self.system_ = System(

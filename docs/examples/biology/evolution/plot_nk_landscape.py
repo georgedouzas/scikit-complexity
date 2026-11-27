@@ -19,7 +19,7 @@ SYSTEM = 'nk_landscape'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = (
-    NKLandscapeSystem(climbers=50, n=10, k=2, seed=0).prepare().simulate(dt=1, observers=[observer], random_state=0)
+    NKLandscapeSystem(climbers=50, n=10, k=2, landscape_seed=0).prepare().simulate(dt=1, observers=[observer], random_state=0)
 )
 
 # %%
@@ -31,7 +31,7 @@ trajectory = (
 
 def final_climbers(k):
     """Return the final genomes and fitnesses of a run with `k` interactions."""
-    trajectory = NKLandscapeSystem(climbers=50, n=10, k=k, seed=0).prepare().simulate(until=150, dt=1, random_state=0)
+    trajectory = NKLandscapeSystem(climbers=50, n=10, k=k, landscape_seed=0).prepare().simulate(until=150, dt=1, random_state=0)
     climbers = trajectory.get_agents('climbers', len(trajectory.times) - 1)
     return climbers.values['genome'], climbers.values['fitness']
 

@@ -172,7 +172,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         graph:
             The network, or `None` for a ring of `n_agents`.
 
-        seed:
+        random_state:
             The seed of the initial phases.
 
         label:
@@ -254,7 +254,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         spread: float = 1.0,
         connections: Sequence[float] | None = None,
         graph: nx.Graph | None = None,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -266,7 +266,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
         self.spread = spread
         self.connections = connections
         self.graph = graph
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
@@ -286,7 +286,7 @@ class GaugeNetworkAgentsSystem(BaseSystem):
             connection = self.flux * first / np.abs(first).sum()
         else:
             connection = np.zeros(faces.shape[1])
-        phases = np.random.default_rng(self.seed).uniform(-self.spread, self.spread, space.size_)
+        phases = np.random.default_rng(self.random_state).uniform(-self.spread, self.spread, space.size_)
         agents = PhaseAgentElement('agents', theta=phases, space=space)
         links = ConnectionElement('links', A=connection, space=space, on='edges')
         coupling = TransportedCouplingInteraction('coupling', among='agents', K=self.K)

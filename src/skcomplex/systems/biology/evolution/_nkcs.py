@@ -231,7 +231,7 @@ class NKCSSystem(BaseSystem):
         s:
             The number of partner species of every species.
 
-        seed:
+        landscape_seed:
             The seed of the landscapes and the couplings.
 
         random_state:
@@ -265,7 +265,7 @@ class NKCSSystem(BaseSystem):
         k: int = 2,
         c: int = 1,
         s: int = 2,
-        seed: int = 0,
+        landscape_seed: int = 0,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -277,7 +277,7 @@ class NKCSSystem(BaseSystem):
         self.k = k
         self.c = c
         self.s = s
-        self.seed = seed
+        self.landscape_seed = landscape_seed
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -297,6 +297,6 @@ class NKCSSystem(BaseSystem):
             k=self.k,
             c=self.c,
             s=self.s,
-            seed=self.seed,
+            seed=self.landscape_seed,
         )
         self.system_ = System(self.label, elements=[species], interactions=[climbing])

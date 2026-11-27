@@ -450,7 +450,7 @@ class VicsekSystem(BaseSystem):
         eta:
             The amplitude of the noise, as a fraction of `pi`.
 
-        seed:
+        random_state:
             The seed of the uniform initial positions and headings.
 
         neighbors:
@@ -506,7 +506,7 @@ class VicsekSystem(BaseSystem):
         size: float = 10.0,
         v0: float = 0.5,
         eta: float = 0.1,
-        seed: int = 0,
+        random_state: int = 0,
         neighbors: int | None = None,
         vision: float | None = None,
         delay: int = 0,
@@ -520,7 +520,7 @@ class VicsekSystem(BaseSystem):
         self.size = size
         self.v0 = v0
         self.eta = eta
-        self.seed = seed
+        self.random_state = random_state
         self.neighbors = neighbors
         self.vision = vision
         self.delay = delay
@@ -552,7 +552,7 @@ class VicsekSystem(BaseSystem):
             neighborhood = NearestNeighborhood(self.neighbors, center=True)
         if self.vision is not None:
             neighborhood = RadiusNeighborhood(1.0, angle=self.vision, direction='theta', center=True)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         flock = VicsekParticleElement(
             'flock',
             x=rng.uniform(0.0, self.size, (self.n_particles, 2)),
@@ -607,7 +607,7 @@ class GregoireChateSystem(BaseSystem):
         beta:
             The strength of the cohesion.
 
-        seed:
+        random_state:
             The seed of the uniform initial positions and headings.
 
         label:
@@ -641,7 +641,7 @@ class GregoireChateSystem(BaseSystem):
         eta: float = 0.1,
         alpha: float = 1.0,
         beta: float = 0.5,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -653,7 +653,7 @@ class GregoireChateSystem(BaseSystem):
         self.eta = eta
         self.alpha = alpha
         self.beta = beta
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the Grégoire-Chaté system of aligning particles that also attract and repel.
@@ -663,7 +663,7 @@ class GregoireChateSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        x, theta = GregoireChateSystem._get_flockers(self.n_particles, self.size, self.seed)
+        x, theta = GregoireChateSystem._get_flockers(self.n_particles, self.size, self.random_state)
         flock = CohesiveParticleElement(
             'flock',
             x=x,
@@ -716,7 +716,7 @@ class GinelliNematicsSystem(BaseSystem):
         eta:
             The amplitude of the noise, as a fraction of `pi`.
 
-        seed:
+        random_state:
             The seed of the uniform initial positions and headings.
 
         label:
@@ -748,7 +748,7 @@ class GinelliNematicsSystem(BaseSystem):
         size: float = 10.0,
         v0: float = 0.3,
         eta: float = 0.08,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -758,7 +758,7 @@ class GinelliNematicsSystem(BaseSystem):
         self.size = size
         self.v0 = v0
         self.eta = eta
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of polar particles with nematic alignment.
@@ -768,7 +768,7 @@ class GinelliNematicsSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        x, theta = GregoireChateSystem._get_flockers(self.n_particles, self.size, self.seed)
+        x, theta = GregoireChateSystem._get_flockers(self.n_particles, self.size, self.random_state)
         flock = NematicParticleElement(
             'flock',
             x=x,

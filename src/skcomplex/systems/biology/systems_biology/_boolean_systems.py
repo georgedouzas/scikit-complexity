@@ -434,7 +434,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         eta:
             The noise, the probability of a flip.
 
-        seed:
+        random_state:
             The seed of the inputs.
 
         label:
@@ -468,7 +468,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         *,
         k: int = 3,
         eta: float = 0.1,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -477,7 +477,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         self.n = n
         self.k = k
         self.eta = eta
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the Boolean network of Huepe and Aldana-González.
@@ -490,7 +490,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         if self.k % 2 == 0:
             error_msg = f'The number of inputs must be odd so that the majority is defined, not {self.k}.'
             raise ValidationError(error_msg)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         inputs = np.zeros((self.n, self.n))
         for node in range(self.n):
             inputs[node, rng.choice(np.delete(np.arange(self.n), node), size=self.k, replace=False)] = 1.0

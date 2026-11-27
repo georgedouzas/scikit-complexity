@@ -8,7 +8,9 @@ from skcomplex.systems.biology.epidemiology import EpisimsCitySystem
 def _final_size(closed: bool, seed: int) -> float:
     """Return the share of recovered people after 200 half days."""
     trajectory = (
-        EpisimsCitySystem(500, closed=closed, seed=seed).prepare().system_.simulate(until=200, random_state=seed)
+        EpisimsCitySystem(500, closed=closed, random_state=seed)
+        .prepare()
+        .system_.simulate(until=200, random_state=seed)
     )
     return float((trajectory.get_agents('people', 200).values['health'] == 2).mean())
 

@@ -19,7 +19,7 @@ from skcomplex.systems.physics.synchronization import CoupledMapLatticesOnNetwor
 
 SYSTEM = 'coupled_map_lattices_on_networks'
 
-system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=0.9, seed=0)
+system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=0.9, random_state=0)
 observables = CoupledMapLatticesOnNetworksSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='maps/x', interval=1)
 trajectory = system.prepare().simulate(until=60, observers=[observer], observables=observables)
@@ -38,7 +38,7 @@ low, high = 0.5 / eigenvalues[1], 1.5 / eigenvalues[-1]
 couplings = np.linspace(0.05, 1.0, 20)
 variances = []
 for coupling in couplings:
-    system_system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=coupling, seed=0)
+    system_system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=coupling, random_state=0)
     run = system_system.prepare().simulate(until=200)
     variances.append(np.mean(np.asarray(run.get_values('spread'))[-20:]))
 fig, ax = plt.subplots(figsize=(6, 4))

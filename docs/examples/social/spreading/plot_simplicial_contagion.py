@@ -20,7 +20,7 @@ from skcomplex.systems.social.spreading import SimplicialContagionSystem
 
 SYSTEM = 'simplicial_contagion'
 
-system = SimplicialContagionSystem(share=0.4, seed=0)
+system = SimplicialContagionSystem(share=0.4, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = system.prepare().simulate(until=30, observers=[observer], random_state=0)
 
@@ -36,7 +36,7 @@ trajectory = system.prepare().simulate(until=30, observers=[observer], random_st
 def prevalence(infectivity, share):
     """Return the mean share of infected nodes over the last ten time units of a run."""
     run = (
-        SimplicialContagionSystem(infectivity=infectivity, share=share, seed=0)
+        SimplicialContagionSystem(infectivity=infectivity, share=share, random_state=0)
         .prepare()
         .simulate(until=30, random_state=0)
     )

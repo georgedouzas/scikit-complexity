@@ -19,7 +19,7 @@ from skcomplex.systems.physics.synchronization import HypergraphKuramotoSystem
 
 SYSTEM = 'hypergraph_kuramoto'
 
-system = HypergraphKuramotoSystem(n_oscillators=40, K2=8.0, seed=0)
+system = HypergraphKuramotoSystem(n_oscillators=40, K2=8.0, random_state=0)
 observables = HypergraphKuramotoSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = system.prepare().simulate(dt=0.5, observers=[observer], observables=observables)
@@ -36,7 +36,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for label, phases in (('from incoherent phases', None), ('from synchronized phases', np.zeros(40))):
     order = []
     for coupling in couplings:
-        system_system = HypergraphKuramotoSystem(n_oscillators=40, K2=coupling, phases=phases, seed=0)
+        system_system = HypergraphKuramotoSystem(n_oscillators=40, K2=coupling, phases=phases, random_state=0)
         run = system_system.prepare().simulate(dt=0.5)
         order.append(np.mean(np.asarray(run.get_values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=label)

@@ -17,7 +17,7 @@ from skcomplex.systems.mathematics.networks import HypergraphRandomWalkSystem
 
 SYSTEM = 'hypergraph_random_walk'
 
-system = HypergraphRandomWalkSystem(seed=0)
+system = HypergraphRandomWalkSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = system.prepare().simulate(until=40, dt=0.5, observers=[observer])
 

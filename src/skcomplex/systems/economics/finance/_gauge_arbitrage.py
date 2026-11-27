@@ -206,7 +206,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         bump:
             The height of the random part of the initial density above a density of 1.
 
-        seed:
+        random_state:
             The seed of the initial density.
 
         label:
@@ -268,7 +268,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         D: float = 0.5,
         q: float = 0.2,
         bump: float = 1.0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -278,7 +278,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         self.D = D
         self.q = q
         self.bump = bump
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_potential_rate(namespace: SimpleNamespace) -> Expression:
@@ -313,7 +313,7 @@ class GaugeArbitrageMarketSystem(BaseSystem):
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
         space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
-        density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
+        density = 1.0 + self.bump * np.random.default_rng(self.random_state).random(self.size * self.size)
         field = self._get_initial_field(space.incidences_[0], density - density.mean())
         sites = GoodSiteElement('sites', rho=density, space=space)
         links = ExchangeLinkElement('links', E=field, space=space, on='edges')

@@ -281,7 +281,10 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_checkerboard_misfit(space: BaseSpace, neighborhood: BaseNeighborhood) -> str | None:
-        """Return why a checkerboard update does not fit a lattice, `'square'` or `'parity'`, or `None` when it fits."""
+        """Return why a checkerboard update does not fit a lattice, or `None` when it fits.
+
+        It is `'square'` for a lattice that is not square and `'parity'` for neighbours or sizes of the wrong parity.
+        """
         offsets = neighborhood._get_offsets(space.n_dim_) if isinstance(space, LatticeSpace) else None
         if not isinstance(space, LatticeSpace) or space.geometry != 'square' or offsets is None:
             return 'square'
@@ -291,7 +294,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _resolve_schedule(sampler: SamplerSpec, space: BaseSpace, over: object, cofaces: bool) -> SamplerSpec:
-        """Return the sampler with an `'auto'` schedule replaced by one that fits the lattice.
+        """Return the sampler with an `'auto'` schedule fitted to the lattice.
 
         Sums over cofaces take the colored schedule, and other sums take the checkerboard when it fits and the random
         sequential order otherwise.

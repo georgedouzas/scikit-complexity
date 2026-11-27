@@ -196,7 +196,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         width:
             The standard deviation of the natural frequencies of the nodes and the links.
 
-        seed:
+        random_state:
             The seed of the graph, the frequencies, and the initial phases.
 
         model:
@@ -268,7 +268,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         density: float = 0.4,
         coupling: float = 2.0,
         width: float = 1.0,
-        seed: int = 0,
+        random_state: int = 0,
         model: str = 'NL',
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -279,7 +279,7 @@ class TopologicalKuramotoSystem(BaseSystem):
         self.density = density
         self.coupling = coupling
         self.width = width
-        self.seed = seed
+        self.random_state = random_state
         self.model = model
 
     @staticmethod
@@ -308,8 +308,8 @@ class TopologicalKuramotoSystem(BaseSystem):
         if self.model not in MODELS:
             error_msg = f'Unknown model {self.model!r}. Use one of {", ".join(MODELS)}.'
             raise ValidationError(error_msg)
-        rng = np.random.default_rng(self.seed)
-        graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=self.seed)
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=self.random_state)
         space = CellComplexSpace(NetworkSpace(graph), faces='cliques').prepare()
         n_links = space.incidences_[0].shape[0]
         nodes = PhaseOscillatorElement(

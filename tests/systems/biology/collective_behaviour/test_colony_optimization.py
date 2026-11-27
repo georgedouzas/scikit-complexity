@@ -18,7 +18,7 @@ def _shortest(interaction, is_open=None) -> float:
 def test_colony_finds_a_short_path_and_heals_a_disruption():
     """Test exercises 15.7 and 15.12 of Argun et al.: the ants settle near the shortest path, and again after a cut."""
     for seed in (0, 2):
-        system = AntColonyOptimizationSystem(cut=50, seed=seed).prepare().system_
+        system = AntColonyOptimizationSystem(cut=50, random_state=seed).prepare().system_
         search = system.interactions[0]
         trajectory = system.prepare().simulate(random_state=seed, until=100)
         lengths = trajectory.get_values('search.shortest')

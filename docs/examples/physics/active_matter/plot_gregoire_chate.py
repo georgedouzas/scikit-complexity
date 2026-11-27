@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = GregoireChateSystem(n_particles=200, seed=0)
+system = GregoireChateSystem(n_particles=200, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 trajectory = system.prepare().simulate(observers=[observer], random_state=0)
 

@@ -1,8 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Ready-made systems name their seed random_state
-Every ready-made system that draws values when prepared SHALL take its seed as `random_state`, and its docstring SHALL
-say that it seeds what the system draws when prepared while `simulate(random_state=)` seeds the dynamics.
+Every ready-made system that draws values when prepared SHALL take the seed of those draws as `random_state`, or as a
+name that says what it fixes, such as `landscape_seed` for a fitness landscape. The docstring of
+`simulate(random_state=)` and the user guide SHALL say that it seeds the dynamics only, while the system's own
+`random_state` seeds what it draws when prepared.
 
 #### Scenario: One name
 - **WHEN** the signatures of all ready-made systems are read

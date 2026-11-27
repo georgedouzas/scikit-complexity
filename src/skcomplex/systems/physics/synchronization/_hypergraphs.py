@@ -116,7 +116,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         phases:
             The initial phases, or `None` for phases drawn uniformly from the circle.
 
-        seed:
+        random_state:
             The seed of the hypergraph, the frequencies, and the phases.
 
         label:
@@ -152,7 +152,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         links: float = 1.0,
         triangles: float = 1.0,
         phases: Sequence[float] | None = None,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -165,7 +165,7 @@ class HypergraphKuramotoSystem(BaseSystem):
         self.links = links
         self.triangles = triangles
         self.phases = phases
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
@@ -183,12 +183,12 @@ class HypergraphKuramotoSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.seed)
+        hypergraph = self._get_simplices(self.n_oscillators, self.links, self.triangles, self.random_state)
         space = NetworkSpace(nx.complete_graph(self.n_oscillators), hyperedges=hypergraph)
         sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]
         mean_links = max(PAIR * sizes.count(PAIR) / self.n_oscillators, 1.0)
         mean_triangles = max(TRIANGLE * sizes.count(TRIANGLE) / self.n_oscillators, 1.0)
-        rng = np.random.default_rng(self.seed + 1)
+        rng = np.random.default_rng(self.random_state + 1)
         omega = self.width * stats.cauchy.ppf(rng.uniform(size=self.n_oscillators))
         theta = (
             rng.uniform(0, 2 * math.pi, self.n_oscillators)

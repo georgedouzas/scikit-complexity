@@ -424,7 +424,7 @@ class SoleManrubiaSystem(BaseSystem):
         noise:
             The standard deviation of the drift of every coupling at a step.
 
-        seed:
+        random_state:
             The seed of the network and of the initial couplings.
 
         label:
@@ -454,7 +454,7 @@ class SoleManrubiaSystem(BaseSystem):
         k: int = 5,
         *,
         noise: float = 0.05,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -463,7 +463,7 @@ class SoleManrubiaSystem(BaseSystem):
         self.n = n
         self.k = k
         self.noise = noise
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the ecosystem of Solé and Manrubia.
@@ -473,7 +473,7 @@ class SoleManrubiaSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))
         for node in range(self.n):
@@ -531,7 +531,7 @@ class JainKrishnaSystem(BaseSystem):
         period:
             The number of steps between two graph updates.
 
-        seed:
+        random_state:
             The seed of the initial network.
 
         label:
@@ -562,7 +562,7 @@ class JainKrishnaSystem(BaseSystem):
         p: float = 0.02,
         h: float = 0.5,
         period: int = 10,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -572,7 +572,7 @@ class JainKrishnaSystem(BaseSystem):
         self.p = p
         self.h = h
         self.period = period
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of Jain and Krishna.
@@ -582,7 +582,7 @@ class JainKrishnaSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
         species = ChemicalElement(
@@ -622,7 +622,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         duration:
             The time of the population dynamics between replacements.
 
-        seed:
+        random_state:
             The seed of the initial matrix.
 
         label:
@@ -651,7 +651,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         *,
         p: float = 0.05,
         duration: float = 20.0,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -660,7 +660,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         self.n = n
         self.p = p
         self.duration = duration
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the Jain-Krishna model with signed interactions.
@@ -670,7 +670,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
         np.fill_diagonal(matrix, -rng.random(self.n))
         species = CompetingSpeciesElement('species', x=np.full(self.n, 1 / self.n), links=matrix, size=self.n)

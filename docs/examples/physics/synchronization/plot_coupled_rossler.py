@@ -18,7 +18,7 @@ from skcomplex.systems.physics.synchronization import CoupledRosslerSystem
 
 SYSTEM = 'coupled_rossler'
 
-system = CoupledRosslerSystem(n_oscillators=2, k=0.06, mismatch=0.02, seed=0)
+system = CoupledRosslerSystem(n_oscillators=2, k=0.06, mismatch=0.02, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 trajectory = system.prepare().simulate(dt=0.2, observers=[observer])
 
@@ -31,7 +31,7 @@ trajectory = system.prepare().simulate(dt=0.2, observers=[observer])
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for coupling in [0.0, 0.02, 0.06]:
-    run = CoupledRosslerSystem(n_oscillators=2, k=coupling, mismatch=0.02, seed=0).prepare().simulate(until=500)
+    run = CoupledRosslerSystem(n_oscillators=2, k=coupling, mismatch=0.02, random_state=0).prepare().simulate(until=500)
     phases = [
         np.unwrap(
             np.arctan2(np.ravel(run.get_values(f'{name}.x2')), np.ravel(run.get_values(f'{name}.x1'))),

@@ -205,7 +205,7 @@ class HypergraphRandomWalkSystem(BaseSystem):
         source:
             The node the walker starts at.
 
-        seed:
+        random_state:
             The seed of the random hypergraph.
 
         label:
@@ -236,7 +236,7 @@ class HypergraphRandomWalkSystem(BaseSystem):
         hypergraph: xgi.Hypergraph | None = None,
         *,
         source: int = 0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -244,14 +244,14 @@ class HypergraphRandomWalkSystem(BaseSystem):
         super().__init__(label, solver=solver, backend=backend)
         self.hypergraph = hypergraph
         self.source = source
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the size-biased random walk `p_j' = sum_i p_i T_ij - p_j` from one node."""
         super()._prepare(context)
         hypergraph = self.hypergraph
         if hypergraph is None:
-            hypergraph = xgi.fast_random_hypergraph(30, [0.1, 0.01, 0.001, 0.0005], seed=self.seed)
+            hypergraph = xgi.fast_random_hypergraph(30, [0.1, 0.01, 0.001, 0.0005], seed=self.random_state)
         space = NetworkSpace(nx.empty_graph(sorted(hypergraph.nodes)), hyperedges=hypergraph)
         prepared = space.prepare()
         weights = np.zeros(prepared.size_)

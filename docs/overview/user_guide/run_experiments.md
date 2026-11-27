@@ -197,7 +197,9 @@ round(summary['predators.x.mean'], 1), round(summary['predators.x.q0.05'], 1), r
 After ten years the island holds 6.3 lynx on average, with 0.0 at the 5% quantile and 16.2 at the 95% quantile. A study
 of the risk of extinction would run hundreds or thousands of replicates.
 
-Every design row and replicate gets its own random stream, spawned from `random_state` in a fixed order. The results
+Every design row and replicate gets its own random stream, spawned from `random_state` in a fixed order. An ensemble
+of a ready-made system with its own `random_state`, which seeds its initial state, also sets that parameter per run
+from the same stream, so the replicates start apart and the column `random_state` records it. The results
 are therefore the same whether the runs go one after another, on threads, or on processes, which the argument
 `executor` chooses with `'serial'`, `'thread'`, or `'process'`. A sweep with `replicates` greater than one repeats every
 row in the same way.

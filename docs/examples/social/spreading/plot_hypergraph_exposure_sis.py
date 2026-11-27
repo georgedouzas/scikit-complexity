@@ -19,7 +19,7 @@ from skcomplex.systems.social.spreading import HypergraphExposureSisSystem
 SYSTEM = 'hypergraph_exposure_sis'
 HYPERDEGREE, RATE, RECOVERY = 5.0, 0.06, 0.05
 
-system = HypergraphExposureSisSystem(share=0.3, seed=0)
+system = HypergraphExposureSisSystem(share=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = system.prepare().simulate(until=200, observers=[observer], random_state=0)
 
@@ -33,7 +33,7 @@ trajectory = system.prepare().simulate(until=200, observers=[observer], random_s
 
 def prevalence(share):
     """Return the share of infected participants after every step of a run."""
-    run = HypergraphExposureSisSystem(share=share, seed=0).prepare().simulate(random_state=0)
+    run = HypergraphExposureSisSystem(share=share, random_state=0).prepare().simulate(random_state=0)
     infected = run.get_values('participants.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)
 

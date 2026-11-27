@@ -12,10 +12,10 @@ from .conftest import STIFF, _run_optional_solver
 
 def test_stem_cell_differentiation_settles_under_continuous_therapy():
     """Test that the seed fixes the mutation rate and that the lineages settle with a malignant population."""
-    system = StemCellDifferentiationSystem(seed=3).prepare().system_
+    system = StemCellDifferentiationSystem(random_state=3).prepare().system_
     m1 = system.elements[0].m1
     assert 0.005 <= m1 < 0.01
-    assert StemCellDifferentiationSystem(seed=3).prepare().system_.elements[0].m1 == m1
+    assert StemCellDifferentiationSystem(random_state=3).prepare().system_.elements[0].m1 == m1
     trajectory = _run_optional_solver(system, until=6000.0, dt=10.0, solver=STIFF)
     for state in ('NSq', 'NPr', 'ND', 'APr', 'AD'):
         values = trajectory.get_values(f'tissue.{state}')

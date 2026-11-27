@@ -17,6 +17,7 @@ from skcomplex.core.experiments import ensemble
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
+from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem
 
 
 class AmountElement(Element):
@@ -113,3 +114,17 @@ def test_ensemble_prepares_once(monkeypatch):
     result = ensemble(PoissonProcessSystem(3), replicates=5, until=10, outputs=['counters.count'], random_state=0)
     assert len(calls) == 1
     assert len({tuple(series.ravel()) for series in result.get_series('counters.count')}) == 5
+
+
+def test_ensemble_gives_every_replicate_its_own_system_seed():
+    """Test that Curie-Weiss replicates start from different spins and order with both signs, reproducibly."""
+    system = CurieWeissSystem(50, temperature=0.5)
+    result = ensemble(system, replicates=20, until=20.0, outputs=['spins.spin'], random_state=3)
+    again = ensemble(system, replicates=20, until=20.0, outputs=['spins.spin'], random_state=3)
+    starts = [run.series['spins.spin'][0] for run in result.runs]
+    signs = {float(np.sign(np.sum(run.series['spins.spin'][-1]))) for run in result.runs}
+    assert len({tuple(start) for start in starts}) == 20
+    assert {-1.0, 1.0} <= signs
+    assert result.get_column('random_state').tolist() == again.get_column('random_state').tolist()
+    for first, second in zip(result.runs, again.runs, strict=True):
+        np.testing.assert_array_equal(first.series['spins.spin'], second.series['spins.spin'])

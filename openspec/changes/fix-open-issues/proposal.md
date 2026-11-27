@@ -9,9 +9,10 @@ constitution still names removed parts, and the engine record `LoweredFunctionsS
 
 ## What Changes
 
-- **Seeds (#23, #24):** every ready-made system names its seed `random_state`, and the 35 systems that call it `seed`
-  are renamed. Its docstring says it seeds what the system draws when prepared, such as the initial state and a random
-  network, while `simulate(random_state=)` seeds the dynamics. `ensemble` gives every replicate its own system seed,
+- **Seeds (#23, #24):** every ready-made system names the seed of its initial draws `random_state`, and the systems
+  that call it `seed` are renamed. Four evolution systems whose `seed` fixes a fitness landscape name it
+  `landscape_seed`. The docstring of `simulate(random_state=)` and the guide say that it seeds the dynamics, while the
+  system's own seed fixes what it draws when prepared. `ensemble` gives every replicate its own system seed,
   derived from the experiment's seed, so replicates start from different initial states. **BREAKING:** `seed=` is gone.
 - **Ising sizes (#26):** a lattice system on an odd periodic lattice uses the random sequential schedule when its solver
   is `'auto'`, and the checkerboard error names how to choose a schedule through the `solver` setting.

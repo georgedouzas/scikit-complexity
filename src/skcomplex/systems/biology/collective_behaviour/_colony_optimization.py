@@ -320,7 +320,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         cut:
             The round at which the best path is cut, or `None` for none.
 
-        seed:
+        random_state:
             The seed of the points.
 
         label:
@@ -354,7 +354,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         rho: float = 0.5,
         Q: float = 1.0,
         cut: int | None = None,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -368,7 +368,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.rho = rho
         self.Q = Q
         self.cut = cut
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of ants that find the shortest path on a Delaunay road network.
@@ -378,7 +378,7 @@ class AntColonyOptimizationSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        points = np.random.default_rng(self.seed).random((self.n_points, 2))
+        points = np.random.default_rng(self.random_state).random((self.n_points, 2))
         triangles = Delaunay(points).simplices
         pairs = {
             (int(min(a, b)), int(max(a, b))) for triangle in triangles for a, b in itertools.combinations(triangle, 2)

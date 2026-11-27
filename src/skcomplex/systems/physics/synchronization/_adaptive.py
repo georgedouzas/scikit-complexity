@@ -169,7 +169,7 @@ class AdaptiveKuramotoSystem(BaseSystem):
         omega:
             The natural frequency of every oscillator.
 
-        seed:
+        random_state:
             The seed of the random initial phases and weights.
 
         label:
@@ -201,7 +201,7 @@ class AdaptiveKuramotoSystem(BaseSystem):
         beta: float = 0.23 * math.pi,
         epsilon: float = 0.01,
         omega: float = 0.0,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -212,7 +212,7 @@ class AdaptiveKuramotoSystem(BaseSystem):
         self.beta = beta
         self.epsilon = epsilon
         self.omega = omega
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of globally coupled phase oscillators whose weights adapt to the phase differences.
@@ -222,7 +222,7 @@ class AdaptiveKuramotoSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         graph = nx.complete_graph(self.n_oscillators, create_using=nx.DiGraph)
         space = NetworkSpace(graph)
         nodes = NodeOscillatorElement(

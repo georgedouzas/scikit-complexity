@@ -17,7 +17,7 @@ from skcomplex.systems.physics.synchronization import DelayedKuramotoSystem
 
 SYSTEM = 'delayed_kuramoto'
 
-system = DelayedKuramotoSystem(n_oscillators=5, K=2.0, tau=1.0, spread=0.2, seed=0)
+system = DelayedKuramotoSystem(n_oscillators=5, K=2.0, tau=1.0, spread=0.2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 trajectory = system.prepare().simulate(observers=[observer])
 
@@ -34,7 +34,7 @@ effective = 2.0 * 4 / 5
 delays = np.linspace(0.1, 3.0, 30)
 measured = []
 for delay in delays:
-    run = DelayedKuramotoSystem(n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0).prepare().simulate(until=150)
+    run = DelayedKuramotoSystem(n_oscillators=5, K=2.0, tau=delay, spread=0.2, random_state=0).prepare().simulate(until=150)
     times, phase = np.asarray(run.times), np.ravel(run.get_values('oscillator_0.theta'))
     late = times > 100
     measured.append(np.polyfit(times[late], phase[late], 1)[0])

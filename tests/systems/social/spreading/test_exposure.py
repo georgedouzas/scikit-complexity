@@ -17,7 +17,14 @@ def _prevalence(**settings) -> np.ndarray:
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_hypergraph_exposure_sis_infects_with_the_probability_of_the_doses(backend):
     """Test that the share of runs in which a participant is infected after a step follows its doses."""
-    system = HypergraphExposureSisSystem(60, share=0.4, rate=0.3, exponent=1.5, seed=2, backend=backend).prepare()
+    system = HypergraphExposureSisSystem(
+        60,
+        share=0.4,
+        rate=0.3,
+        exponent=1.5,
+        random_state=2,
+        backend=backend,
+    ).prepare()
     participants = system.system_.elements[0]
     infected = participants.infected
     doses = np.zeros(60)

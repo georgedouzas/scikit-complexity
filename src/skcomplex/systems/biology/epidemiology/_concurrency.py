@@ -308,7 +308,7 @@ class PairFormationSISSystem(BaseSystem):
         infected:
             The initial share of infectious people.
 
-        seed:
+        random_state:
             The seed of the network and of the initial infections.
 
         label:
@@ -343,7 +343,7 @@ class PairFormationSISSystem(BaseSystem):
         pressure: float = 1.5,
         turnover: float = 2.0,
         infected: float = 0.05,
-        seed: int | None = 1,
+        random_state: int | None = 1,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -357,7 +357,7 @@ class PairFormationSISSystem(BaseSystem):
         self.pressure = pressure
         self.turnover = turnover
         self.infected = infected
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the SIS epidemic on partnerships that are replaced at once.
@@ -371,8 +371,8 @@ class PairFormationSISSystem(BaseSystem):
         sigma = self.sigma
         beta = self.pressure / self.k if beta is None else beta
         sigma = self.turnover / self.k if sigma is None else sigma
-        space = NetworkSpace(nx.random_regular_graph(self.k, self.n, seed=self.seed))
-        initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
+        space = NetworkSpace(nx.random_regular_graph(self.k, self.n, seed=self.random_state))
+        initial = (np.random.default_rng(self.random_state).random(self.n) < self.infected).astype(float)
         people = PersonElement('people', i=initial, space=space)
         partnerships = PartnershipEdgeElement('partnerships', space=space, on='edges')
         self.system_ = System(

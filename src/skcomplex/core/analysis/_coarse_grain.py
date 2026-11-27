@@ -1,4 +1,4 @@
-"""Coarse-grain agents into fields, members into densities, or lattices into blocks."""
+"""Coarse-grain agents into fields, members into densities, or lattices."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +23,7 @@ RULES = ('majority', 'mean')
 
 @dataclass(frozen=True)
 class CoarseGrainResult:
-    """A result of `coarse_grain`, agents counted on a grid, spread over values, or a lattice over blocks.
+    """A result of `coarse_grain`, agents on a grid, members over values, or blocks.
 
     It holds the counts of agents in every cell of a grid, one grid per frame, with the positions and the box, the
     share of members at every value, which sums to 1, or the value of every block of a lattice. It reports the density
@@ -71,7 +71,7 @@ def coarse_grain(
     tie: float | str = 'random',
     random_state: int | np.random.Generator | None = None,
 ) -> CoarseGrainResult:
-    """Return agents counted on a grid, members spread over the values of a state, or a lattice over blocks.
+    """Return agents on a grid, members over values of a state, or lattice blocks.
 
     It counts the agents in every cell of a grid of `shape` over the box, one grid per frame, such as two agents in one
     corner and one in the other of a box of side 1. With `over`, it counts every member at the given value nearest to
@@ -134,9 +134,6 @@ def coarse_grain(
         >>> positions = [[0.1, 0.1], [0.2, 0.1], [0.9, 0.9]]
         >>> coarse_grain(positions, shape=[2, 2], box=[1.0, 1.0]).field.tolist()
         [[2.0, 0.0], [0.0, 1.0]]
-        >>> spins = [[1, 1, -1, -1], [1, -1, -1, -1], [1, 1, 1, -1], [1, 1, -1, 1]]
-        >>> coarse_grain(spins, blocks=2).field.tolist()
-        [[1.0, -1.0], [1.0, 1.0]]
     """
     if blocks is not None:
         return _coarse_grain_blocks(
@@ -191,7 +188,7 @@ def _coarse_grain_blocks(
     over: npt.ArrayLike | None,
     values: npt.ArrayLike | None,
 ) -> CoarseGrainResult:
-    """Return a lattice, one snapshot of an array or every frame of a trajectory, coarse-grained over blocks."""
+    """Return a lattice coarse-grained over blocks, for one snapshot or every frame."""
     if over is not None or values is not None:
         error_msg = 'coarse_grain over blocks reads the values of a lattice, so it takes no `over` or `values`.'
         raise AnalysisError(error_msg)

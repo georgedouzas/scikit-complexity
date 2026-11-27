@@ -19,7 +19,7 @@ SYSTEM = 'adaptive_climbing'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = (
-    AdaptiveClimbingSystem(size=10, u=0.1, length=20, seed=0)
+    AdaptiveClimbingSystem(size=10, u=0.1, length=20, landscape_seed=0)
     .prepare()
     .simulate(dt=1, observers=[observer], random_state=0)
 )
@@ -33,7 +33,7 @@ trajectory = (
 best = []
 for seed in range(8):
     trajectory = (
-        AdaptiveClimbingSystem(size=10, u=0.1, length=20, seed=seed)
+        AdaptiveClimbingSystem(size=10, u=0.1, length=20, landscape_seed=seed)
         .prepare()
         .simulate(until=200, dt=1, random_state=seed)
     )

@@ -128,3 +128,11 @@ def test_vicsek_refuses_delays_beyond_its_memory_and_combined_variants():
         VicsekSystem(10, delay=26).prepare()
     with pytest.raises(ParameterError):
         VicsekSystem(10, neighbors=4, vision=1.0).prepare()
+
+
+def test_vicsek_runs_repeat_with_both_seeds():
+    """Test that a Vicsek flock with a system seed and a run seed repeats its run exactly."""
+    system = VicsekSystem(100, size=10, eta=0.1, random_state=4).prepare()
+    first = system.simulate(until=10, random_state=1).get_values('flock.x')
+    second = system.simulate(until=10, random_state=1).get_values('flock.x')
+    np.testing.assert_array_equal(first, second)

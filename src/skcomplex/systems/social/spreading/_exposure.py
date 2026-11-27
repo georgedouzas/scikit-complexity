@@ -168,7 +168,7 @@ class HypergraphExposureSisSystem(BaseSystem):
         share:
             The share of infected participants at the start.
 
-        seed:
+        random_state:
             The seed of the hypergraph and the infected participants.
 
         label:
@@ -203,7 +203,7 @@ class HypergraphExposureSisSystem(BaseSystem):
         exponent: float = 2.0,
         recovery: float = 0.05,
         share: float = 0.3,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -216,12 +216,12 @@ class HypergraphExposureSisSystem(BaseSystem):
         self.exponent = exponent
         self.recovery = recovery
         self.share = share
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         hypergraph = xgi.Hypergraph()
         hypergraph.add_nodes_from(range(self.n_nodes))
         for size in self.sizes:

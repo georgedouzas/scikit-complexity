@@ -167,7 +167,7 @@ def orbit_diagram(
 
 
 def _get_period(series: Array) -> int:
-    """Return the smallest shift after which a series repeats at least once in full, or 0 when none does."""
+    """Return the smallest shift after which a series repeats in full, or 0."""
     for shift in range(1, len(series) // 2 + 1):
         if np.array_equal(series[shift:], series[:-shift]):
             return shift

@@ -313,7 +313,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         connectivity:
             The probability of a fixed parenchymal link.
 
-        seed:
+        random_state:
             The seed of the fixed links, the pathological cells, and the initial phases and couplings.
 
         label:
@@ -352,7 +352,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         epsilon_p: float = 0.03,
         epsilon_s: float = 0.3,
         connectivity: float = 0.5,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -370,7 +370,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         self.epsilon_p = epsilon_p
         self.epsilon_s = epsilon_s
         self.connectivity = connectivity
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the two-layer model of tumour disease and sepsis.
@@ -380,7 +380,7 @@ class TwoLayerSepsisSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         n = self.n_cells
         parenchyma = nx.complete_graph(range(n), create_using=nx.DiGraph)
         parenchyma.add_nodes_from(range(n, 2 * n))

@@ -212,7 +212,7 @@ class EpisimsCitySystem(BaseSystem):
         closed:
             Whether the workplaces are closed.
 
-        seed:
+        random_state:
             The seed of the households, the workplaces, and the initial infections.
 
         label:
@@ -245,7 +245,7 @@ class EpisimsCitySystem(BaseSystem):
         gamma: float = 0.1,
         infected: int = 5,
         closed: bool = False,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -258,7 +258,7 @@ class EpisimsCitySystem(BaseSystem):
         self.gamma = gamma
         self.infected = infected
         self.closed = closed
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of a synthetic city in the spirit of EpiSims.
@@ -268,7 +268,7 @@ class EpisimsCitySystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         homes = rng.integers(0, max(1, round(self.people / self.household)), self.people)
         n_homes = int(homes.max()) + 1
         works = n_homes + rng.integers(0, max(1, round(self.people / self.workplace)), self.people)

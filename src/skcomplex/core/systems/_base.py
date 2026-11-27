@@ -243,7 +243,9 @@ class BaseSystem(BaseComponent[Sequence[Observable]]):
                 ones.
 
             random_state:
-                The seed or the generator of the random numbers of the run, or `None` for fresh entropy.
+                The seed or the generator of the random numbers of the run, or `None` for fresh entropy. It seeds the
+                dynamics only: what a ready-made system draws when prepared, such as its initial state or a random
+                network, comes from its own parameter `random_state`.
 
             observables:
                 The observables to record, or none for the tuned ones.

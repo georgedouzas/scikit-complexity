@@ -16,7 +16,9 @@ Non-goals: drawing initial states at run time inside the engine, and a general f
 ## Decisions
 
 1. **One seed name, two roles.** A system's `random_state` seeds what it draws when prepared. The run's
-   `random_state` seeds the dynamics. Defaults stay as they are, so no recorded output changes. This keeps the
+   `random_state` seeds the dynamics. Defaults and types stay as they are, so no recorded output changes. The rule is
+   stated once, in `simulate` and the guide, since every system docstring already says what its seed draws. A seed
+   that fixes a fitness landscape, next to a `random_state` of the initial population, becomes `landscape_seed`. This keeps the
    scikit-learn name and avoids moving initial draws of every system into the engine.
 2. **Ensembles vary the system seed.** When the system has a `random_state` parameter, `ensemble` clones it per
    replicate and sets that parameter to a seed spawned from the experiment's seed, next to the run seed. A replicate is

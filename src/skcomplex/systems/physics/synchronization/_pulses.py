@@ -219,7 +219,7 @@ class WinfreeSystem(BaseSystem):
         spread:
             The half width of the interval of natural frequencies around 1.
 
-        seed:
+        random_state:
             The seed of the initial phases.
 
         label:
@@ -250,7 +250,7 @@ class WinfreeSystem(BaseSystem):
         *,
         K: float = 0.5,
         spread: float = 0.1,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -259,7 +259,7 @@ class WinfreeSystem(BaseSystem):
         self.n_oscillators = n_oscillators
         self.K = K
         self.spread = spread
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of Winfree oscillators.
@@ -270,7 +270,7 @@ class WinfreeSystem(BaseSystem):
         """
         super()._prepare(context)
         values = {
-            'theta': np.random.default_rng(self.seed).uniform(0, 2 * np.pi, self.n_oscillators),
+            'theta': np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, self.n_oscillators),
             'omega': np.linspace(1 - self.spread, 1 + self.spread, self.n_oscillators),
         }
         self.system_ = System(
@@ -304,7 +304,7 @@ class MirolloStrogatzSystem(BaseSystem):
         epsilon:
             The strength of a pulse.
 
-        seed:
+        random_state:
             The seed of the initial charges.
 
         label:
@@ -335,7 +335,7 @@ class MirolloStrogatzSystem(BaseSystem):
         S: float = 2.0,
         gamma: float = 1.0,
         epsilon: float = 0.1,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -345,7 +345,7 @@ class MirolloStrogatzSystem(BaseSystem):
         self.S = S
         self.gamma = gamma
         self.epsilon = epsilon
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of integrate-and-fire oscillators coupled by pulses.
@@ -355,7 +355,7 @@ class MirolloStrogatzSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        charges = np.random.default_rng(self.seed).uniform(0.0, 1.0, self.n_oscillators)
+        charges = np.random.default_rng(self.random_state).uniform(0.0, 1.0, self.n_oscillators)
         self.system_ = System(
             self.label,
             elements=[IntegrateAndFireOscillatorElement('oscillators', x=charges, size=self.n_oscillators)],

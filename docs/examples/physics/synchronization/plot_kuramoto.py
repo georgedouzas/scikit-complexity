@@ -18,7 +18,7 @@ from skcomplex.systems.physics.synchronization import KuramotoSystem
 
 SYSTEM = 'kuramoto'
 
-system = KuramotoSystem(n_oscillators=50, K=4.0, sigma=1.0, seed=0)
+system = KuramotoSystem(n_oscillators=50, K=4.0, sigma=1.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = system.prepare().simulate(until=30, dt=0.2, observers=[observer])
 
@@ -32,7 +32,7 @@ trajectory = system.prepare().simulate(until=30, dt=0.2, observers=[observer])
 couplings = np.linspace(0.0, 4.0, 17)
 order = []
 for coupling in couplings:
-    system_system = KuramotoSystem(n_oscillators=400, K=coupling, sigma=1.0, seed=1)
+    system_system = KuramotoSystem(n_oscillators=400, K=coupling, sigma=1.0, random_state=1)
     run = system_system.prepare().simulate(until=60, dt=0.2)
     order.append(np.mean(np.asarray(run.get_values('order'))[-100:]))
 fig, ax = plt.subplots(figsize=(6, 4))

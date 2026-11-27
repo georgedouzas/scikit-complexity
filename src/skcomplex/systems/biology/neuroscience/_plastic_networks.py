@@ -471,7 +471,7 @@ class STDPNetworkSystem(BaseSystem):
         kappa:
             The initial efficacy of every synapse.
 
-        seed:
+        random_state:
             The seed of the network, the excitabilities, and the initial phases.
 
         label:
@@ -507,7 +507,7 @@ class STDPNetworkSystem(BaseSystem):
         A_minus: float = 1.05,
         tau: float = 2.0,
         kappa: float = 0.5,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -522,7 +522,7 @@ class STDPNetworkSystem(BaseSystem):
         self.A_minus = A_minus
         self.tau = tau
         self.kappa = kappa
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of theta neurons on a random directed network.
@@ -532,7 +532,7 @@ class STDPNetworkSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
         neurons = TracedThetaNeuronElement(
@@ -594,7 +594,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         tau0:
             The baseline delay of every edge.
 
-        seed:
+        random_state:
             The seed of the frequencies and the initial phases.
 
         label:
@@ -628,7 +628,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         epsilon: float = 0.1,
         rho: float = 1.0,
         tau0: float = 3.0,
-        seed: int | None = 0,
+        random_state: int | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -641,7 +641,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.epsilon = epsilon
         self.rho = rho
         self.tau0 = tau0
-        self.seed = seed
+        self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of phase units coupled all to all through adaptive delays.
@@ -651,7 +651,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
                 The observables to compile with the problem, or `None` for none.
         """
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         phases, frequencies = rng.uniform(0, 2 * np.pi, self.n_units), rng.normal(self.omega, self.spread, self.n_units)
         units = [
             PhaseUnitElement(f'unit_{index}', theta=float(phases[index]), omega=float(frequencies[index]))

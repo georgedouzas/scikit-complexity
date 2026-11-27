@@ -18,7 +18,7 @@ from skcomplex.systems.physics.synchronization import KuramotoOnNetworksSystem
 
 SYSTEM = 'kuramoto_on_networks'
 
-system = KuramotoOnNetworksSystem(n_oscillators=200, K=3.0, sigma=0.5, seed=0)
+system = KuramotoOnNetworksSystem(n_oscillators=200, K=3.0, sigma=0.5, random_state=0)
 observables = KuramotoOnNetworksSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 trajectory = system.prepare().simulate(until=30, observers=[observer], observables=observables)
@@ -36,7 +36,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for network in ('erdos_renyi', 'watts_strogatz'):
     order = []
     for coupling in couplings:
-        system_system = KuramotoOnNetworksSystem(n_oscillators=200, network=network, K=coupling, sigma=0.5, seed=1)
+        system_system = KuramotoOnNetworksSystem(n_oscillators=200, network=network, K=coupling, sigma=0.5, random_state=1)
         run = system_system.prepare().simulate(dt=0.5)
         order.append(np.mean(np.asarray(run.get_values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=network.replace('_', '-'))

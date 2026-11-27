@@ -22,7 +22,7 @@ def test_cells_split_among_three_fates_until_a_signal_removes_two():
 def test_lateral_inhibition_leaves_spaced_neural_cells():
     """Test that the ring ends with binary fates and neural cells at least four cell diameters apart."""
     for seed in range(3):
-        states = _run_until(BristleLateralInhibitionSystem(seed=seed), 60, dt=1.0).get_values('cells.a')[-1]
+        states = _run_until(BristleLateralInhibitionSystem(random_state=seed), 60, dt=1.0).get_values('cells.a')[-1]
         assert np.all((states < 0.05) | (states > 0.95))
         neural = np.flatnonzero(states > 0.5)
         assert np.diff(np.r_[neural, neural[0] + states.size]).min() >= 4

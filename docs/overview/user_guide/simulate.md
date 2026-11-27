@@ -248,6 +248,10 @@ random events in continuous time. The `random_state` fixes its random numbers. T
 hares, 30, 41, 58, 78, 44, and 9, and the seed 1 gives another path, 30, 49, 64, 48, 35, and 43. A run without a
 `random_state` draws a fresh path each time.
 
+A ready-made system can draw values of its own when it is prepared, such as the initial headings of a flock or a
+random network. Its parameter `random_state`, as in `VicsekSystem(random_state=4)`, seeds those draws, while the
+`random_state` of `simulate` seeds the run. A run repeats exactly when both are fixed.
+
 A random run answers a question the equations cannot, such as how often the lynx die out within ten years.
 
 ```python continuation

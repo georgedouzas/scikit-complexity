@@ -263,7 +263,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         share:
             The share of cooperators at the start.
 
-        seed:
+        random_state:
             The seed of the hypergraph and the initial strategies.
 
         label:
@@ -296,7 +296,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         synergy: float = 4.0,
         noise: float = 0.5,
         share: float = 0.5,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -308,7 +308,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
         self.synergy = synergy
         self.noise = noise
         self.share = share
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_hypergraph(
@@ -331,7 +331,7 @@ class HypergraphPublicGoodsSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         hypergraph = self._get_hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
         graph = xgi.to_graph(hypergraph)
         strategies = (rng.random(self.n_nodes) < self.share).astype(float)
@@ -406,7 +406,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         share:
             The share of cooperators at the start.
 
-        seed:
+        random_state:
             The seed of the network, the 2-simplices, and the initial strategies.
 
         label:
@@ -443,7 +443,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         temptation_opposed: float | None = None,
         noise: float = 0.1,
         share: float = 0.5,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -459,7 +459,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
         self.temptation_opposed = temptation_opposed
         self.noise = noise
         self.share = share
-        self.seed = seed
+        self.random_state = random_state
 
     @staticmethod
     def _get_triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
@@ -480,7 +480,7 @@ class SimplicialSocialDilemmasSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to the components built from the model parameters."""
         super()._prepare(context)
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         graph, triangles = self._get_triangle_attachment(self.n_nodes, rng)
         filled = rng.random(len(triangles)) < self.simplices
         hyperedges: list[tuple[int, ...]] = []

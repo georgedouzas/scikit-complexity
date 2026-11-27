@@ -42,10 +42,12 @@ def ensemble(
     """Return the runs of a system with independent random streams.
 
     It runs a random system `replicates` times, each with its own random stream spawned from `random_state`, so the runs
-    are independent and repeatable, and the result reads them as one row per run. Only the streams change, so the system
-    is prepared once. A system with no randomness and a solver that draws nothing gives the same run every time and
-    raises an error. It estimates the spread of the outcomes of an epidemic, of a weather forecast, and of the wealth of
-    traders in a market.
+    are independent and repeatable, and the result reads them as one row per run. A system with the parameter
+    `random_state`, which seeds what it draws when prepared such as its initial state, also gets a seed per run spawned
+    from the same stream, so the runs start apart and the column `random_state` holds it. Other systems are prepared
+    once, since only the streams change. A system with no randomness and a solver that draws nothing gives the same run
+    every time and raises an error. It estimates the spread of the outcomes of an epidemic, of a weather forecast, and
+    of the wealth of traders in a market.
 
     Read more in the user guide, under Run experiments.
 
@@ -136,4 +138,5 @@ def ensemble(
         observables=observables,
         random_state=random_state,
         executor=executor,
+        reseeded='random_state' in built.get_params(deep=False),
     )

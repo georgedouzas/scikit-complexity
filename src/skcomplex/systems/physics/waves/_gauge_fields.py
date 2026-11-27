@@ -221,7 +221,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         amplitude:
             The amplitude of the initial transverse wave, with Hamiltonian dynamics.
 
-        seed:
+        random_state:
             The seed of the initial link angles.
 
         label:
@@ -307,7 +307,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         charges: Sequence[float] | None = None,
         angles: Sequence[float] | None = None,
         amplitude: float = 0.1,
-        seed: int = 0,
+        random_state: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -321,7 +321,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
         self.charges = charges
         self.angles = angles
         self.amplitude = amplitude
-        self.seed = seed
+        self.random_state = random_state
 
     def _get_maxwell_system(self, space: CellComplexSpace) -> System:
         """Return a lattice Maxwell field on the links.
@@ -353,7 +353,7 @@ class LatticeGaugeFieldsSystem(BaseSystem):
 
     def _get_monte_carlo_system(self, space: CellComplexSpace) -> System:
         """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
-        rng = np.random.default_rng(self.seed)
+        rng = np.random.default_rng(self.random_state)
         size = space.incidences_[0].shape[0]
         values = () if self.n is None else tuple(2 * np.pi * np.arange(self.n) / self.n)
         drawn = rng.uniform(-np.pi, np.pi, size) if self.n is None else rng.choice(values, size)

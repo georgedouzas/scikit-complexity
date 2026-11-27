@@ -40,7 +40,7 @@ def test_hypergraph_random_walk_drift_follows_the_master_equation(backend):
 
 def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
     """Test that the probability keeps its sum and settles on the weights of the hyperedges of every node."""
-    system = HypergraphRandomWalkSystem(seed=0).prepare().system_
+    system = HypergraphRandomWalkSystem(random_state=0).prepare().system_
     trajectory = system.simulate(until=60.0, dt=1.0)
     probabilities = np.asarray(trajectory.get_values('nodes.p'))
     weights = np.asarray(system.elements[0].D)
