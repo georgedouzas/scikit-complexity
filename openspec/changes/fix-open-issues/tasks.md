@@ -44,4 +44,4 @@
 ## 7. Close
 
 - [x] 7.1 Run the fast checks (ruff, black, mypy, lint-imports, conventions) and the tests of the changed modules
-- [ ] 7.2 Close issues #23 to #32 with a comment naming the commit
+- [x] 7.2 Close issues #23 to #32 with a comment naming the commit
