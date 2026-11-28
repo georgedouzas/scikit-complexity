@@ -64,7 +64,9 @@ class ClustersResult:
             `'spanning'`.
 
         strength:
-            The share of all sites or nodes in the largest cluster, for `'percolation'` and for points.
+            The share of all sites or nodes in the largest cluster, occupied or not, for `'percolation'` and for
+            points. Dividing it by the occupation probability `p` gives the share of the occupied sites in the
+            largest cluster, such as the `F` of Charbonneau.
 
         mean_size:
             The mean size of the cluster of an occupied site outside the largest, `Σ' s² / Σ' s`, for `'percolation'`
@@ -125,8 +127,9 @@ def clusters(
         kind:
             What to return. `'labels'` gives the label of every cell, the size of every cluster in label order, and
             whether a cluster spans. `'sizes'` gives the sizes, largest first. `'percolation'` gives the sizes, the
-            share of the largest cluster, the mean size, and spanning. `'spanning'` gives the share of the grids of an
-            ensemble, stacked on the first axis, with a spanning cluster.
+            strength, the share of all sites in the largest cluster, the mean size, and spanning. The strength divided
+            by the occupation probability `p` is the share of the occupied sites in the largest cluster. `'spanning'`
+            gives the share of the grids of an ensemble, stacked on the first axis, with a spanning cluster.
 
         variables:
             The field of a trajectory to read, or `None` for its first field.
