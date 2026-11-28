@@ -7,6 +7,8 @@ import math
 from collections.abc import Sequence
 from types import SimpleNamespace
 
+import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 
 from ....core.components import Observable
@@ -65,11 +67,12 @@ class LogisticMapSystem(BaseSystem):
 
     The map reaches chaos through period doubling as `r` grows.
 
-    The system has the state `map.x` and the parameter `map.r`.
+    The system has the state `map.x` and the parameter `map.r`. An array of initial values gives an ensemble of
+    maps iterated together, with one entry of `map.x` per map.
 
     Args:
         x:
-            The initial value, between 0 and 1.
+            The initial value, between 0 and 1, or a one-dimensional array of initial values, one per map.
 
         r:
             The growth rate, between 0 and 4.
@@ -87,6 +90,9 @@ class LogisticMapSystem(BaseSystem):
         >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
         >>> LogisticMapSystem(r=3.2).prepare().simulate(until=2).get_values('map.x').round(3).tolist()
         [0.2, 0.512, 0.8]
+        >>> ensemble = LogisticMapSystem([0.2, 0.5], r=3.2).prepare().simulate(until=1)
+        >>> ensemble.get_values('map.x').round(3).tolist()
+        [[0.2, 0.5], [0.512, 0.8]]
     """
 
     field = 'mathematics/dynamical_systems'
@@ -97,7 +103,7 @@ class LogisticMapSystem(BaseSystem):
 
     def __init__(
         self,
-        x: float = 0.2,
+        x: npt.ArrayLike = 0.2,
         *,
         r: float = 3.7,
         label: str = 'system',
@@ -111,9 +117,10 @@ class LogisticMapSystem(BaseSystem):
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the map and its law."""
         super()._prepare(context)
+        size = None if np.ndim(self.x) == 0 else len(np.asarray(self.x))
         self.system_ = System(
             self.label,
-            elements=[Element('map', values={'x': self.x, 'r': self.r})],
+            elements=[Element('map', values={'x': self.x, 'r': self.r}, size=size)],
             interactions=[LogisticMapInteraction('logistic', target='map')],
         )
 

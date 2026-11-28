@@ -18,6 +18,7 @@ from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
@@ -151,10 +152,11 @@ class KestenFirmElement(Element):
 
 
 class GibratGrowthInteraction(Interaction):
-    """Growth of the sizes of firms by independent normal factors, `x = lambda x`.
+    """Growth of the sizes of firms by independent random factors, `x = lambda x`.
 
     Every step every firm first keeps its size as `previous`, and then multiplies it by a factor drawn from a normal
-    distribution of mean `mu` and deviation `sigma`, both values of the firm.
+    distribution of mean `mu` and deviation `sigma`, both values of the firm. With `factors`, the factor is drawn from
+    them instead, each with its weight, and `mu` and `sigma` are unused.
 
     Args:
         label:
@@ -163,18 +165,54 @@ class GibratGrowthInteraction(Interaction):
         target:
             The firms, with their sizes `x` and `previous` and their `mu` and `sigma`.
 
+        factors:
+            The values of a discrete law of the factor, or `None` for the normal law.
+
+        weights:
+            The probabilities of the factors, which sum to 1, or `None` for equal probabilities.
+
+    Raises:
+        ValidationError:
+            The weights come without factors, differ in number from them, are negative, or do not sum to 1.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import GibratGrowthInteraction
-        >>> GibratGrowthInteraction('growth').target
-        'firms'
+        >>> GibratGrowthInteraction('growth', factors=(1.5, 0.6)).factors
+        (1.5, 0.6)
     """
 
     law_classes = (UpdateLaw,)
     draws = True
 
-    def __init__(self, label: str, *, target: Role = 'firms') -> None:
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'firms',
+        factors: tuple[float, ...] | None = None,
+        weights: tuple[float, ...] | None = None,
+    ) -> None:
         super().__init__(label)
         self.target = target
+        self.factors = factors
+        self.weights = weights
+
+    def _check_arguments(self) -> None:
+        """Raise an error for weights that are no discrete law of the factors.
+
+        Raises:
+            ValidationError:
+                The weights come without factors, differ in number from them, are negative, or do not sum to 1.
+        """
+        if self.weights is None:
+            return
+        if self.factors is None or len(self.weights) != len(self.factors):
+            error_msg = f'The weights of {self.label!r} are {self.weights!r}. Give one weight per factor of `factors`.'
+            raise ValidationError(error_msg)
+        weights = np.asarray(self.weights, dtype=float)
+        if (weights < 0).any() or not np.isclose(weights.sum(), 1):
+            error_msg = f'The weights of {self.label!r} are {self.weights!r}. Give nonnegative weights that sum to 1.'
+            raise ValidationError(error_msg)
 
     def _prepare(self, context: SimpleNamespace) -> None:
         """Set the memory of the sizes and their growth as the rules of the system.
@@ -192,9 +230,13 @@ class GibratGrowthInteraction(Interaction):
             firm.previous = firm.x
 
     def _grow(self, system: SystemView) -> None:
-        """Multiply the size of every firm by a normal growth factor."""
+        """Multiply the size of every firm by a growth factor of the normal or the discrete law."""
         firms = cast(list[GibratFirmView], system.get_agents('target'))
-        sizes = [firm.x * float(system.rng.normal(firm.mu, firm.sigma)) for firm in firms]
+        if self.factors is None:
+            factors = [float(system.rng.normal(firm.mu, firm.sigma)) for firm in firms]
+        else:
+            factors = system.rng.choice(self.factors, size=len(firms), p=self.weights).tolist()
+        sizes = [firm.x * factor for firm, factor in zip(firms, factors, strict=True)]
         for firm, size in zip(firms, sizes, strict=True):
             firm.x = size
 
@@ -315,8 +357,10 @@ def _get_size_observables() -> list[Observable]:
 class GibratProcessSystem(BaseSystem):
     """Firms that grow by Gibrat's law of proportionate effect.
 
-    The law makes their sizes lognormal. The system has the group `firms`, the mean size `mean_size`, and the largest
-    size `max_size`.
+    The law makes their sizes lognormal. The growth factor is normal by default. With `factors`, it follows a discrete
+    law, such as the multiplicative gamble of the factors 1.5 and 0.6 with equal weights, whose mean size grows as
+    `1.05^t` while the median size shrinks as `0.9^(t/2)`. The system has the group `firms`, the mean size
+    `mean_size`, and the largest size `max_size`.
 
     Args:
         n_firms:
@@ -326,10 +370,16 @@ class GibratProcessSystem(BaseSystem):
             The initial size of every firm.
 
         mu:
-            The mean of the growth factor.
+            The mean of the normal growth factor, unused with `factors`.
 
         sigma:
-            The standard deviation of the growth factor.
+            The standard deviation of the normal growth factor, unused with `factors`.
+
+        factors:
+            The values of a discrete law of the growth factor, or `None` for the normal law.
+
+        weights:
+            The probabilities of the factors, which sum to 1, or `None` for equal probabilities.
 
         label:
             The label of the system, which names it when it is nested in another one.
@@ -340,10 +390,17 @@ class GibratProcessSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The weights come without factors, differ in number from them, are negative, or do not sum to 1.
+
     Examples:
         >>> from skcomplex.systems.economics.finance import GibratProcessSystem
         >>> GibratProcessSystem(10).prepare().system_.elements[0].size
         10
+        >>> gamble = GibratProcessSystem(3, x=1.0, factors=(1.5, 0.6)).prepare()
+        >>> sorted(set(gamble.simulate(1, random_state=0).get_values('firms.x')[-1].tolist()))
+        [0.6, 1.5]
     """
 
     field = 'economics/finance'
@@ -359,6 +416,8 @@ class GibratProcessSystem(BaseSystem):
         x: float = 100.0,
         mu: float = 1.02,
         sigma: float = 0.05,
+        factors: Sequence[float] | None = None,
+        weights: Sequence[float] | None = None,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -368,16 +427,20 @@ class GibratProcessSystem(BaseSystem):
         self.x = x
         self.mu = mu
         self.sigma = sigma
+        self.factors = factors
+        self.weights = weights
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the system of the components built from the model parameters."""
         super()._prepare(context)
         firms = GibratFirmElement('firms', x=self.x, previous=self.x, mu=self.mu, sigma=self.sigma, size=self.n_firms)
-        self.system_ = System(
-            self.label,
-            elements=[firms],
-            interactions=[GibratGrowthInteraction('growth', target='firms')],
+        growth = GibratGrowthInteraction(
+            'growth',
+            target='firms',
+            factors=None if self.factors is None else tuple(float(factor) for factor in self.factors),
+            weights=None if self.weights is None else tuple(float(weight) for weight in self.weights),
         )
+        self.system_ = System(self.label, elements=[firms], interactions=[growth])
 
 
 class MultiplicativeProcessSystem(BaseSystem):

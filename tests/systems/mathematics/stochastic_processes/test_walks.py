@@ -1,11 +1,13 @@
 """Test the `_walks` module of `skcomplex.systems.mathematics.stochastic_processes`."""
 
 import math
+import time
 
 import numpy as np
 import pytest
 from scipy import stats
 
+from skcomplex.core.errors import ValidationError
 from skcomplex.systems.mathematics.stochastic_processes import (
     AgeingRandomWalkSystem,
     PersistentRandomWalkSystem,
@@ -58,3 +60,42 @@ def test_random_walk_with_memory_follows_the_exact_displacement():
     """Test that the mean squared displacement matches the exact second moments of the walk."""
     positions = _final(RandomWalkWithMemorySystem(n_walkers=4000), 500).get_values('walkers.x')[-1]
     assert np.mean(positions**2) == pytest.approx(_memory_msd(500, 0.5, 1.0), rel=0.1)
+
+
+def test_discrete_random_walk_steps_once_per_unit_of_time():
+    """Test that discrete walkers move by one at every step and spread with variance `t`."""
+    positions = _run(RandomWalkSystem(2000, time='discrete', start=5), 100).get_values('walkers.x')
+    assert (np.abs(np.diff(positions, axis=0)) == 1).all()
+    assert positions[-1].mean() == pytest.approx(5, abs=1)
+    assert positions[-1].var() == pytest.approx(100, rel=0.1)
+
+
+def test_discrete_random_walk_gives_the_gamblers_ruin():
+    """Test that fair walkers from 3 absorbed at 0 or 10 reach 10 with probability 0.3 and then stay."""
+    walk = RandomWalkSystem(4000, time='discrete', start=3, absorbing=(0, 10))
+    positions = _run(walk, 500).get_values('walkers.x')
+    assert set(positions[-1].tolist()) == {0.0, 10.0}
+    assert (positions[-1] == 10).mean() == pytest.approx(0.3, abs=0.03)
+    assert ((positions[-2] == 10) <= (positions[-1] == 10)).all()
+
+
+def test_discrete_random_walk_reflects_at_a_floor():
+    """Test that walkers floored at 0 stay nonnegative and sit at 0 with the stationary share `1 - p / q`."""
+    positions = _run(RandomWalkSystem(4000, time='discrete', bias=0.4, floor=0), 300).get_values('walkers.x')
+    assert positions.min() == 0
+    assert (positions[-1] == 0).mean() == pytest.approx(1 - 0.4 / 0.6, abs=0.03)
+
+
+def test_discrete_random_walk_runs_many_long_paths_fast():
+    """Test that a thousand walkers over ten thousand steps run in seconds."""
+    start = time.perf_counter()
+    positions = _run(RandomWalkSystem(1000, time='discrete'), 10**4).get_values('walkers.x')
+    assert positions.shape == (10**4 + 1, 1000)
+    assert time.perf_counter() - start < 20
+
+
+@pytest.mark.parametrize('boundary', [{'absorbing': (0, 10)}, {'floor': 0}])
+def test_random_walk_boundaries_need_discrete_time(boundary):
+    """Test that absorbing ends or a floor in continuous time raise a validation error naming the discrete time."""
+    with pytest.raises(ValidationError, match="time='discrete'"):
+        RandomWalkSystem(**boundary).prepare()

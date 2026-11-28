@@ -19,11 +19,12 @@ from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction, RandomPartition
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.laws.utils import mean, where
+from ....core.components.laws.utils import mean, uniform, where
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ._random_pairs import NeighborhoodsInteraction
@@ -239,6 +240,48 @@ class DiscussionsInteraction(Interaction):
         self.laws_ = [UpdateLaw(context.member.opinion, majority)]
 
 
+class SampledDiscussionsInteraction(Interaction):
+    """Discussions of the Galam system in groups sampled with replacement.
+
+    Every citizen draws its own group of citizens uniformly with replacement, possibly itself, and adopts the majority
+    opinion of the group, drawn again at every step. Every draw holds opinion 1 with the share `p` of the group, so the
+    share of the next step is binomial around the mean-field recursion `R(p)`, such as `3 p^2 - 2 p^3` for groups of
+    three. A tie in a group of even size goes to opinion 0, the status quo.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of citizens.
+
+        size:
+            The number of citizens each citizen draws.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import SampledDiscussionsInteraction
+        >>> SampledDiscussionsInteraction('talks', target='citizens', size=5).size
+        5
+    """
+
+    def __init__(self, label: str, *, target: Role, size: int = 3) -> None:
+        super().__init__(label)
+        self.target = target
+        self.size = size
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the opinion of every citizen to 1 when most of its sampled group holds 1, and to 0 otherwise.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        share = mean(context.target.opinion, over=context.target)
+        votes = sum(where(uniform(f'pick_{index}') < share, 1, 0) for index in range(self.size))
+        self.laws_ = [UpdateLaw(context.target.opinion, where(votes > self.size / 2, 1, 0))]
+
+
 class SocialImpactInteraction(Interaction):
     """Synchronous update of the social impact system.
 
@@ -443,7 +486,10 @@ class SznajdSystem(BaseSystem):
 class GalamMajoritySystem(BaseSystem):
     """The Galam majority system.
 
-    Random groups adopt their majority until one opinion wins. The system has the group `citizens`.
+    Random groups adopt their majority until one opinion wins. With `groups='partition'`, the agents split into
+    disjoint groups at every step. With `groups='sample'`, every agent draws its own group with replacement, possibly
+    itself, so the number of agents with opinion 1 is binomial around the mean-field recursion. The system has the
+    group `citizens`.
 
     Args:
         n_agents:
@@ -451,6 +497,10 @@ class GalamMajoritySystem(BaseSystem):
 
         group_size:
             The number of agents in each discussion group.
+
+        groups:
+            How the groups form, `'partition'` for disjoint random groups or `'sample'` for a group per agent drawn
+            with replacement.
 
         share:
             The share of agents with opinion 1.
@@ -483,6 +533,7 @@ class GalamMajoritySystem(BaseSystem):
         n_agents: int = 300,
         *,
         group_size: int = 3,
+        groups: str = 'partition',
         share: float = 0.4,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
@@ -492,6 +543,7 @@ class GalamMajoritySystem(BaseSystem):
         super().__init__(label, solver=solver, backend=backend)
         self.n_agents = n_agents
         self.group_size = group_size
+        self.groups = groups
         self.share = share
         self.random_state = random_state
 
@@ -503,11 +555,21 @@ class GalamMajoritySystem(BaseSystem):
             opinion=SznajdSystem._get_shares(self.n_agents, self.share, self.random_state),
             size=self.n_agents,
         )
-        self.system_ = System(
-            self.label,
-            elements=[citizens],
-            interactions=[DiscussionsInteraction('talks', among='citizens', along=RandomPartition(self.group_size))],
-        )
+        self.system_ = System(self.label, elements=[citizens], interactions=[self._get_discussions()])
+
+    def _get_discussions(self) -> Interaction:
+        """Return the discussions of the groups the system forms.
+
+        Raises:
+            ValidationError:
+                The groups are neither `'partition'` nor `'sample'`.
+        """
+        if self.groups == 'partition':
+            return DiscussionsInteraction('talks', among='citizens', along=RandomPartition(self.group_size))
+        if self.groups == 'sample':
+            return SampledDiscussionsInteraction('talks', target='citizens', size=self.group_size)
+        error_msg = f"The groups of {self.label!r} are {self.groups!r}. Give 'partition' or 'sample'."
+        raise ValidationError(error_msg)
 
 
 class SocialImpactSystem(BaseSystem):
