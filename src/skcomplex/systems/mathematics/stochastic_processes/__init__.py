@@ -6,6 +6,8 @@ The package covers random walks, Markov sources, counting, urn, branching, and s
 from ._branching import (
     BranchingInteraction,
     GaltonWatsonSystem,
+    GenerationElement,
+    GenerationInteraction,
     IndividualElement,
 )
 from ._counting import (
@@ -55,6 +57,7 @@ from ._sources import (
 )
 from ._urns import (
     PolyaDrawInteraction,
+    PolyaStepInteraction,
     PolyaUrnElement,
     PolyaUrnSystem,
 )
@@ -93,6 +96,8 @@ __all__: list[str] = [
     'FragmentElement',
     'FragmentationSystem',
     'GaltonWatsonSystem',
+    'GenerationElement',
+    'GenerationInteraction',
     'HiddenMarkovSourceElement',
     'HiddenMarkovSourceSystem',
     'IndividualElement',
@@ -113,6 +118,7 @@ __all__: list[str] = [
     'PoissonEventsInteraction',
     'PoissonProcessSystem',
     'PolyaDrawInteraction',
+    'PolyaStepInteraction',
     'PolyaUrnElement',
     'PolyaUrnSystem',
     'QueueElement',
