@@ -14,9 +14,10 @@ Non-goals: new solvers beyond what the profile of #48 needs, and new analysis ki
 
 ## Decisions
 
-1. **Spectra from the backend Jacobian.** The tangent dynamics need the Jacobian of the drift. Below the symbolic
-   member limit it stays the Sage Jacobian. Above it, the spectrum uses the Jacobian the backend gives (JAX when
-   installed) or a finite difference Jacobian of the compiled drift. The initial state is read as the state vector of
+1. **Spectra from the backend Jacobian.** The tangent dynamics need the Jacobian of the drift. For small systems whose
+   laws apply no field operator it stays the Sage Jacobian. For larger groups, and for fields at any size, whose
+   expanded equations apply an operator to one site and so give a wrong Sage Jacobian, the spectrum uses JAX
+   derivatives when the system compiles with `JaxBackend` and central differences of the compiled drift otherwise. The initial state is read as the state vector of
    the problem, not by component names. The test checks the largest exponent of Kuramoto Sivashinsky at `L = 22` near
    0.04 with a loose tolerance and a short run.
 2. **Derivatives in dispersion.** A `partial` of order `k` along an axis becomes a multiplication by `(i q)^k` in the

@@ -1,8 +1,8 @@
 ## 1. Fields (#45, #46)
 
-- [ ] 1.1 Read the initial state of the tangent dynamics as a vector, and take the Jacobian from the backend or by
+- [x] 1.1 Read the initial state of the tangent dynamics as a vector, and take the Jacobian from the backend or by
       finite differences above the symbolic member limit, tested in the mirrored test of the Lyapunov module
-- [ ] 1.2 Linearise `partial` derivatives in the dispersion relation, tested in `tests/core/analysis/test_stability.py`
+- [x] 1.2 Linearise `partial` derivatives in the dispersion relation, tested in `tests/core/analysis/test_stability.py`
 
 ## 2. Defects (#47)
 
