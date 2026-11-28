@@ -128,8 +128,52 @@ Over 2000 steps of the drive on a grid of 20 by 20, the largest avalanche has th
 
 An `UpdateLaw` whose value is [`relax(state, rules, stable, drive=...)`](../core_components/laws.md#relax) separates
 the slow drive from the fast cascade. Every step applies the drive laws once, and the rules until `stable` holds. Each cascade is recorded
-among the events of the [trajectory](../glossary.md#trajectory) with its size, duration, and area. `activity` marks the
-sites that count as updates, such as the toppling sites of a sandpile.
+among the events of the [trajectory](../glossary.md#trajectory) with its size, duration, area, and profile, the number
+of active sites of every round, which sums to the size. `activity` marks the sites that count as updates, such as the
+toppling sites of a sandpile.
+
+The profiles give the shapes of the avalanches and the activity in fast time. `events(trajectory.events,
+kind='excursions')` returns the profiles as the shapes, which `crackling_noise` collapses, and
+`events(trajectory.events, kind='activity')` returns the activity of every round of every cascade, each cascade after
+one quiet round for the grain that starts it. A grain that starts no avalanche leaves no record, so it adds no round.
+
+```python
+from skcomplex.core.analysis import events, spectrum
+from skcomplex.systems.physics.criticality import SandpileSystem
+
+trajectory = SandpileSystem(shape=(20, 20)).prepare().simulate(until=2000, dt=100, random_state=0)
+activity = events(trajectory.events, kind='activity')
+power = spectrum(activity.values, segment_length=256)
+len(activity.values) == sum(event.duration + 1 for event in trajectory.events)
+```
+
+The series holds one round per toppling round and one per avalanche, and its power spectrum falls with the frequency.
+
+## Bursts of activity
+
+This section records bursts of activity that last many steps, such as the fires of a forest or the jams of a road. An
+`UpdateLaw` with an `activity`, an expression of the values of its member such as `where(cover == 2, 1, 0)` for a
+burning site, records every burst of activity connected in space and time as an event under the label of the law. The
+active sites that are nearest neighbours of the space at one step, or the same site or nearest neighbours at
+consecutive steps, belong to one event, which closes once none of its sites is active. Its size sums the activity, its
+duration counts the steps, its area counts the distinct sites, and its profile holds the activity of every step. An
+event still active when the run ends is left out. A fire from the corner of a full forest burns in diamonds.
+
+```python
+import numpy as np
+
+from skcomplex.systems.physics.criticality import ForestFireSystem
+
+cover = np.ones(100)
+cover[0] = 2
+forest = ForestFireSystem((10, 10), boundary='fixed', growth=0.0, lightning=0.0).prepare()
+(fire,) = forest.simulate(until=30, dt=1, initial_state={'forest.cover': cover}).events
+fire.size, fire.duration, fire.profile[:4]
+```
+
+The fire burns 100 trees in 19 steps, with the profile `1, 2, 3, 4, ...`. A member of no lattice or network connects
+only to itself, so its events are its runs of positive activity, such as the avalanches of the self-organised branching
+process.
 
 ## Monte Carlo
 

@@ -9,7 +9,7 @@
   `tests/core/analysis/test_events.py` with the two avalanche example
 - [x] 1.3 Test that `crackling_noise` collapses the shapes of sandpile avalanches in
   `tests/systems/physics/criticality/test_crackling_noise.py`
-- [ ] 1.4 Describe profiles and the activity series in the docstring of `relax` and in
+- [x] 1.4 Describe profiles and the activity series in the docstring of `relax` and in
   `docs/overview/user_guide/build_a_custom_system/lattice_systems.md`, and verify that the examples run
 
 ## 2. Spectrum segments (#78)
@@ -27,7 +27,7 @@
   and the two fires
 - [x] 3.3 Lower the activity in the compiler and call the recorder from the `LatticeSolver` and the `IterationSolver`
   after every step and on the initial state, and verify that the events reach `trajectory.events` in the same tests
-- [ ] 3.4 Document the activity in the docstring of `UpdateLaw` and in
+- [x] 3.4 Document the activity in the docstring of `UpdateLaw` and in
   `docs/overview/user_guide/build_a_custom_system/lattice_systems.md`, and verify that the examples run
 
 ## 4. Fires, jams and branching avalanches (#77)
@@ -50,7 +50,7 @@
   `skcomplex.systems.physics.criticality`
 - [x] 5.2 Test the three by three matrix, the inverse, the agreement with a simulated pile and the growth with the side
   in `tests/systems/physics/criticality/test_abelian_sandpile.py`
-- [ ] 5.3 Show the mean size against a simulated pile in `docs/examples/physics/criticality/plot_sandpile.py`, and
+- [x] 5.3 Show the mean size against a simulated pile in `docs/examples/physics/criticality/plot_sandpile.py`, and
   verify that the example runs
 
 ## 6. Random neighbours (#79)
