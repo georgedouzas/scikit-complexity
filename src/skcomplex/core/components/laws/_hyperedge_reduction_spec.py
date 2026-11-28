@@ -7,12 +7,10 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...base import BaseSpec
-
 
 @dataclass(frozen=True)
-class _HyperedgeReductionSpec(BaseSpec):
-    """A spec of a reduction over the hyperedges around every member.
+class _HyperedgeReductionSpec:
+    """A reduction over the hyperedges around every member.
 
     It holds its kind, argument, size, and the neighbourhood whose neighbours form the hyperedges.
 

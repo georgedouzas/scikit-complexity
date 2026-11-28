@@ -18,7 +18,6 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
 from sklearn.base import clone
 
-from ..base import BaseSpec
 from ..components import SubshiftSpec
 from ..components._parameter_spec import _ParameterSpec
 from ..components.interactions import BaseInteraction, Interaction
@@ -43,7 +42,6 @@ from ..systems import System
 from ..types import Indices, IntArray
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _get_system
-from ._composed_rule_spec import _ComposedRuleSpec
 from ._utils import load_module
 from .types import DataSource
 
@@ -261,7 +259,7 @@ class AutomatonResult:
 
 
 @dataclass(frozen=True)
-class _LocalRuleSpec(BaseSpec):
+class _LocalRule:
     """Local rule read from an interaction.
 
     It holds the label of the interaction, the path of the group it binds, the state it sets, the states it reads,
@@ -276,14 +274,14 @@ class _LocalRuleSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _AutomatonSpec(BaseSpec):
+class _Automaton:
     """Automaton read from a system.
 
     It holds its rule, law, state, space, number of sites and of values, and local map.
     """
 
     system: _CompositeSystem
-    rule: _LocalRuleSpec
+    rule: _LocalRule
     law: _LocalRuleLaw
     state: str
     space: BaseSpace
@@ -293,7 +291,7 @@ class _AutomatonSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _NetworkLawSpec(BaseSpec):
+class _NetworkLaw:
     """Update law of a finite network read from a system.
 
     It holds the label of its interaction, the columns of the values it sets and reads, and the function that maps
@@ -307,7 +305,7 @@ class _NetworkLawSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _NetworkSpec(BaseSpec):
+class _Network:
     """Finite network read from a system.
 
     It holds the system, the number of values a state takes, the number of values of a configuration, and the update
@@ -317,7 +315,31 @@ class _NetworkSpec(BaseSpec):
     system: _CompositeSystem
     states: int
     size: int
-    laws: tuple[_NetworkLawSpec, ...]
+    laws: tuple[_NetworkLaw, ...]
+
+
+@dataclass(frozen=True)
+class _ComposedRule:
+    """Rule of the composition of two automata, on the composite neighbourhood.
+
+    Args:
+        first:
+            The local map of the automaton applied first.
+
+        second:
+            The local map of the automaton applied second.
+
+        columns:
+            For every cell the second rule reads, the cells of the composite neighbourhood the first rule reads there.
+
+        states:
+            The number of states of both automata.
+    """
+
+    first: IntArray
+    second: IntArray
+    columns: tuple[tuple[int, ...], ...]
+    states: int
 
 
 def automaton(
@@ -519,7 +541,7 @@ def automaton(
 
 
 def _decide(
-    automaton: _AutomatonSpec,
+    automaton: _Automaton,
     kind: str,
     *,
     method: str,
@@ -545,7 +567,7 @@ def _decide(
 
 
 def _run_pair(
-    automaton: _AutomatonSpec,
+    automaton: _Automaton,
     kind: str,
     system: System,
     *,
@@ -572,7 +594,7 @@ def _run_pair(
 
 
 def _measure(
-    automaton: _AutomatonSpec,
+    automaton: _Automaton,
     kind: str,
     system: System,
     *,
@@ -678,7 +700,7 @@ def _get_second(source: DataSource) -> _CompositeSystem:
     return declared
 
 
-def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _LocalRuleSpec | None:
+def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _LocalRule | None:
     """Return the local rule an interaction states, or `None` without one.
 
     An interaction that sets its laws in `_prepare`, such as one that sets
@@ -703,7 +725,7 @@ def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _
         return None
     path = next(path for path, states in roles.values() if str(law._get_targets()[0]) in vars(states))
     targets = tuple(map(str, law._get_targets()))
-    return _LocalRuleSpec(
+    return _LocalRule(
         interaction.label,
         target=path,
         state=targets[0] if len(targets) == 1 else targets,
@@ -712,7 +734,7 @@ def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _
     )
 
 
-def _find_rule(system: _CompositeSystem) -> _LocalRuleSpec | None:
+def _find_rule(system: _CompositeSystem) -> _LocalRule | None:
     """Return the local rule of a system.
 
     The result is `None` without one, and an error is raised for several.
@@ -743,7 +765,7 @@ def _find_subshift(system: _CompositeSystem) -> tuple[_GroupElement, SubshiftSpe
     return None
 
 
-def _get_rule_source(rule: _LocalRuleSpec | None) -> str | None:
+def _get_rule_source(rule: _LocalRule | None) -> str | None:
     """Return what a local rule makes of its system.
 
     It is a linear automaton or an automaton, or `None` without one.
@@ -773,7 +795,7 @@ def _get_states(domain: object, rule: object) -> int | None:
     return rule.states if isinstance(rule, TotalisticSpec | OuterTotalisticSpec) else None
 
 
-def _read_automaton(system: _CompositeSystem, rule: _LocalRuleSpec) -> _AutomatonSpec:
+def _read_automaton(system: _CompositeSystem, rule: _LocalRule) -> _Automaton:
     """Return the law, space, size, number of states, and local map of an automaton.
 
     The automaton is that of a system.
@@ -797,11 +819,11 @@ def _read_automaton(system: _CompositeSystem, rule: _LocalRuleSpec) -> _Automato
     law._check()
     space = _get_space(system, element)
     states = _get_states(element.get_states()[rule.state].domain, law._get_rule())
-    read = _AutomatonSpec(system, rule, law, rule.state, space, int(space.size_ or 0), states)
+    read = _Automaton(system, rule, law, rule.state, space, int(space.size_ or 0), states)
     return replace(read, local_map=_get_local_map(read))
 
 
-def _get_local_map(automaton: _AutomatonSpec) -> IntArray:
+def _get_local_map(automaton: _Automaton) -> IntArray:
     """Return the next value of every pattern of the cells the rule reads.
 
     The values are indexed by the code of the pattern.
@@ -829,7 +851,7 @@ def _get_local_map(automaton: _AutomatonSpec) -> IntArray:
     return values.astype(np.int64)
 
 
-def _get_table(automaton: _AutomatonSpec, space: BaseSpace) -> Indices:
+def _get_table(automaton: _Automaton, space: BaseSpace) -> Indices:
     """Return the site of every cell the rule reads at every site of a space.
 
     The table includes the sites outside it.
@@ -837,7 +859,7 @@ def _get_table(automaton: _AutomatonSpec, space: BaseSpace) -> Indices:
     return _fitted(space)._get_index_table(automaton.law._get_neighborhood(_fitted(space)))
 
 
-def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
+def _step(automaton: _Automaton, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
     """Return the image of a configuration by one run of the law.
 
     It also takes one configuration per row.
@@ -846,7 +868,7 @@ def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSp
     return np.asarray(automaton.law._get_value(inputs), dtype=np.int64)
 
 
-def _get_states_count(automaton: _AutomatonSpec) -> int:
+def _get_states_count(automaton: _Automaton) -> int:
     """Return the number of values of a cell of an automaton of a rule."""
     return int(automaton.states or 0)
 
@@ -906,7 +928,7 @@ def _check_method(method: str, enumerable: bool) -> bool:
 
 
 def _rule_clauses(
-    automaton: _AutomatonSpec,
+    automaton: _Automaton,
     clauses: _Clauses,
     cells: npt.NDArray[np.int64],
     sites: Sequence[int],
@@ -943,7 +965,7 @@ def _decode(system: list[int], variables: npt.NDArray[np.int64]) -> IntArray:
     )
 
 
-def _collision(automaton: _AutomatonSpec, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
+def _collision(automaton: _Automaton, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
     """Return two distinct configurations with the same image, by SAT.
 
     They differ inside a window and agree outside it.
@@ -971,7 +993,7 @@ def _collision(automaton: _AutomatonSpec, window: Sequence[int]) -> tuple[IntArr
     return None if system is None else (_decode(system, first), _decode(system, second))
 
 
-def _preimage(automaton: _AutomatonSpec, target: IntArray, window: Sequence[int]) -> IntArray | None:
+def _preimage(automaton: _Automaton, target: IntArray, window: Sequence[int]) -> IntArray | None:
     """Return a configuration whose image equals a target on a window, by SAT.
 
     The result is `None` when there is none.
@@ -991,14 +1013,14 @@ def _preimage(automaton: _AutomatonSpec, target: IntArray, window: Sequence[int]
     return None if system is None else _decode(system, cells)
 
 
-def _images(automaton: _AutomatonSpec) -> tuple[IntArray, IntArray]:
+def _images(automaton: _Automaton) -> tuple[IntArray, IntArray]:
     """Return every configuration and the code of its image."""
     states = _get_states_count(automaton)
     configurations = _configurations(states, automaton.size)
     return configurations, _codes(_step(automaton, configurations), states)
 
 
-def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> BaseNeighborhood:
+def _ball_neighborhood(automaton: _Automaton, radius: int) -> BaseNeighborhood:
     """Return the neighbourhood of every cell within a radius.
 
     It has fixed slots, such as a box of offsets or a ball of group elements.
@@ -1014,12 +1036,12 @@ def _ball_neighborhood(automaton: _AutomatonSpec, radius: int) -> BaseNeighborho
     return ball
 
 
-def _is_enumerable(automaton: _AutomatonSpec) -> bool:
+def _is_enumerable(automaton: _Automaton) -> bool:
     """Check whether the configurations of the automaton are few enough to enumerate."""
     return _get_states_count(automaton) ** automaton.size <= MAX_CONFIGURATIONS
 
 
-def _is_injective(automaton: _AutomatonSpec, *, method: str = 'auto') -> bool:
+def _is_injective(automaton: _Automaton, *, method: str = 'auto') -> bool:
     """Check whether two different configurations never have the same image."""
     if _check_method(method, _is_enumerable(automaton)):
         _, codes = _images(automaton)
@@ -1027,7 +1049,7 @@ def _is_injective(automaton: _AutomatonSpec, *, method: str = 'auto') -> bool:
     return _collision(automaton, range(automaton.size)) is None
 
 
-def _is_pre_injective(automaton: _AutomatonSpec, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
+def _is_pre_injective(automaton: _Automaton, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
     """Check whether configurations that differ inside a window never share an image."""
     sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
     if not _check_method(method, _is_enumerable(automaton)):
@@ -1040,7 +1062,7 @@ def _is_pre_injective(automaton: _AutomatonSpec, window: Sequence[int] | None = 
 
 
 def _garden_of_eden(
-    automaton: _AutomatonSpec,
+    automaton: _Automaton,
     window: Sequence[int] | None = None,
     *,
     tries: int = 200,
@@ -1062,7 +1084,7 @@ def _garden_of_eden(
 
 
 def _get_rule_system(
-    automaton: _AutomatonSpec,
+    automaton: _Automaton,
     system: System,
     neighborhood: BaseNeighborhood,
     rule: object,
@@ -1093,7 +1115,7 @@ def _get_local_rule_laws(
     return [UpdateLaw(getattr(s.target, state), rule, neighborhood=neighborhood)]
 
 
-def _inverse(automaton: _AutomatonSpec, system: System, max_radius: int = 2) -> System | None:
+def _inverse(automaton: _Automaton, system: System, max_radius: int = 2) -> System | None:
     """Return the `System` of the inverse of a reversible automaton.
 
     It holds the elements of the system. Its composition with the automaton is the identity, and it is `None` when
@@ -1119,7 +1141,7 @@ def _inverse(automaton: _AutomatonSpec, system: System, max_radius: int = 2) -> 
     return None
 
 
-def _get_reach(automaton: _AutomatonSpec) -> BaseNeighborhood:
+def _get_reach(automaton: _Automaton) -> BaseNeighborhood:
     """Return the neighbourhood the rule of the automaton reads.
 
     It has fixed slots, such as offsets or group elements.
@@ -1131,7 +1153,7 @@ def _get_reach(automaton: _AutomatonSpec) -> BaseNeighborhood:
     return reach
 
 
-def _compose(automaton: _AutomatonSpec, second: _CompositeSystem, system: System) -> System:
+def _compose(automaton: _Automaton, second: _CompositeSystem, system: System) -> System:
     """Return the `System` of the automaton that applies this one then a second one.
 
     It holds the elements of the system, and both automata act on the same space.
@@ -1156,11 +1178,11 @@ def _compose(automaton: _AutomatonSpec, second: _CompositeSystem, system: System
             row.append(composite.index(item))
         columns.append(tuple(row))
     reach = inner._get_from_slots(composite)
-    composed = _ComposedRuleSpec(automaton.local_map, other.local_map, tuple(columns), _get_states_count(automaton))
+    composed = _ComposedRule(automaton.local_map, other.local_map, tuple(columns), _get_states_count(automaton))
     return _get_rule_system(automaton, system, reach, functools.partial(_composed_rule, composed), 'composition')
 
 
-def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike, **kwargs: object) -> IntArray:
+def _composed_rule(composed: _ComposedRule, *values: npt.ArrayLike, **kwargs: object) -> IntArray:
     """Return the value of the second rule of a composition on the first rule's values.
 
     The values of the first rule are those around every cell.
@@ -1192,7 +1214,7 @@ def _difference_pattern(
 
 
 def _run_network(
-    network: _NetworkSpec,
+    network: _Network,
     kind: str,
     *,
     configuration: npt.ArrayLike | None,
@@ -1293,7 +1315,7 @@ def _get_digits(codes: IntArray, states: int, size: int) -> IntArray:
     return (codes[:, None] // states ** np.arange(size - 1, -1, -1, dtype=np.int64)) % states
 
 
-def _get_network_images(network: _NetworkSpec, values: IntArray) -> IntArray:
+def _get_network_images(network: _Network, values: IntArray) -> IntArray:
     """Return the image of every row of values of a finite network.
 
     It is one synchronous step of its laws.
@@ -1318,7 +1340,7 @@ def _get_network_images(network: _NetworkSpec, values: IntArray) -> IntArray:
     return images
 
 
-def _read_network(system: _CompositeSystem) -> _NetworkSpec:
+def _read_network(system: _CompositeSystem) -> _Network:
     """Return the finite network of a system.
 
     It holds the number of values of a state, the number of values of a configuration, and the update laws. Every
@@ -1354,7 +1376,7 @@ def _read_network(system: _CompositeSystem) -> _NetworkSpec:
         for interaction in system.interactions
         for law in clone(interaction).prepare(_get_namespace(interaction, namespaces)).laws_
     ]
-    return _NetworkSpec(system, states, sum(item.size for item in columns.values()), tuple(laws))
+    return _Network(system, states, sum(item.size for item in columns.values()), tuple(laws))
 
 
 def _get_parameters(element: object) -> dict[str, object]:
@@ -1399,7 +1421,7 @@ def _get_namespace(interaction: BaseInteraction, namespaces: dict[str, SimpleNam
     return SimpleNamespace(**parameters, **bound, t=SR.var('t'))
 
 
-def _read_network_law(label: str, law: BaseLaw, columns: dict[str, IntArray], states: int) -> _NetworkLawSpec:
+def _read_network_law(label: str, law: BaseLaw, columns: dict[str, IntArray], states: int) -> _NetworkLaw:
     """Return the values an update law of a finite network sets and reads.
 
     It comes with the function from the values it reads to those it sets.
@@ -1428,10 +1450,10 @@ def _read_network_law(label: str, law: BaseLaw, columns: dict[str, IntArray], st
         error_msg = f'The update of {label!r} gives no number for some values: {error}'
         raise AnalysisError(error_msg) from error
     reads_columns = np.concatenate([np.empty(0, dtype=np.int64), *reads])
-    return _NetworkLawSpec(label, target, reads_columns, functools.partial(_get_table_values, table, states))
+    return _NetworkLaw(label, target, reads_columns, functools.partial(_get_table_values, table, states))
 
 
-def _read_call(label: str, call: CallSpec, target: IntArray, columns: dict[str, IntArray]) -> _NetworkLawSpec:
+def _read_call(label: str, call: CallSpec, target: IntArray, columns: dict[str, IntArray]) -> _NetworkLaw:
     """Return the values a call of a finite network sets and reads.
 
     It comes with the function from the values it reads to those it sets.
@@ -1455,7 +1477,7 @@ def _read_call(label: str, call: CallSpec, target: IntArray, columns: dict[str, 
         else:
             slots.append(None)
     reads_columns = np.concatenate([np.empty(0, dtype=np.int64), *reads])
-    return _NetworkLawSpec(label, target, reads_columns, functools.partial(_get_call_values, call, tuple(slots)))
+    return _NetworkLaw(label, target, reads_columns, functools.partial(_get_call_values, call, tuple(slots)))
 
 
 def _get_table_values(table: npt.NDArray[np.float64], states: int, values: IntArray) -> npt.NDArray[np.float64]:
@@ -1476,7 +1498,7 @@ def _get_call_values(call: CallSpec, slots: tuple[slice | None, ...], values: In
     return function(0.0, *arguments)
 
 
-def _get_window_entropy(automaton: _AutomatonSpec, window: BaseSpace) -> float:
+def _get_window_entropy(automaton: _Automaton, window: BaseSpace) -> float:
     """Return the entropy `log |X_F| / |F|` of the image of the automaton on a window."""
     states = _get_states_count(automaton)
     interior = np.flatnonzero((_get_table(automaton, window) < _size_of(window)).all(axis=1))
@@ -1485,7 +1507,7 @@ def _get_window_entropy(automaton: _AutomatonSpec, window: BaseSpace) -> float:
     return float(np.log(count) / max(interior.size, 1))
 
 
-def _get_linear_rule(automaton: _AutomatonSpec) -> LinearRuleSpec:
+def _get_linear_rule(automaton: _Automaton) -> LinearRuleSpec:
     """Return the linear rule of the automaton, or raise an error for any other rule."""
     rule = automaton.law._get_rule()
     if not isinstance(rule, LinearRuleSpec):
@@ -1494,7 +1516,7 @@ def _get_linear_rule(automaton: _AutomatonSpec) -> LinearRuleSpec:
     return rule
 
 
-def _get_matrix(automaton: _AutomatonSpec) -> Matrix:
+def _get_matrix(automaton: _Automaton) -> Matrix:
     """Return the matrix of a linear automaton over its field.
 
     Its row `g` gives the image at `g`.
@@ -1512,7 +1534,7 @@ def _get_matrix(automaton: _AutomatonSpec) -> Matrix:
     return entries
 
 
-def _get_polynomial(automaton: _AutomatonSpec) -> LaurentPolynomial:
+def _get_polynomial(automaton: _Automaton) -> LaurentPolynomial:
     """Return the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice.
 
     It is its symbol on `Z^d`.
@@ -1532,7 +1554,7 @@ def _get_polynomial(automaton: _AutomatonSpec) -> LaurentPolynomial:
     return sum(terms, ring.zero())
 
 
-def _linear_injective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
+def _linear_injective(automaton: _Automaton, *, infinite: bool) -> bool:
     """Check whether a linear automaton is invertible.
 
     It is when its matrix on its universe is, or when its symbol on `Z^d` is a monomial.
@@ -1542,7 +1564,7 @@ def _linear_injective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
     return bool(_get_matrix(automaton).is_invertible())
 
 
-def _linear_surjective(automaton: _AutomatonSpec, *, infinite: bool) -> bool:
+def _linear_surjective(automaton: _Automaton, *, infinite: bool) -> bool:
     """Check whether a linear automaton is surjective.
 
     It is when it is invertible on its universe, or when its symbol on `Z^d` is not zero.

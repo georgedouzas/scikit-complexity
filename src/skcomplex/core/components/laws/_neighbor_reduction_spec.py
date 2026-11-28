@@ -7,12 +7,10 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...base import BaseSpec
-
 
 @dataclass(frozen=True)
-class _NeighborReductionSpec(BaseSpec):
-    """A spec of a reduction over neighbours found in an expression.
+class _NeighborReductionSpec:
+    """A reduction over neighbours found in an expression.
 
     It holds its kind, argument, weight, and neighbourhood.
 

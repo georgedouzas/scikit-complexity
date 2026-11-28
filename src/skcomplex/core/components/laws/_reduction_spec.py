@@ -8,13 +8,12 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ...base import BaseSpec
 from ...types import AnyArray
 
 
 @dataclass(frozen=True)
-class _ReductionSpec(BaseSpec):
-    """A spec of a reduction call found in an expression.
+class _ReductionSpec:
+    """A reduction call found in an expression.
 
     It holds its kind, argument, condition, weights, and group.
 

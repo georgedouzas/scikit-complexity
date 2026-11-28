@@ -16,10 +16,9 @@ from ....core.errors import RewritingError
 from . import _patch
 from ._affine_spec import AffineSpec
 from ._base_structure_spec import BaseStructureSpec
-from ._parameters_spec import _ParametersSpec
 from ._patch_structure_spec import PatchStructureSpec
 from ._substitution import SubstitutionLaw
-from ._word_kernel import IDENTIFIER
+from ._word_kernel import IDENTIFIER, _Parameters
 
 
 class PatchKernel(BaseKernel):
@@ -58,7 +57,7 @@ class PatchKernel(BaseKernel):
         path: str,
         patch: _patch.PatchElement,
         substitutions: Sequence[SubstitutionLaw],
-        parameters: _ParametersSpec,
+        parameters: _Parameters,
     ) -> None:
         self.path = path
         self.patch = patch

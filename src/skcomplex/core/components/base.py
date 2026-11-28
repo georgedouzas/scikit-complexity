@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import NoneType, UnionType
@@ -16,6 +17,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 
 from ..base import _BaseEstimator
+from ..enums import SymmetryKind
 from ..errors import ValidationError
 from ..types import Role
 from ._declared_variable_spec import _DeclaredVariableSpec
@@ -27,6 +29,7 @@ from ._tensor_spec import TENSOR_DIMENSIONS
 
 MATRIX_AXES = 2
 ROLE_CONTAINERS = (tuple, list, Sequence, Mapping, dict)
+STATE_ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
 
 
 class BaseComponent[ContextT](_BaseEstimator[ContextT]):
@@ -337,10 +340,123 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
         self._check_specs()
 
     def _check_specs(self) -> None:
-        """Raise an error for a label or a declared spec that is invalid."""
+        """Raise an error for a label or a declared spec that is invalid.
+
+        Raises:
+            ValidationError:
+                The label is invalid, a variable declared from data is no state, parameter, or role, or the spec of a
+                state, a parameter, or a role is invalid.
+        """
         self._check_label()
-        for spec in [*self._get_specs().values(), *self._get_declared().values()]:
-            spec._check()
+        declared = self._get_declared().values()
+        for item in declared:
+            if not isinstance(item.spec, _StateSpec | _ParameterSpec | RoleSpec):
+                error_msg = f'A declared variable is a state, a parameter, or a role, but its spec is {item.spec!r}.'
+                raise ValidationError(error_msg)
+        for spec in [*self._get_specs().values(), *(item.spec for item in declared)]:
+            if isinstance(spec, _StateSpec):
+                self._check_state(spec)
+            elif isinstance(spec, _ParameterSpec):
+                self._check_parameter(spec)
+            else:
+                spec._check()
+
+    @staticmethod
+    def _check_state_group(spec: _StateSpec) -> None:
+        """Raise an error for a matrix group state that is not a plain state.
+
+        A matrix group state cannot also be a vector, a tensor, or of another order or with lags.
+        """
+        if spec.group is not None and (spec.vector or spec.tensor is not None or spec.order != 1 or spec.lags):
+            error_msg = (
+                f'A state of the group {spec.group.name}({spec.group.degree}) holds its matrices alone. Remove '
+                '`vector`, `tensor`, `order`, and `lags`.'
+            )
+            raise ValidationError(error_msg)
+
+    @staticmethod
+    def _check_state(spec: _StateSpec) -> None:
+        """Raise an error for a state with bad order, lags, initial values, or reference.
+
+        The reference of a state must be scalar.
+
+        Args:
+            spec:
+                The state to check.
+
+        Raises:
+            ValidationError:
+                The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
+                naming a member of a group is not a scalar of order 1 without lags, or the tensor symmetry is unknown or
+                given together with a vector, or an algebraic state has an order other than 1 or lags, or a matrix
+                group state is also a vector, a tensor, or a state of another order or with lags.
+        """
+        BaseComponent._check_state_group(spec)
+        if spec.algebraic and (spec.order != 1 or spec.lags):
+            error_msg = (
+                f'An algebraic state has order 1 and no lags, but got the order {spec.order!r} and {spec.lags!r} lags. '
+                'Its equations determine its value, so remove `order` and `lags`.'
+            )
+            raise ValidationError(error_msg)
+        if spec.tensor is not None and spec.vector:
+            error_msg = f'A state takes either vector=True or tensor={spec.tensor!r}, not both.'
+            raise ValidationError(error_msg)
+        if spec.tensor is not None and spec.tensor not in SymmetryKind:
+            error_msg = f'The tensor symmetry is {spec.tensor!r}. Use one of {", ".join(SymmetryKind)}.'
+            raise ValidationError(error_msg)
+        if spec.role not in STATE_ROLES:
+            error_msg = f'The role of a state is one of {", ".join(map(repr, STATE_ROLES))}, but got {spec.role!r}.'
+            raise ValidationError(error_msg)
+        if spec.reference is not None and (spec.vector or spec.tensor or spec.group or spec.order != 1 or spec.lags):
+            error_msg = f'The state naming a member of {spec.reference!r} is not a scalar of order 1 without lags.'
+            raise ValidationError(error_msg)
+        integral = float(spec.order).is_integer()
+        if not (math.isfinite(spec.order) and spec.order > 0 and (integral or spec.order < 1)):
+            error_msg = f'The order {spec.order!r} is neither an integer of at least 1 nor a real number in (0, 1).'
+            raise ValidationError(error_msg)
+        if not (isinstance(spec.lags, int) and spec.lags >= 0):
+            error_msg = f'The lags {spec.lags!r} are not a nonnegative integer.'
+            raise ValidationError(error_msg)
+        if spec.order != 1 and spec.lags:
+            error_msg = 'A state takes either an order other than 1 or lags, not both.'
+            raise ValidationError(error_msg)
+        companions = max(int(spec.order) - 1 if integral else 0, spec.lags)
+        if len(spec.initial) > companions:
+            error_msg = f'{len(spec.initial)} initial values were given for {companions} derivatives or lags.'
+            raise ValidationError(error_msg)
+
+    @staticmethod
+    def _check_parameter(spec: _ParameterSpec) -> None:
+        """Raise an error for an invalid parameter per role, bad bounds, or a bad shape.
+
+        A parameter per role must not be a vector or adaptive.
+
+        Args:
+            spec:
+                The parameter to check.
+
+        Raises:
+            ValidationError:
+                The parameter is per entry of a role and a vector or adaptive, has bounds without being adaptive or
+                with a lower bound above the upper one, or has a shape that is empty, not role names, or combined with
+                `vector` or `per`.
+        """
+        if spec.per is not None and (spec.vector or spec.adaptive):
+            error_msg = f'A parameter per entry of the role {spec.per!r} is neither a vector nor adaptive.'
+            raise ValidationError(error_msg)
+        if spec.bounds is not None and not (spec.adaptive and float(spec.bounds[0]) <= float(spec.bounds[1])):
+            error_msg = (
+                f'The bounds {spec.bounds!r} need an adaptive parameter and a lower bound at most the upper one.'
+            )
+            raise ValidationError(error_msg)
+        if spec.shape is not None and (
+            not spec.shape or not all(isinstance(role, str) for role in spec.shape) or spec.vector or spec.per
+        ):
+            error_msg = (
+                f'The shape {spec.shape!r} of a parameter is a nonempty tuple of role names, and a shaped parameter is '
+                'neither a vector nor per entry of a role.'
+            )
+            raise ValidationError(error_msg)
 
     def _prepare_on(self, space: ContextT | None) -> None:
         """Prepare the component on the space of its system, checking its arguments."""

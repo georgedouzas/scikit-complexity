@@ -9,7 +9,7 @@ from collections import Counter
 from collections.abc import Callable, Hashable, Mapping, MutableMapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -22,17 +22,75 @@ from ..engine.solvers import BaseSolver
 from ..enums import ExecutorKind
 from ..errors import ExperimentError, ValidationError
 from ..systems import BaseSystem
-from ._results import ExperimentResult
-from ._run_result_spec import _RunResultSpec
+from ._results import ExperimentResult, _RunResult
 from ._scenario_spec import ScenarioSpec
 from ._utils import build_system, get_problem
-from .specs._task_spec import _TaskSpec
 from .types import Output, Row, SystemSource
 
 TIME_TOLERANCE = 1e-12
 
 
 type Problems = MutableMapping[Hashable, tuple[BaseProblemSpec, BaseSolver] | BaseSystem]
+
+
+@dataclass(frozen=True)
+class _Task:
+    """One run of an experiment, sent as it is to a worker process.
+
+    Args:
+        index:
+            The position of the run in the experiment.
+
+        source:
+            The system, or the factory of systems.
+
+        row:
+            The values of the run, by model parameter or dotted path.
+
+        scenario:
+            The scenario.
+
+        replicate:
+            The replicate number.
+
+        seed:
+            The random stream of the run.
+
+        until:
+            The end time of the run, or `None` for the tuned end time of the system.
+
+        dt:
+            The time between frames, or `None` for the tuned one.
+
+        solver:
+            The solver, or `None` for the tuned one.
+
+        outputs:
+            The outputs to keep, or `None` for every observable or state.
+
+        warmup:
+            The simulated time before which kept series are discarded.
+
+        observables:
+            The observables of the run, or none for the tuned ones.
+
+        analyses:
+            The analyses of the run, functions of its trajectory, by their column prefix.
+    """
+
+    index: int
+    source: SystemSource
+    row: Row
+    scenario: ScenarioSpec
+    replicate: int
+    seed: np.random.SeedSequence
+    until: float | None
+    dt: float | None
+    solver: BaseSolver | None
+    outputs: Sequence[Output] | None
+    warmup: float
+    observables: Sequence[Observable]
+    analyses: tuple[tuple[str, Callable[[Trajectory], object]], ...]
 
 
 def _check_source(source: object) -> SystemSource:
@@ -316,7 +374,7 @@ def _read_outputs(
     return series, scalars
 
 
-def _get_structure(task: _TaskSpec, arguments: Mapping[str, object]) -> tuple[int, str]:
+def _get_structure(task: _Task, arguments: Mapping[str, object]) -> tuple[int, str]:
     """Return the key of the structure of the system of a task.
 
     The key holds its source or scenario system, and the parameters set on its clone. Runs that share the key differ
@@ -340,7 +398,7 @@ def _get_structure(task: _TaskSpec, arguments: Mapping[str, object]) -> tuple[in
 
 
 def _simulate_prepared(
-    task: _TaskSpec,
+    task: _Task,
     system: BaseSystem,
     paths: Mapping[str, object],
     store: Problems,
@@ -392,7 +450,7 @@ def _simulate_prepared(
 
 
 def _simulate_composite(
-    task: _TaskSpec,
+    task: _Task,
     system: _CompositeSystem,
     paths: Mapping[str, object],
     store: Problems,
@@ -448,7 +506,7 @@ def _simulate_composite(
     )
 
 
-def _simulate_task(task: _TaskSpec, problems: Problems | None) -> Trajectory:
+def _simulate_task(task: _Task, problems: Problems | None) -> Trajectory:
     """Return the trajectory of one task.
 
     Names without a dot are parameters, set on a clone of the system with `set_params` or passed to the factory, such
@@ -480,7 +538,7 @@ def _simulate_task(task: _TaskSpec, problems: Problems | None) -> Trajectory:
     return _simulate_composite(task, system, paths, store, key)
 
 
-def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSpec:
+def _run_task(task: _Task, problems: Problems | None = None) -> _RunResult:
     """Run one task and keep its outputs.
 
     It keeps its series and scalar outputs, and runs its analyses on its trajectory.
@@ -513,7 +571,7 @@ def _run_task(task: _TaskSpec, problems: Problems | None = None) -> _RunResultSp
             value = getattr(result, field.name)
             if value is not None:
                 scalars[f'{prefix}.{field.name}'] = value
-    return _RunResultSpec(
+    return _RunResult(
         index=task.index,
         row=dict(task.row),
         scenario=task.scenario.name,
@@ -619,13 +677,13 @@ def _run_experiment(
         raise ValidationError(error_msg)
     named = _name_analyses(analyses)
     seeds = np.random.SeedSequence(random_state).spawn(len(rows) * replicates)
-    tasks: list[_TaskSpec] = []
+    tasks: list[_Task] = []
     for row_index, row in enumerate(rows):
         for scenario in scenarios:
             for replicate in range(replicates):
                 seed = seeds[row_index * replicates + replicate]
                 values = {**row, 'random_state': _get_system_seed(seed)} if reseeded else dict(row)
-                task = _TaskSpec(
+                task = _Task(
                     len(tasks),
                     system,
                     values,

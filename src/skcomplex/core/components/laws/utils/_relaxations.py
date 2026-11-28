@@ -3,16 +3,47 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import SR, Expression, var
 
 from ....errors import ValidationError
 from .._base import BaseLaw
-from .._relaxation_spec import _RelaxationSpec
 from ._operators import _OperatorFunction
 
-RELAXATIONS: dict[str, _RelaxationSpec] = {}
+RELAXATIONS: dict[str, _Relaxation] = {}
+
+
+@dataclass(frozen=True)
+class _Relaxation:
+    """Relaxation that a call of `relax` names.
+
+    Args:
+        rules:
+            The laws applied in turn until the state is stable.
+
+        stable:
+            The function of the arrays of the targets of the rules that returns whether the state is stable.
+
+        drive:
+            The laws applied once per step before the relaxation.
+
+        activity:
+            The function of the arrays of the targets that marks the active members of an iteration, or `None` to count
+            the members that change.
+
+        max_iterations:
+            The largest number of iterations in one step.
+    """
+
+    rules: tuple[BaseLaw, ...]
+    stable: Callable[..., bool]
+    drive: tuple[BaseLaw, ...] = ()
+    activity: Callable[..., object] | None = None
+    max_iterations: int = 100_000
 
 
 class _RelaxFunction(_OperatorFunction):
@@ -96,13 +127,13 @@ def relax(
     if not all(isinstance(law, BaseLaw) for law in (*rules, *drive)):
         error_msg = 'The rules and the drive of a relaxation must be laws, such as an UpdateLaw.'
         raise ValidationError(error_msg)
-    spec = _RelaxationSpec(rules, stable, drive, activity, int(max_iterations))
-    name = f'_relaxation_{id(spec)}'
-    RELAXATIONS[name] = spec
+    relaxation = _Relaxation(rules, stable, drive, activity, int(max_iterations))
+    name = f'_relaxation_{id(relaxation)}'
+    RELAXATIONS[name] = relaxation
     return RELAX(SR(state), var(name))
 
 
-def relaxation_of(value: object) -> _RelaxationSpec | None:
+def relaxation_of(value: object) -> _Relaxation | None:
     """Return the settings of the relaxation an update value calls, or `None`.
 
     It reads back what `relax` stored, the rules, the stability test, the drive, the activity, and the largest number of

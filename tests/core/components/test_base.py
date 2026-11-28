@@ -10,7 +10,10 @@ from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
 from skcomplex.core.base import BaseConfig
-from skcomplex.core.components import RoleSpec
+from skcomplex.core.components import MatrixGroupSpec, RoleSpec
+from skcomplex.core.components._declared_variable_spec import _DeclaredVariableSpec
+from skcomplex.core.components._parameter_spec import _ParameterSpec
+from skcomplex.core.components._state_spec import _StateSpec
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction
@@ -211,3 +214,87 @@ def test_a_role_typed_role_or_none_is_optional(source, expected):
     elements = [Element('a', values={'x': 1.0}), Element('b', values={'x': 2.0})]
     system = System(elements=elements, interactions=[FeedInteraction('feed', target='a', source=source)]).prepare()
     assert system.equations_['a.x'] == expected
+
+
+class DeclaringComponent(BaseComponent):
+    """Component that declares one variable from data with a given spec."""
+
+    def __init__(self, label, spec=None):
+        super().__init__(label)
+        self.spec = spec
+
+    def _get_declared(self):
+        """Return the variable `x` with the spec of the component."""
+        return {'x': _DeclaredVariableSpec(0.0, self.spec)}
+
+
+def test_prepare_rejects_a_declared_variable_of_no_kind():
+    """Test that a variable declared from data is a state, a parameter, or a role."""
+    with pytest.raises(ValidationError, match='A declared variable is a state, a parameter, or a role'):
+        DeclaringComponent('c', spec='state').prepare()
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [
+        (_StateSpec(vector=True, tensor='symmetric'), r'vector=True or tensor=.symmetric'),
+        (_StateSpec(tensor='skew'), 'tensor symmetry'),
+        (_StateSpec(algebraic=True, order=2), 'An algebraic state has order 1 and no lags'),
+        (_StateSpec(algebraic=True, lags=1), 'An algebraic state has order 1 and no lags'),
+        (_StateSpec(group=MatrixGroupSpec('SU', 3), vector=True), 'holds its matrices alone'),
+        (_StateSpec(group=MatrixGroupSpec('SU', 3), tensor='full'), 'holds its matrices alone'),
+        (_StateSpec(group=MatrixGroupSpec('SU', 3), order=2), 'holds its matrices alone'),
+        (_StateSpec(group=MatrixGroupSpec('SU', 3), lags=1), 'holds its matrices alone'),
+        (_StateSpec(order=0), 'order'),
+        (_StateSpec(order=-0.5), 'order'),
+        (_StateSpec(order=float('nan')), 'order'),
+        (_StateSpec(order=1.5), 'order'),
+        (_StateSpec(lags=-1), 'lags'),
+        (_StateSpec(lags=1.5), 'lags'),
+        (_StateSpec(order=2, lags=1), 'not both'),
+        (_StateSpec(order=2, initial=(0.0, 1.0)), '2 initial values were given for 1'),
+        (_StateSpec(reference='banks', vector=True), 'scalar of order 1'),
+        (_StateSpec(reference='banks', lags=1), 'scalar of order 1'),
+        (_StateSpec(role='spin'), 'The role of a state'),
+    ],
+)
+def test_prepare_rejects_an_invalid_state(spec, message):
+    """Test that preparing rejects a state of a bad order, lags, tensor, matrix group, reference, or role."""
+    with pytest.raises(ValidationError, match=message):
+        DeclaringComponent('c', spec=spec).prepare()
+
+
+@pytest.mark.parametrize(
+    'spec',
+    [_StateSpec(order=0.6), _StateSpec(order=2.0), _StateSpec(lags=2, initial=(1.0, 2.0)), _StateSpec(algebraic=True)],
+)
+def test_prepare_accepts_fractional_orders_and_lags(spec):
+    """Test that a fractional order, an integral order given as a float, lags, and an algebraic state pass."""
+    assert DeclaringComponent('c', spec=spec).prepare().spec is spec
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [
+        (_ParameterSpec(per='inputs', vector=True), 'per entry'),
+        (_ParameterSpec(per='inputs', adaptive=True), 'per entry'),
+        (_ParameterSpec(bounds=(0, 1)), 'adaptive parameter'),
+        (_ParameterSpec(adaptive=True, bounds=(1, 0)), 'lower bound at most the upper one'),
+        (_ParameterSpec(shape=()), 'nonempty tuple of role names'),
+        (_ParameterSpec(shape=('target',), vector=True), 'neither a vector'),
+        (_ParameterSpec(shape=('target',), per='inputs'), 'per entry'),
+    ],
+)
+def test_prepare_rejects_an_invalid_parameter(spec, message):
+    """Test that a parameter per role that is a vector or adaptive, invalid bounds, and bad shapes are rejected."""
+    with pytest.raises(ValidationError, match=message):
+        DeclaringComponent('c', spec=spec).prepare()
+
+
+@pytest.mark.parametrize(
+    'spec',
+    [_ParameterSpec(adaptive=True, bounds=(0, 1)), _ParameterSpec(shape=('target',) * 3, adaptive=True)],
+)
+def test_prepare_accepts_bounds_and_shapes_of_parameters(spec):
+    """Test that an adaptive parameter takes bounds and a parameter takes the roles of its shape."""
+    assert DeclaringComponent('c', spec=spec).prepare().spec is spec

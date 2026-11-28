@@ -14,15 +14,23 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._alignment import _mean_rotation, _mean_vector_length
 from ._analysis_tags import AnalysisTags
-from ._base import _composite, _get_data_kinds, _read_fields, _read_networks, _read_path, _read_series, _read_snapshots
+from ._base import (
+    _composite,
+    _get_data_kinds,
+    _JumpPath,
+    _read_fields,
+    _read_networks,
+    _read_path,
+    _read_series,
+    _read_snapshots,
+    _Series,
+    _Snapshots,
+)
 from ._correlation import _autocorrelation_time, _correlation_length
 from ._distribution import _ccdf, _dispersion_index
-from ._jump_path_spec import _JumpPathSpec
 from ._neighbors import _nearest_neighbor_distances
 from ._networks import _degrees, _summary
-from ._series_spec import _SeriesSpec
 from ._signature_spec import SignatureSpec
-from ._snapshots_spec import _SnapshotsSpec
 from ._spectrum import _power_spectrum, _structure_factor
 from .types import DataSource
 
@@ -84,12 +92,12 @@ class SignaturesResult:
     kinds: list[DataKind]
     discrete: bool
     signatures: list[SignatureSpec]
-    snapshots: _SnapshotsSpec | None = None
+    snapshots: _Snapshots | None = None
     frames: Array | None = None
     graphs: list[nx.Graph] | None = None
-    path: _JumpPathSpec | None = None
+    path: _JumpPath | None = None
     jumps: Array | None = None
-    series: _SeriesSpec | None = None
+    series: _Series | None = None
 
 
 def signatures(source: DataSource) -> SignaturesResult:
@@ -157,7 +165,7 @@ def signatures(source: DataSource) -> SignaturesResult:
     return SignaturesResult(kinds, discrete, found, snapshots, frames, graphs, path, jumps, series)
 
 
-def _get_series_signature(series: _SeriesSpec, *, discrete: bool) -> SignatureSpec:
+def _get_series_signature(series: _Series, *, discrete: bool) -> SignatureSpec:
     """Return the power spectra of the series and the autocorrelation time.
 
     For a map, the return map is returned instead.
@@ -187,7 +195,7 @@ def _get_series_signature(series: _SeriesSpec, *, discrete: bool) -> SignatureSp
     )
 
 
-def _get_path_signature(path: _JumpPathSpec, jumps: Array) -> SignatureSpec:
+def _get_path_signature(path: _JumpPath, jumps: Array) -> SignatureSpec:
     """Return the survival function of waiting times and the dispersion of jump counts.
 
     The waiting times are those between jumps, and the dispersion is the dispersion index.
@@ -232,7 +240,7 @@ def _get_field_signature(frames: Array) -> SignatureSpec:
     )
 
 
-def _get_order_signature(snapshots: _SnapshotsSpec) -> SignatureSpec:
+def _get_order_signature(snapshots: _Snapshots) -> SignatureSpec:
     """Return the polar order over time and the milling order of agents.
 
     The milling order is for agents with velocities in a plane.
@@ -273,7 +281,7 @@ def _get_neighbor_signature(positions: Array, box: Array | None) -> SignatureSpe
     )
 
 
-def _get_agents_signature(snapshots: _SnapshotsSpec) -> SignatureSpec:
+def _get_agents_signature(snapshots: _Snapshots) -> SignatureSpec:
     """Return the polar and milling orders, or the nearest-neighbour distances.
 
     The orders are over time, and the distances are compared with the Poisson law.

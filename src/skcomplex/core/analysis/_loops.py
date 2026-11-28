@@ -23,7 +23,6 @@ from ..errors import AnalysisError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
-from ._loop_spec import _LoopSpec
 from ._stability import StabilityResult
 from ._symbolic import _transfer_network
 from ._utils import compile_problem
@@ -365,9 +364,9 @@ def loops(
             problem,
             trajectory=trajectory,
             graph=directed,
-            loops=[loop.nodes for loop in found],
-            polarities=[loop.polarity for loop in found],
-            gains=np.asarray([loop.gain for loop in found], dtype=float),
+            loops=[nodes for nodes, _, _ in found],
+            polarities=[polarity for _, polarity, _ in found],
+            gains=np.asarray([gain for _, _, gain in found], dtype=float),
         )
     if trajectory is None:
         error_msg = f'loops of kind {kind!r} reads a trajectory. Give one.'
@@ -393,17 +392,17 @@ def _dominance(problem: ProblemSpec, trajectory: Trajectory) -> LoopsResult:
     gains = np.column_stack(
         [
             np.prod(
-                [values[pair] for pair in zip(loop.nodes, [*loop.nodes[1:], loop.nodes[0]], strict=True)],
+                [values[pair] for pair in zip(nodes, [*nodes[1:], nodes[0]], strict=True)],
                 axis=0,
             )
-            for loop in found
+            for nodes, _, _ in found
         ],
     )
     return LoopsResult(
         problem,
         trajectory=trajectory,
-        loops=[loop.nodes for loop in found],
-        polarities=[loop.polarity for loop in found],
+        loops=[nodes for nodes, _, _ in found],
+        polarities=[polarity for _, polarity, _ in found],
         gains=gains,
         times=times,
         dominant=np.argmax(np.abs(gains), axis=1),
@@ -429,8 +428,11 @@ def _flow_matrix(problem: ProblemSpec, trajectory: Trajectory, frame: int, quant
     )
 
 
-def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tuple[nx.DiGraph, list[_LoopSpec]]:
-    """Return the signed graph with edge gains and its loops with polarity and gain."""
+def _signed_loops(
+    graph: _Graph,
+    gains: Mapping[tuple[str, str], float],
+) -> tuple[nx.DiGraph, list[tuple[tuple[str, ...], str, float]]]:
+    """Return the signed graph and its loops as nodes, polarity, and gain."""
     directed = nx.DiGraph()
     for (start, end), derivative in graph.edges.items():
         if SR(derivative).is_trivial_zero():
@@ -444,5 +446,5 @@ def _signed_loops(graph: _Graph, gains: Mapping[tuple[str, str], float]) -> tupl
         cycle = [*found[start:], *found[:start]]
         pairs = list(zip(cycle, [*cycle[1:], cycle[0]], strict=True))
         gain = float(np.prod([directed.edges[pair]['gain'] for pair in pairs]))
-        loops.append(_LoopSpec(tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
-    return directed, sorted(loops, key=lambda loop: (len(loop.nodes), loop.nodes))
+        loops.append((tuple(cycle), POLARITIES[int(np.sign(gain))], gain))
+    return directed, sorted(loops, key=lambda loop: (len(loop[0]), loop[0]))

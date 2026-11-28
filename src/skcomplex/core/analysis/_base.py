@@ -6,6 +6,7 @@
 import inspect
 import sys
 from collections.abc import Callable, Collection, Sequence, Set
+from dataclasses import dataclass, field
 from functools import partial
 
 import networkx as nx
@@ -25,10 +26,6 @@ from ..enums import DataKind, DomainKind, FormKind
 from ..errors import AnalysisError, TagError, ValidationError
 from ..types import Array
 from ._analysis_tags import AnalysisTags
-from ._jump_path_spec import _JumpPathSpec
-from ._samples_spec import _SamplesSpec
-from ._series_spec import _SeriesSpec
-from ._snapshots_spec import _SnapshotsSpec
 from .types import DataSource, Run, Runs
 
 SERIES_DIMENSIONS = 1
@@ -36,6 +33,112 @@ SNAPSHOT_DIMENSIONS = 2
 RUNS_DIMENSIONS = 3
 STEP_TOLERANCE = 1e-6
 KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, DataKind.SERIES)
+
+
+@dataclass(frozen=True)
+class _Series:
+    """Named series on common times.
+
+    Args:
+        times:
+            The time of every frame.
+
+        values:
+            One row per frame and one column per series.
+
+        labels:
+            The name of every column.
+    """
+
+    times: Array
+    values: Array
+    labels: list[str]
+
+
+@dataclass(frozen=True)
+class _Samples:
+    """Uniformly sampled series that a surrogate is fitted to.
+
+    Args:
+        series:
+            The values of every series, one row per sample and one column per variable.
+
+        labels:
+            The name of every variable.
+
+        dt:
+            The time between consecutive samples.
+    """
+
+    series: list[Array]
+    labels: list[str]
+    dt: float
+
+
+@dataclass(frozen=True)
+class _JumpPath:
+    """Path of a discrete state with the time of every jump.
+
+    Args:
+        times:
+            The first time, then the time of every frame at which the state changed.
+
+        states:
+            The state at the first time and after every jump, one row per jump for vector states.
+
+        label:
+            The name of the state.
+    """
+
+    times: Array
+    states: Array
+    label: str
+
+
+@dataclass(frozen=True)
+class _Snapshots:
+    """Agents of one group at every frame.
+
+    They are aligned on the agents present in every frame.
+
+    Args:
+        times:
+            The time of every frame.
+
+        ids:
+            The id of every agent, in column order.
+
+        positions:
+            The unwrapped positions, frames by agents by dimensions, or `None` without a space with coordinates.
+
+        velocities:
+            The velocities, shaped like the positions, or `None` without them.
+
+        directions:
+            The direction angles, frames by agents, or `None` without them.
+
+        states:
+            Every other state of the agents, frames by agents.
+
+        box:
+            The sides of the space, or `None` for an unbounded space.
+
+        periodic:
+            Whether opposite sides of the box are joined.
+
+        phases:
+            The phase angles, frames by agents, or `None` without them.
+    """
+
+    times: Array
+    ids: npt.NDArray[np.int64]
+    positions: Array | None
+    velocities: Array | None
+    directions: Array | None
+    states: dict[str, npt.NDArray[np.generic]] = field(default_factory=dict)
+    box: Array | None = None
+    periodic: bool = False
+    phases: Array | None = None
 
 
 def bind_analysis[ResultT](analysis: Callable[..., ResultT], **settings: object) -> partial[ResultT]:
@@ -454,7 +557,7 @@ def _refuse_objects(trajectory: Trajectory, group: str, names: Sequence[str]) ->
             raise ValidationError(error_msg)
 
 
-def _read_agent_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSpec:
+def _read_agent_snapshots(trajectory: Trajectory, group: str) -> _Snapshots:
     """Return the snapshots of an agent group.
 
     The snapshots are aligned on the agents present in every frame.
@@ -486,7 +589,7 @@ def _read_agent_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSpec:
     phase = next((name for name in frames[0].values if roles.get(name) == 'phase'), None)
     phases = np.asarray(states.pop(phase), dtype=float) if phase is not None else None
     times = np.asarray(trajectory.times, dtype=float)
-    return _SnapshotsSpec(times, ids, positions, velocities, directions, states, box, periodic, phases)
+    return _Snapshots(times, ids, positions, velocities, directions, states, box, periodic, phases)
 
 
 def _get_role_states(element: CompiledElementSpec, role: str) -> list[str]:
@@ -506,7 +609,7 @@ def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
     )
 
 
-def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSpec:
+def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _Snapshots:
     """Return the snapshots of a particle group from the roles of its states.
 
     They are unwrapped in a periodic box, the space of the group or else of its system.
@@ -538,10 +641,10 @@ def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSp
     phases = np.asarray(others.pop(phase), dtype=float) if phase is not None else None
     ids = np.arange(positions.shape[1], dtype=np.int64)
     times = np.asarray(trajectory.times, dtype=float)
-    return _SnapshotsSpec(times, ids, positions, velocities, directions, others, box, periodic, phases)
+    return _Snapshots(times, ids, positions, velocities, directions, others, box, periodic, phases)
 
 
-def _read_series(source: DataSource, names: Sequence[str] | None = None) -> _SeriesSpec:
+def _read_series(source: DataSource, names: Sequence[str] | None = None) -> _Series:
     """Return named series of a trajectory, or the columns of an array.
 
     An array gives one series per column. A trajectory gives its states, parameters, reporters, or observables, and a
@@ -569,7 +672,7 @@ def _read_series(source: DataSource, names: Sequence[str] | None = None) -> _Ser
         array = np.asarray(source)
         values = array.reshape(-1, 1) if array.ndim <= 1 else array.reshape(array.shape[0], -1)
         labels = list(names) if names is not None else [str(index) for index in range(values.shape[1])]
-        return _SeriesSpec(np.arange(values.shape[0], dtype=float), values, labels)
+        return _Series(np.arange(values.shape[0], dtype=float), values, labels)
     chosen = list(names) if names is not None else _get_scalar_series(source)
     if not chosen:
         raise _get_missing_error(source, 'scalar series')
@@ -583,10 +686,10 @@ def _read_series(source: DataSource, names: Sequence[str] | None = None) -> _Ser
         values = np.asarray(series, dtype=float).reshape(len(source.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
-    return _SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
+    return _Series(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
 
 
-def _read_path(source: DataSource, name: str | None = None) -> _JumpPathSpec:
+def _read_path(source: DataSource, name: str | None = None) -> _JumpPath:
     """Return the jump path of a discrete state of a trajectory or of a state series.
 
     The frames where the state did not change are dropped.
@@ -612,7 +715,7 @@ def _read_path(source: DataSource, name: str | None = None) -> _JumpPathSpec:
             error_msg = f'A jump path is one series of states, but the array has shape {values.shape}.'
             raise AnalysisError(error_msg)
         changed = np.concatenate([[True], values[1:] != values[:-1]])
-        return _JumpPathSpec(np.flatnonzero(changed).astype(float), values[changed], name or 'state')
+        return _JumpPath(np.flatnonzero(changed).astype(float), values[changed], name or 'state')
     names = _get_path_names(source.problem)
     chosen = names[0] if name is None and names else name
     if chosen is None:
@@ -621,7 +724,7 @@ def _read_path(source: DataSource, name: str | None = None) -> _JumpPathSpec:
     changed = np.concatenate([[True], np.any(values[1:] != values[:-1], axis=1)])
     states = values[changed]
     times = np.asarray(source.times, dtype=float)[changed]
-    return _JumpPathSpec(times, states[:, 0] if values.shape[1] == 1 else states, chosen)
+    return _JumpPath(times, states[:, 0] if values.shape[1] == 1 else states, chosen)
 
 
 def _read_fields(source: DataSource, name: str | None = None) -> Array:
@@ -653,7 +756,7 @@ def _read_fields(source: DataSource, name: str | None = None) -> Array:
     return np.asarray(source.get_lattice(chosen), dtype=float)
 
 
-def _read_snapshots(source: DataSource, group: str | None = None) -> _SnapshotsSpec:
+def _read_snapshots(source: DataSource, group: str | None = None) -> _Snapshots:
     """Return the agents of a group of a trajectory at every frame.
 
     Agent groups give their positions unwrapped across periodic sides, and velocities and directions from the states
@@ -689,7 +792,7 @@ def _read_snapshots(source: DataSource, group: str | None = None) -> _SnapshotsS
     return _read_agent_snapshots(source, chosen)
 
 
-def _read_samples_of(source: DataSource, names: Sequence[str] | None, group: str | None) -> _SeriesSpec:
+def _read_samples_of(source: DataSource, names: Sequence[str] | None, group: str | None) -> _Series:
     """Return samples as columns.
 
     They are the series of a source, or the speeds of agents with one column per frame. A trajectory gives the speeds of
@@ -723,7 +826,7 @@ def _read_samples_of(source: DataSource, names: Sequence[str] | None, group: str
         return _read_series(source, names)
     speeds = np.linalg.norm(_read_velocities(source, group), axis=-1)
     labels = [f'speed at {time:g}' for time in source.times]
-    return _SeriesSpec(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
+    return _Series(np.arange(speeds.shape[1], dtype=float), speeds.T, labels)
 
 
 def _read_velocities(source: DataSource, group: str | None = None) -> Array:
@@ -886,7 +989,7 @@ def _runs_of(source: Runs) -> list[Run]:
     return list(np.asarray(array, dtype=np.float64)) if array.ndim == RUNS_DIMENSIONS else [array]
 
 
-def _step_of(series: _SeriesSpec) -> float:
+def _step_of(series: _Series) -> float:
     """Return the time between the samples of a series.
 
     It is checked to be uniform.
@@ -905,7 +1008,7 @@ def _read_samples(
     source: Runs,
     variables: Sequence[str] | None,
     dt: float,
-) -> _SamplesSpec:
+) -> _Samples:
     """Return the uniformly sampled series of the runs of a source.
 
     The series have common variables and step.
@@ -932,7 +1035,7 @@ def _read_samples(
     for run in _runs_of(source):
         series = _read_series(run, variables)
         found.append(
-            series if isinstance(run, Trajectory) else _SeriesSpec(series.times * dt, series.values, series.labels),
+            series if isinstance(run, Trajectory) else _Series(series.times * dt, series.values, series.labels),
         )
     if not found:
         error_msg = 'No series is given. Pass a trajectory, an array, or a list of them.'
@@ -945,4 +1048,4 @@ def _read_samples(
             'series of the same variables sampled at the same step.'
         )
         raise AnalysisError(error_msg)
-    return _SamplesSpec([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])
+    return _Samples([np.asarray(series.values, dtype=float) for series in found], list(labels), steps[0])

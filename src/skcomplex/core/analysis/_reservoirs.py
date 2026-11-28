@@ -17,8 +17,7 @@ from ..errors import AnalysisError
 from ..systems import System
 from ..types import Array
 from ._analysis_tags import AnalysisTags
-from ._base import _read_samples
-from ._samples_spec import _SamplesSpec
+from ._base import _read_samples, _Samples
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -209,7 +208,7 @@ class ReservoirResult:
         ['x', 'memory_0', 'memory_1']
     """
 
-    samples: _SamplesSpec
+    samples: _Samples
     system: System
     labels: list[str]
     states: list[str]
