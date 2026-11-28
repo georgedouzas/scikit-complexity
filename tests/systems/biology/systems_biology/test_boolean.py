@@ -2,13 +2,21 @@
 
 import dataclasses
 import inspect
+import time
 
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem, YeastCellCycleSystem
+from skcomplex.core.systems import System
+from skcomplex.systems.biology.systems_biology import (
+    RandomBooleanNetworkSystem,
+    RandomBooleanNodeElement,
+    TruthTablesInteraction,
+    YeastCellCycleSystem,
+)
 
 from ...conftest import _run
 
@@ -81,8 +89,67 @@ def test_random_boolean_network_reaches_a_cycle():
 def test_random_boolean_network_takes_eight_inputs():
     """Test that every node reads eight distinct nodes through a table of 256 entries, and the network runs."""
     system = RandomBooleanNetworkSystem(n_nodes=12, k=8).prepare().system_
-    assert all(len(set(function.inputs)) == 8 and len(function.table) == 256 for function in system.interactions)
+    nodes = system.elements[0]
+    assert all(len(set(row)) == 8 for row in nodes.inputs.tolist())
+    assert nodes.table.shape == (12, 256)
     assert len(system.prepare().simulate(dt=1, until=50).times) == 51
+
+
+def test_random_boolean_network_runs_a_large_network_in_seconds():
+    """Test that a network of 10_000 nodes with four inputs each runs 50 steps in seconds on one state of nodes."""
+    start = time.perf_counter()
+    values = RandomBooleanNetworkSystem(10_000, 4, random_state=3).prepare().simulate().get_values('nodes.x')
+    assert time.perf_counter() - start < 30
+    assert values.shape == (51, 10_000)
+
+
+def test_random_boolean_network_follows_its_tables():
+    """Test that every synchronous step sets each node to the entry of its table at the pattern of its inputs."""
+    system = RandomBooleanNetworkSystem(50, 3, random_state=1).prepare().system_
+    nodes = system.elements[0]
+    values = system.prepare().simulate(until=5, dt=1).get_values('nodes.x').astype(int)
+    codes = values[:-1][:, nodes.inputs] @ np.array([4, 2, 1])
+    np.testing.assert_array_equal(values[1:], nodes.table[np.arange(50), codes])
+
+
+def test_asynchronous_update_sets_one_random_node_at_a_time():
+    """Test that n single updates of negating nodes flip the nodes drawn an odd number of times, near 43 percent."""
+    size = 20_000
+    nodes = RandomBooleanNodeElement(
+        'nodes',
+        x=0,
+        inputs=np.arange(size)[:, None],
+        table=np.tile([1, 0], (size, 1)),
+        size=size,
+    )
+    interaction = TruthTablesInteraction('functions', target='nodes', k=1, update='asynchronous')
+    system = System('negations', elements=[nodes], interactions=[interaction], backend=NumpyBackend())
+    values = system.prepare().simulate(until=1, dt=1, random_state=0).get_values('nodes.x')
+    assert np.mean(values[-1]) == pytest.approx((1 - np.exp(-2)) / 2, abs=0.01)
+
+
+def test_annealed_network_follows_the_annealed_approximation():
+    """Test that two copies of an annealed network share its draws and their distance follows Derrida and Pomeau."""
+    size, steps = 20_000, 8
+    system = RandomBooleanNetworkSystem(size, 2, annealed=True, random_state=0).prepare().system_
+    start = np.asarray(system.elements[0].x)
+    flipped = start.copy()
+    flipped[: size // 5] = 1 - flipped[: size // 5]
+    runs = [
+        system.set_params(nodes__x=initial).prepare().simulate(until=steps, dt=1, random_state=4).get_values('nodes.x')
+        for initial in (start, flipped)
+    ]
+    distances = np.mean(runs[0] != runs[1], axis=1)
+    expected = [0.2]
+    for _ in range(steps):
+        expected.append(0.5 * (1 - (1 - expected[-1]) ** 2))
+    np.testing.assert_allclose(distances, expected, atol=0.015)
+
+
+def test_truth_tables_reject_an_unknown_update():
+    """Test that the update of the truth tables is synchronous or asynchronous."""
+    with pytest.raises(ValidationError, match=r"Unknown update 'random'"):
+        RandomBooleanNetworkSystem(update='random').prepare()
 
 
 def test_random_boolean_network_rejects_more_inputs_than_nodes():

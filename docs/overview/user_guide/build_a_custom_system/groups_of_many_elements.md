@@ -227,9 +227,8 @@ The node `out` reads 0.0, then `1 + 2 + 10 * 3 = 33.0`, then 3.0 once the third 
   sets like any parameter.
 
 An element set and a variadic role both bind a list. An element set applies the laws once per element, each element
-read like a single element. A variadic role gives one law the whole sequence. `RandomBooleanNetworkSystem` and
-`YeastCellCycleSystem` of `skcomplex.systems.biology.systems_biology` read the inputs of every node through one variadic
-role.
+read like a single element. A variadic role gives one law the whole sequence. `YeastCellCycleSystem` of
+`skcomplex.systems.biology.systems_biology` reads the inputs of every node through one variadic role.
 
 An argument typed `WienerProcessSpec` binds a shared noise process instead of a path, as the shared and correlated
 noise of [Delays, events, drivers, and noise](delays_events_drivers_and_noise.md) shows.
