@@ -2,7 +2,9 @@
 
 import networkx as nx
 import numpy as np
+import pytest
 
+from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.opinion_dynamics import (
     GalamMajoritySystem,
     SocialImpactSystem,
@@ -46,3 +48,22 @@ def test_social_impact_flips_under_net_pressure():
     system.elements[0].set_params(opinion=opinions)
     trajectory = _run(system, 1)
     assert (_values(trajectory, 'people', 'opinion', 1) == -1).all()
+
+
+def test_galam_sampled_groups_follow_the_mean_field_recursion():
+    """Test that groups of three sampled with replacement move the share to about `3 p^2 - 2 p^3`."""
+    trajectory = _run(GalamMajoritySystem(20000, groups='sample', share=0.4, random_state=0), 1)
+    before, after = trajectory.get_values('citizens.opinion').mean(axis=1)
+    assert after == pytest.approx(3 * before**2 - 2 * before**3, abs=0.015)
+
+
+def test_galam_sampled_groups_end_in_consensus():
+    """Test that sampled groups drive a minority of 40% to extinction."""
+    trajectory = _run(GalamMajoritySystem(300, groups='sample', share=0.4, random_state=0), 20)
+    assert trajectory.get_values('citizens.opinion')[-1].sum() == 0
+
+
+def test_galam_rejects_unknown_groups():
+    """Test that an unknown way of forming groups raises a validation error naming both ways."""
+    with pytest.raises(ValidationError, match="'partition' or 'sample'"):
+        GalamMajoritySystem(groups='pairs').prepare()
