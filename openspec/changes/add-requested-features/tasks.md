@@ -9,11 +9,11 @@
 
 ## 2. Options of existing systems (#50, #51, #53, #54, #55)
 
-- [ ] 2.1 Add `groups='sample'` to `GalamMajoritySystem`, with tests
-- [ ] 2.2 Let `LogisticMapSystem` take an array of initial values, with tests
-- [ ] 2.3 Add `time='discrete'`, `start=`, `absorbing=` and `floor=` to `RandomWalkSystem`, with tests
-- [ ] 2.4 Replace `red=` and `blue=` of `PolyaUrnSystem` with `balls=`, update every caller, with tests
-- [ ] 2.5 Add `factors=` and `weights=` to `GibratProcessSystem`, with tests
+- [x] 2.1 Add `groups='sample'` to `GalamMajoritySystem`, with tests
+- [x] 2.2 Let `LogisticMapSystem` take an array of initial values, with tests
+- [x] 2.3 Add `time='discrete'`, `start=`, `absorbing=` and `floor=` to `RandomWalkSystem`, with tests
+- [x] 2.4 Replace `red=` and `blue=` of `PolyaUrnSystem` with `balls=`, update every caller, with tests
+- [x] 2.5 Add `factors=` and `weights=` to `GibratProcessSystem`, with tests
 
 ## 3. Finite systems and Boolean networks (#56, #58)
 
