@@ -1,11 +1,11 @@
-"""Automata systems: elementary rules, life, and turmites, as local rules on cells."""
+"""Automata systems: elementary rules and life as local rules on cells, and turmites."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, Protocol, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -15,61 +15,73 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
-from ....core.components.spaces import (
-    BaseSpace,
-    LatticeNeighborhood,
-    LatticeSpace,
-    RadiusNeighborhood,
-)
+from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
+from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, Role
+from ....core.types import AnyArray, Array, Role
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram
 from ._life_rule import LifeRuleInteraction
 
 ELEMENTARY = LatticeNeighborhood(((-1,), (0,), (1,)))
-VON_NEUMANN = RadiusNeighborhood(1, metric='manhattan', center=True)
+MOVES = ((-1, 0), (0, 1), (1, 0), (0, -1))
 
 
-class AntCellElement(Element):
-    """Cell of Langton's ant: a color, and the heading of the ant on it or -1.
+class AntView(AgentViewProtocol, Protocol):
+    """View of Langton's ant, with its states as attributes."""
 
-    A `LangtonsAntInteraction` turns the ant right on a white cell and left on a black one, flips the cell's color, and
-    moves the ant one cell forward. With `space`, the element holds one cell on every site.
+    row: int
+    column: int
+    heading: int
+    colors: npt.NDArray[np.uint8]
+
+
+class AntElement(Element):
+    """Langton's ant: its cell, its heading, and the colours of the cells it walks on.
+
+    A `LangtonsAntInteraction` turns the ant right on a white cell and left on a black one, flips the colour of that
+    cell, and moves the ant one cell forward. The element is one agent, so a run records its states at every frame.
 
     Args:
         label:
-            The label of the cells.
+            The label of the ant.
 
-        color:
-            The initial color, 0 for white and 1 for black, or one color per cell.
+        row:
+            The row of the cell of the ant.
 
-        ant:
-            The initial heading of an ant on the cell, 0 to 3 for north, east, south, and west, or -1 for none, or one
-            heading per cell.
+        column:
+            The column of the cell of the ant.
 
-        space:
-            The space with one cell on every site, such as a lattice, or `None` for one cell.
+        heading:
+            The heading of the ant, 0 to 3 for north, east, south, and west.
+
+        colors:
+            An object array that holds one integer array of the colours of the cells, 0 for white and 1 for black, or
+            `None` for none.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.automata import AntCellElement
-        >>> AntCellElement('cell').ant
-        -1
+        >>> from skcomplex.systems.computer_science.automata import AntElement
+        >>> AntElement('ant', row=4, column=4, heading=1).heading
+        1
     """
 
     def __init__(
         self,
         label: str,
         *,
-        color: Annotated[float | Array, {0, 1}] = 0,
-        ant: Annotated[float | Array, ZZ] = -1,
-        space: BaseSpace | None = None,
+        row: Annotated[int, ZZ] = 0,
+        column: Annotated[int, ZZ] = 0,
+        heading: Annotated[int, {0, 1, 2, 3}] = 0,
+        colors: AnyArray | None = None,
     ) -> None:
-        super().__init__(label, space=space)
-        self.color = color
-        self.ant = ant
+        super().__init__(label, size=1)
+        self.row = row
+        self.column = column
+        self.heading = heading
+        self.colors = colors
 
 
 class ElementaryRuleInteraction(Interaction):
@@ -115,39 +127,45 @@ class ElementaryRuleInteraction(Interaction):
 
 
 class LangtonsAntInteraction(Interaction):
-    """Move of Langton's ant over the colored cells.
+    """Move of Langton's ant over the coloured cells of a torus.
 
-    The ant turns right on a white cell and left on a black one, flips the color of the cell it leaves, and moves one
-    cell forward. Every cell holds its color and the heading of an ant on it, or -1 for none.
+    The ant turns right on a white cell and left on a black one, flips the colour of that cell, and moves one cell
+    forward, across the edges of the torus. A step reads and changes the cell of the ant alone.
 
     Args:
         label:
             The label of the interaction.
 
         target:
-            The cells whose states `color` and `ant` the ant changes.
+            The ant whose states `row`, `column`, `heading`, and `colors` the move changes.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LangtonsAntInteraction
-        >>> LangtonsAntInteraction('ant', target='cells').target
-        'cells'
+        >>> LangtonsAntInteraction('move', target='ant').target
+        'ant'
     """
 
-    def __init__(self, label: str, *, target: Role = 'cells') -> None:
+    def __init__(self, label: str, *, target: Role = 'ant') -> None:
         super().__init__(label)
         self.target = target
 
     @staticmethod
-    def _get_next(*values: Array, **kwargs: object) -> tuple[Array, Array]:
-        """Return the next colors and ants from the von Neumann neighbourhoods of both states."""
-        colors, ants = values[:5], values[5:]
-        color = np.where(ants[0] >= 0, 1 - colors[0], colors[0])
-        ant = np.full(color.shape, -1.0)
-        arrivals = {1: 2, 2: 1, 3: 3, 4: 0}
-        for column, heading in arrivals.items():
-            turned = np.where(colors[column] == 0, (ants[column] + 1) % 4, (ants[column] + 3) % 4)
-            ant = np.where((ants[column] >= 0) & (turned == heading), turned, ant)
-        return color, ant
+    def _move(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Turn the ant on its cell, flip the colour of the cell, and step forward.
+
+        The colours are copied before the flip, so the colours a run recorded at earlier frames stay as they were.
+        """
+        del system
+        ant = cast('AntView', agent)
+        colors = ant.colors.copy()
+        cell = (ant.row, ant.column)
+        heading = (ant.heading + (3 if colors[cell] else 1)) % 4
+        colors[cell] = 1 - colors[cell]
+        rows, columns = colors.shape
+        ant.row = (ant.row + MOVES[heading][0]) % rows
+        ant.column = (ant.column + MOVES[heading][1]) % columns
+        ant.heading = heading
+        ant.colors = colors
 
     def _prepare(self, context: SimpleNamespace) -> None:
         """Set the move of the ant as the law.
@@ -157,10 +175,7 @@ class LangtonsAntInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        states = (context.target.color, context.target.ant)
-        self.laws_: list[BaseLaw] = [
-            UpdateLaw(states, self._get_next, neighborhood=VON_NEUMANN, label=self.label),
-        ]
+        self.laws_: list[BaseLaw] = [UpdateLaw(context.target, self._move, label=self.label)]
 
 
 class ElementaryAutomatonSystem(BaseSystem):
@@ -312,12 +327,21 @@ class GameOfLifeSystem(BaseSystem):
 class LangtonsAntSystem(BaseSystem):
     """Langton's ant, which builds a periodic highway after a chaotic transient.
 
-    It wanders chaotically for about 10,000 steps before it builds the highway. The system has the colors `cells.color`
-    and the ant `cells.ant`.
+    From a blank torus it wanders chaotically for about 10,000 steps before it builds the highway, a cycle of 104 steps
+    that moves it two cells along a diagonal. The system has the ant `ant`, with its cell `ant.row` and `ant.column`,
+    its heading `ant.heading`, and the colours `ant.colors` of the torus, which a run records at every frame. A step
+    changes the cell of the ant alone, so long runs on large tori stay fast.
 
     Args:
         shape:
             The number of rows and columns of the torus.
+
+        colors:
+            The initial colours of the cells, an array of the shape with 0 for white and 1 for black, or `None` for a
+            blank torus.
+
+        start:
+            The row and column of the initial cell of the ant, or `None` for the middle of the torus.
 
         heading:
             The initial heading of the ant, 0 to 3 for north, east, south, and west.
@@ -331,10 +355,15 @@ class LangtonsAntSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The colours are not 0 or 1 with the shape of the torus, or the start lies outside the torus.
+
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LangtonsAntSystem
-        >>> int((LangtonsAntSystem((9, 9)).prepare().system_.elements[0].ant >= 0).sum())
-        1
+        >>> trajectory = LangtonsAntSystem((9, 9)).prepare().simulate(until=2, dt=1)
+        >>> trajectory.get_values('ant.column').ravel().tolist()
+        [4, 5, 5]
     """
 
     field = 'computer_science/automata'
@@ -347,6 +376,8 @@ class LangtonsAntSystem(BaseSystem):
         self,
         shape: Sequence[int] = (80, 80),
         *,
+        colors: npt.ArrayLike | None = None,
+        start: Sequence[int] | None = None,
         heading: int = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -354,21 +385,50 @@ class LangtonsAntSystem(BaseSystem):
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
+        self.colors = colors
+        self.start = start
         self.heading = heading
 
+    def _get_colors(self) -> AnyArray:
+        """Return an object array that holds the initial colours of the torus.
+
+        Raises:
+            ValidationError:
+                The colours are not 0 or 1 with the shape of the torus.
+        """
+        shape = tuple(self.shape)
+        colors = np.zeros(shape) if self.colors is None else np.asarray(self.colors)
+        if colors.shape != shape or not np.isin(colors, (0, 1)).all():
+            error_msg = (
+                f'The colors must be 0 or 1 with the shape {shape} of the torus, but they have the shape '
+                f'{colors.shape} and the values {np.unique(colors).tolist()}.'
+            )
+            raise ValidationError(error_msg)
+        holder = np.empty(1, dtype=object)
+        holder[0] = colors.astype(np.uint8)
+        return holder
+
+    def _get_start(self) -> tuple[int, int]:
+        """Return the row and column of the initial cell of the ant.
+
+        Raises:
+            ValidationError:
+                The start lies outside the torus.
+        """
+        rows, columns = self.shape
+        row, column = (rows // 2, columns // 2) if self.start is None else self.start
+        if not (0 <= row < rows and 0 <= column < columns):
+            error_msg = f'The start {(row, column)} lies outside the torus of the shape {(rows, columns)}.'
+            raise ValidationError(error_msg)
+        return int(row), int(column)
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the colored cells and the ant on them."""
+        """Set the system of the ant on the coloured cells of a torus."""
         super()._prepare(context)
-        ant = np.full(tuple(self.shape), -1.0)
-        ant[self.shape[0] // 2, self.shape[1] // 2] = self.heading
-        cells = AntCellElement(
-            'cells',
-            color=np.zeros(ant.size),
-            ant=ant.ravel(),
-            space=LatticeSpace(tuple(self.shape)),
-        )
+        row, column = self._get_start()
+        ant = AntElement('ant', row=row, column=column, heading=int(self.heading), colors=self._get_colors())
         self.system_ = System(
             self.label,
-            elements=[cells],
-            interactions=[LangtonsAntInteraction('ant', target='cells')],
+            elements=[ant],
+            interactions=[LangtonsAntInteraction('move', target='ant')],
         )

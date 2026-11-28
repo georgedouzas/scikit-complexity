@@ -19,7 +19,7 @@ from ._alphabets import (
     SubtractionRuleInteraction,
 )
 from ._automata import (
-    AntCellElement,
+    AntElement,
     ElementaryAutomatonSystem,
     ElementaryRuleInteraction,
     GameOfLifeSystem,
@@ -91,7 +91,7 @@ from ._variants import (
 __all__: list[str] = [
     'AddingMachineSystem',
     'AdditiveRuleInteraction',
-    'AntCellElement',
+    'AntElement',
     'BaumslagSolitarAutomatonSystem',
     'BinaryCellElement',
     'CarryInteraction',
