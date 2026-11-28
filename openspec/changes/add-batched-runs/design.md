@@ -1,6 +1,6 @@
 ## Context
 
-- `_run_experiment` in `core/experiments/_runs.py` builds one `_TaskSpec` per row, scenario, and replicate, spawns one
+- `_run_experiment` in `core/experiments/_runs.py` builds one `_Task` per row, scenario, and replicate, spawns one
   `SeedSequence` per row and replicate, prepares one system per structure (source and model parameters), and maps
   `_run_task` over the tasks on the executor. Each task calls `_simulate_task`, which simulates the prepared system
   and steps one state.

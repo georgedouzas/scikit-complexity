@@ -28,6 +28,7 @@ behaviour or of results.
   | Private, no user reads it | `EntrySpec`, `SignatureSpec` |
   | Named results | `NetworkSnapshotSpec`, `AgentSnapshotSpec`, `StructureStateSpec` |
   | To decide in 1.1, a value user callbacks receive | `LammpsFixSpec`, the fix that `LammpsSolver(fixes=...)` functions read |
+  | To decide in 1.1, a value a public method returns | `_InteractionRequirementSpec`, which `get_requirements()` returns |
 
 - **Options.** The option takes the name of what it chooses, such as `rule='stable'` or `noise='wiener'`, with the
   values in a module constant beside the owner, and the parameters of every variant are plain keywords of the owner.

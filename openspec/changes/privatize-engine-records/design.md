@@ -59,6 +59,23 @@ Every other engine record becomes private. `PhaseSpec` and `PhasesScheduleSpec`,
 `NetworkSnapshotSpec`, `AgentSnapshotSpec`, `FrameSpec` and `StructureStateSpec`, which runs return, are user values
 and are left to `simplify-user-specs`. The component values the forms hold, such as `EntrySpec`, are also left to it.
 
+## Decisions taken while applying (2026-11-28)
+
+- `IssueSpec` stays public in `compile`: a compiler written outside the core, such as the rewriting compiler in
+  `systems/general/rewriting`, reports issues, so compilers are part of the contract with solvers and backends.
+- `LammpsFixSpec` stays public: the functions users pass to `LammpsSolver(fixes=...)` receive it, so it is a user
+  value for `simplify-user-specs`.
+- `_EventRecordSpec` keeps its `BaseRecordSpec` base: its events reach users in `Trajectory.events`.
+- The records that the engine reads from `components`, `_StateSpec`, `_ParameterSpec`, `_DeclaredVariableSpec` and the
+  three reduction records, keep their names and modules but lose their base. Their checks moved to
+  `BaseComponent._check_declared_state`, `_check_declared_group` and `_check_declared_parameter`, still raised at
+  prepare.
+- `_InteractionRequirementSpec` is what the public `get_requirements()` returns, so it is left to
+  `simplify-user-specs`.
+- The empty package `skcomplex.core.experiments.specs` was deleted, with the user's approval.
+- Known gap: some modules import private records across packages, such as `core/experiments/_replicate.py` importing
+  `components._state_spec`. This change does not fix that, which needs its own decision.
+
 ## Order of the work
 
 1. `compile`, then `solvers`, `backends` and `translators`, then the records outside the engine, in parallel, each

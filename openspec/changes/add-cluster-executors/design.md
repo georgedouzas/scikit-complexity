@@ -1,14 +1,14 @@
 ## Context
 
 - `_run_experiment` in `core/experiments/_runs.py` checks `executor` against `('serial', 'thread', 'process')` or
-  `concurrent.futures.Executor`, builds one `_TaskSpec` per run with its `SeedSequence`, and calls
+  `concurrent.futures.Executor`, builds one `_Task` per run with its `SeedSequence`, and calls
   `pool.map(functools.partial(_run_task, problems=problems), tasks)`. The dictionary of compiled problems is shared in
   serial and thread runs, and every process pickles an empty copy, so process workers compile once per task.
 - Since `redesign-core-api`, an experiment clones the system, sets parameters with `set_params`, prepares the clone,
   which compiles it, and calls `system.simulate`. It prepares once per structure when only initial states or random
   streams change. A task is a run of a prepared system, never a call of a free `simulate`.
 - `BrokenProcessPool` becomes `ExperimentError` with the advice of the main guard. No other failure is named.
-- `ExperimentResult` holds a tuple of `_RunResultSpec`, each with its times, series, and scalars in memory. It offers
+- `ExperimentResult` holds a tuple of `_RunResult`, each with its times, series, and scalars in memory. It offers
   `rows`, `get_column`, `get_series`, `get_ensemble`, `get_summary`, and `convert_to_frame`.
 - `_map_calls` runs whole fits on an executor for the refits of identifiability and individual calibration.
 - `distributed` 2026.8.0 is installed through pyabc, and `xarray` 2026.9.0 through dit and pydmd. Neither is declared.
