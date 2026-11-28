@@ -145,8 +145,10 @@ class WritingInteraction(Interaction):
 class SimonYuleSystem(BaseSystem):
     """The Simon system of a text that grows from one word.
 
-    Its word counts follow a power law. The rank-frequency exponent is `1 / (1 - innovation)`, and the number of
-    distinct words grows as `innovation` times the length of the text. The system has the group `words`.
+    Its word counts follow a power law. The count of the word of rank `r` falls as `r^-(1 - innovation)`, so the
+    rank-frequency slope is `1 - innovation`, and the share of words that occur `k` times falls as
+    `k^-(1 + 1 / (1 - innovation))`. The number of distinct words grows as `innovation` times the length of the text.
+    The system has the group `words`.
 
     Args:
         innovation:
