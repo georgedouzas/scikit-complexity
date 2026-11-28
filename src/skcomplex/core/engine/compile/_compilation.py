@@ -5,6 +5,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -43,8 +44,7 @@ from ..problems._problem_functions_spec import _ProblemFunctionsSpec
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
-from ..problems._transfer_network_spec import TransferNetworkSpec
-from ..problems._transfer_state_spec import TransferStateSpec
+from ..problems._transfer_network_spec import TransferNetworkSpec, _CompiledDelay, _CompiledFlow
 from ._issue_spec import IssueSpec
 from ._renewal_law import RenewalLaw
 
@@ -201,6 +201,132 @@ class _BoundRenewal:
     group: str
     entry: EntrySpec
     symbol: Expression
+
+
+@dataclass(frozen=True)
+class _Born:
+    """Transfer of a spec with the amount it moves and its compiled holders."""
+
+    spec: KernelSpec
+    flow: _CompiledFlow
+    amount: Expression
+    sign: int
+
+
+@dataclass(frozen=True)
+class _FlowTerm:
+    """Flow or rate of a spec, with its source and sink.
+
+    It becomes a node of the feedback graph.
+
+    Args:
+        spec:
+            The spec whose references the expression reads.
+
+        kind:
+            `'flow'`, or `'rate'` for a rate law outside flows.
+
+        path:
+            The node of a flow, or the state a rate law targets.
+
+        expression:
+            The expression.
+
+        source:
+            The state a flow drains, or `None`.
+
+        sink:
+            The state a flow fills, or `None`.
+    """
+
+    spec: KernelSpec
+    kind: str
+    path: str
+    expression: Expression
+    source: str | None = None
+    sink: str | None = None
+
+
+@dataclass(frozen=True)
+class _Record:
+    """Recorded expression of a spec.
+
+    It is rewritten as later passes substitute hidden states.
+    """
+
+    path: str
+    expression: Expression
+    spec: KernelSpec
+
+
+@dataclass(frozen=True)
+class _TransferState:
+    """A record of the flows of a system halfway through compiling them.
+
+    The compiler first expands every flow of a system into the laws it becomes, such as a flow from one tank to another
+    that drains one and fills the other, then lowers them. It carries what lies between the two passes: the
+    quantity of every state, the expanded flows, their records, the delays, and the terms of the feedback graph. It
+    compiles the flows of water between tanks, money between accounts, and people between the compartments of an
+    epidemic.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        quantities:
+            The quantity of every tagged state by entry name.
+
+        born:
+            The expanded flow of every law a flow became, by the identity of the law.
+
+        flows:
+            The expanded flows, in the order they were expanded.
+
+        records:
+            The recorded expressions of the flows.
+
+        delays:
+            The delays and smoothings lowered to hidden states.
+
+        terms:
+            The flows and rates of every spec, with their sources and sinks, for the loop terms.
+
+    See Also:
+        TransferNetworkSpec: What the lowering of flows gives.
+
+    Examples:
+        >>> from skcomplex.core.engine.compile._compilation import _TransferState
+        >>> _TransferState({}, {}, (), (), (), ()).flows
+        ()
+    """
+
+    quantities: Mapping[str, str]
+    born: Mapping[int, _Born]
+    flows: tuple[_Born, ...]
+    records: tuple[_Record, ...]
+    delays: tuple[_CompiledDelay, ...]
+    terms: tuple[_FlowTerm, ...]
+
+    def get_replaced(self, specs: Mapping[int, KernelSpec]) -> Self:
+        """Return the state with replaced kernel specs.
+
+        An example is specs whose rows are settled.
+
+        Args:
+            specs:
+                The new spec of every replaced spec, by the identity of the replaced spec.
+
+        Returns:
+            state:
+                The state that holds the new specs.
+        """
+        born = {id(item): replace(item, spec=specs.get(id(item.spec), item.spec)) for item in self.flows}
+        return replace(
+            self,
+            born={key: born[id(item)] for key, item in self.born.items()},
+            flows=tuple(born[id(item)] for item in self.flows),
+            records=tuple(replace(record, spec=specs.get(id(record.spec), record.spec)) for record in self.records),
+            terms=tuple(replace(term, spec=specs.get(id(term.spec), term.spec)) for term in self.terms),
+        )
 
 
 class Compilation:
@@ -418,7 +544,7 @@ class Compilation:
     symmetries: tuple[SymmetrySpec, ...] | None = None
     constrained: tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]] | None = None
     encounters: tuple[EncounterKernel, ...] | None = None
-    transfer: TransferStateSpec | None = None
+    transfer: _TransferState | None = None
     transfer_network: TransferNetworkSpec | None = None
     rules: list[tuple[KernelSpec, tuple[_RuleLaw, ...]]] | None = None
     request_jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]] | None = None

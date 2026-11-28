@@ -39,10 +39,10 @@ from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
 from ..problems._operator_problem_spec import OperatorProblemSpec
 from ..problems._read_spec import _ReadSpec
-from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
+from ..problems._transfer_network_spec import _Recorded
 from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
 from ._flows import TransferLowering
@@ -455,7 +455,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _get_recorded_getter(self, recorded: _RecordedSpec) -> ObservableFunction:
+    def _get_recorded_getter(self, recorded: _Recorded) -> ObservableFunction:
         """Return the getter of a flow or an objective.
 
         It gives one value for a single component and one per group member. A flow along the edges of a group reads
@@ -479,7 +479,7 @@ class ObservableEvaluator:
 
     def _read_offsets(
         self,
-        recorded: _RecordedSpec,
+        recorded: _Recorded,
     ) -> tuple[object, dict[Expression, Callable[[Array, Array], Array]]]:
         """Return a recorded expression with member offset reads replaced by symbols.
 
