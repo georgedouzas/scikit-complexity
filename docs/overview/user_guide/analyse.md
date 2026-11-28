@@ -843,7 +843,8 @@ The flock has one polar order per frame, 6 frames in five time units. Uniform ra
   dimensions and `fit_law(x, law='rayleigh')` in two compare the speeds of a gas, such as the system `ideal_gas`, with
   the Maxwell-Boltzmann law.
 - `neighbors` describes point patterns in open or periodic boxes by their nearest-neighbour `'distances'`, their
-  `'clark-evans'` ratio, and their `'radial-distribution'`.
+  `'clark-evans'` ratio, and their `'radial-distribution'`. Its kind `'radius'` gives the pairs within `r_max` and
+  the degree of every agent at every frame, the interaction graph of a flock.
 - `coarse_grain` turns agents into density or polarization fields for the field analyses.
 - `neighbors(x, kind='like-share')` and `domains(x, kind='interface-density')` measure segregation on grids and
   networks. `distribution(x, kind='total-variation')` gives the distance between the distributions of two groups across

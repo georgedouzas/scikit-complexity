@@ -117,3 +117,39 @@ def test_ising_names_the_solver_setting_when_its_checkerboard_cannot_run():
     solver = MetropolisSolver(moves={'spins.spin': 'flip'}, schedule='checkerboard')
     with pytest.raises(ValidationError, match=r"solver=MetropolisSolver\(moves=\.\.\., schedule='random-sequential'\)"):
         IsingSystem(9, solver=solver).prepare()
+
+
+def test_ising_records_the_energy_of_all_up_spins():
+    """Test that the energy of all up Ising spins is `-2 J` per site minus the field term."""
+    system = IsingSystem(8, J=1.0, h=0.3, initial='up', temperature=0.1)
+    energy = system.prepare().simulate(until=2, random_state=0).get_values('energy')
+    assert energy.shape == (3,)
+    assert energy[0] == pytest.approx(-2 * 64 - 0.3 * 64)
+
+
+def test_ising_energy_is_symmetric_under_a_global_flip():
+    """Test that an Ising configuration and its global flip have the same energy without a field."""
+    trajectory = IsingSystem(8, h=0.0).prepare().simulate(until=0)
+    spins = trajectory.get_values('spins.spin')[0]
+    flipped = IsingSystem(8, h=0.0).prepare().simulate(until=0, initial_state={'spins.spin': -spins})
+    assert flipped.get_values('energy')[0] == pytest.approx(trajectory.get_values('energy')[0])
+
+
+def test_ising_energy_matches_the_rolled_lattice():
+    """Test that the Ising energy is the sum over the right and lower neighbours of every site."""
+    trajectory = IsingSystem(6, J=0.5, h=0.2).prepare().simulate(until=0)
+    spins = trajectory.get_values('spins.spin')[0].reshape(6, 6)
+    bonds = (spins * np.roll(spins, 1, axis=0)).sum() + (spins * np.roll(spins, 1, axis=1)).sum()
+    assert trajectory.get_values('energy')[0] == pytest.approx(-0.5 * bonds - 0.2 * spins.sum())
+
+
+def test_potts_and_xy_record_their_energy():
+    """Test that the Potts energy counts like neighbours and the XY energy sums the cosines of neighbours."""
+    potts = PottsSystem(6, q=3, J=2.0).prepare().simulate(until=0)
+    colors = potts.get_values('spins.color')[0].reshape(6, 6)
+    like = sum((colors == np.roll(colors, 1, axis=axis)).sum() for axis in (0, 1))
+    assert potts.get_values('energy')[0] == pytest.approx(-2.0 * like)
+    xy = XYSystem(6).prepare().simulate(until=0)
+    angles = xy.get_values('spins.theta')[0].reshape(6, 6)
+    cosines = sum(np.cos(angles - np.roll(angles, 1, axis=axis)).sum() for axis in (0, 1))
+    assert xy.get_values('energy')[0] == pytest.approx(-cosines)
