@@ -26,6 +26,7 @@ from ._collapse import data_collapse
 from ._complexity import complexity
 from ._computational_mechanics import epsilon_machine
 from ._correlation import correlation
+from ._correlation_network import correlation_network
 from ._defects import defects
 from ._displacement import displacement
 from ._distribution import distribution
@@ -78,6 +79,7 @@ ANALYSES = (
     coarse_grain,
     complexity,
     correlation,
+    correlation_network,
     data_collapse,
     defects,
     displacement,

@@ -101,3 +101,9 @@ def test_discovery_lists_only_core_analyses():
         function.__name__ in analysis.__all__ and getattr(analysis, function.__name__) is function
         for function in functions
     )
+
+
+def test_discovery_of_an_array_of_series_lists_the_correlation_network():
+    """Test that the series of a plain array offer the correlation network."""
+    analyses = _discover(np.random.default_rng(0).standard_normal((100, 4))).analyses['series']
+    assert ('correlation_network', None) in _names(analyses)

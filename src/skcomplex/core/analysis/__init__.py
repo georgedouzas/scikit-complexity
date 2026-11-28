@@ -16,6 +16,7 @@ from ._collapse import DataCollapseResult, data_collapse
 from ._complexity import ComplexityResult, complexity
 from ._computational_mechanics import EpsilonMachineResult, epsilon_machine
 from ._correlation import CorrelationResult, correlation
+from ._correlation_network import CorrelationNetworkResult, correlation_network
 from ._defects import DefectsResult, defects
 from ._discovery import ApplicableAnalysesResult, applicable_analyses
 from ._displacement import DisplacementResult, displacement
@@ -70,6 +71,7 @@ __all__: list[str] = [
     'ClustersResult',
     'CoarseGrainResult',
     'ComplexityResult',
+    'CorrelationNetworkResult',
     'CorrelationResult',
     'DataCollapseResult',
     'DefectsResult',
@@ -124,6 +126,7 @@ __all__: list[str] = [
     'coarse_grain',
     'complexity',
     'correlation',
+    'correlation_network',
     'data_collapse',
     'defects',
     'displacement',
