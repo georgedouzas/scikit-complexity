@@ -32,6 +32,7 @@ from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSyste
 
 NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 
+
 def _cells(space, laws, label='cells', **values):
     """Return cells at the sites of a lattice whose laws are a function of the namespace of the role `target`."""
     rule = Interaction('rule', roles={'target': label}, laws=laws)

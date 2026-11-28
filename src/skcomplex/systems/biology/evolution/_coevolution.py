@@ -239,7 +239,9 @@ class BakSneppenSystem(BaseSystem):
         """
         super()._prepare(context)
         if self.neighbors not in SPECIES_NEIGHBORS:
-            error_msg = f'BakSneppenSystem has the neighbours {self.neighbors!r}. Use one of {", ".join(SPECIES_NEIGHBORS)}.'
+            error_msg = (
+                f'BakSneppenSystem has the neighbours {self.neighbors!r}. Use one of {", ".join(SPECIES_NEIGHBORS)}.'
+            )
             raise ValidationError(error_msg)
         space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
         count = int(space.size_ or 0)

@@ -315,7 +315,9 @@ class SandpileSystem(BaseSystem):
         """
         super()._prepare(context)
         if self.neighbors not in SANDPILE_NEIGHBORS:
-            error_msg = f'SandpileSystem has the neighbours {self.neighbors!r}. Use one of {", ".join(SANDPILE_NEIGHBORS)}.'
+            error_msg = (
+                f'SandpileSystem has the neighbours {self.neighbors!r}. Use one of {", ".join(SANDPILE_NEIGHBORS)}.'
+            )
             raise ValidationError(error_msg)
         if self.neighbors == 'random' and not 0 < self.conservation < 1:
             error_msg = (
@@ -501,7 +503,9 @@ class ForestFireSystem(BaseSystem):
         """
         super()._prepare(context)
         if self.boundary not in FOREST_BOUNDARIES:
-            error_msg = f'ForestFireSystem has the boundary {self.boundary!r}. Use one of {", ".join(FOREST_BOUNDARIES)}.'
+            error_msg = (
+                f'ForestFireSystem has the boundary {self.boundary!r}. Use one of {", ".join(FOREST_BOUNDARIES)}.'
+            )
             raise ValidationError(error_msg)
         cover = (np.random.default_rng(self.random_state).random(tuple(self.shape)) < self.density).astype(float)
         forest = ForestElement(

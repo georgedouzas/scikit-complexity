@@ -146,4 +146,6 @@ class ActivitiesPass(BasePass):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)
         owner = members.entry.name.rpartition('.')[0]
-        return _ActivityRecorder(label, function, tuple(reads), size, ActivitiesPass._get_neighbors(owner, declarations))
+        return _ActivityRecorder(
+            label, function, tuple(reads), size, ActivitiesPass._get_neighbors(owner, declarations)
+        )

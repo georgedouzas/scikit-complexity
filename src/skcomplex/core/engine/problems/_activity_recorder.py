@@ -80,7 +80,9 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
 
     def _read(self, state: RunStateSpec) -> Array:
         """Return the activity of every member at a state."""
-        values = self.function(state.t, *(state.x[rows] if is_state else state.p[rows] for is_state, rows in self.reads))
+        values = self.function(
+            state.t, *(state.x[rows] if is_state else state.p[rows] for is_state, rows in self.reads)
+        )
         return np.broadcast_to(np.asarray(values[0], dtype=float), (self.size,))
 
     def _get_components(self, active: Indices, n_open: int) -> Indices:

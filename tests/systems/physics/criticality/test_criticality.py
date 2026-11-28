@@ -89,7 +89,9 @@ def _space_time_fires(burning: np.ndarray, side: int) -> list[int]:
         graph.add_nodes_from((step, int(site)) for site in np.flatnonzero(sites))
     for step, site in list(graph.nodes):
         for other in (site, *lattice[site]):
-            graph.add_edges_from(((step, site), (later, other)) for later in (step, step + 1) if (later, other) in graph)
+            graph.add_edges_from(
+                ((step, site), (later, other)) for later in (step, step + 1) if (later, other) in graph
+            )
     last = len(burning) - 1
     return [len(fire) for fire in nx.connected_components(graph) if max(step for step, _ in fire) < last]
 

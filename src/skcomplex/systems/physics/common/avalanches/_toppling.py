@@ -266,7 +266,9 @@ class TopplingInteraction(Interaction):
         if neighborhood is None:
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
         if self.neighbors == 'random':
-            rules: list[BaseLaw] = [UpdateLaw(value, self._scatter_anywhere(threshold, share), arrays=True, stochastic=True)]
+            rules: list[BaseLaw] = [
+                UpdateLaw(value, self._scatter_anywhere(threshold, share), arrays=True, stochastic=True)
+            ]
         elif self.mode == 'random':
             rules = [
                 UpdateLaw(value, self._scatter(neighborhood, threshold, share), arrays=True, stochastic=True),
