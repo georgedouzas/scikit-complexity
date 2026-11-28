@@ -108,6 +108,15 @@ class TopologyRequestSpec(BaseSpec):
         parent:
             The probability that the copy of `'duplicate-node'` joins the node.
 
+        further:
+            The number of further edges a new node of `'add-node'` adds in the same step after its first `edges`, one
+            at a time. Each joins a neighbour of a first contact drawn uniformly with probability `closing`, closing a
+            triangle, and otherwise a node drawn by `toward` at the network with the edges added so far, so the weight
+            may read the first contacts. Without a free neighbour of a first contact the end is drawn by `toward`.
+
+        closing:
+            The probability that a further edge of a new node joins a neighbour of one of its first contacts.
+
     See Also:
         UpdateLaw: Fires the request with a chance at every step.
         JumpLaw: Fires the request at a rate.
@@ -132,6 +141,8 @@ class TopologyRequestSpec(BaseSpec):
     one: bool = False
     inherit: float = 1.0
     parent: float = 0.0
+    further: int = 0
+    closing: float = 1.0
 
     def _check(self) -> None:
         """Raise an error for an unknown kind, end, or direction, or a bad number.
@@ -142,8 +153,9 @@ class TopologyRequestSpec(BaseSpec):
                 hyperedge has fewer than two members or belongs to a request other than `'add-node'` and
                 `'add-hyperedge'`, `'add-hyperedge'` has no hyperedge, the candidates are not a whole number of at
                 least 1 or belong to a request other than `'add-edge'` or to independent ends, a score is not
-                callable or belongs to a request other than `'add-edge'`, or a probability of duplication lies outside
-                `[0, 1]`.
+                callable or belongs to a request other than `'add-edge'`, a probability of duplication lies outside
+                `[0, 1]`, or further edges are not a whole number, belong to a request other than `'add-node'` with
+                first edges drawn by weight, or close triangles with a probability outside `[0, 1]`.
         """
         if self.kind not in TopologyKind:
             error_msg = f'Unknown topology request {self.kind!r}. Use one of {", ".join(TopologyKind)}.'
@@ -159,6 +171,7 @@ class TopologyRequestSpec(BaseSpec):
             raise ValidationError(error_msg)
         self._check_choice()
         self._check_duplication()
+        self._check_further()
         if self.hyperedge is None:
             if self.kind == 'add-hyperedge':
                 error_msg = "An 'add-hyperedge' request forms a hyperedge of a size. Give it `hyperedge`."
@@ -207,3 +220,26 @@ class TopologyRequestSpec(BaseSpec):
             if not 0 <= value <= 1:
                 error_msg = f'The duplication probability {name} is {value!r}. Give a number in [0, 1].'
                 raise ValidationError(error_msg)
+
+    def _check_further(self) -> None:
+        """Raise an error for further edges outside a new node with first edges.
+
+        Raises:
+            ValidationError:
+                The further edges are not a whole number of at least 0, or belong to a request other than `'add-node'`
+                or to one without first edges, with independent ends, or with a hyperedge, or the probability of
+                closing a triangle lies outside `[0, 1]`.
+        """
+        if int(self.further) != self.further or self.further < 0:
+            error_msg = f'A new node adds a whole number of further edges of at least 0, not {self.further!r}.'
+            raise ValidationError(error_msg)
+        if not 0 <= self.closing <= 1:
+            error_msg = f'The probability of closing a triangle is {self.closing!r}. Give a number in [0, 1].'
+            raise ValidationError(error_msg)
+        drawn = self.kind == 'add-node' and self.edges > 0 and not self.independent and self.hyperedge is None
+        if self.further and not drawn:
+            error_msg = (
+                f'A {self.kind!r} request adds further edges. Only an \'add-node\' request with first edges drawn by '
+                'weight, without independent ends or a hyperedge, takes them.'
+            )
+            raise ValidationError(error_msg)
