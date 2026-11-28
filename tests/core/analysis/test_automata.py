@@ -1,4 +1,4 @@
-"""Test the automaton analysis: decisions, inverses, compositions, difference patterns, entropies, and subshifts."""
+"""Test the automaton analysis: decisions, inverses, compositions, differences, entropies, subshifts, and cycles."""
 
 import functools
 import hashlib
@@ -33,7 +33,8 @@ from skcomplex.core.components.spaces import (
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
-from skcomplex.systems.computer_science.automata import lamplighter
+from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem, YeastCellCycleSystem
+from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, lamplighter
 from skcomplex.systems.computer_science.common.automata import CayleySpace, MemoryNeighborhood
 
 LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
@@ -595,3 +596,118 @@ def test_automaton_of_an_interaction_that_sets_an_update_with_a_neighbourhood():
         TotalisticSpec({0: 0, 1: 1, 2: 0, 3: 1}),
     )
     assert _automaton('injective', system).injective == _automaton('injective', declared).injective
+
+
+def _get_brute_force(step, configurations):
+    """Return the transient and the cycle length of every configuration by iterating a map one by one."""
+    found = []
+    for configuration in configurations:
+        seen = {}
+        state = tuple(configuration)
+        while state not in seen:
+            seen[state] = len(seen)
+            state = tuple(step(np.asarray(state)))
+        found.append((seen[state], len(seen) - seen[state]))
+    return found
+
+
+def _get_codes(configurations):
+    """Return the code of every configuration of zeros and ones, the first value the most significant."""
+    return configurations @ 2 ** np.arange(configurations.shape[1] - 1, -1, -1)
+
+
+def test_attractors_of_rule_90_on_a_ring():
+    """Test that rule 90 maps every configuration of a ring of 8 to zero and has cycles of 1 or 2 on a ring of 6."""
+    eight = automaton(ElementaryAutomatonSystem(90, size=8), kind='attractors')
+    six = automaton(ElementaryAutomatonSystem(90, size=6), kind='attractors')
+    assert eight.basins.sum() == 256
+    assert eight.lengths.tolist() == [1]
+    np.testing.assert_array_equal(eight.cycles[0], np.zeros((1, 8)))
+    assert six.basins.sum() == 64
+    assert all(2 % length == 0 for length in six.lengths)
+
+
+def test_attractors_match_the_iteration_of_every_configuration():
+    """Test that the transients and cycle lengths of rule 30 on a ring of 10 are those of iterating each one."""
+    result = automaton(ElementaryAutomatonSystem(30, size=10), kind='attractors')
+    configurations = np.asarray(list(itertools.product((0, 1), repeat=10)))
+
+    def step(cells):
+        """Return the next cells of rule 30 on the ring."""
+        return np.roll(cells, 1) ^ (cells | np.roll(cells, -1))
+
+    expected = _get_brute_force(step, configurations)
+    assert result.transients.tolist() == [transient for transient, _ in expected]
+    assert result.lengths[result.attractors].tolist() == [length for _, length in expected]
+    for cycle in result.cycles:
+        np.testing.assert_array_equal(np.roll(cycle, -1, axis=0), [step(cells) for cells in cycle])
+        assert _get_codes(cycle)[0] == _get_codes(cycle).min()
+
+
+def test_attractors_of_the_yeast_cell_cycle():
+    """Test that the yeast network has seven fixed points and the stationary G1 state drains 1764 of 2048 states."""
+    system = YeastCellCycleSystem()
+    result = automaton(system, kind='attractors')
+    largest = int(np.argmax(result.basins))
+    g1 = [int(node.label in ('Cdh1', 'Sic1')) for node in system.prepare().system_.elements]
+    assert result.lengths.tolist() == [1] * 7
+    assert result.basins[largest] == 1764
+    np.testing.assert_array_equal(result.cycles[largest], [g1])
+
+
+def test_attractors_of_a_random_boolean_network_follow_its_tables():
+    """Test that the attractors of a random Boolean network come from iterating its tables on every configuration."""
+    system = RandomBooleanNetworkSystem(10, 2, random_state=5)
+    nodes = system.prepare().system_.elements[0]
+    result = automaton(system, kind='attractors')
+    configurations = np.asarray(list(itertools.product((0, 1), repeat=10)))
+
+    def step(values):
+        """Return the next values of the nodes by their tables."""
+        return nodes.table[np.arange(10), values[nodes.inputs] @ np.array([2, 1])]
+
+    expected = _get_brute_force(step, configurations)
+    assert result.transients.tolist() == [transient for transient, _ in expected]
+    assert result.basins.sum() == 1024
+
+
+def test_attractors_refuse_more_than_two_to_the_twenty_four_configurations():
+    """Test that the attractors of a ring of 25 cells raise an error that names the number of configurations."""
+    with pytest.raises(AnalysisError, match=r'2\^25 = 33554432 configurations'):
+        automaton(ElementaryAutomatonSystem(30, size=25), kind='attractors')
+
+
+def test_attractors_refuse_a_network_that_draws():
+    """Test that an annealed or asynchronous network maps no configuration to one image."""
+    for options in ({'annealed': True}, {'update': 'asynchronous'}):
+        with pytest.raises(AnalysisError, match='draws nothing'):
+            automaton(RandomBooleanNetworkSystem(6, 2, **options), kind='attractors')
+
+
+def test_difference_of_an_ordered_boolean_network_stays_small():
+    """Test that one flipped node of a network with one input per node changes few nodes, unlike three inputs."""
+    distances = {}
+    for k in (1, 3):
+        system = RandomBooleanNetworkSystem(2000, k, random_state=2)
+        start = np.asarray(system.prepare().system_.elements[0].x)
+        result = automaton(system, kind='difference', configuration=start, site=7, steps=50)
+        np.testing.assert_array_equal(result.distances, result.differences.sum(axis=1))
+        distances[k] = result.distances
+    assert distances[1][0] == 1
+    assert distances[1].max() <= 5
+    assert distances[3][-1] > 100
+
+
+def test_difference_of_a_network_changes_several_nodes():
+    """Test that the copies of a network start apart at every given node and follow its tables."""
+    system = RandomBooleanNetworkSystem(30, 2, random_state=1)
+    nodes = system.prepare().system_.elements[0]
+    start = np.zeros(30, dtype=int)
+    result = automaton(system, kind='difference', configuration=start, site=[0, 4, 9], steps=3)
+    changed = start.copy()
+    changed[[0, 4, 9]] = 1
+    runs = [start, changed]
+    for _ in range(3):
+        runs = [nodes.table[np.arange(30), run[nodes.inputs] @ np.array([2, 1])] for run in runs]
+    assert result.distances[0] == 3
+    assert result.distances[-1] == np.sum(runs[0] != runs[1])
