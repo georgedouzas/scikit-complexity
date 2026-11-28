@@ -14,7 +14,6 @@ from cysignals.alarm import AlarmInterrupt, alarm, cancel_alarm
 from sage.all__sagemath_polyhedra import Polyhedron
 from sage.rings.rational_field import QQ
 
-from ..base import BaseSpec
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import ProblemSpec, RunStateSpec
 from ..engine.problems._composite_system import _CompositeSystem
@@ -33,7 +32,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)
-class _ConeSpec(BaseSpec):
+class _Cone:
     """Steady-state cone.
 
     It holds a matrix over the variables kept, their directions, and which of them are exchanges.
@@ -195,7 +194,7 @@ def _kernel_of(problem: ProblemSpec) -> LinearProgramKernel:
     return problem.programs[0].prepare(state)
 
 
-def _system_cone(system: _CompositeSystem, exchanges: Sequence[str] | None) -> _ConeSpec:
+def _system_cone(system: _CompositeSystem, exchanges: Sequence[str] | None) -> _Cone:
     """Return the cone of the program of a system at its initial values."""
     problem = PassCompiler().prepare(system).run().problem_
     if not isinstance(problem, ProblemSpec):
@@ -211,7 +210,7 @@ def _system_cone(system: _CompositeSystem, exchanges: Sequence[str] | None) -> _
     irreversible = {column for column in kept if lower[column] >= 0 or column in flipped}
     positions = {column: position for position, column in enumerate(kept)}
     cone = matrix[:, kept]
-    return _ConeSpec(
+    return _Cone(
         cone,
         tuple(program.names[column] for column in kept),
         frozenset(positions[column] for column in irreversible),
@@ -248,12 +247,12 @@ def _matrix_cone(
     exchanges: Sequence[str] | None,
     labels: Sequence[str] | None,
     irreversible: Sequence[int] | None,
-) -> _ConeSpec:
+) -> _Cone:
     """Return the cone of a matrix with its irreversible columns."""
     columns = matrix.shape[1]
     names = tuple(labels) if labels is not None else tuple(f'v{column}' for column in range(columns))
     chosen = range(columns) if irreversible is None else irreversible
-    return _ConeSpec(
+    return _Cone(
         matrix,
         names,
         frozenset(int(item) for item in chosen),
@@ -263,7 +262,7 @@ def _matrix_cone(
     )
 
 
-def _exact_matrix(cone: _ConeSpec) -> list[list[Fraction]]:
+def _exact_matrix(cone: _Cone) -> list[list[Fraction]]:
     """Return the matrix as fractions of small denominators.
 
     The reversed columns are negated.
@@ -284,7 +283,7 @@ def _exact_matrix(cone: _ConeSpec) -> list[list[Fraction]]:
     return rows
 
 
-def _is_free(cone: _ConeSpec, column: int, kind: str) -> bool:
+def _is_free(cone: _Cone, column: int, kind: str) -> bool:
     """Check whether a column stays one column of either sign.
 
     Such a column is a reversible exchange of the pathways.
@@ -292,7 +291,7 @@ def _is_free(cone: _ConeSpec, column: int, kind: str) -> bool:
     return kind == 'pathways' and column in cone.exchanges and column not in cone.irreversible
 
 
-def _split_columns(cone: _ConeSpec, kind: str) -> list[tuple[int, int]]:
+def _split_columns(cone: _Cone, kind: str) -> list[tuple[int, int]]:
     """Return every column of the split cone.
 
     Each comes with the column it comes from and its sign.
@@ -307,7 +306,7 @@ def _split_columns(cone: _ConeSpec, kind: str) -> list[tuple[int, int]]:
 
 
 def _rays_of(
-    cone: _ConeSpec,
+    cone: _Cone,
     fractions: list[list[Fraction]],
     columns: Sequence[tuple[int, int]],
     kind: str,
@@ -333,7 +332,7 @@ def _rays_of(
     return rays
 
 
-def _limit_error(cone: _ConeSpec, timeout: float) -> EnumerationLimitError:
+def _limit_error(cone: _Cone, timeout: float) -> EnumerationLimitError:
     """Return the error of an enumeration that did not finish within the time limit."""
     error_msg = (
         f'The enumeration over {len(cone.labels)} variables did not finish within {timeout} s. Close exchanges, or '
@@ -342,7 +341,7 @@ def _limit_error(cone: _ConeSpec, timeout: float) -> EnumerationLimitError:
     return EnumerationLimitError(error_msg)
 
 
-def _independent(cone: _ConeSpec, rows: np.ndarray, timeout: float) -> np.ndarray:
+def _independent(cone: _Cone, rows: np.ndarray, timeout: float) -> np.ndarray:
     """Return the rows that no non-negative combination of the other rows gives.
 
     The search runs under the time limit.
@@ -361,7 +360,7 @@ def _independent(cone: _ConeSpec, rows: np.ndarray, timeout: float) -> np.ndarra
 
 
 def _mapped_rays(
-    cone: _ConeSpec,
+    cone: _Cone,
     fractions: list[list[Fraction]],
     columns: Sequence[tuple[int, int]],
     kind: str,
@@ -382,7 +381,7 @@ def _mapped_rays(
     return found
 
 
-def _scaled(cone: _ConeSpec, vector: Sequence[Fraction], normalize: str | None) -> list[Fraction]:
+def _scaled(cone: _Cone, vector: Sequence[Fraction], normalize: str | None) -> list[Fraction]:
     """Return a generator with `normalize` at one, or as the smallest integer vector.
 
     The generator is in declared directions.
@@ -401,7 +400,7 @@ def _scaled(cone: _ConeSpec, vector: Sequence[Fraction], normalize: str | None) 
 
 
 def _unique(
-    cone: _ConeSpec,
+    cone: _Cone,
     vectors: Sequence[Sequence[Fraction]],
     normalize: str | None,
     sort: str | None,

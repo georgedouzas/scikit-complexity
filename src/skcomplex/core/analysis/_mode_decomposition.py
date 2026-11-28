@@ -17,8 +17,7 @@ from ..errors import AnalysisError
 from ..systems import System
 from ..types import Array, ComplexArray
 from ._analysis_tags import AnalysisTags
-from ._base import _read_samples
-from ._samples_spec import _SamplesSpec
+from ._base import _read_samples, _Samples
 from ._sparse_identification import (
     _check_horizon,
     _check_validation,
@@ -113,7 +112,7 @@ class ModeDecompositionResult:
         (5, 2)
     """
 
-    samples: _SamplesSpec
+    samples: _Samples
     system: System
     labels: list[str]
     states: list[str]
@@ -258,7 +257,7 @@ def mode_decomposition(
     )
 
 
-def _split_inputs(samples: _SamplesSpec, inputs: Sequence[str] | None) -> tuple[_SamplesSpec, list[str], list[Array]]:
+def _split_inputs(samples: _Samples, inputs: Sequence[str] | None) -> tuple[_Samples, list[str], list[Array]]:
     """Return the samples without the inputs, and the labels and series of the inputs.
 
     Args:
@@ -286,7 +285,7 @@ def _split_inputs(samples: _SamplesSpec, inputs: Sequence[str] | None) -> tuple[
     columns = [samples.labels.index(name) for name in names]
     labels = [samples.labels[index] for index in others]
     return (
-        _SamplesSpec([values[:, others] for values in samples.series], labels, samples.dt),
+        _Samples([values[:, others] for values in samples.series], labels, samples.dt),
         names,
         [values[:, columns] for values in samples.series],
     )
@@ -388,7 +387,7 @@ def _input_declarations(
     }
 
 
-def _lift(samples: _SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
+def _lift(samples: _Samples, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
     """Return the series, labels, and state names of the observables.
 
     Without a dictionary, the observables are the variables.

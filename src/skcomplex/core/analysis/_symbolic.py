@@ -45,7 +45,6 @@ from ..errors import AnalysisError, ConservationError
 from ..types import Array, ComplexArray
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _read_system
-from ._unknown_spec import _UnknownSpec
 from ._utils import compile_problem
 from .types import DataSource
 
@@ -71,6 +70,19 @@ GUARD_BITS = 64
 DECLARED: set[str] = set()
 SIGNS: dict[str, Expression] = {}
 TAGS = AnalysisTags(DataKind.SYSTEM)
+
+
+@dataclass(frozen=True)
+class _Unknown:
+    """State component whose equation the analysis writes in its own order.
+
+    It holds its name, its function of time, its order, and the indices of its components.
+    """
+
+    name: str
+    function: Expression
+    order: int
+    indices: tuple[int, ...]
 
 
 class _MittagLefflerFunction(_OperatorFunction):
@@ -456,7 +468,7 @@ def _delayed_functions(
     return delayed
 
 
-def _left_side(problem: ProblemSpec, unknown: _UnknownSpec) -> Expression:
+def _left_side(problem: ProblemSpec, unknown: _Unknown) -> Expression:
     """Return the left side of the equation of an unknown.
 
     It is its next value, highest derivative, or Caputo one.
@@ -471,7 +483,7 @@ def _left_side(problem: ProblemSpec, unknown: _UnknownSpec) -> Expression:
 
 def _written(
     problem: ProblemSpec,
-) -> tuple[dict[str, Expression], list[_UnknownSpec], dict[Expression, Expression]]:
+) -> tuple[dict[str, Expression], list[_Unknown], dict[Expression, Expression]]:
     """Return the equations in their written order, the unknown functions, and symbols.
 
     The symbols come as their substitution.
@@ -482,7 +494,7 @@ def _written(
     for kind, base, index in problem.companions.values():
         if kind == 'derivative':
             orders[base] = max(orders.get(base, 1), index + 1)
-    unknowns: list[_UnknownSpec] = []
+    unknowns: list[_Unknown] = []
     substitution: dict[Expression, Expression] = {}
     for name, item in problem.equation_symbols.items():
         entry, column, index = components[name]
@@ -500,7 +512,7 @@ def _written(
             if kind == 'lag' and base == entry:
                 lagged = by_entry[(companion_name, column)]
                 substitution[problem.equation_symbols[lagged]] = function(str(item))(problem.time - steps)
-        unknowns.append(_UnknownSpec(name, unknown_function, order, tuple(indices)))
+        unknowns.append(_Unknown(name, unknown_function, order, tuple(indices)))
     substitution.update(_delayed_functions(problem, substitution))
     equations = {}
     for unknown in unknowns:

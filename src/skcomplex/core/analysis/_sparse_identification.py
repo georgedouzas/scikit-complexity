@@ -23,8 +23,7 @@ from ..errors import AnalysisError
 from ..systems import System
 from ..types import Array
 from ._analysis_tags import AnalysisTags
-from ._base import _read_samples
-from ._samples_spec import _SamplesSpec
+from ._base import _read_samples, _Samples
 from ._utils import load_module
 from .types import Runs
 
@@ -114,7 +113,7 @@ class SparseIdentificationResult:
         ['1', 'x']
     """
 
-    samples: _SamplesSpec
+    samples: _Samples
     system: System
     labels: list[str]
     states: list[str]
