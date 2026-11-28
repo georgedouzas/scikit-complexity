@@ -57,11 +57,17 @@ class ClustersResult:
             The graph, or `None` for grids and points.
 
         labels:
-            The label of every cell, 0 for empty cells and 1 onwards for clusters, for `'labels'` and for points.
+            The label of every cell, 0 for empty cells and 1 onwards for clusters, for `'labels'` and for points, or
+            the component of every node of a graph in node order, 1 for the largest, for `'sizes'` and
+            `'percolation'`.
 
         sizes:
             The size of every cluster, in label order for `'labels'` and largest first otherwise, or `None` for
             `'spanning'`.
+
+        members:
+            The nodes of every component of a graph in node order, largest first, for `'sizes'` and `'percolation'`,
+            or `None` for grids and points.
 
         strength:
             The share of all sites or nodes in the largest cluster, occupied or not, for `'percolation'` and for
@@ -86,6 +92,9 @@ class ClustersResult:
         >>> from skcomplex.core.analysis import clusters
         >>> clusters([[1, 1, 0], [0, 0, 1]], kind='sizes').sizes.tolist()
         [2, 1]
+        >>> import networkx as nx
+        >>> clusters(nx.Graph([(0, 1), (2, 3), (3, 4)]), kind='sizes').members
+        [[2, 3, 4], [0, 1]]
     """
 
     points: npt.NDArray[np.float64] | None = None
@@ -94,6 +103,7 @@ class ClustersResult:
     graph: nx.Graph | None = None
     labels: IntArray | None = None
     sizes: IntArray | None = None
+    members: list[list[object]] | None = None
     strength: float | None = None
     mean_size: float | None = None
     spanning: bool | None = None
@@ -126,7 +136,8 @@ def clusters(
 
         kind:
             What to return. `'labels'` gives the label of every cell, the size of every cluster in label order, and
-            whether a cluster spans. `'sizes'` gives the sizes, largest first. `'percolation'` gives the sizes, the
+            whether a cluster spans. `'sizes'` gives the sizes, largest first, and for a graph the component of
+            every node and the nodes of every component. `'percolation'` gives the sizes, the
             strength, the share of all sites in the largest cluster, the mean size, and spanning. The strength divided
             by the occupation probability `p` is the share of the occupied sites in the largest cluster. `'spanning'`
             gives the share of the grids of an ensemble, stacked on the first axis, with a spanning cluster.
@@ -216,16 +227,31 @@ def clusters(
 
 
 def _of_graph(graph: nx.Graph, kind: str) -> ClustersResult:
-    """Return the sizes of the components of a graph.
+    """Return the sizes, the labels, and the members of the components of a graph.
 
-    For percolation, the strength and the mean size are returned too.
+    The components come largest first, ties by their first node in node order, and for percolation the strength and
+    the mean size are returned too.
     """
-    components = nx.connected_components(graph.to_undirected(as_view=True))
-    sizes = np.sort(np.asarray([len(component) for component in components], dtype=np.int64))[::-1]
+    position = {node: index for index, node in enumerate(graph.nodes())}
+    members = sorted(
+        (sorted(component, key=position.__getitem__) for component in nx.connected_components(graph.to_undirected())),
+        key=lambda component: (-len(component), position[component[0]]),
+    )
+    sizes = np.asarray([len(component) for component in members], dtype=np.int64)
+    label = {node: index + 1 for index, component in enumerate(members) for node in component}
+    labels = np.asarray([label[node] for node in graph.nodes()], dtype=np.int64)
     if kind == 'sizes':
-        return ClustersResult(graph=graph, sizes=sizes)
+        return ClustersResult(graph=graph, labels=labels, sizes=sizes, members=members)
     strength, mean_size = _strength(sizes, graph.number_of_nodes())
-    return ClustersResult(graph=graph, sizes=sizes, strength=strength, mean_size=mean_size, spanning=False)
+    return ClustersResult(
+        graph=graph,
+        labels=labels,
+        sizes=sizes,
+        members=members,
+        strength=strength,
+        mean_size=mean_size,
+        spanning=False,
+    )
 
 
 def _strength(sizes: IntArray, total: int) -> tuple[float, float]:

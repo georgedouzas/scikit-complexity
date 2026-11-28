@@ -162,3 +162,13 @@ def test_check_radius_rejects_grid_settings() -> None:
     """Test that a radius takes neither a periodic nor a diagonal setting."""
     with pytest.raises(AnalysisError, match='radius'):
         clusters(np.zeros((3, 3)), kind='sizes', radius=1.0, diagonal=True)
+
+
+def test_components_of_a_graph_list_their_members():
+    """Test the sizes, labels, and members of a path of 3 nodes and a separate edge."""
+    graph = nx.disjoint_union(nx.path_graph(3), nx.path_graph(2))
+    for kind in ('sizes', 'percolation'):
+        result = _clusters(kind, graph)
+        assert result.sizes.tolist() == [3, 2]
+        assert result.labels.tolist() == [1, 1, 1, 2, 2]
+        assert result.members == [[0, 1, 2], [3, 4]]
