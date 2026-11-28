@@ -25,7 +25,7 @@ from skcomplex.core.engine.solvers import MetropolisSolver
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.systems import System
 from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
-from skcomplex.systems.physics.criticality import ForestFireSystem
+from skcomplex.systems.physics.criticality import ForestFireSystem, SandpileSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
 
 
@@ -279,7 +279,18 @@ def test_relaxation_records_avalanches():
     (record,) = trajectory.events
     assert (record.label, record.time) == ('rule', 0.0)
     assert (record.size, record.duration, record.area) == (9, 5, 5)
+    assert record.profile == (1, 2, 3, 2, 1)
     assert np.all(trajectory.states[-1] < 2)
+
+
+def test_relaxation_profiles_of_a_sandpile():
+    """Test that every avalanche of a sandpile has a profile of positive counts that sums to its size."""
+    trajectory = SandpileSystem((20, 20)).prepare().simulate(until=5000, dt=5000, random_state=0)
+    assert trajectory.events
+    for event in trajectory.events:
+        assert len(event.profile) == event.duration
+        assert min(event.profile) > 0
+        assert sum(event.profile) == event.size
 
 
 def test_relaxation_without_end_raises():

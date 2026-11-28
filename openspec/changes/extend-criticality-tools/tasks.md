@@ -2,12 +2,12 @@
 
 ## 1. Profiles of cascades (#78)
 
-- [ ] 1.1 Add `profile` to `_CascadeRecordSpec` and fill it in `CascadeKernel._relax`, and test the single toppling and
+- [x] 1.1 Add `profile` to `_CascadeRecordSpec` and fill it in `CascadeKernel._relax`, and test the single toppling and
   the profiles of a sandpile in `tests/core/components/laws/utils/test_relaxations.py` and
   `tests/core/engine/solvers/test_lattice.py`
 - [ ] 1.2 Return the profiles as shapes in `events(kind='excursions')` and add `events(kind='activity')`, tested in
   `tests/core/analysis/test_events.py` with the two avalanche example
-- [ ] 1.3 Test that `crackling_noise` collapses the shapes of sandpile avalanches in
+- [x] 1.3 Test that `crackling_noise` collapses the shapes of sandpile avalanches in
   `tests/systems/physics/criticality/test_crackling_noise.py`
 - [ ] 1.4 Describe profiles and the activity series in the docstring of `relax` and in
   `docs/overview/user_guide/build_a_custom_system/lattice_systems.md`, and verify that the examples run

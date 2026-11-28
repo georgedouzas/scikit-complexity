@@ -98,6 +98,33 @@ def _sandpile(symbolic):
     return laws
 
 
+def _is_stable(heights):
+    """Return whether no site holds four grains."""
+    return bool((heights < 4).all())
+
+
+def test_relax_records_the_profile_of_a_single_toppling():
+    """Test that one site of four grains topples once, with the size 1, the duration 1, and the profile `(1,)`."""
+
+    def laws(s):
+        """Return the Bak-Tang-Wiesenfeld rule relaxed until no site holds four grains."""
+        height = Interaction._get_symbolic(s.target, s.t).height
+        topple = UpdateLaw(
+            height,
+            lambda z, *n, **kwargs: z - 4 * (z >= 4) + sum(m >= 4 for m in n[1:]),
+            neighborhood=CROSS,
+        )
+        return [UpdateLaw(height, relax(height, topple, _is_stable, activity=lambda z: z >= 4), label='avalanche')]
+
+    heights = np.zeros(9)
+    heights[4] = 4
+    rule = Interaction('laws', roles={'target': 'pile'}, laws=laws)
+    space = LatticeSpace((3, 3), boundary='fixed')
+    system = System(elements=[Element('pile', values={'height': heights}, space=space)], interactions=[rule])
+    (record,) = system.prepare().simulate(until=1, dt=1).events
+    assert (record.size, record.duration, record.profile) == (1, 1, (1,))
+
+
 def test_relax_reads_the_values_of_the_namespace_and_an_update_law_drive():
     """Test that a relaxation of `s.target.height` driven by `UpdateLaw(height, height + 1)` runs as an array drive."""
     space = LatticeSpace((4, 4), boundary='fixed')

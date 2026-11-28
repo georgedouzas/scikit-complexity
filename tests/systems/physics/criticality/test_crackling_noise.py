@@ -5,10 +5,13 @@ import pytest
 
 from skcomplex.core.analysis import FitLawResult, events, fit_law
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems.physics.criticality import crackling_noise
+from skcomplex.systems.physics.criticality import SandpileSystem, crackling_noise
 
 DURATIONS = (20, 40, 80)
 MAX_GENERATIONS = 5000
+SANDPILE_DURATIONS = (10, 20, 40)
+SHAPE_EDGE = 5
+SHAPE_MIDDLE = slice(20, 30)
 
 
 def _exponent(values: np.ndarray, minimum: float) -> FitLawResult:
@@ -63,3 +66,16 @@ def test_crackling_noise_branching_process_scaling():
         crackling_noise([0, 1, 0, 1, 0, 1, 0])
     with pytest.raises(AnalysisError, match='min_count=0'):
         crackling_noise([0, 1, 0, 1], min_count=0)
+
+
+@pytest.mark.slow
+def test_crackling_noise_collapses_sandpile_avalanche_shapes():
+    """Test that the avalanches of a sandpile give mean shapes that rise and fall and a mean size exponent near 1.8."""
+    trajectory = SandpileSystem((64, 64)).prepare().simulate(until=100_000, dt=100_000, random_state=0)
+    crackling = crackling_noise(trajectory.events, durations=SANDPILE_DURATIONS, min_duration=5)
+    assert sorted(crackling.mean_shapes) == list(SANDPILE_DURATIONS)
+    for shape in crackling.mean_shapes.values():
+        middle = shape[SHAPE_MIDDLE].mean()
+        assert middle > shape[:SHAPE_EDGE].mean()
+        assert middle > shape[-SHAPE_EDGE:].mean()
+    assert 1.5 < crackling.exponent < 2.1

@@ -30,8 +30,10 @@ SETTINGS = {
     'laminar-durations': {'threshold'},
     'excursions': {'threshold'},
     'branching': {'max_step', 'dt'},
+    'activity': set(),
 }
-KINDS = ('detect', 'counts', 'laminar-durations', 'excursions', 'branching')
+KINDS = ('detect', 'counts', 'laminar-durations', 'excursions', 'branching', 'activity')
+RECORD_KINDS = ('excursions', 'activity')
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'counts': AnalysisTags(DataKind.PATH),
@@ -43,7 +45,8 @@ class EventsResult:
     """A result of `events`, the events of one series or of event times.
 
     It holds the series it read and what the kind measures: the start, size, duration, and peak of every event, the
-    counts in windows, the laminar phases, the excursions, or the branching ratio, such as the sizes 4 and 2 of the
+    counts in windows, the laminar phases, the excursions, the activity of cascades in fast time, or the branching
+    ratio, such as the sizes 4 and 2 of the
     two bursts of `[0, 3, 1, 0, 0, 2, 0]`. It reports the crashes of a market, the spikes of a neuron, and the floods
     of a river.
 
@@ -51,10 +54,11 @@ class EventsResult:
 
     Args:
         times:
-            The time of every value, or of every event for `'counts'`.
+            The time of every value, of every event for `'counts'`, or the index of every round for `'activity'`.
 
         values:
-            The series, as one column, or one column per trial for `'branching'`, or `None` for records.
+            The series, as one column, one column per trial for `'branching'`, the activity of every round for
+            `'activity'`, or `None` for excursions of records.
 
         labels:
             The label of the series or the state.
@@ -70,7 +74,7 @@ class EventsResult:
             number of samples of every excursion for `'excursions'`.
 
         shapes:
-            The profile of every excursion of a series, empty for records.
+            The profile of every excursion, of a series or of records.
 
         peaks:
             The largest value of every event.
@@ -130,7 +134,8 @@ def events(
     Args:
         source:
             The trajectory, an array that holds one series, or one column per trial for `'branching'`, the times of the
-            events for `'counts'`, or records of excursions for `'excursions'`.
+            events for `'counts'`, or the records of cascades of a trajectory, its `events`, for `'excursions'` and
+            `'activity'`.
 
         kind:
             What to return. `'detect'` gives every maximal run of values above `threshold`, with its start, size,
@@ -139,8 +144,12 @@ def events(
             state of a trajectory. `'laminar-durations'` gives the durations of the complete runs of values within
             `threshold` of 0 between two bursts, the quiet phases of on and off intermittency. `'excursions'` gives the
             profile of every run above `threshold`, its values minus the threshold, with its size, the sum of the
-            profile, and its duration, the number of its samples. Records with a `size` and a `duration`, such as the
-            cascade records of a lattice, are excursions already. `'branching'` gives the branching ratio by the
+            profile, and its duration, the number of its samples. The cascade records of a lattice, such as the
+            avalanches of a sandpile, are excursions already, whose profiles are the active sites of every round.
+            `'activity'` gives the activity of every round of every cascade of the records in fast time, in the order of
+            the records, each cascade after one round of activity 0 for the drive that starts it, such as
+            `0, 1, 2, 0, 3` for the profiles `(1, 2)` and `(3,)`. A step whose drive starts no cascade leaves no record,
+            so it adds no round. `'branching'` gives the branching ratio by the
             multistep regression of `mrestimator`, which fits `r_k ∝ m^k` to the slopes `r_k` of the values `k` steps
             apart and stays unbiased when only some of the units are observed, with every series one trial. It prints
             nothing, and raises the messages `mrestimator` logs, such as an autocorrelation time long against the
@@ -203,17 +212,23 @@ def events(
     _check(kind, window, max_step, dt)
     records = _records(source)
     if records:
-        if kind != 'excursions':
-            error_msg = 'events reads records of excursions for the kind excursions only.'
+        if kind not in RECORD_KINDS:
+            error_msg = 'events reads records of cascades for the kinds excursions and activity only.'
             raise AnalysisError(error_msg)
+        if kind == 'activity':
+            series = _fast_time_activity(records)
+            return EventsResult(np.arange(series.size, dtype=np.float64), series[:, None], ['activity'])
         return EventsResult(
             None,
             None,
             ['cascades'],
             sizes=np.asarray([record.size for record in records], dtype=np.float64),
             durations=np.asarray([record.duration for record in records], dtype=np.float64),
-            shapes=[],
+            shapes=[np.asarray(record.profile, dtype=np.float64) for record in records],
         )
+    if kind == 'activity':
+        error_msg = 'events of kind activity reads the records of cascades of a run, such as trajectory.events.'
+        raise AnalysisError(error_msg)
     name = variables[0] if variables else None
     if kind == 'counts':
         if isinstance(source, Trajectory):
@@ -311,6 +326,12 @@ def _records(source: object) -> list[_CascadeRecordSpec]:
         return []
     records = [item for item in source if isinstance(item, _CascadeRecordSpec)]
     return records if records and len(records) == len(source) else []
+
+
+def _fast_time_activity(records: Sequence[_CascadeRecordSpec]) -> Array:
+    """Return the activity of every round of the cascades of records, each after a quiet round of its drive."""
+    rounds = [value for record in records for value in (0, *record.profile)]
+    return np.asarray(rounds, dtype=np.float64)
 
 
 def _excursions(values: Array, threshold: float) -> list[Array]:

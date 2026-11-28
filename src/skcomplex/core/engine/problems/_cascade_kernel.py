@@ -37,6 +37,9 @@ class _CascadeRecordSpec(BaseRecordSpec):
 
         area:
             The number of distinct sites that changed.
+
+        profile:
+            The number of active sites of every iteration, in order, which sums to the size.
     """
 
     label: str
@@ -44,6 +47,7 @@ class _CascadeRecordSpec(BaseRecordSpec):
     size: int
     duration: int
     area: int
+    profile: tuple[int, ...]
 
 
 class CascadeKernel(BaseKernel):
@@ -51,7 +55,8 @@ class CascadeKernel(BaseKernel):
 
     At every step it applies the drive laws once, such as dropping one grain of sand on a random site, then applies the
     relax laws again and again until the stability condition holds everywhere, such as no site holding four grains or
-    more. It records the size and length of the cascade as an event. It runs the avalanches of a sandpile, the fires of
+    more. It records the size, the length, and the profile of the cascade, the active sites of every iteration, as an
+    event. It runs the avalanches of a sandpile, the fires of
     a forest, and the failures of a power grid.
 
     Read more in the user guide, under Extend the library.
@@ -154,11 +159,11 @@ class CascadeKernel(BaseKernel):
         x, time = state.x, state.t
         for law in self.drive:
             law.run(state)
-        size = duration = 0
+        profile: list[int] = []
         changed: npt.NDArray[np.bool_] | None = None
         sites = np.concatenate([np.arange(state.start, state.start + state.size) for state in self.targets])
         while not self._is_stable(x):
-            if duration >= self.max_iterations:
+            if len(profile) >= self.max_iterations:
                 error_msg = (
                     f'The cascade {self.label} is not stable after {self.max_iterations} iterations. Check its '
                     'stability condition or raise max_iterations.'
@@ -176,10 +181,9 @@ class CascadeKernel(BaseKernel):
                 else:
                     law.run(state)
             updated = (x[sites] != before).reshape(len(self.targets), -1).any(axis=0) if active is None else active
-            size += int(updated.sum())
+            profile.append(int(updated.sum()))
             changed = updated if changed is None else changed | updated
-            duration += 1
-        if not duration:
+        if not profile:
             return None
         area = int(changed.sum()) if changed is not None else 0
-        return _CascadeRecordSpec(self.label, time, size, duration, area)
+        return _CascadeRecordSpec(self.label, time, sum(profile), len(profile), area, tuple(profile))
