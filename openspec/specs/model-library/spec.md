@@ -314,8 +314,9 @@ whose firing pulses reach the other members through a reduction, rather than as 
 - **THEN** its oscillators are members of one group, and they fire in synchrony within the run
 
 ### Requirement: Boolean networks take any number of inputs
-`RandomBooleanNetworkSystem` and `YeastCellCycleSystem` SHALL bind the inputs of every node through one variadic role, so a node
-reads any number of inputs up to the number of nodes and no input role is bound to the target as padding.
+`RandomBooleanNetworkSystem` SHALL hold the inputs and tables of all nodes as parameters of one group, and
+`YeastCellCycleSystem` SHALL bind the inputs of every node through one variadic role, so a node reads any number of
+inputs up to the number of nodes and no input role is bound to the target as padding.
 
 #### Scenario: Eight inputs per node
 - **WHEN** `RandomBooleanNetworkSystem(n_nodes=12, k=8)` is built and simulated for 50 steps
