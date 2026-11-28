@@ -36,8 +36,8 @@ class TopplingInteraction(Interaction):
     random. Neighbours outside a fixed boundary take no share, so it leaves the system, and the mode `'random'` treats
     every lattice as bounded. With `neighbors='random'`, the neighbours of a relaxing member are drawn afresh at every
     relaxation: every parcel of `share` goes to a member drawn uniformly among all members with the probability
-    `conservation` and leaves the system otherwise, the random neighbour rule of the mean-field sandpile. Every cascade is recorded as an event with its size, the number of relaxations, its
-    duration, and its area.
+    `conservation` and leaves the system otherwise, the random neighbour rule of the mean-field sandpile. Every cascade
+    is recorded as an event with its size, the number of relaxations, its duration, and its area.
 
     Args:
         label:
@@ -267,7 +267,7 @@ class TopplingInteraction(Interaction):
             neighborhood = RadiusNeighborhood(1, metric='manhattan', center=True)
         if self.neighbors == 'random':
             rules: list[BaseLaw] = [
-                UpdateLaw(value, self._scatter_anywhere(threshold, share), arrays=True, stochastic=True)
+                UpdateLaw(value, self._scatter_anywhere(threshold, share), arrays=True, stochastic=True),
             ]
         elif self.mode == 'random':
             rules = [

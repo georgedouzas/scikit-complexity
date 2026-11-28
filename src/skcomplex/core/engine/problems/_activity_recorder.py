@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 import scipy.sparse
 from scipy.sparse import csgraph
 
@@ -18,7 +19,7 @@ from ._run_state_spec import RunStateSpec
 
 @dataclass(frozen=True)
 class _OpenEvent:
-    """An event whose members were active at the last step, with its first step, profile, and active members."""
+    """An event active at the last step, with its first step, profile, and members."""
 
     start: int
     time: float
@@ -60,7 +61,7 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
     def __init__(
         self,
         label: str,
-        function: Callable[..., list[object]],
+        function: Callable[..., list[npt.ArrayLike]],
         reads: tuple[tuple[bool, Indices], ...],
         size: int,
         neighbors: Indices | None,
@@ -81,7 +82,8 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
     def _read(self, state: RunStateSpec) -> Array:
         """Return the activity of every member at a state."""
         values = self.function(
-            state.t, *(state.x[rows] if is_state else state.p[rows] for is_state, rows in self.reads)
+            state.t,
+            *(state.x[rows] if is_state else state.p[rows] for is_state, rows in self.reads),
         )
         return np.broadcast_to(np.asarray(values[0], dtype=float), (self.size,))
 
@@ -123,7 +125,7 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
 
     @staticmethod
     def _merge(events: list[_OpenEvent], step: int, time: float) -> _OpenEvent:
-        """Return one event of the open events a burst of activity joins, starting at the earliest of them."""
+        """Return the one event that the open events a burst joins become."""
         if not events:
             return _OpenEvent(step, time, [], [])
         if len(events) == 1:

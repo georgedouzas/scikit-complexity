@@ -53,7 +53,10 @@ shown = histogram.density > 0
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.loglog(centers[shown], histogram.density[shown], 'o', label='simulation')
 ax.loglog(
-    centers[shown], histogram.density[shown][0] * (centers[shown] / centers[shown][0]) ** -1.5, '--', label='S^(-3/2)'
+    centers[shown],
+    histogram.density[shown][0] * (centers[shown] / centers[shown][0]) ** -1.5,
+    '--',
+    label='S^(-3/2)',
 )
 ax.set_xlabel('size of an avalanche')
 ax.set_ylabel('density')

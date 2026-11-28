@@ -20,6 +20,7 @@ from .types import DataSource
 
 KINDS = ('power', 'structure-factor')
 SEGMENT_LENGTH = 1024
+MIN_SEGMENT_LENGTH = 2
 SETTINGS = {
     'power': {'dt', 'segment_length'},
     'structure-factor': {'spacing', 'frames'},
@@ -155,8 +156,10 @@ def spectrum(
     if dt <= 0 or spacing <= 0:
         error_msg = f'spectrum has dt={dt!r} and spacing={spacing!r}. Use positive values.'
         raise AnalysisError(error_msg)
-    if segment_length < 2:
-        error_msg = f'spectrum has segment_length={segment_length!r}. Give at least 2 samples per segment.'
+    if segment_length < MIN_SEGMENT_LENGTH:
+        error_msg = (
+            f'spectrum has segment_length={segment_length!r}. Give at least {MIN_SEGMENT_LENGTH} samples per segment.'
+        )
         raise AnalysisError(error_msg)
     if kind == 'power':
         series = _read_series(source, variables)

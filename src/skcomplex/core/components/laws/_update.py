@@ -35,8 +35,8 @@ class UpdateLaw(BaseLaw):
     every member at once. Its target may also be a group, whose members each run a rule `rule(agent, system)` that may
     add and remove members, or a `TopologyRequestSpec`, whose value is the chance that the network changes. With
     `activity`, a run records every burst of activity connected in space and time as an event under the label of the
-    law, such as a fire of a forest or a jam of cars. A population breeds from year to year, a cellular automaton steps its cells, an account earns interest every month,
-    and a player revises a strategy every round.
+    law, such as a fire of a forest or a jam of cars. A population breeds from year to year, a cellular automaton steps
+    its cells, an account earns interest every month, and a player revises a strategy every round.
 
     Read more in the user guide, under Laws.
 
@@ -245,7 +245,7 @@ class UpdateLaw(BaseLaw):
         self._check_activity()
 
     def _check_activity(self) -> None:
-        """Raise an error for an activity that is no expression or a law with an activity but no label."""
+        """Raise an error for an activity that is no expression or that has no label."""
         if self.activity is None:
             return
         if not isinstance(self.activity, Expression | int | float):

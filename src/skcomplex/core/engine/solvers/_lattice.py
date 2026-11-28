@@ -25,7 +25,8 @@ class LatticeSolver(Solver):
     neighbours. They apply in the order they are declared and read the time at the start of the step, as maps do. The
     boundary laws apply after every step at its end time, and a relaxation records the size, duration, area, and profile
     of every cascade as an event. An update law with an activity records every burst of activity connected in space and
-    time as an event, read at the start of the run and at the end of every step. It runs cellular automata, the sandpiles of earthquakes, and the fires of a forest.
+    time as an event, read at the start of the run and at the end of every step. It runs cellular automata, the
+    sandpiles of earthquakes, and the fires of a forest.
 
     Read more in the user guide, under Solvers.
 

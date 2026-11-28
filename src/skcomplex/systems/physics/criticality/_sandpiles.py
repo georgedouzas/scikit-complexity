@@ -330,8 +330,8 @@ class BranchingInteraction(Interaction):
             The label of the interaction.
 
         target:
-            The path of the tree, whose values are the probability `p`, the active sites `z`, the generation `g`, and the
-            dissipation `sigma` of the last avalanche that ended.
+            The path of the tree, whose values are the probability `p`, the active sites `z`, the generation `g`, and
+            the dissipation `sigma` of the last avalanche that ended.
 
         generations:
             The number of generations of the tree, at least 1.

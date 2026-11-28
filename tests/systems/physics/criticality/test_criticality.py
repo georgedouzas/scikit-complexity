@@ -97,7 +97,7 @@ def _space_time_fires(burning: np.ndarray, side: int) -> list[int]:
 
 
 def test_forest_fire_events_of_a_driven_forest():
-    """Test that the fires of a driven forest are the clusters of burning sites in space and time that end in the run."""
+    """Test that the fires of a driven forest are the clusters of burning site steps that end in the run."""
     system = ForestFireSystem((32, 32), growth=0.01, lightning=1e-3).prepare()
     trajectory = system.simulate(until=500, dt=1, random_state=0)
     burning = trajectory.get_values('forest.cover') == 2

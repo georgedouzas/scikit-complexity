@@ -211,24 +211,8 @@ def events(
     )
     _check(kind, window, max_step, dt)
     records = _records(source)
-    if records:
-        if kind not in RECORD_KINDS:
-            error_msg = 'events reads records of cascades for the kinds excursions and activity only.'
-            raise AnalysisError(error_msg)
-        if kind == 'activity':
-            series = _fast_time_activity(records)
-            return EventsResult(np.arange(series.size, dtype=np.float64), series[:, None], ['activity'])
-        return EventsResult(
-            None,
-            None,
-            ['cascades'],
-            sizes=np.asarray([record.size for record in records], dtype=np.float64),
-            durations=np.asarray([record.duration for record in records], dtype=np.float64),
-            shapes=[np.asarray(record.profile, dtype=np.float64) for record in records],
-        )
-    if kind == 'activity':
-        error_msg = 'events of kind activity reads the records of cascades of a run, such as trajectory.events.'
-        raise AnalysisError(error_msg)
+    if records or kind == 'activity':
+        return _record_events(records, kind)
     name = variables[0] if variables else None
     if kind == 'counts':
         if isinstance(source, Trajectory):
@@ -328,10 +312,28 @@ def _records(source: object) -> list[_CascadeRecordSpec]:
     return records if records and len(records) == len(source) else []
 
 
-def _fast_time_activity(records: Sequence[_CascadeRecordSpec]) -> Array:
-    """Return the activity of every round of the cascades of records, each after a quiet round of its drive."""
-    rounds = [value for record in records for value in (0, *record.profile)]
-    return np.asarray(rounds, dtype=np.float64)
+def _record_events(records: Sequence[_CascadeRecordSpec], kind: str) -> EventsResult:
+    """Return the excursions or the fast-time activity of the records of cascades.
+
+    The activity holds every round of every cascade, each after a quiet round of its drive.
+    """
+    if not records:
+        error_msg = 'events of kind activity reads the records of cascades of a run, such as trajectory.events.'
+        raise AnalysisError(error_msg)
+    if kind not in RECORD_KINDS:
+        error_msg = 'events reads records of cascades for the kinds excursions and activity only.'
+        raise AnalysisError(error_msg)
+    if kind == 'activity':
+        series = np.asarray([value for record in records for value in (0, *record.profile)], dtype=np.float64)
+        return EventsResult(np.arange(series.size, dtype=np.float64), series[:, None], ['activity'])
+    return EventsResult(
+        None,
+        None,
+        ['cascades'],
+        sizes=np.asarray([record.size for record in records], dtype=np.float64),
+        durations=np.asarray([record.duration for record in records], dtype=np.float64),
+        shapes=[np.asarray(record.profile, dtype=np.float64) for record in records],
+    )
 
 
 def _excursions(values: Array, threshold: float) -> list[Array]:

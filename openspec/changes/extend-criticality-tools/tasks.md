@@ -62,14 +62,14 @@
   refuses random neighbours in `tests/systems/physics/criticality/test_abelian_sandpile.py`
 - [x] 6.3 Add `neighbors='random'` and `k` to `ExtinctionInteraction` and `BakSneppenSystem`, and test the threshold
   `1 / k` in `tests/systems/biology/evolution/test_coevolution.py`
-- [ ] 6.4 Document both options in the docstrings of the systems, and verify the doctests
+- [x] 6.4 Document both options in the docstrings of the systems, and verify the doctests
 
 ## 7. Checks
 
-- [ ] 7.1 Run `black` and `ruff check` on the changed files and fix every finding
-- [ ] 7.2 Run `mypy`, `pydoclint` and `interrogate` on the changed packages and fix every finding
-- [ ] 7.3 Run `lint-imports` and `python openspec/scripts/check_conventions.py` and fix every finding
-- [ ] 7.4 Run the tests of the touched modules with the thread variables set to 1:
+- [x] 7.1 Run `black` and `ruff check` on the changed files and fix every finding
+- [x] 7.2 Run `mypy`, `pydoclint` and `interrogate` on the changed packages and fix every finding
+- [x] 7.3 Run `lint-imports` and `python openspec/scripts/check_conventions.py` and fix every finding
+- [x] 7.4 Run the tests of the touched modules with the thread variables set to 1:
   `tests/core/components/laws/test_update.py`, `tests/core/components/laws/utils/test_relaxations.py`,
   `tests/core/engine/solvers/test_lattice.py`, `tests/core/engine/solvers/test_maps.py`,
   `tests/core/analysis/test_events.py`, `tests/core/analysis/test_spectrum.py`, `tests/systems/physics/criticality`,

@@ -64,9 +64,9 @@ def abelian_sandpile(system: object, *, kind: str = 'toppling') -> AbelianSandpi
             The `SandpileSystem`, prepared or not, with fixed neighbours.
 
         kind:
-            What to return. `'toppling'` gives the sparse toppling matrix. `'green'` gives its dense inverse, the lattice
-            Green function, for lattices of at most `MAX_GREEN_SITES` sites. `'mean-size'` gives the mean avalanche
-            size from one sparse linear solve, without the inverse.
+            What to return. `'toppling'` gives the sparse toppling matrix. `'green'` gives its dense inverse, the
+            lattice Green function, for lattices of at most `MAX_GREEN_SITES` sites. `'mean-size'` gives the mean
+            avalanche size from one sparse linear solve, without the inverse.
 
     Returns:
         result:

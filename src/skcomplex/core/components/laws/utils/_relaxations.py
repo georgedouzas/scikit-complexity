@@ -76,8 +76,9 @@ def relax(
     its duration, the number of rounds, its area, the number of distinct members updated, and its profile, the member
     updates of every round, which sums to the size. A member update is a member that changes in a round, or one that
     `activity` marks as active. The profiles are the shapes of the avalanches that `events(records, kind='excursions')`
-    returns, and `events(records, kind='activity')` joins them into the activity of every round in fast time. It gives the avalanches of a sandpile, the
-    spread of a forest fire after lightning, and the slips along a fault in an earthquake.
+    returns, and `events(records, kind='activity')` joins them into the activity of every round in fast time. It gives
+    the avalanches of a sandpile, the spread of a forest fire after lightning, and the slips along a fault in an
+    earthquake.
 
     Read more in the user guide, under Laws.
 

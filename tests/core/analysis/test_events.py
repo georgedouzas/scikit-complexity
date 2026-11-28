@@ -214,7 +214,7 @@ def test_activity_and_shapes_of_two_avalanches():
 
 @pytest.mark.slow
 def test_activity_spectrum_of_a_sandpile():
-    """Test that the fast-time activity of a sandpile has a round per toppling round and per avalanche, and red power."""
+    """Test that the fast-time activity of a sandpile has a round per round and per avalanche, and red power."""
     records = SandpileSystem((50, 50)).prepare().simulate(until=100_000, dt=100_000, random_state=0).events
     activity = _events('activity', records)
     assert activity.values.shape[0] == sum(record.duration for record in records) + len(records)

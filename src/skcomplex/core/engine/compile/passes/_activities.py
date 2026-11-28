@@ -86,7 +86,7 @@ class ActivitiesPass(BasePass):
 
     @staticmethod
     def _get_neighbors(owner: str, declarations: _Declarations) -> Indices | None:
-        """Return the nearest neighbours of every member of a group, or `None` for members of no space."""
+        """Return the nearest neighbours of the members of a group, or `None` off a space."""
         block = declarations.blocks.get(owner)
         space = block.node.space if block is not None else None
         if not isinstance(space, BaseSpace) or not space._has_sites():
@@ -147,5 +147,9 @@ class ActivitiesPass(BasePass):
             raise TypeError(error_msg)
         owner = members.entry.name.rpartition('.')[0]
         return _ActivityRecorder(
-            label, function, tuple(reads), size, ActivitiesPass._get_neighbors(owner, declarations)
+            label,
+            function,
+            tuple(reads),
+            size,
+            ActivitiesPass._get_neighbors(owner, declarations),
         )

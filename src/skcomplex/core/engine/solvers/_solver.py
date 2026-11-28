@@ -118,7 +118,7 @@ class Solver(BaseSolver[ProblemSpec]):
         return state
 
     def _record_activity(self, t: float, x: Array, p: Array, *, first: bool = False) -> None:
-        """Read the activities of the update laws at a state and add the events they close to the records.
+        """Add the events that the activities of a state close to the records of the run.
 
         The first state is read once per run, at the start of the first advance.
         """
