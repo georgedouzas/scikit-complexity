@@ -38,6 +38,53 @@ def test_holme_kim_keeps_clustering_that_barabasi_albert_loses():
     assert nx.average_clustering(attached) < 0.1
 
 
+@pytest.mark.parametrize('until', [1, 7, 50])
+def test_holme_kim_nodes_join_with_all_their_edges(until):
+    """Test that every node that joined holds its edges in the last frame, the newest included."""
+    system = HolmeKimSystem()
+    graph = system.prepare().simulate(until=until, random_state=4).get_network(-1).get_graph()
+    joined = [degree for node, degree in graph.degree if node >= system.seed_nodes]
+    assert len(joined) == until
+    assert min(joined) >= system.edges
+
+
+def _holme_kim_graph(n_nodes: int, edges: int, triad: float, seed: int) -> nx.Graph:
+    """Return a graph grown by the triad formation of Holme and Kim 2002.
+
+    Every new node joins one node by preferential attachment, then each further edge joins a random neighbour of that
+    first contact with probability `triad` and a node drawn by preferential attachment otherwise.
+    """
+    rng = np.random.default_rng(seed)
+    graph = nx.complete_graph(edges + 1)
+    for node in range(edges + 1, n_nodes):
+        nodes = np.array(graph.nodes)
+        degrees = np.array([graph.degree(other) for other in nodes], dtype=float)
+        first = int(rng.choice(nodes, p=degrees / degrees.sum()))
+        graph.add_edge(node, first)
+        while graph.degree(node) < edges:
+            free = [other for other in graph.neighbors(first) if other != node and not graph.has_edge(node, other)]
+            if free and rng.random() < triad:
+                graph.add_edge(node, int(rng.choice(free)))
+                continue
+            others = [other for other in nodes if not graph.has_edge(node, other)]
+            weights = np.array([graph.degree(other) for other in others], dtype=float)
+            graph.add_edge(node, int(rng.choice(others, p=weights / weights.sum())))
+    return graph
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('triad', [0.0, 1.0])
+def test_holme_kim_transitivity_follows_the_triad_probability(triad):
+    """Test the transitivity at 1000 nodes against NetworkX without triads and against the paper's rule with them."""
+    seeds = range(3)
+    grown = np.mean([nx.transitivity(_final_graph(HolmeKimSystem(triad=triad), 996, seed)[0]) for seed in seeds])
+    if triad == 0:
+        references = [nx.powerlaw_cluster_graph(1000, 3, 0.0, seed=seed) for seed in range(10)]
+    else:
+        references = [_holme_kim_graph(1000, 3, triad, seed) for seed in seeds]
+    assert grown == pytest.approx(np.mean([nx.transitivity(graph) for graph in references]), abs=0.02)
+
+
 def test_vertex_copying_makes_hubs_that_random_attachment_lacks():
     """Test that copying edges gives a much larger largest degree than joining random nodes."""
     copied, _ = _final_graph(VertexCopyingSystem(randomness=0.1), 1000)

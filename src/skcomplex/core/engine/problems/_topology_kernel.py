@@ -696,6 +696,59 @@ class TopologyKernel(BaseKernel):
             values = self._get_initial_values(request, rng) if request.kind == 'add-edge' else {}
             self._add_edge(network, request.layer, ends, x, p, values=values)
 
+    def _join_further(
+        self,
+        item: CompiledRequestSpec,
+        node: int,
+        t: float,
+        x: Array,
+        p: Array,
+        *,
+        rng: np.random.Generator,
+    ) -> None:
+        """Join a new node to further ends after its first ones, one at a time.
+
+        Each further end is, with the probability `closing` of the request, a neighbour of a first contact of the node
+        drawn uniformly, which closes a triangle, and otherwise a node drawn by the weights of the request at the
+        network with the edges added so far. Without a free neighbour of a first contact the end is drawn by the
+        weights.
+
+        Args:
+            item:
+                The compiled request, an `'add-node'` request with further edges.
+
+            node:
+                The row of the new node, joined to its first contacts.
+
+            t:
+                The time.
+
+            x:
+                The state vector, changed in place.
+
+            p:
+                The parameter vector, changed in place.
+
+            rng:
+                The random number generator.
+        """
+        request, network = item.request, item.network
+        around = np.zeros_like(network.get_present(p))
+        for contact in self._get_adjacent(network, request.layer, node, p):
+            around[self._get_adjacent(network, request.layer, int(contact), p)] = True
+        directions = ['out', 'in'] if request.direction == 'both' else [request.direction]
+        for _ in range(request.further):
+            allowed = self._get_allowed(item, node, p, incoming=request.direction == 'in')
+            closing = allowed & around
+            if closing.any() and rng.random() < request.closing:
+                drawn = self._draw(np.ones(closing.size), closing, 1, rng)
+            else:
+                drawn = self._draw(self._get_weights(item, node, t, x, p), allowed, 1, rng)
+            for other in drawn:
+                for direction in directions:
+                    ends = (node, other) if direction == 'out' else (other, node)
+                    self._add_edge(network, request.layer, ends, x, p, values={})
+
     def _choose(
         self,
         item: _CompiledRequest,
@@ -1153,6 +1206,8 @@ class TopologyKernel(BaseKernel):
             node = self._add_node(network, x, p, values)
             change = self._join if request.hyperedge is None else self._attach
             change(item, node, t, x, p, rng=rng)
+            if request.further:
+                self._join_further(item, node, t, x, p, rng=rng)
         elif kind == 'add-edge' and item.rows == 'single':
             self._join_pairs(item, t, x, p, rng=rng)
         elif kind in {'remove-node', 'remove-edge', 'remove-hyperedge'}:
