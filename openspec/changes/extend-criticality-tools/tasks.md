@@ -37,7 +37,7 @@
   `tests/systems/physics/criticality/test_criticality.py`
 - [x] 4.2 Give the movement law of `NagelSchreckenbergInteraction` the activity of stopped cars and the label `'jam'`,
   and test the dissolving queue in `tests/systems/engineering/traffic/test_traffic.py`
-- [ ] 4.3 Give the update of `z` in `BranchingInteraction` the activity and the label `'avalanche'`, add the state
+- [x] 4.3 Give the update of `z` in `BranchingInteraction` the activity and the label `'avalanche'`, add the state
   `sigma`, and test the profiles and the balance of dissipation in `tests/systems/physics/criticality/test_sandpiles.py`
 - [ ] 4.4 Update the docstrings of the three systems and the gallery examples
   `docs/examples/physics/criticality/plot_forest_fire.py` and `plot_self_organized_branching.py` to read the events,

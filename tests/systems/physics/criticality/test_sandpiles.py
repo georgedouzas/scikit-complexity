@@ -37,3 +37,23 @@ def test_self_organized_branching_tunes_itself_to_the_critical_probability():
     for start in (0.3, 0.7):
         p = np.asarray(SelfOrganizedBranchingSystem(p=start).prepare().simulate(random_state=0).get_values('tree.p'))
         assert p[-10000:].mean() == pytest.approx(0.5, abs=0.02)
+
+
+def test_self_organized_branching_records_avalanche_profiles():
+    """Test that every avalanche starts from one site, lasts at most the generations, and sums its profile."""
+    trajectory = SelfOrganizedBranchingSystem(0.5, generations=10).prepare().simulate(until=1000, random_state=0)
+    assert trajectory.events
+    for event in trajectory.events:
+        assert event.label == 'avalanche'
+        assert event.profile[0] == 1
+        assert len(event.profile) <= 10
+        assert sum(event.profile) == event.size
+
+
+def test_self_organized_branching_balances_its_dissipation():
+    """Test that the avalanches of the second half of a run dissipate one unit of energy on average."""
+    trajectory = SelfOrganizedBranchingSystem(0.3).prepare().simulate(until=100_000, random_state=0)
+    sigma, generation = trajectory.get_values('tree.sigma'), trajectory.get_values('tree.g')
+    ended = np.flatnonzero(generation == 0)
+    ended = ended[ended > generation.size // 2]
+    assert sigma[ended].mean() == pytest.approx(1, rel=0.1)

@@ -83,15 +83,24 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
         values = self.function(state.t, *(state.x[rows] if is_state else state.p[rows] for is_state, rows in self.reads))
         return np.broadcast_to(np.asarray(values[0], dtype=float), (self.size,))
 
-    def _get_edges(self, active: Indices, size: int) -> tuple[Indices, Indices]:
-        """Return the pairs of graph nodes the active members join, to each other and to open events.
+    def _get_components(self, active: Indices, n_open: int) -> Indices:
+        """Return the component of every active member and of every open event.
 
-        The nodes are the active members in order, then the open events.
+        The active members in order come first, then the open events. Members of no space continue only their own
+        events, and members of a space join their nearest neighbours by the connected components of `scipy`.
         """
-        position = np.full(size + 1, -1, dtype=np.intp)
-        position[active] = np.arange(active.size)
-        around = active[:, None] if self.neighbors is None else np.column_stack([active, self.neighbors[active]])
-        rows = np.repeat(np.arange(active.size), around.shape[1]).reshape(around.shape)
+        n_active = active.size
+        components = np.arange(n_active + n_open)
+        if self.neighbors is None:
+            if self._events is not None:
+                events = self._events[active]
+                continued = events >= 0
+                components[n_active + events[continued]] = np.flatnonzero(continued)
+            return components
+        position = np.full(self.size + 1, -1, dtype=np.intp)
+        position[active] = np.arange(n_active)
+        around = np.column_stack([active, self.neighbors[active]])
+        rows = np.repeat(np.arange(n_active), around.shape[1]).reshape(around.shape)
         nearby = position[around]
         joined = nearby >= 0
         sources, targets = [rows[joined]], [nearby[joined]]
@@ -99,8 +108,10 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
             events = np.append(self._events, -1)[around]
             continued = events >= 0
             sources.append(rows[continued])
-            targets.append(active.size + events[continued])
-        return np.concatenate(sources), np.concatenate(targets)
+            targets.append(n_active + events[continued])
+        edges = (np.concatenate(sources), np.concatenate(targets))
+        graph = scipy.sparse.coo_array((np.ones(edges[0].size), edges), shape=(n_active + n_open,) * 2)
+        return csgraph.connected_components(graph, directed=False)[1]
 
     def _get_closed(self, event: _OpenEvent) -> _CascadeRecordSpec:
         """Return the record of an event that no member continues."""
@@ -138,9 +149,7 @@ class _ActivityRecorder(BaseConfig[None, RunStateSpec]):
         self.steps_ += 1
         if not n_active and not n_open:
             return
-        sources, targets = self._get_edges(active, self.size) if n_active else (np.zeros(0, np.intp),) * 2
-        graph = scipy.sparse.coo_array((np.ones(sources.size), (sources, targets)), shape=(n_active + n_open,) * 2)
-        _, components = csgraph.connected_components(graph, directed=False)
+        components = self._get_components(active, n_open)
         order = np.argsort(components[:n_active], kind='stable')
         bursts, starts = np.unique(components[:n_active][order], return_index=True)
         joined: dict[int, list[_OpenEvent]] = {int(burst): [] for burst in bursts}
