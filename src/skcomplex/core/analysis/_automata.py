@@ -1,4 +1,4 @@
-"""Decide injectivity and surjectivity of cellular automata and subshifts."""
+"""Decide and measure cellular automata, subshifts, and finite networks."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,10 +8,11 @@ import itertools
 from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass, field, replace
 from types import SimpleNamespace
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import QQ, SR, LaurentPolynomialRing, matrix
+from sage.all__sagemath_symbolics import QQ, SR, Expression, LaurentPolynomialRing, matrix
 from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.structure.element import Matrix
@@ -19,12 +20,22 @@ from sklearn.base import clone
 
 from ..base import BaseSpec
 from ..components import SubshiftSpec
+from ..components._parameter_spec import _ParameterSpec
 from ..components.interactions import BaseInteraction, Interaction
-from ..components.laws import BaseLaw, LinearRuleSpec, OuterTotalisticSpec, TableSpec, TotalisticSpec, UpdateLaw
+from ..components.laws import (
+    BaseLaw,
+    CallSpec,
+    LinearRuleSpec,
+    OuterTotalisticSpec,
+    TableSpec,
+    TotalisticSpec,
+    UpdateLaw,
+)
 from ..components.laws._local_rule import _LocalRuleLaw
 from ..components.spaces import BaseNeighborhood, BaseSpace, LatticeNeighborhood, LatticeSpace
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems._composite_system import _CompositeSystem
+from ..engine.problems._declared_element import _DeclaredElement
 from ..engine.problems._group_element import _GroupElement
 from ..enums import DataKind
 from ..errors import AnalysisError
@@ -38,6 +49,10 @@ from .types import DataSource
 
 MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
+MAX_STATE_SPACE = 2**24
+CHUNK = 2**16
+MATRIX_AXES = 2
+INTEGER_KINDS = 'biu'
 SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 SYNCHRONOUS = 'synchronous'
@@ -57,6 +72,7 @@ KINDS = (
     'violations',
     'count',
     'sample',
+    'attractors',
 )
 SETTINGS = {
     'injective': {'method', 'infinite'},
@@ -73,10 +89,12 @@ SETTINGS = {
     'violations': {'configuration'},
     'count': set(),
     'sample': {'sweeps', 'configuration', 'random_state'},
+    'attractors': set(),
 }
 AUTOMATON = 'an automaton'
 LINEAR = 'a linear automaton'
 SUBSHIFT = 'a subshift'
+NETWORK = 'a finite network'
 SOURCES = {
     'injective': (AUTOMATON, LINEAR),
     'surjective': (AUTOMATON, LINEAR),
@@ -84,7 +102,7 @@ SOURCES = {
     'garden-of-eden': (AUTOMATON,),
     'inverse': (AUTOMATON,),
     'compose': (AUTOMATON,),
-    'difference': (AUTOMATON,),
+    'difference': (AUTOMATON, NETWORK),
     'entropy': (SUBSHIFT, AUTOMATON),
     'matrix': (LINEAR,),
     'polynomial': (LINEAR,),
@@ -92,6 +110,7 @@ SOURCES = {
     'violations': (SUBSHIFT,),
     'count': (SUBSHIFT,),
     'sample': (SUBSHIFT,),
+    'attractors': (AUTOMATON, NETWORK),
 }
 
 
@@ -132,8 +151,11 @@ class AutomatonResult:
     """A result of `automaton`, a decision or a measure of a cellular automaton.
 
     It holds the answer the kind asks for, such as whether no two grids share their next grid, a grid that no grid leads
-    to, an automaton that undoes another, or the number of allowed grids, and leaves the other fields `None`. It answers
-    whether a model of traffic, of growth, or of a crystal loses information.
+    to, an automaton that undoes another, the number of allowed grids, or the cycle every configuration falls on, and
+    leaves the other fields `None`. It answers whether a model of traffic, of growth, or of a crystal loses information,
+    and which cell types a gene network settles into. A configuration has the code that reads its values as the digits
+    of a number in the base of the number of values, the first value most significant, in the order of the cells, or of
+    the states of the elements of a network and the members of a group.
 
     Read more in the user guide, under Analyse.
 
@@ -165,6 +187,9 @@ class AutomatonResult:
         differences:
             One row per step, the initial one first, true where the runs differ.
 
+        distances:
+            The Hamming distance between the runs at every step, the initial one first.
+
         entropy:
             One entropy per window.
 
@@ -185,6 +210,22 @@ class AutomatonResult:
 
         sample:
             The admissible configuration.
+
+        transients:
+            The number of steps every configuration takes to reach its cycle, indexed by its code.
+
+        attractors:
+            The index of the cycle every configuration falls on, indexed by its code.
+
+        cycles:
+            The configurations of every cycle, one row per step around it from the one with the smallest code, ordered
+            by that code.
+
+        lengths:
+            The length of every cycle.
+
+        basins:
+            The number of configurations that fall on every cycle, the cycle included.
 
     See Also:
         automaton: Returns this result.
@@ -211,6 +252,12 @@ class AutomatonResult:
     violations: npt.NDArray[np.bool_] | None = None
     count: int | None = None
     sample: IntArray | None = None
+    transients: IntArray | None = None
+    attractors: IntArray | None = None
+    cycles: tuple[IntArray, ...] | None = None
+    lengths: IntArray | None = None
+    basins: IntArray | None = None
+    distances: IntArray | None = None
 
 
 @dataclass(frozen=True)
@@ -245,6 +292,34 @@ class _AutomatonSpec(BaseSpec):
     local_map: IntArray = field(default_factory=lambda: np.empty(0, dtype=np.int64))
 
 
+@dataclass(frozen=True)
+class _NetworkLawSpec(BaseSpec):
+    """Update law of a finite network read from a system.
+
+    It holds the label of its interaction, the columns of the values it sets and reads, and the function that maps
+    rows of the values it reads to rows of the values it sets.
+    """
+
+    label: str
+    targets: IntArray
+    reads: IntArray
+    function: Callable[[IntArray], npt.ArrayLike]
+
+
+@dataclass(frozen=True)
+class _NetworkSpec(BaseSpec):
+    """Finite network read from a system.
+
+    It holds the system, the number of values a state takes, the number of values of a configuration, and the update
+    laws.
+    """
+
+    system: _CompositeSystem
+    states: int
+    size: int
+    laws: tuple[_NetworkLawSpec, ...]
+
+
 def automaton(
     source: DataSource,
     *,
@@ -257,7 +332,7 @@ def automaton(
     max_radius: int = 2,
     second: DataSource | None = None,
     configuration: npt.ArrayLike | None = None,
-    site: int = 0,
+    site: int | Sequence[int] = 0,
     steps: int = 1,
     windows: Sequence[BaseSpace] | None = None,
     base: float = 2.0,
@@ -267,10 +342,12 @@ def automaton(
 
     An automaton is a group of cells on a grid with one rule that updates every cell at once from its neighbours, such
     as `ElementaryAutomatonSystem(rule=170, size=8)`, which shifts every cell left. A subshift is a group whose value
-    lists forbidden patterns. The function decides whether the rule loses information, finds a grid no grid leads to,
-    builds the rule that undoes it, and counts or samples the allowed grids. Small grids are checked one by one and
-    larger ones with a SAT solver. It tells whether a model of traffic, of crystal growth, or of a computer loses
-    information, and reversible rules model physics that keeps energy.
+    lists forbidden patterns. A finite network is a system whose states take finitely many values and change by update
+    laws, such as a Boolean network of genes. The function decides whether the rule loses information, finds a grid no
+    grid leads to, builds the rule that undoes it, counts or samples the allowed grids, and maps every configuration to
+    the cycle it falls on. Small grids are checked one by one and larger ones with a SAT solver. It tells whether a
+    model of traffic, of crystal growth, or of a computer loses information, and reversible rules model physics that
+    keeps energy.
 
     Read more in the user guide, under Analyse.
 
@@ -283,11 +360,15 @@ def automaton(
             share their next grid, whether every grid has a grid before it, and whether two grids that differ in a
             window never share their next grid. `'garden-of-eden'` finds a pattern no grid leads to. `'inverse'` finds
             the rule that undoes a reversible rule, trying radii up to `max_radius`. `'compose'` applies the rule and
-            then `second`. `'difference'` shows where two runs differ when one cell of `configuration` at `site`
-            changes. `'entropy'` is `log |X_F| / |F|` of the allowed patterns of each window `F`. `'matrix'` and
-            `'polynomial'` give a linear rule as a matrix or a Laurent polynomial. `'admissible'` and `'violations'`
-            check `configuration` against the forbidden patterns. `'count'` counts the allowed grids of a subshift and
-            `'sample'` draws one.
+            then `second`. `'difference'` shows where two runs of an automaton or a finite network differ when the
+            values of `configuration` at `site` change, and how many values differ. `'entropy'` is `log |X_F| / |F|`
+            of the allowed patterns of each window `F`. `'matrix'` and `'polynomial'` give a linear rule as a matrix or
+            a Laurent polynomial. `'admissible'` and `'violations'` check `configuration` against the forbidden
+            patterns. `'count'` counts the allowed grids of a subshift and `'sample'` draws one. `'attractors'` applies
+            the synchronous map of an automaton or a deterministic finite network to all its configurations at once,
+            up to `MAX_STATE_SPACE` of them, and gives the transient and the cycle of every configuration, and the
+            length and the basin of every cycle. A finite network sets its values by update laws of expressions or by
+            calls that take the values of a group with leading axes of configurations.
 
         method:
             `'enumeration'`, `'sat'`, or `'auto'` to enumerate up to `MAX_CONFIGURATIONS` configurations.
@@ -314,7 +395,7 @@ def automaton(
             The values of the sites: the initial ones of the difference pattern or of a sample, or the ones checked.
 
         site:
-            The site of the changed cell.
+            The site of the changed cell, or the sites or values of a network that change.
 
         steps:
             The number of steps of the difference pattern.
@@ -336,8 +417,9 @@ def automaton(
         AnalysisError:
             The system holds nothing the kind reads, the method is unknown, enumeration is asked for too many
             configurations, composed automata differ in space or number of states, the rule returns a value outside the
-            states, a linear automaton has a matrix on a ball or a polynomial without offsets, or the initial
-            configuration of a sample is not admissible.
+            states, a linear automaton has a matrix on a ball or a polynomial without offsets, the initial
+            configuration of a sample is not admissible, a network is not finite or deterministic, or the attractors
+            are asked for more than `MAX_STATE_SPACE` configurations.
 
     See Also:
         symbolic: Turns a series into symbols and measures their patterns.
@@ -394,6 +476,10 @@ def automaton(
         raise AnalysisError(error_msg)
     found = _find_subshift(source)
     rule = _find_rule(source)
+    if rule is None and NETWORK in sources and found is None:
+        network = _read_network(source)
+        result = _run_network(network, kind, configuration=configuration, site=site, steps=steps)
+        return replace(result, automaton=system)
     if found is not None and SUBSHIFT in sources:
         result = _run_subshift(
             source,
@@ -410,7 +496,10 @@ def automaton(
     if rule is None or _get_rule_source(rule) not in sources:
         raise AnalysisError(error_msg)
     read = _read_automaton(source, rule)
-    if kind in {'injective', 'surjective', 'pre-injective'}:
+    if kind == 'attractors':
+        step = functools.partial(_step, read)
+        result = _get_attractors(read.system, step, _get_states_count(read), read.size)
+    elif kind in {'injective', 'surjective', 'pre-injective'}:
         result = _decide(read, kind, method=method, window=window, infinite=infinite)
     elif kind in {'compose', 'difference'}:
         result = _run_pair(read, kind, system, second=second, configuration=configuration, site=site, steps=steps)
@@ -462,7 +551,7 @@ def _run_pair(
     *,
     second: _CompositeSystem | None,
     configuration: npt.ArrayLike | None,
-    site: int,
+    site: int | Sequence[int],
     steps: int,
 ) -> AutomatonResult:
     """Return the composition with the second automaton, or a difference pattern.
@@ -477,7 +566,9 @@ def _run_pair(
     if configuration is None:
         error_msg = 'automaton of kind difference needs configuration. Give it.'
         raise AnalysisError(error_msg)
-    return AutomatonResult(automaton.system, differences=_difference_pattern(automaton, configuration, site, steps))
+    step = functools.partial(_step, automaton)
+    differences = _difference_pattern(step, _get_states_count(automaton), configuration, site, steps)
+    return AutomatonResult(automaton.system, differences=differences, distances=differences.sum(axis=1))
 
 
 def _measure(
@@ -600,7 +691,8 @@ def _get_local_rule(interaction: BaseInteraction, system: _CompositeSystem) -> _
         element = next((item for item in system.elements if item.label == path), None)
         if element is None or not isinstance(path, str):
             return None
-        roles[role] = (path, SimpleNamespace(**{name: SR.var(name) for name in element.get_states()}))
+        states = {name: SR.var(name) for name in element.get_states()}
+        roles[role] = (path, SimpleNamespace(**states, **_get_parameters(element)))
     namespace = SimpleNamespace(**{role: states for role, (_, states) in roles.items()}, t=SR.var('t'))
     laws = [
         item._get_local_rule() if isinstance(item, UpdateLaw) and item.neighborhood is not None else item
@@ -752,14 +844,6 @@ def _step(automaton: _AutomatonSpec, configuration: npt.ArrayLike, space: BaseSp
     """
     inputs = {'space': automaton.space if space is None else space, automaton.state: np.asarray(configuration)}
     return np.asarray(automaton.law._get_value(inputs), dtype=np.int64)
-
-
-def _get_steps(automaton: _AutomatonSpec, configuration: npt.ArrayLike, steps: int) -> IntArray:
-    """Return the configurations of a number of steps, the initial one first."""
-    rows = [np.asarray(configuration, dtype=np.int64)]
-    for _ in range(steps):
-        rows.append(_step(automaton, rows[-1]))
-    return np.stack(rows)
 
 
 def _get_states_count(automaton: _AutomatonSpec) -> int:
@@ -1087,19 +1171,309 @@ def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike, **kwargs
 
 
 def _difference_pattern(
-    automaton: _AutomatonSpec,
+    step: Callable[[IntArray], IntArray],
+    states: int,
     configuration: npt.ArrayLike,
-    site: int,
+    site: int | Sequence[int],
     steps: int,
 ) -> npt.NDArray[np.bool_]:
-    """Return where two runs differ when one starts with one cell changed.
+    """Return where two runs of a map differ when one starts with some values changed.
 
-    The cell is changed to its next value.
+    Every changed value takes its next value.
     """
     initial = np.asarray(configuration, dtype=np.int64)
     changed = initial.copy()
-    changed[site] = (changed[site] + 1) % _get_states_count(automaton)
-    return _get_steps(automaton, initial, steps) != _get_steps(automaton, changed, steps)
+    changed[site] = (changed[site] + 1) % states
+    rows = [np.stack([initial, changed])]
+    for _ in range(steps):
+        rows.append(step(rows[-1]))
+    runs = np.stack(rows)
+    return runs[:, 0] != runs[:, 1]
+
+
+def _run_network(
+    network: _NetworkSpec,
+    kind: str,
+    *,
+    configuration: npt.ArrayLike | None,
+    site: int | Sequence[int],
+    steps: int,
+) -> AutomatonResult:
+    """Return the attractors of a finite network, or the difference of two of its runs."""
+    step = functools.partial(_get_network_images, network)
+    if kind == 'attractors':
+        return _get_attractors(network.system, step, network.states, network.size)
+    if configuration is None:
+        error_msg = 'automaton of kind difference needs configuration. Give it.'
+        raise AnalysisError(error_msg)
+    differences = _difference_pattern(step, network.states, configuration, site, steps)
+    return AutomatonResult(network.system, differences=differences, distances=differences.sum(axis=1))
+
+
+def _get_attractors(
+    system: _CompositeSystem,
+    step: Callable[[IntArray], IntArray],
+    states: int,
+    size: int,
+) -> AutomatonResult:
+    """Return the transient and the cycle of every configuration of a map.
+
+    The result also holds the length and the basin of every cycle. The map is applied to the configurations in
+    chunks, and the cycles are found on the graph from every code to the code of its image.
+    """
+    count = states**size
+    if count > MAX_STATE_SPACE:
+        error_msg = (
+            f'automaton of kind attractors maps every configuration, but the system has {states}^{size} = {count} '
+            f'configurations, more than MAX_STATE_SPACE = {MAX_STATE_SPACE}. Use a smaller system.'
+        )
+        raise AnalysisError(error_msg)
+    images = np.concatenate(
+        [
+            _codes(step(_get_digits(np.arange(start, min(start + CHUNK, count)), states, size)), states)
+            for start in range(0, count, CHUNK)
+        ],
+    )
+    current = np.unique(images)
+    following = np.unique(images[current])
+    while following.size < current.size:
+        current, following = following, np.unique(images[following])
+    labels = _get_cycle_labels(current, images)
+    _, cycle_of, lengths = np.unique(labels, return_inverse=True, return_counts=True)
+    transients = np.full(count, -1, dtype=np.int64)
+    attractors = np.full(count, -1, dtype=np.int64)
+    transients[current] = 0
+    attractors[current] = cycle_of
+    pending = np.flatnonzero(transients < 0)
+    while pending.size:
+        ready = transients[images[pending]] >= 0
+        chosen = pending[ready]
+        transients[chosen] = transients[images[chosen]] + 1
+        attractors[chosen] = attractors[images[chosen]]
+        pending = pending[~ready]
+    cycles = tuple(_get_digits(_get_cycle(int(start), images), states, size) for start in current[np.unique(labels)])
+    return AutomatonResult(
+        system,
+        transients=transients,
+        attractors=attractors,
+        cycles=cycles,
+        lengths=lengths.astype(np.int64),
+        basins=np.bincount(attractors, minlength=lengths.size).astype(np.int64),
+    )
+
+
+def _get_cycle_labels(cycle: IntArray, images: IntArray) -> IntArray:
+    """Return the position of the smallest code of the cycle of every code on a cycle.
+
+    The codes on cycles are sorted, and the minimum over ever longer stretches of the cycle is taken by doubling.
+    """
+    following = np.searchsorted(cycle, images[cycle])
+    labels = np.arange(cycle.size)
+    for _ in range(max(int(cycle.size).bit_length(), 1)):
+        labels = np.minimum(labels, labels[following])
+        following = following[following]
+    return labels
+
+
+def _get_cycle(start: int, images: IntArray) -> IntArray:
+    """Return the codes of the cycle through a code, in the order of the map."""
+    codes = [start]
+    image = int(images[start])
+    while image != start:
+        codes.append(image)
+        image = int(images[image])
+    return np.asarray(codes, dtype=np.int64)
+
+
+def _get_digits(codes: IntArray, states: int, size: int) -> IntArray:
+    """Return the values of the configuration of every code.
+
+    The first value is the most significant digit.
+    """
+    return (codes[:, None] // states ** np.arange(size - 1, -1, -1, dtype=np.int64)) % states
+
+
+def _get_network_images(network: _NetworkSpec, values: IntArray) -> IntArray:
+    """Return the image of every row of values of a finite network.
+
+    It is one synchronous step of its laws.
+    """
+    images = values.copy()
+    for law in network.laws:
+        read = values[..., law.reads]
+        expected = (*values.shape[:-1], law.targets.size)
+        try:
+            image = np.broadcast_to(np.asarray(law.function(read)), expected)
+        except ValueError as error:
+            error_msg = (
+                f'The law of {law.label!r} gives values that do not fit one value per target and configuration of '
+                f'the shape {expected}: {error}'
+            )
+            raise AnalysisError(error_msg) from error
+        integral = image.dtype.kind in INTEGER_KINDS or np.all(image == np.rint(image))
+        if image.size and (image.min() < 0 or image.max() >= network.states or not integral):
+            error_msg = f'The law of {law.label!r} gives values outside the integers 0 to {network.states - 1}.'
+            raise AnalysisError(error_msg)
+        images[..., law.targets] = image.astype(np.int64)
+    return images
+
+
+def _read_network(system: _CompositeSystem) -> _NetworkSpec:
+    """Return the finite network of a system.
+
+    It holds the number of values of a state, the number of values of a configuration, and the update laws. Every
+    state of every element takes the values 0 to m - 1, the same m for all. Every law sets one value by an
+    expression of single values, or the values of a group by a deterministic call on them.
+    """
+    columns: dict[str, IntArray] = {}
+    namespaces: dict[str, SimpleNamespace] = {}
+    counts: set[int] = set()
+    for element in system.elements:
+        size = element._get_size_of(system.space) if isinstance(element, _GroupElement) else 1
+        symbols = {}
+        for name, spec in element.get_states().items():
+            symbol = SR.var(f'value_{len(columns)}')
+            start = sum(item.size for item in columns.values())
+            columns[str(symbol)] = np.arange(start, start + size)
+            symbols[name] = symbol
+            count = _get_states(spec.domain, None)
+            if count is None:
+                error_msg = (
+                    f'A finite network has states of finitely many values, but {element.label}.{name} has the domain '
+                    f'{spec.domain}. Give it the values 0 to m - 1, such as `x: Annotated[int, {{0, 1}}]`.'
+                )
+                raise AnalysisError(error_msg)
+            counts.add(count)
+        namespaces[element.label] = SimpleNamespace(**symbols, **_get_parameters(element))
+    if len(counts) != 1:
+        error_msg = f'The states of a finite network share their number of values, but they take {sorted(counts)}.'
+        raise AnalysisError(error_msg)
+    states = counts.pop()
+    laws = [
+        _read_network_law(interaction.label, law, columns, states)
+        for interaction in system.interactions
+        for law in clone(interaction).prepare(_get_namespace(interaction, namespaces)).laws_
+    ]
+    return _NetworkSpec(system, states, sum(item.size for item in columns.values()), tuple(laws))
+
+
+def _get_parameters(element: object) -> dict[str, object]:
+    """Return the values of the parameters of an element.
+
+    A parameter of a group with a row per member gives one column per entry of the rows, as laws read it.
+    """
+    if isinstance(element, _DeclaredElement):
+        variables = element.variables or {}
+        return {name: item.value for name, item in variables.items() if isinstance(item.spec, _ParameterSpec)}
+    if not isinstance(element, _GroupElement):
+        return {}
+    values = element.values or {}
+    parameters = {}
+    for name, spec in element._get_member_specs().items():
+        if isinstance(spec, _ParameterSpec) and name in values:
+            array = np.asarray(values[name])
+            parameters[name] = tuple(array.T) if array.ndim == MATRIX_AXES else values[name]
+    return parameters
+
+
+def _get_namespace(interaction: BaseInteraction, namespaces: dict[str, SimpleNamespace]) -> SimpleNamespace:
+    """Return the namespace an interaction states its laws on.
+
+    It holds the elements its roles bind and its parameters.
+    """
+    roles = interaction.get_requirements().roles
+    parameters = {name: value for name, value in interaction.get_params(deep=False).items() if name not in roles}
+    bound: dict[str, object] = {}
+    for role in roles:
+        binding = interaction._get_binding(role)
+        paths = [binding] if isinstance(binding, str) else [str(path) for path in cast('Sequence[str]', binding or ())]
+        missing = [path for path in paths if path not in namespaces]
+        if missing:
+            error_msg = (
+                f'A finite network binds its elements by their labels, but {interaction.label!r} binds {missing} to '
+                f'{role!r}.'
+            )
+            raise AnalysisError(error_msg)
+        items = [namespaces[path] for path in paths]
+        bound[role] = items[0] if isinstance(binding, str) else items
+    return SimpleNamespace(**parameters, **bound, t=SR.var('t'))
+
+
+def _read_network_law(label: str, law: BaseLaw, columns: dict[str, IntArray], states: int) -> _NetworkLawSpec:
+    """Return the values an update law of a finite network sets and reads.
+
+    It comes with the function from the values it reads to those it sets.
+    """
+    target = columns.get(str(getattr(law, 'target', None)))
+    if not isinstance(law, UpdateLaw) or law.neighborhood is not None or law.increment or target is None:
+        error_msg = (
+            f'A finite network sets its values by update laws without neighbourhoods, but {label!r} states {law!r}.'
+        )
+        raise AnalysisError(error_msg)
+    if isinstance(law.value, CallSpec):
+        return _read_call(label, law.value, target, columns)
+    value = SR(law.value)
+    symbols = list(value.variables())
+    reads = [columns.get(str(symbol), np.empty(0, dtype=np.int64)) for symbol in symbols]
+    if target.size != 1 or any(item.size != 1 for item in reads):
+        error_msg = (
+            f'An expression of a finite network sets one value from single values, but {label!r} sets {target.size} '
+            f'values from {symbols}.'
+        )
+        raise AnalysisError(error_msg)
+    rows = _patterns(states, len(symbols)).tolist() if symbols else [[]]
+    try:
+        table = np.asarray([float(value.subs(dict(zip(symbols, row, strict=True)))) for row in rows])
+    except TypeError as error:
+        error_msg = f'The update of {label!r} gives no number for some values: {error}'
+        raise AnalysisError(error_msg) from error
+    reads_columns = np.concatenate([np.empty(0, dtype=np.int64), *reads])
+    return _NetworkLawSpec(label, target, reads_columns, functools.partial(_get_table_values, table, states))
+
+
+def _read_call(label: str, call: CallSpec, target: IntArray, columns: dict[str, IntArray]) -> _NetworkLawSpec:
+    """Return the values a call of a finite network sets and reads.
+
+    It comes with the function from the values it reads to those it sets.
+    """
+    if call.random or call.relative or not call.vectorized or call.arguments is None:
+        error_msg = (
+            f'A finite network maps configurations to configurations, so the call of {label!r} is vectorized and '
+            f'draws nothing, but it has random={call.random!r} and vectorized={call.vectorized!r}.'
+        )
+        raise AnalysisError(error_msg)
+    reads: list[IntArray] = []
+    slots: list[slice | None] = []
+    for argument in call.arguments:
+        if isinstance(argument, Expression) and str(argument) in columns:
+            start = sum(item.size for item in reads)
+            reads.append(columns[str(argument)])
+            slots.append(slice(start, start + reads[-1].size))
+        elif isinstance(argument, Expression) and argument.variables():
+            error_msg = f'The call of {label!r} reads {argument}, which is no state of the network.'
+            raise AnalysisError(error_msg)
+        else:
+            slots.append(None)
+    reads_columns = np.concatenate([np.empty(0, dtype=np.int64), *reads])
+    return _NetworkLawSpec(label, target, reads_columns, functools.partial(_get_call_values, call, tuple(slots)))
+
+
+def _get_table_values(table: npt.NDArray[np.float64], states: int, values: IntArray) -> npt.NDArray[np.float64]:
+    """Return the entry of a table at the code of every row of values, as a column."""
+    return table[_codes(values, states)][..., None]
+
+
+def _get_call_values(call: CallSpec, slots: tuple[slice | None, ...], values: IntArray) -> npt.ArrayLike:
+    """Return the values of a call on rows of the values it reads.
+
+    The arguments without a slot are passed as they are.
+    """
+    arguments = [
+        argument if slot is None else values[..., slot]
+        for argument, slot in zip(call.arguments or (), slots, strict=True)
+    ]
+    function = cast('Callable[..., npt.ArrayLike]', call.function)
+    return function(0.0, *arguments)
 
 
 def _get_window_entropy(automaton: _AutomatonSpec, window: BaseSpace) -> float:

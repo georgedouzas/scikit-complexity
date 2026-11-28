@@ -11,7 +11,6 @@ type.
 # observer saves every step with the default blueprint, whose primary view is the time series of the node values.
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem
@@ -27,7 +26,7 @@ trajectory = RandomBooleanNetworkSystem(n_nodes=20, k=2, random_state=4).prepare
 # The state space is finite and the update deterministic, so the run must revisit a state and repeat from it. The
 # first repeated state marks the end of the transient, and the gap to its earlier visit is the length of the cycle.
 
-states = np.column_stack([trajectory.get_values(f'node_{i}.x') for i in range(20)]).astype(int)
+states = trajectory.get_values('nodes.x').astype(int)
 seen = {}
 for step, state in enumerate(map(tuple, states)):
     if state in seen:

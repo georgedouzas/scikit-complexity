@@ -13,7 +13,13 @@ from ._adaptation import (
     EnzymeStimulusInteraction,
 )
 from ._backbone_geometry import BackboneGeometry
-from ._boolean import RandomBooleanNetworkSystem, ThresholdFunctionInteraction, YeastCellCycleSystem
+from ._boolean import (
+    RandomBooleanNetworkSystem,
+    RandomBooleanNodeElement,
+    ThresholdFunctionInteraction,
+    TruthTablesInteraction,
+    YeastCellCycleSystem,
+)
 from ._boolean_systems import (
     BooleanRepressilatorSystem,
     MajorityNodeElement,
@@ -152,6 +158,7 @@ __all__: list[str] = [
     'ProbabilisticNodeElement',
     'ProneuralCellElement',
     'RandomBooleanNetworkSystem',
+    'RandomBooleanNodeElement',
     'RegulatoryFBASystem',
     'RepressilatorSystem',
     'RepressionInteraction',
@@ -165,6 +172,7 @@ __all__: list[str] = [
     'ToggleSwitchSystem',
     'ToyFluxBalanceInteraction',
     'TracerSpec',
+    'TruthTablesInteraction',
     'YeastCellCycleSystem',
     'fuzzy_oil_drop_measures',
     'labelling',
