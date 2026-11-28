@@ -13,14 +13,14 @@
 
 ## 3. Compile, solvers, backends and translators
 
-- [ ] 3.1 Make the records of `compile` private, move them to their users, and remove the trivial ones
+- [x] 3.1 Make the records of `compile` private, move them to their users, and remove the trivial ones
 - [x] 3.2 Do the same for `solvers`, `backends` and `translators`
 
 ## 4. Records outside the engine
 
-- [ ] 4.1 Do the same for the private records of `core/analysis`, `core/components`, `core/experiments` and
+- [x] 4.1 Do the same for the private records of `core/analysis`, `core/components`, `core/experiments` and
       `systems/general/rewriting`
-- [ ] 4.2 Move any check of a user value that a record held to the `_check` of the public owner, with its message
+- [x] 4.2 Move any check of a user value that a record held to the `_check` of the public owner, with its message
 
 ## 5. Close
 
