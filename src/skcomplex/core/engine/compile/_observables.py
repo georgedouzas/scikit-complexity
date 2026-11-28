@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, Expression, I, function
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...components import EntrySpec, Observable
-from ...components._state_spec import _StateSpec
+from ...components._state import _State
 from ...components.elements import Element
 from ...components.interactions import BaseInteraction
 from ...components.laws.utils import local_operator
@@ -77,7 +77,7 @@ class _HeldElement(Element):
     def __init__(
         self,
         label: str,
-        value: Annotated[float, _StateSpec()] = 0.0,
+        value: Annotated[float, _State()] = 0.0,
         *,
         reduction: _HeldReduction | None = None,
     ) -> None:

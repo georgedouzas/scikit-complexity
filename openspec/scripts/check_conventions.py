@@ -1768,6 +1768,38 @@ def check_every_dataclass_is_a_frozen_spec_or_result(root: Path) -> list[str]:
     return found
 
 
+def _record_faults(value: type, spec: type) -> list[str]:
+    """Return how a private dataclass breaks the rule of private records, as words.
+
+    A private record derives from nothing, has no `_check`, and no `Spec` suffix. A private subclass of any other base
+    implements the contract of that base and is exempt.
+    """
+    plain = value.__bases__ == (object,)
+    faults = []
+    if value.__bases__ == (spec,):
+        faults.append('derives from BaseSpec')
+    if plain and '_check' in vars(value):
+        faults.append('has a _check')
+    if value.__name__.endswith('Spec') and (plain or value.__bases__ == (spec,)):
+        faults.append('has the Spec suffix')
+    return faults
+
+
+def check_private_records_are_plain(root: Path) -> list[str]:
+    """Return every private dataclass of the library with the base, the `_check`, or the suffix of a spec."""
+    spec = importlib.import_module('skcomplex.core.base').BaseSpec
+    return [
+        f'{_locate(value, root)}: {module.__name__}.{value.__qualname__} {", ".join(faults)}'
+        for module in _importable_modules(PACKAGE, lambda _: False)
+        for value in vars(module).values()
+        if isinstance(value, type)
+        and value.__module__ == module.__name__
+        and value.__name__.startswith('_')
+        and dataclasses.is_dataclass(value)
+        and (faults := _record_faults(value, spec))
+    ]
+
+
 def check_enums_and_protocols_live_in_their_modules(root: Path) -> list[str]:
     """Return every enum outside an `enums` module and every protocol outside a `types` module, the systems aside."""
 
@@ -2234,6 +2266,57 @@ def check_nonverb_methods_are_named(folder: Path) -> list[str]:
     return _expected('_nonverb_methods', found, [f'{path}:12: Model._noise'])
 
 
+def check_record_faults_are_named(folder: Path) -> list[str]:
+    """Return a finding unless records with the base, check, or suffix of a spec are named, and implementations not."""
+    _write_module(
+        folder,
+        'records',
+        """
+        from dataclasses import dataclass
+        from skcomplex.core.base import BaseSpec
+        from skcomplex.core.components.laws import BaseLaw
+        @dataclass(frozen=True)
+        class _Based(BaseSpec):
+            size: int
+        @dataclass(frozen=True)
+        class _Checked:
+            size: int
+            def _check(self):
+                return self
+        @dataclass(frozen=True)
+        class _SuffixSpec:
+            size: int
+        @dataclass(frozen=True)
+        class _Plain:
+            size: int
+        @dataclass(frozen=True)
+        class _ImplementedSpec(BaseLaw):
+            def _check(self):
+                return self
+        """,
+    )
+    spec = importlib.import_module('skcomplex.core.base').BaseSpec
+    sys.path.insert(0, str(folder))
+    try:
+        module = importlib.import_module('records')
+        found = {
+            name: _record_faults(value, spec)
+            for name, value in vars(module).items()
+            if isinstance(value, type) and value.__module__ == 'records'
+        }
+    finally:
+        sys.path.remove(str(folder))
+        sys.modules.pop('records', None)
+    expected = {
+        '_Based': ['derives from BaseSpec'],
+        '_Checked': ['has a _check'],
+        '_SuffixSpec': ['has the Spec suffix'],
+        '_Plain': [],
+        '_ImplementedSpec': [],
+    }
+    return _expected('_record_faults', found, expected)
+
+
 def check_factory_calls_are_named(folder: Path) -> list[str]:
     """Return a finding unless a factory call at module level or with a hook is named, and an unknown is not."""
     path = _write_module(
@@ -2391,6 +2474,7 @@ SELF_CHECKS = (
     check_constant_gaps_are_named,
     check_unowned_functions_are_named,
     check_nonverb_methods_are_named,
+    check_record_faults_are_named,
     check_factory_calls_are_named,
     check_unnatural_lines_are_named,
     check_private_names_are_named,
@@ -2427,6 +2511,7 @@ CHECKS = (
     check_examples_are_short,
     check_every_error_is_raised_in_the_library,
     check_every_dataclass_is_a_frozen_spec_or_result,
+    check_private_records_are_plain,
     check_enums_and_protocols_live_in_their_modules,
     check_every_base_derives_from_the_root,
     check_library_generates_no_classes_of_components,

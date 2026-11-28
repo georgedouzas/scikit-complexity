@@ -13,7 +13,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.interactions import BaseInteraction
 from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....components.laws._reduction_spec import _ReductionSpec
+from ....components.laws._reduction import _Reduction
 from ....components.laws.utils import maximum, minimum, where
 from ....components.laws.utils._reductions import reductions_in
 from ....components.spaces import NetworkSpace
@@ -563,7 +563,7 @@ class HyperedgeTables:
         return columns, positions
 
     @staticmethod
-    def _get_expanded(reduction: _ReductionSpec, slots: dict[Expression, list[Expression]]) -> Expression:
+    def _get_expanded(reduction: _Reduction, slots: dict[Expression, list[Expression]]) -> Expression:
         """Return a reduction over the members of a hyperedge written out over slots.
 
         It is written as a sum, a mean, or an extremum of slots.

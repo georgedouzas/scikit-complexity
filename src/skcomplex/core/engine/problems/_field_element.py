@@ -10,7 +10,7 @@ import numpy as np
 from sage.structure.element import Matrix
 
 from ...components import TensorSpec
-from ...components._state_spec import _StateSpec
+from ...components._state import _State
 from ...components.elements import BaseElement, VisualSpec
 from ...components.spaces import BaseSpace, CellComplexSpace, FiniteVolumeSpec, LatticeSpace, NetworkSpace
 from ...errors import ValidationError
@@ -120,7 +120,7 @@ class _FieldElement(_GroupElement):
         The result is `None` for any other state.
         """
         spec = self._get_member_specs().get(state)
-        if not isinstance(spec, _StateSpec) or spec.tensor is None:
+        if not isinstance(spec, _State) or spec.tensor is None:
             return None
         tensor = TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))
         tensor._check()

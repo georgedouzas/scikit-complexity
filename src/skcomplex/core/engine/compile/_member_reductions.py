@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import RR, SR, Expression, I
 
 from ...base import BaseConfig
 from ...components import EntrySpec
-from ...components.laws._reduction_spec import _ReductionSpec
+from ...components.laws._reduction import _Reduction
 from ...components.laws.utils._reductions import reductions_in
 from ...errors import RoleError, ValidationError
 from .._utils import symbol, symbols_of
@@ -118,7 +118,7 @@ class _MemberReductions(BaseConfig[None, object]):
         """Size of the parameter vector extended by the values of the reductions."""
         return max((item.entry.start + item.entry.size for item in self.found_.values()), default=self.parameters)
 
-    def _check_over(self, reduction: _ReductionSpec) -> None:
+    def _check_over(self, reduction: _Reduction) -> None:
         """Raise an error for a reduction over another group than the observable's."""
         read = self.reads_.get(reduction.over) if reduction.over is not None else None
         if reduction.over is None or (read is not None and read.per_member):
@@ -141,7 +141,7 @@ class _MemberReductions(BaseConfig[None, object]):
             raise ValidationError(error_msg)
         return self.reads_[item]
 
-    def _get_weights(self, reduction: _ReductionSpec) -> scipy.sparse.csr_array | None:
+    def _get_weights(self, reduction: _Reduction) -> scipy.sparse.csr_array | None:
         """Return the weights of a reduction as a CSR array after checking their shape."""
         if reduction.weights is None:
             return None
@@ -162,7 +162,7 @@ class _MemberReductions(BaseConfig[None, object]):
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(source, dtype=float)
 
-    def _get_placeholder(self, reduction: _ReductionSpec) -> Expression:
+    def _get_placeholder(self, reduction: _Reduction) -> Expression:
         """Return the placeholder of a reduction, compiling it the first time it is found."""
         key = str(reduction.call)
         if key in self.found_:

@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from ..base import BaseSpec
 from ..enums import ElementKind
 from ..errors import ValidationError
-from ._parameter_spec import _ParameterSpec
-from ._state_spec import _StateSpec
+from ._parameter import _Parameter
+from ._state import _State
 
 
 @dataclass(frozen=True)
@@ -87,4 +87,4 @@ class RoleSpec(BaseSpec):
         return not self.elements or ElementKind.ANY in self.elements or kind in self.elements
 
 
-type _Spec = _StateSpec | _ParameterSpec | RoleSpec
+type _Spec = _State | _Parameter | RoleSpec

@@ -24,7 +24,7 @@
 
 ## 5. Close
 
-- [ ] 5.1 Add the tests of the engine's public names and of trivial records, in the tests that mirror the packages
+- [x] 5.1 Add the tests of the engine's public names and of trivial records, in the tests that mirror the packages
 - [ ] 5.2 Run black, ruff, mypy, pydoclint, interrogate, lint-imports and the convention checks, and the test groups
       of every touched package
 - [ ] 5.3 Run the full suite at the end of the change

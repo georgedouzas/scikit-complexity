@@ -9,7 +9,7 @@ from collections.abc import Mapping
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....components.laws import BaseLaw, RateLaw
-from ....components.laws._neighbor_reduction_spec import _NeighborReductionSpec
+from ....components.laws._neighbor_reduction import _NeighborReduction
 from ....components.laws.utils import laplacian
 from ....components.laws.utils._phase import COORDINATE_PREFIX
 from ....components.laws.utils._reductions import neighborhoods_in
@@ -152,7 +152,7 @@ class LowerFieldsPass(BasePass):
     @staticmethod
     def _get_difference(
         spec: KernelSpec,
-        reduction: _NeighborReductionSpec,
+        reduction: _NeighborReduction,
         places: Mapping[str, _FieldElement],
     ) -> tuple[Expression, Expression, float] | None:
         """Return the coefficient, the state, and the scale of a diffusive neighbour sum.

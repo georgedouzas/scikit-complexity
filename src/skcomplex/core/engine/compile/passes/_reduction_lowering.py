@@ -19,9 +19,9 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 from ....components import EntrySpec
 from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws._boundary import _BoundaryLaw
-from ....components.laws._hyperedge_reduction_spec import _HyperedgeReductionSpec
-from ....components.laws._neighbor_reduction_spec import _NeighborReductionSpec
-from ....components.laws._reduction_spec import _ReductionSpec
+from ....components.laws._hyperedge_reduction import _HyperedgeReduction
+from ....components.laws._neighbor_reduction import _NeighborReduction
+from ....components.laws._reduction import _Reduction
 from ....components.laws.utils import both, maximum
 from ....components.laws.utils._cells import cell_operations_in
 from ....components.laws.utils._contractions import contractions_in
@@ -238,7 +238,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         owner = reference.entry.name.rpartition('.')[0]
         return owner if owner in self.declarations_.blocks else None
 
-    def _get_group(self, reduction: _ReductionSpec, spec: KernelSpec, symbols: set[Expression]) -> str | None:
+    def _get_group(self, reduction: _Reduction, spec: KernelSpec, symbols: set[Expression]) -> str | None:
         """Return the one group a reduction reduces over.
 
         It first checks that it reads no second group.
@@ -320,7 +320,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_weights(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         group: str | None,
         size: int,
@@ -351,7 +351,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_weights_read(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         weights: Expression,
         shape: tuple[int, int],
@@ -375,7 +375,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     @staticmethod
     def _get_held_reduction(
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         agents: Mapping[Expression, tuple[str, str]],
         time: Expression,
         owner: str,
@@ -440,7 +440,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             None if reduction.condition is None else SR(reduction.condition),
         )
 
-    def _get_held(self, reduction: _ReductionSpec, spec: KernelSpec) -> Expression | None:
+    def _get_held(self, reduction: _Reduction, spec: KernelSpec) -> Expression | None:
         """Return the state of the element that holds a reduction of agents.
 
         It is `None` for a reduction of elements.
@@ -471,7 +471,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, value, ReferenceSpec(block.entries['value'], True, 0, ReadKind.SINGLE))
         return value
 
-    def _get_placeholder(self, reduction: _ReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_placeholder(self, reduction: _Reduction, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction.
 
         It is the state that holds a reduction of agents, or its complex parts.
@@ -492,7 +492,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         imaginary = self._get_compiled(replace(reduction, argument=argument.imag_part()), spec)
         return real + I * imaginary
 
-    def _get_reduced_group(self, reduction: _ReductionSpec, spec: KernelSpec, others: set[Expression]) -> str:
+    def _get_reduced_group(self, reduction: _Reduction, spec: KernelSpec, others: set[Expression]) -> str:
         """Return the one group whose members the `other` symbols of a reduction stand for."""
         groups = {self._get_owner_of(item, spec) for item in others}
         if reduction.over is not None:
@@ -555,7 +555,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_weighted_pairwise_form(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         argument: Expression,
         selected: Expression,
@@ -581,7 +581,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_pair_weights_read(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         group: str,
     ) -> dict[Expression, _PairRead]:
@@ -598,7 +598,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_pairwise_form(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         argument: Expression,
         condition: Expression | None,
@@ -630,7 +630,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_pairwise(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         argument: Expression,
         condition: Expression | None,
@@ -684,7 +684,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_separated(
         self,
-        reduction: _ReductionSpec,
+        reduction: _Reduction,
         spec: KernelSpec,
         argument: Expression,
         others: set[Expression],
@@ -722,7 +722,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         ]
         return SR(sum(reduced, SR(0)))
 
-    def _get_compiled(self, reduction: _ReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_compiled(self, reduction: _Reduction, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction of a real expression.
 
         It is compiled the first time it is found.
@@ -817,7 +817,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         of the index `axis` of every combination of members.
         """
         symbols = sorted(symbols_of([factor]) - {self.declarations_.time}, key=str)
-        group = self._get_group(_ReductionSpec(factor, 'sum', factor, None, None, None), spec, set(symbols))
+        group = self._get_group(_Reduction(factor, 'sum', factor, None, None, None), spec, set(symbols))
         if group is not None and group in self.declarations_.capacity:
             error_msg = (
                 f'A contraction of {spec.owner} reads the variable group {group}, whose members come and go. '
@@ -886,7 +886,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_neighbor_group(
         self,
-        reduction: _NeighborReductionSpec | _HyperedgeReductionSpec,
+        reduction: _NeighborReduction | _HyperedgeReduction,
         spec: KernelSpec,
         symbols: set[Expression],
     ) -> str:
@@ -1165,7 +1165,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self.cells_[placeholder] = (reached, space)
         return placeholder
 
-    def _get_coface(self, reduction: _NeighborReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_coface(self, reduction: _NeighborReduction, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction over the cofaces of every member.
 
         The members are those of a group on a cell complex.
@@ -1186,7 +1186,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         key = ('coface', reduction.kind, str(argument), str(weight), group)
         return self._get_cell_kernel(key, spec, (reduction.kind, argument, weight, group), matrix, signed=False)
 
-    def _get_neighborhood(self, reduction: _NeighborReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_neighborhood(self, reduction: _NeighborReduction, spec: KernelSpec) -> Expression:
         """Return the placeholder of a neighbourhood reduction.
 
         It is compiled the first time it is found.
@@ -1262,7 +1262,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _get_hyperedges(self, reduction: _HyperedgeReductionSpec, spec: KernelSpec) -> Expression:
+    def _get_hyperedges(self, reduction: _HyperedgeReduction, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction over the hyperedges around every member.
 
         It is the sum of one reduction per size. Over a neighbourhood, the hyperedges are the sets of current neighbours
@@ -1350,7 +1350,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_hyperedge_kernel(
         self,
-        reduction: _HyperedgeReductionSpec,
+        reduction: _HyperedgeReduction,
         spec: KernelSpec,
         group: str,
         terms: tuple[str, Expression, Expression],
@@ -1452,7 +1452,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
 
     def _get_hyperedge_search(
         self,
-        reduction: _HyperedgeReductionSpec,
+        reduction: _HyperedgeReduction,
         block: _Block,
         size: int,
     ) -> tuple[StaticSearch | MetricSearch, list[Indices] | None]:

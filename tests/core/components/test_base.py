@@ -11,9 +11,9 @@ from sklearn.base import clone
 
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components import MatrixGroupSpec, RoleSpec
-from skcomplex.core.components._declared_variable_spec import _DeclaredVariableSpec
-from skcomplex.core.components._parameter_spec import _ParameterSpec
-from skcomplex.core.components._state_spec import _StateSpec
+from skcomplex.core.components._declared_variable import _DeclaredVariable
+from skcomplex.core.components._parameter import _Parameter
+from skcomplex.core.components._state import _State
 from skcomplex.core.components.base import BaseComponent
 from skcomplex.core.components.elements import BaseElement, Element
 from skcomplex.core.components.interactions import BaseInteraction, Interaction
@@ -225,7 +225,7 @@ class DeclaringComponent(BaseComponent):
 
     def _get_declared(self):
         """Return the variable `x` with the spec of the component."""
-        return {'x': _DeclaredVariableSpec(0.0, self.spec)}
+        return {'x': _DeclaredVariable(0.0, self.spec)}
 
 
 def test_prepare_rejects_a_declared_variable_of_no_kind():
@@ -237,25 +237,25 @@ def test_prepare_rejects_a_declared_variable_of_no_kind():
 @pytest.mark.parametrize(
     ('spec', 'message'),
     [
-        (_StateSpec(vector=True, tensor='symmetric'), r'vector=True or tensor=.symmetric'),
-        (_StateSpec(tensor='skew'), 'tensor symmetry'),
-        (_StateSpec(algebraic=True, order=2), 'An algebraic state has order 1 and no lags'),
-        (_StateSpec(algebraic=True, lags=1), 'An algebraic state has order 1 and no lags'),
-        (_StateSpec(group=MatrixGroupSpec('SU', 3), vector=True), 'holds its matrices alone'),
-        (_StateSpec(group=MatrixGroupSpec('SU', 3), tensor='full'), 'holds its matrices alone'),
-        (_StateSpec(group=MatrixGroupSpec('SU', 3), order=2), 'holds its matrices alone'),
-        (_StateSpec(group=MatrixGroupSpec('SU', 3), lags=1), 'holds its matrices alone'),
-        (_StateSpec(order=0), 'order'),
-        (_StateSpec(order=-0.5), 'order'),
-        (_StateSpec(order=float('nan')), 'order'),
-        (_StateSpec(order=1.5), 'order'),
-        (_StateSpec(lags=-1), 'lags'),
-        (_StateSpec(lags=1.5), 'lags'),
-        (_StateSpec(order=2, lags=1), 'not both'),
-        (_StateSpec(order=2, initial=(0.0, 1.0)), '2 initial values were given for 1'),
-        (_StateSpec(reference='banks', vector=True), 'scalar of order 1'),
-        (_StateSpec(reference='banks', lags=1), 'scalar of order 1'),
-        (_StateSpec(role='spin'), 'The role of a state'),
+        (_State(vector=True, tensor='symmetric'), r'vector=True or tensor=.symmetric'),
+        (_State(tensor='skew'), 'tensor symmetry'),
+        (_State(algebraic=True, order=2), 'An algebraic state has order 1 and no lags'),
+        (_State(algebraic=True, lags=1), 'An algebraic state has order 1 and no lags'),
+        (_State(group=MatrixGroupSpec('SU', 3), vector=True), 'holds its matrices alone'),
+        (_State(group=MatrixGroupSpec('SU', 3), tensor='full'), 'holds its matrices alone'),
+        (_State(group=MatrixGroupSpec('SU', 3), order=2), 'holds its matrices alone'),
+        (_State(group=MatrixGroupSpec('SU', 3), lags=1), 'holds its matrices alone'),
+        (_State(order=0), 'order'),
+        (_State(order=-0.5), 'order'),
+        (_State(order=float('nan')), 'order'),
+        (_State(order=1.5), 'order'),
+        (_State(lags=-1), 'lags'),
+        (_State(lags=1.5), 'lags'),
+        (_State(order=2, lags=1), 'not both'),
+        (_State(order=2, initial=(0.0, 1.0)), '2 initial values were given for 1'),
+        (_State(reference='banks', vector=True), 'scalar of order 1'),
+        (_State(reference='banks', lags=1), 'scalar of order 1'),
+        (_State(role='spin'), 'The role of a state'),
     ],
 )
 def test_prepare_rejects_an_invalid_state(spec, message):
@@ -266,7 +266,7 @@ def test_prepare_rejects_an_invalid_state(spec, message):
 
 @pytest.mark.parametrize(
     'spec',
-    [_StateSpec(order=0.6), _StateSpec(order=2.0), _StateSpec(lags=2, initial=(1.0, 2.0)), _StateSpec(algebraic=True)],
+    [_State(order=0.6), _State(order=2.0), _State(lags=2, initial=(1.0, 2.0)), _State(algebraic=True)],
 )
 def test_prepare_accepts_fractional_orders_and_lags(spec):
     """Test that a fractional order, an integral order given as a float, lags, and an algebraic state pass."""
@@ -276,13 +276,13 @@ def test_prepare_accepts_fractional_orders_and_lags(spec):
 @pytest.mark.parametrize(
     ('spec', 'message'),
     [
-        (_ParameterSpec(per='inputs', vector=True), 'per entry'),
-        (_ParameterSpec(per='inputs', adaptive=True), 'per entry'),
-        (_ParameterSpec(bounds=(0, 1)), 'adaptive parameter'),
-        (_ParameterSpec(adaptive=True, bounds=(1, 0)), 'lower bound at most the upper one'),
-        (_ParameterSpec(shape=()), 'nonempty tuple of role names'),
-        (_ParameterSpec(shape=('target',), vector=True), 'neither a vector'),
-        (_ParameterSpec(shape=('target',), per='inputs'), 'per entry'),
+        (_Parameter(per='inputs', vector=True), 'per entry'),
+        (_Parameter(per='inputs', adaptive=True), 'per entry'),
+        (_Parameter(bounds=(0, 1)), 'adaptive parameter'),
+        (_Parameter(adaptive=True, bounds=(1, 0)), 'lower bound at most the upper one'),
+        (_Parameter(shape=()), 'nonempty tuple of role names'),
+        (_Parameter(shape=('target',), vector=True), 'neither a vector'),
+        (_Parameter(shape=('target',), per='inputs'), 'per entry'),
     ],
 )
 def test_prepare_rejects_an_invalid_parameter(spec, message):
@@ -293,7 +293,7 @@ def test_prepare_rejects_an_invalid_parameter(spec, message):
 
 @pytest.mark.parametrize(
     'spec',
-    [_ParameterSpec(adaptive=True, bounds=(0, 1)), _ParameterSpec(shape=('target',) * 3, adaptive=True)],
+    [_Parameter(adaptive=True, bounds=(0, 1)), _Parameter(shape=('target',) * 3, adaptive=True)],
 )
 def test_prepare_accepts_bounds_and_shapes_of_parameters(spec):
     """Test that an adaptive parameter takes bounds and a parameter takes the roles of its shape."""

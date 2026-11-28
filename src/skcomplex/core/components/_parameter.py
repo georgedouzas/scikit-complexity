@@ -1,4 +1,4 @@
-"""Define the parameter spec."""
+"""Define the record of a declared parameter."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import RR
 
 
 @dataclass(frozen=True)
-class _ParameterSpec:
+class _Parameter:
     """A parameter of an element or an interaction.
 
     It is given in the annotation of an argument of the constructor, and the default of the argument is the default of

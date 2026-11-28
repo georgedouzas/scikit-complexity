@@ -10,8 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.base import clone
 
-from ..components._parameter_spec import _ParameterSpec
-from ..components._state_spec import _StateSpec
+from ..components._parameter import _Parameter
+from ..components._state import _State
 from ..components.elements import BaseElement, Element
 from ..components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ..components.laws._boundary import _BoundaryLaw
@@ -203,7 +203,7 @@ def _replicate(
 def _declares(element: Element) -> bool:
     """Return whether an element declares its states and parameters."""
     specs = type(element)._get_specs().values()
-    return isinstance(element, _DeclaredElement) or any(isinstance(spec, _StateSpec | _ParameterSpec) for spec in specs)
+    return isinstance(element, _DeclaredElement) or any(isinstance(spec, _State | _Parameter) for spec in specs)
 
 
 def _get_value_names(element: Element) -> set[str]:

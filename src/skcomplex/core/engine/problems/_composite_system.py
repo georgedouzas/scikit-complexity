@@ -15,8 +15,8 @@ import numpy.typing as npt
 
 from ...base import BaseConfig
 from ...components import Observable, Tags
-from ...components._parameter_spec import _ParameterSpec
-from ...components._state_spec import _StateSpec
+from ...components._parameter import _Parameter
+from ...components._state import _State
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement
 from ...components.interactions import BaseInteraction
@@ -257,12 +257,12 @@ class _CompositeSystem(BaseComponent[BaseSpace]):
                         raise RoleElementError(error_msg)
 
     @staticmethod
-    def _get_parameter_states(element: BaseElement) -> dict[str, _StateSpec]:
+    def _get_parameter_states(element: BaseElement) -> dict[str, _State]:
         """Return the parameters of an element as states of their domains, by name."""
         return {
-            name: _StateSpec(domain=spec.domain, vector=spec.vector, tensor=spec.tensor)
+            name: _State(domain=spec.domain, vector=spec.vector, tensor=spec.tensor)
             for name, spec in element._get_component_specs().items()
-            if isinstance(spec, _ParameterSpec)
+            if isinstance(spec, _Parameter)
         }
 
     @staticmethod

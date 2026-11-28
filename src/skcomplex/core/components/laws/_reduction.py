@@ -1,4 +1,4 @@
-"""Define the reduction spec."""
+"""Define the record of a reduction call."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +12,7 @@ from ...types import AnyArray
 
 
 @dataclass(frozen=True)
-class _ReductionSpec:
+class _Reduction:
     """A reduction call found in an expression.
 
     It holds its kind, argument, condition, weights, and group.

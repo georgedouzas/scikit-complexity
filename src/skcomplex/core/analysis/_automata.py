@@ -19,7 +19,7 @@ from sage.structure.element import Matrix
 from sklearn.base import clone
 
 from ..components import SubshiftSpec
-from ..components._parameter_spec import _ParameterSpec
+from ..components._parameter import _Parameter
 from ..components.interactions import BaseInteraction, Interaction
 from ..components.laws import (
     BaseLaw,
@@ -1386,13 +1386,13 @@ def _get_parameters(element: object) -> dict[str, object]:
     """
     if isinstance(element, _DeclaredElement):
         variables = element.variables or {}
-        return {name: item.value for name, item in variables.items() if isinstance(item.spec, _ParameterSpec)}
+        return {name: item.value for name, item in variables.items() if isinstance(item.spec, _Parameter)}
     if not isinstance(element, _GroupElement):
         return {}
     values = element.values or {}
     parameters = {}
     for name, spec in element._get_member_specs().items():
-        if isinstance(spec, _ParameterSpec) and name in values:
+        if isinstance(spec, _Parameter) and name in values:
             array = np.asarray(values[name])
             parameters[name] = tuple(array.T) if array.ndim == MATRIX_AXES else values[name]
     return parameters

@@ -1,4 +1,4 @@
-"""Define the hyperedge reduction spec."""
+"""Define the record of a reduction over hyperedges."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import Expression
 
 
 @dataclass(frozen=True)
-class _HyperedgeReductionSpec:
+class _HyperedgeReduction:
     """A reduction over the hyperedges around every member.
 
     It holds its kind, argument, size, and the neighbourhood whose neighbours form the hyperedges.

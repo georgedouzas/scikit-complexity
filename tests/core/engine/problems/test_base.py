@@ -1,5 +1,6 @@
 """Test the `_base` module of `skcomplex.core.engine.problems`."""
 
+import dataclasses
 import enum
 import inspect
 
@@ -58,6 +59,36 @@ def test_public_problems_are_the_bases_frames_and_two_forms():
     }
     assert expected <= set(package.__all__)
     assert all(name.endswith('Spec') for name in set(package.__all__) - expected)
+
+
+def test_public_records_are_the_solver_contract():
+    """The public records are the forms, what a backend is run with, their field records, and the run frames.
+
+    The run frames are what runs return to users.
+    """
+    expected = {
+        'AgentSnapshotSpec',
+        'BaseProblemSpec',
+        'BaseRecordSpec',
+        'CompiledElementSpec',
+        'DiffusiveLimitSpec',
+        'FrameSpec',
+        'KernelSpec',
+        'KineticProblemSpec',
+        'LayoutSpec',
+        'LearningProblemSpec',
+        'LinearTermSpec',
+        'LoopTermSpec',
+        'LoweredKernelsSpec',
+        'NetworkSnapshotSpec',
+        'OperatorProblemSpec',
+        'PartitionSpec',
+        'ProblemSpec',
+        'ReferenceSpec',
+        'RunStateSpec',
+        'TransferNetworkSpec',
+    }
+    assert {name for name in package.__all__ if dataclasses.is_dataclass(getattr(package, name))} == expected
 
 
 class DecayKernel(BaseKernel):
