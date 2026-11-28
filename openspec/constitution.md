@@ -286,8 +286,12 @@ to fill in as the project takes shape.
   `laws_` for interactions, `problem_` for compilers, `state_` for solvers,
   and `values_` for kernels. The verbs call the private hooks `_check`, `_prepare`, and `_run`, which `BaseConfig`
   declares abstract and every class MUST implement, returning `None`; `_release` is optional and does nothing by
-  default. No family MUST add a verb of its own. Domains, problems, terms, compiled records, and laws are values: frozen specs
-  deriving from `BaseSpec`, the only base whose hooks have defaults, whose only hook they usually implement is `_check`. A system is
+  default. No family MUST add a verb of its own. Domains, problems, terms, and laws are values: frozen specs
+  deriving from `BaseSpec`, the only base whose hooks have defaults, whose only hook they usually implement is `_check`.
+  A record that only the library builds and reads is no spec but a private frozen dataclass with no base and no
+  `_check`, defined in the module that builds or reads it, and a record of three fields or fewer with no methods and
+  one reader MUST be plain arguments or a tuple. Only the problem forms a solver receives, what a backend is run with,
+  and the records they hold as fields are public. A system is
   defined by its components, which are elements, groups, interactions, spaces, and nested systems, and which derive from
   `BaseComponent`. A law is no component but a frozen value with its fields, with no `prepare`, component label, or
   cloning, and the interactions hold their laws in `laws_`. Elements and groups derive from
@@ -396,4 +400,4 @@ to fill in as the project takes shape.
   `BaseObserver`, and `BaseVisual`. Forms, space kinds, and traits are open vocabularies, and the law kinds are the
   seven above.
 
-**Version**: 1.13.2 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-23
+**Version**: 1.14.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-28

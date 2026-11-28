@@ -43,6 +43,29 @@ values deriving from `BaseSpec`. Changing behaviour or speed of any run.
   of the solver contract, and internal records are private frozen dataclasses in the module of their user. Its
   version rises by a minor step.
 
+## Public contract (audit of 2026-11-28)
+
+A solver is prepared with a problem form and run with a `StepSpec`, declares its support with a `SupportSpec`, and
+records `BaseRecordSpec` events. A backend is run with `LoweredKernelsSpec` and reads `RunStateSpec`. The public set is
+these, the forms, and the public records the forms hold as fields:
+
+- `BaseProblemSpec` and the forms `ProblemSpec`, `OperatorProblemSpec`, `KineticProblemSpec`, `LearningProblemSpec`
+  and `RewritingProblemSpec`, the last in `systems/general/rewriting`
+- `StepSpec`, `SupportSpec`, `BaseRecordSpec`, `LoweredKernelsSpec`, `KernelSpec` and `RunStateSpec`
+- the field records `CompiledElementSpec`, `DiffusiveLimitSpec`, `LayoutSpec`, `LinearTermSpec`, `LoopTermSpec`,
+  `PartitionSpec`, `ReferenceSpec` and `TransferNetworkSpec`
+
+Every other engine record becomes private. `PhaseSpec` and `PhasesScheduleSpec`, which systems build, and
+`NetworkSnapshotSpec`, `AgentSnapshotSpec`, `FrameSpec` and `StructureStateSpec`, which runs return, are user values
+and are left to `simplify-user-specs`. The component values the forms hold, such as `EntrySpec`, are also left to it.
+
+## Order of the work
+
+1. `compile`, then `solvers`, `backends` and `translators`, then the records outside the engine, in parallel, each
+   only making its own records private and removing its trivial ones.
+2. `problems`, which moves its records into the modules of the first wave.
+3. The tests of the new requirements, the checks, and the full suite.
+
 ## Risks / Trade-offs
 
 - A wide refactor touches many imports. Waves of at most four agents, each on one package, with lint-imports and the

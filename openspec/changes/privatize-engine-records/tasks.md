@@ -1,8 +1,8 @@
 ## 1. Contract
 
-- [ ] 1.1 Audit which engine records a solver or backend written outside the library must read, and record the final
+- [x] 1.1 Audit which engine records a solver or backend written outside the library must read, and record the final
       public set in design.md
-- [ ] 1.2 Amend the constitution rule on dataclasses and raise its version
+- [x] 1.2 Amend the constitution rule on dataclasses and raise its version
 
 ## 2. Problems package
 
