@@ -13,8 +13,8 @@ from ....components.spaces import BaseSpace
 from ....enums import VariableKind
 from ....errors import BackendError, LabelError, ValidationError
 from ..._utils import declarations_of
+from ...problems._base_problem_spec import _CompiledAgents
 from ...problems._block_spec import BlockSpec
-from ...problems._compiled_agents_spec import _CompiledAgentsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
@@ -132,7 +132,7 @@ class AgentsProblemPass(BasePass):
     def _get_compiled_agents(
         blocks: list[BlockSpec],
         rules: list[tuple[KernelSpec, tuple[_RuleLaw, ...]]],
-    ) -> tuple[_CompiledAgentsSpec, ...]:
+    ) -> tuple[_CompiledAgents, ...]:
         """Return the agent elements and groups with their states, values, and rules.
 
         The values are the initial values and the parameters.
@@ -154,7 +154,7 @@ class AgentsProblemPass(BasePass):
                 raise BackendError(error_msg)
             states = tuple(declared)
             agents.append(
-                _CompiledAgentsSpec(
+                _CompiledAgents(
                     path=node.path,
                     element=node.as_element,
                     size=node.members or 1,

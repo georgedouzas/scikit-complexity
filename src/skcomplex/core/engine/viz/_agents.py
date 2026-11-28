@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ...components.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ._base import GRID_RADIUS, NODE_SPACING, UPWARD, BaseVisual
 
 PATH_COLOR = (86, 180, 233)
@@ -225,7 +225,7 @@ class AgentsVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the view of the agents.
@@ -251,7 +251,7 @@ class AgentsVisual(BaseVisual):
             >>> type(AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]).__name__
             'GraphView'
         """
-        if self.position is not None and isinstance(element, _CompiledAgentsSpec):
+        if self.position is not None and isinstance(element, _CompiledAgents):
             if np.ndim(np.asarray(element.values[self.position])) < POSITION_RANK:
                 origin = f'{element.path}/{self.position}'
                 return [rrb.TimeSeriesView(origin=origin, name=origin, plot_legend=rrb.PlotLegend(visible=False))]

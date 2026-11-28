@@ -28,12 +28,12 @@ from ....types import Array
 from ..._utils import binding_of, components_of, declarations_of, default_of, symbol, vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
+from ...problems._compiled_element_spec import _Variable
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._field_element import _FieldElement
 from ...problems._group_element import _GroupElement
 from ...problems._node_spec import _NodeSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...problems._variable_spec import _VariableSpec
 from .._base import BasePass
 from .._compilation import Compilation, _CensusRecord
 
@@ -279,7 +279,7 @@ class LayoutPass(BasePass):
         declarations: DeclarationsSpec,
         block: BlockSpec,
         variable: str,
-        declaration: _VariableSpec,
+        declaration: _Variable,
         is_state: bool,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with one variable of a component added."""
@@ -330,7 +330,7 @@ class LayoutPass(BasePass):
     def _get_role_shape(
         node: _NodeSpec,
         variable: str,
-        declaration: _VariableSpec,
+        declaration: _Variable,
         groups: Mapping[str, int],
     ) -> tuple[int, ...]:
         """Return the shape of a shaped parameter.
@@ -373,7 +373,7 @@ class LayoutPass(BasePass):
         return tuple(shape)
 
     @staticmethod
-    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, _VariableSpec]:
+    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, _Variable]:
         """Return the matrix arguments of an interaction shaped by the sizes of its groups.
 
         An argument given as an array of two or more axes, each as long as a group bound to a role of the interaction,
@@ -405,7 +405,7 @@ class LayoutPass(BasePass):
             axes = [next((role for role, size in sizes.items() if size == length), None) for length in array.shape]
             if None not in axes:
                 domain = allowed.get(name, RR)
-                shaped[name] = _VariableSpec(VariableKind.PARAMETER, domain, shape=tuple(str(role) for role in axes))
+                shaped[name] = _Variable(VariableKind.PARAMETER, domain, shape=tuple(str(role) for role in axes))
         return shaped
 
     @staticmethod
@@ -414,7 +414,7 @@ class LayoutPass(BasePass):
         block: BlockSpec,
         variable: str,
         shape: tuple[int, ...],
-        declaration: _VariableSpec,
+        declaration: _Variable,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with a shaped parameter added.
 
@@ -657,7 +657,7 @@ class LayoutPass(BasePass):
         return value
 
     @staticmethod
-    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: _VariableSpec) -> tuple[int, ...]:
+    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: _Variable) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role.
 
         It first checks its length.
@@ -682,7 +682,7 @@ class LayoutPass(BasePass):
         return (entries,)
 
     @staticmethod
-    def _get_tensor_of(declaration: _VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
+    def _get_tensor_of(declaration: _Variable, space: BaseSpace | None) -> TensorSpec | None:
         """Return the independent components of a declared tensor state in its space.
 
         It is `None` for any other state. A tensor of a given number of rows, such as a matrix value, needs no space.
@@ -699,7 +699,7 @@ class LayoutPass(BasePass):
         return tensor
 
     @staticmethod
-    def _get_shape_of(name: str, declaration: _VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
+    def _get_shape_of(name: str, declaration: _Variable, space: BaseSpace | None) -> tuple[int, ...]:
         """Return the shape of a declared variable in its space.
 
         Args:
@@ -747,7 +747,7 @@ class LayoutPass(BasePass):
         return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
 
     @staticmethod
-    def _check_position_shape(name: str, declaration: _VariableSpec, space: BaseSpace | None) -> None:
+    def _check_position_shape(name: str, declaration: _Variable, space: BaseSpace | None) -> None:
         """Raise an error for a position without one component per axis of its space.
 
         A position `[1, 2, 3]` in a plane has the wrong shape, since the plane has 2 axes.

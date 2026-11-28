@@ -22,7 +22,7 @@ from ...components.elements import VisualSpec
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._declared_element import _DeclaredElement
 from ..problems._group_element import _GroupElement
 from ..problems._learning_problem_spec import LearningProblemSpec
@@ -269,7 +269,7 @@ class RerunObserver(BaseObserver):
 
     def _get_visual_of(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> BaseVisual:
         """Return the visual the spec of an element names.
@@ -288,7 +288,7 @@ class RerunObserver(BaseObserver):
     @staticmethod
     def _get_option_value(
         value: object,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> object:
         """Return an option, with an expression of parameters replaced by its value."""
@@ -308,7 +308,7 @@ class RerunObserver(BaseObserver):
         }
         return float(expression.subs(values))
 
-    def _get_agents_visual_of(self, agents: _CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
+    def _get_agents_visual_of(self, agents: _CompiledAgents, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group.
 
         It is its declared agents visual, or the histogram visual without a space.
@@ -352,7 +352,7 @@ class RerunObserver(BaseObserver):
         series: list[rrb.View] = []
         points: dict[type, list[rrb.View]] = {}
         for visual in self.visuals_:
-            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, _CompiledAgentsSpec):
+            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, _CompiledAgents):
                 continue
             for view in visual.views_:
                 if isinstance(view, rrb.TimeSeriesView):
@@ -368,7 +368,7 @@ class RerunObserver(BaseObserver):
 
         They are merged into one per view class when the groups share a space.
         """
-        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, _CompiledAgentsSpec)]
+        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, _CompiledAgents)]
         views = [view for visual in agents for view in visual.views_]
         if problem.agent_space is None:
             return views

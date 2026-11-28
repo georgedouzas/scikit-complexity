@@ -20,8 +20,8 @@ from ....types import Array, Indices
 from ..._utils import components_of, declarations_of, symbols_of
 from ...enums import ReadKind
 from ...problems import CompiledElementSpec, LayoutSpec, ProblemSpec
+from ...problems._base_problem_spec import _CompiledInteraction
 from ...problems._block_spec import BlockSpec
-from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
@@ -152,10 +152,10 @@ class ProblemPass(BasePass):
     def _get_compiled_interactions(
         blocks: list[BlockSpec],
         specs: list[tuple[KernelSpec, BlockSpec]],
-    ) -> tuple[_CompiledInteractionSpec, ...]:
+    ) -> tuple[_CompiledInteraction, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
-            _CompiledInteractionSpec(
+            _CompiledInteraction(
                 path=block.node.path,
                 interaction=block.node.as_interaction,
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),

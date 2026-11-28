@@ -9,7 +9,7 @@ import rerun.blueprint as rrb
 
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ._base import BaseVisual
 
 MATRIX_RANK = 2
@@ -115,7 +115,7 @@ class MatrixVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the 2D spatial view of the matrix."""

@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..types import Colors, Marks, Outline, Positions
 from ._base import UPWARD, BaseVisual
 from ._points import TRAIL_LENGTH
@@ -246,7 +246,7 @@ class BodiesVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return a 2D view of the bodies and a time series view of the states.

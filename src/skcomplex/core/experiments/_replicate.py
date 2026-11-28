@@ -17,10 +17,10 @@ from ..components.laws import ConstraintLaw, EventLaw, JumpLaw, NoiseLaw, RateLa
 from ..components.laws._boundary import _BoundaryLaw
 from ..engine._utils import declared_variables, probe_laws
 from ..engine.problems import BaseProblemSpec
+from ..engine.problems._compiled_element_spec import _Variable
 from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._declared_element import _DeclaredElement
 from ..engine.problems._group_element import _GroupElement
-from ..engine.problems._variable_spec import _VariableSpec
 from ..engine.runtime import Trajectory, run_problem
 from ..enums import VariableKind
 from ..errors import ValidationError
@@ -71,7 +71,7 @@ def _check_plain(system: _CompositeSystem) -> None:
         raise ValidationError(error_msg)
 
 
-def _is_declared_companion(element: Element, variable: _VariableSpec) -> bool:
+def _is_declared_companion(element: Element, variable: _Variable) -> bool:
     """Return whether a variable is a companion of a state declared from data."""
     state = variable.derivative_of or variable.lag_of
     return state is not None and state in element._get_declared()

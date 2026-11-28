@@ -19,6 +19,7 @@ from ...errors import ValidationError
 from ...types import Array, Indices, VectorFunction
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
+from ._compiled_element_spec import _Variable
 from ._diffusive_limit_spec import DiffusiveLimitSpec
 from ._draw_kernel import DrawKernel
 from ._event_kernel import EventKernel
@@ -32,7 +33,6 @@ from ._neighborhood_kernel import NeighborhoodKernel
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
-from ._variable_spec import _VariableSpec
 
 
 @dataclass(frozen=True)
@@ -439,7 +439,7 @@ class ProblemSpec(BaseProblemSpec):
         return tuple(partition.problem for partition in self.partitions)
 
     @property
-    def adaptive_parameters(self) -> dict[str, _VariableSpec]:
+    def adaptive_parameters(self) -> dict[str, _Variable]:
         """Declarations of the adaptive parameters of the elements and groups.
 
         They are keyed by dotted state name.

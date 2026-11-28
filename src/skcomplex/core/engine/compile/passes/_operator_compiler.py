@@ -28,7 +28,7 @@ from ....types import Array
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
 from ...problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
-from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
+from ...problems._base_problem_spec import _CompiledInteraction
 from ...problems._composite_system import _CompositeSystem
 from ...problems._declared_element import _DeclaredElement
 from ...problems._group_element import _GroupElement
@@ -834,7 +834,7 @@ class OperatorCompiler(BaseCompiler):
         return CompiledElementSpec(node.path, component, {}, parameters, visual, node.members)
 
     @staticmethod
-    def _get_compiled_interaction(node: _NodeSpec) -> _CompiledInteractionSpec:
+    def _get_compiled_interaction(node: _NodeSpec) -> _CompiledInteraction:
         """Return the compiled interaction of an operator system.
 
         It holds the paths its roles bind to.
@@ -844,7 +844,7 @@ class OperatorCompiler(BaseCompiler):
             name: f'{node.scope}{component._get_binding(name)}'
             for name in declarations_of(component, VariableKind.ROLE)
         }
-        return _CompiledInteractionSpec(node.path, component, roles)
+        return _CompiledInteraction(node.path, component, roles)
 
     def _compile_operator(
         self,

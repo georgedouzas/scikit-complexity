@@ -10,7 +10,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ._base import PARTS, SERIES_COLORS, BaseVisual
 
 
@@ -103,7 +103,7 @@ class ScalarsVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return one time series view of the states of the element.

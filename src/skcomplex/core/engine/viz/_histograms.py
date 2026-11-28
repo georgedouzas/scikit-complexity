@@ -12,7 +12,7 @@ import rerun.blueprint as rrb
 
 from ...components.spaces import BaseSpace
 from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ._agents import AgentsVisual
 from ._base import SERIES_COLORS, BaseVisual
 
@@ -200,7 +200,7 @@ class HistogramVisual(AgentsVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the views of the traits.
