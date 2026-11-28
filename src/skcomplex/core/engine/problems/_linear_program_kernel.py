@@ -53,12 +53,6 @@ class _LinearProgramSide:
     See Also:
         LinearProgramBound: The four kinds of bound.
         _LinearProgram: The program that holds the bounds.
-
-    Examples:
-        >>> from skcomplex.core.engine.enums import LinearProgramBound
-        >>> from skcomplex.core.engine.problems._linear_program_kernel import _LinearProgramSide
-        >>> _LinearProgramSide(LinearProgramBound.COLUMN_UPPER, 0, 1).scale
-        1.0
     """
 
     kind: int
@@ -99,12 +93,6 @@ class _LinearProgramDual:
 
     See Also:
         _LinearProgram: The program that records the duals.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.problems._linear_program_kernel import _LinearProgramDual
-        >>> _LinearProgramDual(np.array([3]), 'v <= 3').row
-        -1
     """
 
     indices: Indices = field(repr=False)

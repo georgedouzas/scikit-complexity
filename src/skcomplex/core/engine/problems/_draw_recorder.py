@@ -123,7 +123,7 @@ class DrawRecorder(BaseConfig[None, int]):
 
     @staticmethod
     def _check_replay(replay: _DrawLog) -> None:
-        """Raise an error when the log to replay holds arrays of different lengths or decreasing times."""
+        """Raise an error for a log whose lengths differ or whose times decrease."""
         if len(replay.firing_times) != len(replay.firing_laws):
             error_msg = 'The firings hold times and laws of different lengths.'
             raise ValidationError(error_msg)

@@ -245,12 +245,6 @@ class _Declarations:
     See Also:
         _Block: The values and symbols of one component.
         EntrySpec: Where one value sits in a vector.
-
-    Examples:
-        >>> from skcomplex.core.engine._utils import symbol
-        >>> from skcomplex.core.engine.compile._compilation import _Declarations
-        >>> _Declarations(symbol('t')).states
-        ()
     """
 
     time: Expression
@@ -700,11 +694,6 @@ class _TransferState:
 
     See Also:
         TransferNetworkSpec: What the lowering of flows gives.
-
-    Examples:
-        >>> from skcomplex.core.engine.compile._compilation import _TransferState
-        >>> _TransferState({}, {}, (), (), (), ()).flows
-        ()
     """
 
     quantities: Mapping[str, str]

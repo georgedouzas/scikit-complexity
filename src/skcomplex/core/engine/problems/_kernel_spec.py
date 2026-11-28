@@ -42,12 +42,6 @@ class _SetSymbol:
 
     See Also:
         KernelSpec: What the laws of a component read.
-
-    Examples:
-        >>> from skcomplex.core.engine._utils import symbol
-        >>> from skcomplex.core.engine.problems._kernel_spec import _SetSymbol
-        >>> _SetSymbol(symbol('x'), (), 'species').label
-        'species'
     """
 
     canonical: Expression

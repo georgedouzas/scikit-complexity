@@ -27,14 +27,12 @@ from ._expression_printer import ExpressionPrinter
 from ._operator_kernel import OperatorKernel
 
 NORM_TOLERANCE = 1e-8
+ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
+ADJOINT_SUFFIX = '.dag'
 
 type Factor = tuple[str, '_LocalOperator']
 
 type Product = tuple[Factor, ...]
-
-ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
-
-ADJOINT_SUFFIX = '.dag'
 
 
 @dataclass(frozen=True)
@@ -59,12 +57,6 @@ class _LocalOperator:
 
     See Also:
         _Operator: A sum of products of local operators.
-
-    Examples:
-        >>> import qutip
-        >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator
-        >>> _LocalOperator('plus', qutip.sigmap()).get_adjoint().name
-        'minus'
     """
 
     name: str
@@ -119,13 +111,6 @@ class _Operator:
 
     See Also:
         _LocalOperator: An operator of one subsystem.
-
-    Examples:
-        >>> import qutip
-        >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator, _Operator
-        >>> x = _LocalOperator('x', qutip.sigmax(), hermitian=True)
-        >>> _Operator({(('a', x),): 1}).multiply(_Operator({(('b', x),): 1})).text
-        'a.x*b.x'
     """
 
     terms: Mapping[Product, object]
@@ -202,13 +187,6 @@ class _Operator:
         Raises:
             ValidationError:
                 The operand is neither an operator nor a scalar.
-
-        Examples:
-            >>> import qutip
-            >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator, _Operator
-            >>> z = _Operator({(('q', _LocalOperator('z', qutip.sigmaz(), hermitian=True)),): 1})
-            >>> z.add(1).text
-            'q.z + 1'
         """
         terms = self._get_items()
         for key, value in self._convert_to_operator(other, 'add')._get_items().items():
@@ -309,13 +287,6 @@ class _Operator:
         Returns:
             adjoint:
                 The adjoint operator.
-
-        Examples:
-            >>> import qutip
-            >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator, _Operator
-            >>> plus = _LocalOperator('plus', qutip.sigmap())
-            >>> _Operator({(('q', plus),): 1}).multiply(2j).get_adjoint().text
-            '(-2j)*q.minus'
         """
         return _Operator(
             {

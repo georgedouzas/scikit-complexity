@@ -19,7 +19,7 @@ from ._group_element import _GroupElement
 
 @dataclass(frozen=True)
 class _Variable:
-    """A record of a state, parameter, or role of a component, as the compiler reads it.
+    """A state, parameter, or role of a component, as the compiler reads it.
 
     It is the declaration as the compiler reads it. A state of order `k` adds the companion states `<name>_d1` to
     `<name>_d<k-1>` that hold its derivatives, and a state with `m` lags adds `<name>_lag1` to `<name>_lag<m>` that hold

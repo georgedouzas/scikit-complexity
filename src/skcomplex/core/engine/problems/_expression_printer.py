@@ -36,6 +36,14 @@ IMPORTS = {
     'numpy': 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n',
     'jax': 'import jax\nimport jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
 }
+PYTHON_RELATIONS = {
+    'lt': '({0} < {1})',
+    'le': '({0} <= {1})',
+    'gt': '({0} > {1})',
+    'ge': '({0} >= {1})',
+    'eq': '({0} == {1})',
+    'ne': '({0} != {1})',
+}
 
 
 @dataclass(frozen=True)
@@ -92,15 +100,6 @@ class _Dialect:
         return self.error(error_msg)
 
 
-PYTHON_RELATIONS = {
-    'lt': '({0} < {1})',
-    'le': '({0} <= {1})',
-    'gt': '({0} > {1})',
-    'ge': '({0} >= {1})',
-    'eq': '({0} == {1})',
-    'ne': '({0} != {1})',
-}
-
 NUMPY_DIALECT = _Dialect(
     'NumPy',
     {
@@ -139,7 +138,6 @@ NUMPY_DIALECT = _Dialect(
     PYTHON_RELATIONS,
     complex_numbers=True,
 )
-
 SCALAR_DIALECT = _Dialect(
     'Numba',
     {
@@ -177,7 +175,6 @@ SCALAR_DIALECT = _Dialect(
     },
     PYTHON_RELATIONS,
 )
-
 LEPTON_DIALECT = _Dialect(
     'Lepton',
     {
@@ -218,7 +215,6 @@ LEPTON_DIALECT = _Dialect(
     error=BackendError,
     exact_rationals=True,
 )
-
 JAX_DIALECT = _Dialect(
     'JAX',
     {
@@ -231,7 +227,6 @@ JAX_DIALECT = _Dialect(
     PYTHON_RELATIONS,
     error=BackendError,
 )
-
 DIALECTS = {'numpy': NUMPY_DIALECT, 'scalar': SCALAR_DIALECT, 'lepton': LEPTON_DIALECT, 'jax': JAX_DIALECT}
 
 

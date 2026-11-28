@@ -54,12 +54,6 @@ class _Symmetry:
 
     See Also:
         JacobianKernel: Reads the symmetries of the fields.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.core.engine.problems._jacobian_kernel import _Symmetry
-        >>> _Symmetry(np.arange(4), (4,), ((0, -1),)).signs
-        ((0, -1),)
     """
 
     indices: Indices

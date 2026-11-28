@@ -74,6 +74,9 @@ class _Arguments:
         return found
 
 
+NO_ARGUMENTS = _Arguments()
+
+
 @dataclass(frozen=True)
 class _LatticeState:
     """A record of the place of a state of a lattice group in the state vector.
@@ -178,9 +181,6 @@ def _fused_lookup(
         else:
             following[site] = lookup[int(centers[site]) * columns + int(total)]
     return following
-
-
-NO_ARGUMENTS = _Arguments()
 
 
 class RuleKernel(BaseKernel):
