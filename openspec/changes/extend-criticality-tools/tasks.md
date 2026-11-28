@@ -14,7 +14,7 @@
 
 ## 2. Spectrum segments (#78)
 
-- [ ] 2.1 Add `segment_length` to `spectrum`, with its check and its setting of the kind `'power'`, tested in
+- [x] 2.1 Add `segment_length` to `spectrum`, with its check and its setting of the kind `'power'`, tested in
   `tests/core/analysis/test_spectrum.py`
 
 ## 3. Events of activity (#77)

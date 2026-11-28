@@ -19,8 +19,9 @@ from ._base import _check_choice, _check_settings, _read_fields, _read_real, _re
 from .types import DataSource
 
 KINDS = ('power', 'structure-factor')
+SEGMENT_LENGTH = 1024
 SETTINGS = {
-    'power': {'dt'},
+    'power': {'dt', 'segment_length'},
     'structure-factor': {'spacing', 'frames'},
 }
 TAGS = AnalysisTags(DataKind.FIELD)
@@ -80,6 +81,7 @@ def spectrum(
     kind: str = 'power',
     variables: Sequence[str] | None = None,
     dt: float = 1.0,
+    segment_length: int = SEGMENT_LENGTH,
     spacing: float = 1.0,
     frames: bool = False,
 ) -> SpectrumResult:
@@ -107,6 +109,10 @@ def spectrum(
         dt:
             The time between samples.
 
+        segment_length:
+            The number of samples of every segment of the method of Welch, or of the whole series when it is shorter.
+            Longer segments give finer frequencies and noisier densities.
+
         spacing:
             The distance between neighbouring sites.
 
@@ -119,7 +125,8 @@ def spectrum(
 
     Raises:
         AnalysisError:
-            The kind is unknown, a setting the kind does not read is changed, or a setting is not positive.
+            The kind is unknown, a setting the kind does not read is changed, a setting is not positive, or the
+            segment length is below 2.
 
     See Also:
         correlation: Gives the correlation of series, of an ensemble, or of a field.
@@ -141,15 +148,19 @@ def spectrum(
         kind=kind,
         variables=variables,
         dt=dt,
+        segment_length=segment_length,
         spacing=spacing,
         frames=frames,
     )
     if dt <= 0 or spacing <= 0:
         error_msg = f'spectrum has dt={dt!r} and spacing={spacing!r}. Use positive values.'
         raise AnalysisError(error_msg)
+    if segment_length < 2:
+        error_msg = f'spectrum has segment_length={segment_length!r}. Give at least 2 samples per segment.'
+        raise AnalysisError(error_msg)
     if kind == 'power':
         series = _read_series(source, variables)
-        spectra = [_power_spectrum(column, dt) for column in series.values.T]
+        spectra = [_power_spectrum(column, dt, segment_length) for column in series.values.T]
         power = np.asarray([density for _, density in spectra])
         return SpectrumResult(series.values, series.labels, power, frequencies=spectra[0][0])
     name = variables[0] if variables else None
@@ -160,13 +171,17 @@ def spectrum(
     return SpectrumResult(field, [name or 'field'], power, wavenumbers=wavenumbers)
 
 
-def _power_spectrum(values: npt.ArrayLike, dt: float = 1.0) -> tuple[Array, Array]:
+def _power_spectrum(
+    values: npt.ArrayLike,
+    dt: float = 1.0,
+    segment_length: int = SEGMENT_LENGTH,
+) -> tuple[Array, Array]:
     """Return the frequencies and the power spectral density of a series.
 
     They come from Welch's method.
     """
     array = _read_real(values, 'values')
-    return signal.welch(array, fs=1 / dt, nperseg=min(array.size, 1024))
+    return signal.welch(array, fs=1 / dt, nperseg=min(array.size, segment_length))
 
 
 def _wavenumbers(shape: tuple[int, ...], spacing: float) -> Array:

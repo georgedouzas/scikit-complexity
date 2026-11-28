@@ -52,3 +52,18 @@ def test_power_spectrum_rejects_complex_series():
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
         spectrum(values)
     assert spectrum(values.real).power.size
+
+
+def test_power_spectrum_segment_length_sets_the_frequencies():
+    """Test that longer Welch segments give finer frequencies than the default."""
+    values = np.random.default_rng(0).normal(size=100_000)
+    assert _spectrum('power', values, segment_length=8192).frequencies.size == 4097
+    assert _spectrum('power', values).frequencies.size == 513
+
+
+def test_power_spectrum_segment_length_checks():
+    """Test that a segment of one sample and a segment length of a structure factor raise errors."""
+    with pytest.raises(AnalysisError, match='segment_length'):
+        spectrum(np.zeros(10), segment_length=1)
+    with pytest.raises(AnalysisError, match='does not read segment_length'):
+        spectrum(np.zeros((8, 8)), kind='structure-factor', segment_length=16)
