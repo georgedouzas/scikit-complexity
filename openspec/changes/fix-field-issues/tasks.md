@@ -6,7 +6,7 @@
 
 ## 2. Defects (#47)
 
-- [ ] 2.1 Make the wrapped differences antisymmetric and document it, tested in
+- [x] 2.1 Make the wrapped differences antisymmetric and document it, tested in
       `tests/core/analysis/test_defects.py`
 
 ## 3. Reaction diffusion (#48)

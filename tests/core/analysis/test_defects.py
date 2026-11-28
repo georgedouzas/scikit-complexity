@@ -57,3 +57,11 @@ def test_prepare_rejects_a_field_of_another_rank():
     """A field of one dimension raises an error."""
     with pytest.raises(AnalysisError, match='two-dimensional'):
         defects(np.zeros(4))
+
+
+def test_defect_charges_of_a_periodic_grid_sum_to_zero_at_half_turn_ties():
+    """Test that 100 levels mapped to phases, with changes of exactly half a turn, give charges that sum to 0."""
+    levels = np.random.default_rng(0).integers(0, 100, size=(32, 32))
+    result = defects(2 * np.pi * levels / 100, period=2 * np.pi)
+    assert float(np.sum(result.charges[0])) == 0.0
+    assert len(result.charges[0]) > 0

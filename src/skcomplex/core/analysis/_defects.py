@@ -68,8 +68,9 @@ def defects(
 
     Around every square of four neighbouring sites it adds the changes of the angle along the sides, each wrapped to
     within half a turn, and divides by a whole turn, so a square the angle winds around once holds a defect of charge 1.
-    The charges of a periodic grid sum to 0. An array of two dimensions holds one frame and one of three dimensions one
-    frame per row. It finds the vortices of a superfluid, the defects of a liquid crystal, and the swirls of a swarm of
+    The change along every edge is wrapped once, so the charges of a periodic grid always sum to 0, even where a change
+    is exactly half a turn. An array of two dimensions holds one frame and one of three dimensions one frame per row.
+    It finds the vortices of a superfluid, the defects of a liquid crystal, and the swirls of a swarm of
     bacteria.
 
     Read more in the user guide, under Analyse.
@@ -131,10 +132,12 @@ def _wrapped(differences: Array, period: float) -> Array:
 
 
 def _windings(angles: Array, period: float, *, periodic: bool) -> Array:
-    """Return the winding around every plaquette of a frame, in units of a full turn."""
-    below = np.roll(angles, -1, axis=0)
-    right = np.roll(angles, -1, axis=1)
-    diagonal = np.roll(below, -1, axis=1)
-    steps = [right - angles, diagonal - right, below - diagonal, angles - below]
-    windings = sum(_wrapped(step, period) for step in steps) / (2 * np.pi)
+    """Return the winding around every plaquette of a frame, in units of a full turn.
+
+    The change along every edge is wrapped once, from a site to its right or lower neighbour, and a plaquette that walks
+    the edge the other way takes its negative, so a change of exactly half a turn cancels between two plaquettes.
+    """
+    across = _wrapped(np.roll(angles, -1, axis=1) - angles, period)
+    down = _wrapped(np.roll(angles, -1, axis=0) - angles, period)
+    windings = (across + np.roll(down, -1, axis=1) - np.roll(across, -1, axis=0) - down) / (2 * np.pi)
     return np.asarray(windings) if periodic else np.asarray(windings)[:-1, :-1]
