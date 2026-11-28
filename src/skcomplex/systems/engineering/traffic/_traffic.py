@@ -15,6 +15,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import where
 from ....core.components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -66,7 +67,8 @@ class NagelSchreckenbergInteraction(Interaction):
 
     Every step, a car accelerates by one up to `vmax`, brakes to the gap ahead, slows down by one with the probability
     `slowdown` of its cell, and then moves forward by its velocity. Both rules read the ordered cells ahead or behind
-    up to `vmax` cells away.
+    up to `vmax` cells away. The movement records every jam as a `jam` event, the stopped cars connected in space and
+    time after the cars move, which a jam follows as it moves back one cell per step.
 
     Args:
         label:
@@ -124,14 +126,17 @@ class NagelSchreckenbergInteraction(Interaction):
         behind = LatticeNeighborhood(tuple((-distance,) for distance in range(self.vmax + 1)))
         self.laws_: list[BaseLaw] = [
             UpdateLaw(velocity, self._accelerate, neighborhood=ahead, label='acceleration', stochastic=True),
-            UpdateLaw(velocity, self._move, neighborhood=behind, label='movement'),
+            UpdateLaw(velocity, self._move, neighborhood=behind, activity=where(velocity == 0, 1, 0), label='jam'),
         ]
 
 
 class NagelSchreckenbergSystem(BaseSystem):
     """The Nagel-Schreckenberg traffic system on a ring road.
 
-    Jams emerge above a critical density. The system has the velocities `road.velocity`, -1 on empty cells.
+    Jams emerge above a critical density. Every jam is recorded as a `jam` event, the stopped cars connected in space
+    and time, with its size, the number of stopped car steps, its duration, its area, the number of cells it covers, and
+    its profile, the stopped cars of every step. A jam still standing when the run ends is left out. The system has the
+    velocities `road.velocity`, -1 on empty cells.
 
     Args:
         length:
@@ -163,6 +168,9 @@ class NagelSchreckenbergSystem(BaseSystem):
         >>> system = NagelSchreckenbergSystem(100, density=0.1).prepare().system_
         >>> int((system.elements[0].velocity >= 0).sum())
         10
+        >>> trajectory = NagelSchreckenbergSystem(200, density=0.3).prepare().simulate(until=50, random_state=0)
+        >>> {event.label for event in trajectory.events}
+        {'jam'}
     """
 
     field = 'engineering/traffic'

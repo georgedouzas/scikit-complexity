@@ -136,6 +136,24 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
     assert max(event.size for event in trajectory.events) > 50
 
 
+def test_random_neighbors_keep_each_grain_with_the_conservation():
+    """Test that a toppling site sends its grains to random sites, which keep each grain with the conservation."""
+    heights = np.zeros(81)
+    heights[40] = 4.0
+    kept = []
+    for seed in range(RUNS):
+        space = LatticeSpace((9, 9), boundary='fixed')
+        trajectory = _run(space, heights, 4, 1, seed, share=1, neighbors='random', conservation=0.5)
+        assert len(trajectory.events) == 1
+        assert trajectory.states[-1].max() < 4
+        kept.append(trajectory.states[-1].sum())
+    assert np.mean(kept) == pytest.approx(2, abs=3 * np.sqrt(1 / RUNS))
+    for conservation, total in ((1.0, 4.0), (0.0, 0.0)):
+        space = LatticeSpace((9, 9), boundary='fixed')
+        final = _run(space, heights, 4, 1, share=1, neighbors='random', conservation=conservation).states[-1]
+        assert final.sum() == total
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
@@ -144,6 +162,9 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
         ({'neighborhood': RadiusNeighborhood(1, metric='manhattan')}, 'center=True'),
         ({'mode': 'random', 'neighborhood': AdjacencyNeighborhood(center=True)}, 'lattice neighbourhood'),
         ({'mode': 'random', 'threshold': 3.0, 'share': 2.0}, 'divides the threshold'),
+        ({'neighbors': 'ring'}, 'Unknown neighbors'),
+        ({'neighbors': 'random', 'mode': 'reset', 'share': 0.5}, "mode 'reset'"),
+        ({'neighbors': 'random', 'threshold': 4.0, 'share': 1.0, 'conservation': 1.5}, r'in \[0, 1\]'),
     ],
 )
 def test_check_rejects_unknown_modes_drives_and_neighbourhoods(arguments, match):

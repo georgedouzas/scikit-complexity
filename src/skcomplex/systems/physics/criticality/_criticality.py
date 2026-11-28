@@ -19,6 +19,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import where
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -29,6 +30,7 @@ from ....core.components.spaces import (
 )
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
+from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.avalanches import TopplingInteraction
@@ -40,6 +42,8 @@ SITE_NEIGHBORHOODS: dict[str, RadiusNeighborhood | AdjacencyNeighborhood] = {
     'graph': AdjacencyNeighborhood(center=True),
 }
 MANNA_THRESHOLD = 2
+FOREST_BOUNDARIES = ('periodic', 'fixed', 'reflecting')
+SANDPILE_NEIGHBORS = ('fixed', 'random')
 
 
 class ForestElement(Element):
@@ -113,6 +117,12 @@ class AvalancheInteraction(TopplingInteraction):
         mode:
             `'redistribute'` or `'random'`.
 
+        neighbors:
+            `'fixed'` for the neighbours of the lattice, or `'random'` for sites drawn afresh at every toppling.
+
+        conservation:
+            The probability that a grain sent to a random site stays in the pile, unused with fixed neighbours.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import AvalancheInteraction
         >>> AvalancheInteraction('avalanche', target='pile', threshold=2, mode='random').share
@@ -127,6 +137,8 @@ class AvalancheInteraction(TopplingInteraction):
         state: str = 'height',
         threshold: int = 4,
         mode: str = 'redistribute',
+        neighbors: str = 'fixed',
+        conservation: float = 1.0,
     ) -> None:
         super().__init__(
             label,
@@ -136,6 +148,8 @@ class AvalancheInteraction(TopplingInteraction):
             share=1,
             mode=mode,
             drive=self._drop_grain,
+            neighbors=neighbors,
+            conservation=conservation,
         )
 
     @staticmethod
@@ -153,6 +167,7 @@ class FireInteraction(Interaction):
 
     Every step a tree catches fire from a burning neighbour or from lightning with the probability `lightning` of the
     site, a burning site becomes empty, and a tree grows on an empty site with the probability `growth` of the site.
+    The rule, labelled `fire`, records every fire as a `fire` event, the burning sites connected in space and time.
 
     Args:
         label:
@@ -202,7 +217,17 @@ class FireInteraction(Interaction):
                 The namespace of the target and the time `t`.
         """
         super()._prepare(context)
-        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood, stochastic=True)]
+        cover = context.target.cover
+        self.laws_ = [
+            UpdateLaw(
+                cover,
+                self._burn,
+                neighborhood=self.neighborhood,
+                stochastic=True,
+                activity=where(cover == BURNING, 1, 0),
+                label='fire',
+            ),
+        ]
 
 
 class SandpileSystem(BaseSystem):
@@ -210,12 +235,23 @@ class SandpileSystem(BaseSystem):
 
     The pile starts from random stable heights.
 
-    Its avalanches are recorded as `avalanche` events with their sizes, the number of topplings, their durations, and
-    their areas. The system has the heights `pile.height`.
+    Its avalanches are recorded as `avalanche` events with their sizes, the number of topplings, their durations, their
+    areas, and their profiles, the toppling sites of every round. With `neighbors='random'` a toppling site sends each
+    of its four grains to a site drawn uniformly among all sites at every toppling, and the grain stays in the pile
+    with the probability `conservation` and leaves it otherwise, the mean-field sandpile R2-MF of Jensen. Without the
+    loss a pile with random neighbours has no edge to lose grains through, so it never stabilises. The system has the
+    heights `pile.height`.
 
     Args:
         shape:
             The number of rows and columns.
+
+        neighbors:
+            `'fixed'` for the four neighbours of the lattice, or `'random'` for sites drawn afresh at every toppling.
+
+        conservation:
+            The probability that a grain sent to a random site stays in the pile, in `(0, 1)`, unused with fixed
+            neighbours.
 
         random_state:
             The seed or generator of the initial heights.
@@ -229,11 +265,18 @@ class SandpileSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The neighbours are unknown, or random neighbours have a conservation outside `(0, 1)`.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import SandpileSystem
         >>> trajectory = SandpileSystem((10, 10)).prepare().simulate(until=2, dt=1, random_state=0)
         >>> trajectory.get_values('pile.height').shape
         (3, 100)
+        >>> mean_field = SandpileSystem((10, 10), neighbors='random').prepare()
+        >>> bool((mean_field.simulate(until=200, dt=200, random_state=0).get_lattice('pile.height') < 4).all())
+        True
     """
 
     field = 'physics/criticality'
@@ -246,6 +289,8 @@ class SandpileSystem(BaseSystem):
         self,
         shape: Sequence[int] = (50, 50),
         *,
+        neighbors: str = 'fixed',
+        conservation: float = 0.99,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -253,6 +298,8 @@ class SandpileSystem(BaseSystem):
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
+        self.neighbors = neighbors
+        self.conservation = conservation
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -261,14 +308,36 @@ class SandpileSystem(BaseSystem):
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The neighbours are unknown, or random neighbours have a conservation outside `(0, 1)`.
         """
         super()._prepare(context)
+        if self.neighbors not in SANDPILE_NEIGHBORS:
+            error_msg = (
+                f'SandpileSystem has the neighbours {self.neighbors!r}. Use one of {", ".join(SANDPILE_NEIGHBORS)}.'
+            )
+            raise ValidationError(error_msg)
+        if self.neighbors == 'random' and not 0 < self.conservation < 1:
+            error_msg = (
+                f'SandpileSystem keeps grains sent to random neighbours with the probability {self.conservation}. A '
+                'pile with no loss never stabilises, so give a conservation in (0, 1), such as 0.99.'
+            )
+            raise ValidationError(error_msg)
         heights = np.random.default_rng(self.random_state).integers(0, 4, size=tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         self.system_ = System(
             self.label,
             elements=[Element('pile', values={'height': heights.ravel()}, space=space)],
-            interactions=[AvalancheInteraction('avalanche', target='pile')],
+            interactions=[
+                AvalancheInteraction(
+                    'avalanche',
+                    target='pile',
+                    neighbors=self.neighbors,
+                    conservation=self.conservation if self.neighbors == 'random' else 1.0,
+                ),
+            ],
         )
 
 
@@ -346,11 +415,19 @@ class ForestFireSystem(BaseSystem):
 
     Slow growth and rare lightning give fires of every size.
 
-    The system has the covers `forest.cover`.
+    Every fire is recorded as a `fire` event, the burning sites connected in space and time, with its size, the number
+    of trees that burn, its duration, its area, and its profile, the burning sites of every step. Two fires that touch
+    are one fire, the usual cluster of burning sites of a forest fire model, and a fire still burning when the run ends
+    is left out. The system has the covers `forest.cover`.
 
     Args:
         shape:
             The number of rows and columns.
+
+        boundary:
+            The edges of the forest. `'periodic'` joins opposite edges, so a fire at one edge reaches the opposite edge
+            in one step. `'fixed'` holds no trees beyond the edges, so no fire crosses them, and `'reflecting'` reads
+            the mirror image of the forest beyond them.
 
         growth:
             The probability that a tree grows on an empty site per step.
@@ -373,10 +450,17 @@ class ForestFireSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The boundary is none of `'periodic'`, `'fixed'`, and `'reflecting'`.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import ForestFireSystem
         >>> ForestFireSystem((10, 10)).prepare().system_.elements[0].growth
         0.05
+        >>> trajectory = ForestFireSystem((32, 32), lightning=1e-3).prepare().simulate(until=100, random_state=0)
+        >>> {event.label for event in trajectory.events}
+        {'fire'}
     """
 
     field = 'physics/criticality'
@@ -389,6 +473,7 @@ class ForestFireSystem(BaseSystem):
         self,
         shape: Sequence[int] = (100, 100),
         *,
+        boundary: str = 'periodic',
         growth: float = 0.05,
         lightning: float = 1e-4,
         density: float = 0.5,
@@ -399,6 +484,7 @@ class ForestFireSystem(BaseSystem):
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
+        self.boundary = boundary
         self.growth = growth
         self.lightning = lightning
         self.density = density
@@ -410,15 +496,24 @@ class ForestFireSystem(BaseSystem):
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The boundary is none of `'periodic'`, `'fixed'`, and `'reflecting'`.
         """
         super()._prepare(context)
+        if self.boundary not in FOREST_BOUNDARIES:
+            error_msg = (
+                f'ForestFireSystem has the boundary {self.boundary!r}. Use one of {", ".join(FOREST_BOUNDARIES)}.'
+            )
+            raise ValidationError(error_msg)
         cover = (np.random.default_rng(self.random_state).random(tuple(self.shape)) < self.density).astype(float)
         forest = ForestElement(
             'forest',
             cover=cover.ravel(),
             growth=self.growth,
             lightning=self.lightning,
-            space=LatticeSpace(tuple(self.shape)),
+            space=LatticeSpace(tuple(self.shape), boundary=self.boundary),
         )
         self.system_ = System(self.label, elements=[forest], interactions=[FireInteraction('fire', target='forest')])
 
@@ -429,7 +524,9 @@ class HexagonalForestFireSystem(BaseSystem):
     The hexagonal cells form a triangular lattice, and on a graph the sites are its nodes.
 
     Every site of the periodic triangular lattice has six neighbours, and every node of a graph has the neighbours along
-    its edges. Slow growth and rare lightning give fires of every size. The system has the covers `forest.cover`.
+    its edges. Slow growth and rare lightning give fires of every size. Every fire is recorded as a `fire` event, the
+    burning sites connected in space and time along the neighbours of the cells or the edges of the graph, whose size
+    is the number of trees that burn. The system has the covers `forest.cover`.
 
     Args:
         shape:

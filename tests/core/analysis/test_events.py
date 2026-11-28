@@ -3,9 +3,15 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import EventsResult, FitLawResult, distribution, events, fit_law
+from skcomplex.core.analysis import EventsResult, FitLawResult, distribution, events, fit_law, spectrum
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import UpdateLaw
+from skcomplex.core.components.laws.utils import where
 from skcomplex.core.errors import AnalysisError
+from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.stochastic_processes import PoissonProcessSystem
+from skcomplex.systems.physics.criticality import SandpileSystem
 
 MAX_GENERATIONS = 5000
 
@@ -177,3 +183,42 @@ def test_branching_ratio_of_a_driven_poisson_series():
     for t in range(1, activity.size):
         activity[t] = rng.poisson(0.9 * activity[t - 1] + 10)
     assert round(_events('branching', activity).branching_ratio, 1) == 0.9
+
+
+def _two_avalanches() -> list[object]:
+    """Return the records of a counter whose activity `0, 1, 2, 0, 3, 0` gives the profiles `(1, 2)` and `(3,)`."""
+
+    def laws(s):
+        """Return the count of steps, active by the series at every count."""
+        n = s.target.n
+        level = sum(where(n == step, value, 0) for step, value in enumerate([0, 1, 2, 0, 3, 0]))
+        return [UpdateLaw(n, n + 1, activity=level, label='avalanche')]
+
+    rule = Interaction('count', roles={'target': 'counter'}, laws=laws)
+    system = System(elements=[Element('counter', values={'n': 0.0})], interactions=[rule])
+    return system.prepare().simulate(until=5, dt=1).events
+
+
+def test_activity_and_shapes_of_two_avalanches():
+    """Test that the records of two avalanches give the series `0, 1, 2, 0, 3` and their profiles as shapes."""
+    records = _two_avalanches()
+    activity = _events('activity', records)
+    assert activity.values[:, 0].tolist() == [0.0, 1.0, 2.0, 0.0, 3.0]
+    assert activity.times.tolist() == [0.0, 1.0, 2.0, 3.0, 4.0]
+    assert [shape.tolist() for shape in _events('excursions', records).shapes] == [[1.0, 2.0], [3.0]]
+    with pytest.raises(AnalysisError, match='records of cascades'):
+        events([0, 1, 0], kind='activity')
+    with pytest.raises(AnalysisError, match='excursions and activity'):
+        events(records, kind='detect')
+
+
+@pytest.mark.slow
+def test_activity_spectrum_of_a_sandpile():
+    """Test that the fast-time activity of a sandpile has a round per round and per avalanche, and red power."""
+    records = SandpileSystem((50, 50)).prepare().simulate(until=100_000, dt=100_000, random_state=0).events
+    activity = _events('activity', records)
+    assert activity.values.shape[0] == sum(record.duration for record in records) + len(records)
+    power = spectrum(activity.values[:, 0], segment_length=8192)
+    low = power.power[0][(power.frequencies > 1e-3) & (power.frequencies < 2e-3)].mean()
+    high = power.power[0][(power.frequencies > 1e-1) & (power.frequencies < 2e-1)].mean()
+    assert low > 10 * high

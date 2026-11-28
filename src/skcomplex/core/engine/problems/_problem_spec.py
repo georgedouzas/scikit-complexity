@@ -17,6 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...components.laws import BaseLaw
 from ...errors import ValidationError
 from ...types import Array, Indices, VectorFunction
+from ._activity_recorder import _ActivityRecorder
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
 from ._compiled_element_spec import _Variable
@@ -250,6 +251,10 @@ class ProblemSpec(BaseProblemSpec):
             The steps that change the states of sites, such as the local rules of a lattice problem, in the order
             they apply within a step.
 
+        activities:
+            The recorders of the events of activity of the update laws that give an activity, such as the fires of a
+            forest.
+
         linear:
             The linear terms with constant coefficients of the rates of fields, which implicit and exponential solvers
             treat exactly while the rest of the rates is the nonlinear remainder.
@@ -391,6 +396,7 @@ class ProblemSpec(BaseProblemSpec):
     breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
     history: Mapping[str, object] = field(default_factory=dict)
     lattice: tuple[BaseKernel, ...] = field(default=(), repr=False)
+    activities: tuple[_ActivityRecorder, ...] = field(default=(), repr=False)
     stable_step: float | None = None
     diffusive_limits: tuple[DiffusiveLimitSpec, ...] = field(default=(), repr=False)
     linear: tuple[LinearTermSpec, ...] = field(default=(), repr=False)

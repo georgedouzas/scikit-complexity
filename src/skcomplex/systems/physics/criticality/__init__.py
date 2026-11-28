@@ -3,6 +3,7 @@
 The package covers sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches.
 """
 
+from ._abelian_sandpile import AbelianSandpileResult, abelian_sandpile
 from ._absorbing import ActiveFieldElement, ActivePercolationInteraction, DirectedPercolationLangevinSystem
 from ._crackling_noise import CracklingNoiseResult, crackling_noise
 from ._criticality import (
@@ -27,6 +28,7 @@ from ._sandpiles import (
 )
 
 __all__: list[str] = [
+    'AbelianSandpileResult',
     'ActiveFieldElement',
     'ActivePercolationInteraction',
     'AvalancheInteraction',
@@ -51,5 +53,6 @@ __all__: list[str] = [
     'SelfOrganizedBranchingSystem',
     'ToppleInteraction',
     'ZhangSandpileSystem',
+    'abelian_sandpile',
     'crackling_noise',
 ]

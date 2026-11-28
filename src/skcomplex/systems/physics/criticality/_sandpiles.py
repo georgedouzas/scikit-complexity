@@ -321,15 +321,17 @@ class BranchingInteraction(Interaction):
 
     Every step, each of the `z` active sites of generation `g` makes two active sites of the next generation with the
     probability `p`. The avalanche ends at the last generation or with no active site. Then the `z` sites of the last
-    generation leave, `p` changes by `(1 - z) / N` with `N = 2^(generations + 1) - 1` sites, and a new avalanche starts
-    from one site.
+    generation leave, `sigma` takes their number, `p` changes by `(1 - z) / N` with `N = 2^(generations + 1) - 1`
+    sites, and a new avalanche starts from one site. Every avalanche is recorded as an `avalanche` event, whose profile
+    holds the active sites of every generation before the last.
 
     Args:
         label:
             The label of the interaction.
 
         target:
-            The path of the tree, whose values are the probability `p`, the active sites `z`, and the generation `g`.
+            The path of the tree, whose values are the probability `p`, the active sites `z`, the generation `g`, and
+            the dissipation `sigma` of the last avalanche that ended.
 
         generations:
             The number of generations of the tree, at least 1.
@@ -367,9 +369,15 @@ class BranchingInteraction(Interaction):
         sites = 2 ** (self.generations + 1) - 1
         dissipated = where(tree.g >= self.generations, tree.z, 0)
         self.laws_ = [
-            UpdateLaw(tree.z, where(ends, 1, 2 * draw('children', 'binom', n=tree.z, p=tree.p))),
+            UpdateLaw(
+                tree.z,
+                where(ends, 1, 2 * draw('children', 'binom', n=tree.z, p=tree.p)),
+                activity=where(tree.g < self.generations, tree.z, 0),
+                label='avalanche',
+            ),
             UpdateLaw(tree.g, where(ends, 0, tree.g + 1)),
             UpdateLaw(tree.p, where(ends, tree.p + (1 - dissipated) / sites, tree.p)),
+            UpdateLaw(tree.sigma, where(ends, dissipated, tree.sigma)),
         ]
 
 
@@ -385,8 +393,10 @@ class SelfOrganizedBranchingSystem(BaseSystem):
     probability changes by `(1 - sigma) / N` with `N = 2^(generations + 1) - 1` sites. A supercritical `p` makes large
     dissipating avalanches that lower it, and a subcritical one lets energy accumulate, so `p` organizes itself to the
     critical value `p_c = 1 / 2`, where the branching ratio `2 p` is 1. The process advances one generation per step, so
-    a step is a time of the avalanche and avalanches follow each other without pause. The system has the probability
-    `tree.p`, the active sites `tree.z`, and the generation `tree.g`.
+    a step is a time of the avalanche and avalanches follow each other without pause. Every avalanche is recorded as an
+    `avalanche` event, whose profile holds the active sites of every generation before the last and whose size is
+    their sum. The system has the probability `tree.p`, the active sites `tree.z`, the generation `tree.g`, and the
+    dissipation `tree.sigma` of the last avalanche that ended.
 
     Args:
         p:
@@ -408,6 +418,9 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         >>> from skcomplex.systems.physics.criticality import SelfOrganizedBranchingSystem
         >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].values['p']
         0.4
+        >>> trajectory = SelfOrganizedBranchingSystem(0.5).prepare().simulate(until=100, random_state=0)
+        >>> trajectory.events[0].profile[0]
+        1
     """
 
     field = 'physics/criticality'
@@ -439,6 +452,6 @@ class SelfOrganizedBranchingSystem(BaseSystem):
         super()._prepare(context)
         self.system_ = System(
             self.label,
-            elements=[Element('tree', values={'p': self.p, 'z': 1, 'g': 0})],
+            elements=[Element('tree', values={'p': self.p, 'z': 1, 'g': 0, 'sigma': 0})],
             interactions=[BranchingInteraction('branching', target='tree', generations=self.generations)],
         )

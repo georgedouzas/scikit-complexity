@@ -28,8 +28,9 @@ class IterationSolver(Solver):
     Every step applies the update laws once, such as `x ← r x (1 - x)` of the logistic map, which takes 0.2 to 0.592 and
     then 0.894 at `r = 3.7`. A map that draws random numbers takes them from the solver's generator at every step, and a
     step may run its laws in named phases, each reading what the phases before it set, such as a count in the phase
-    `count` and its copy in the phase `copy`. It runs the logistic map of a population, the cobweb of a market, and the
-    layers of a neural network.
+    `count` and its copy in the phase `copy`. An update law with an activity records its runs of activity as events,
+    read at the start of the run and at the end of every step. It runs the logistic map of a population, the cobweb of a
+    market, and the layers of a neural network.
 
     Read more in the user guide, under Solvers.
 
@@ -124,14 +125,17 @@ class IterationSolver(Solver):
         if drawn and self.draw_recorder_ is not None:
             drawn = (self.rng_, self.draw_recorder_)
         accelerated = self.problem_.accelerated
-        if accelerated is not None and accelerated.iterate is not None and self.draw_recorder_ is None:
+        stepwise = self.draw_recorder_ is not None or bool(self.problem_.activities)
+        if accelerated is not None and accelerated.iterate is not None and not stepwise:
             return accelerated.iterate(t, x, p, until, *drawn)
         state = x.copy()
         topology = self.problem_.topology
+        self._record_activity(t, state, p, first=True)
         for step in range(round(t), math.floor(until + 1e-9)):
             following = update(float(step), state, p, *drawn)
             if topology is not None:
                 fired = topology._decide(float(step), state, p, self.rng_)
                 following = topology._apply(fired, float(step), following, p, self.rng_)
             state = self._get_bounded(float(step + 1), following, p)
+            self._record_activity(float(step + 1), state, p)
         return state

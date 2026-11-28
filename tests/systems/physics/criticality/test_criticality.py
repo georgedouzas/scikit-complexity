@@ -4,8 +4,14 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import distribution
-from skcomplex.systems.physics.criticality import HexagonalForestFireSystem, MannaSandpileSystem, SandpileSystem
+from skcomplex.core.analysis import distribution, fit_law
+from skcomplex.core.errors import ValidationError
+from skcomplex.systems.physics.criticality import (
+    ForestFireSystem,
+    HexagonalForestFireSystem,
+    MannaSandpileSystem,
+    SandpileSystem,
+)
 
 from ...conftest import EventsObserver
 
@@ -50,3 +56,69 @@ def test_manna_sandpile_settles_below_two_grains():
     assert heights.max() < 2
     assert trajectory.events
     assert 0.55 < heights[-1].mean() < 0.75
+
+
+def test_forest_fire_records_one_fire_from_a_corner():
+    """Test that a fire from a corner of a full fixed forest is one event that burns every tree in diamonds."""
+    cover = np.ones(100)
+    cover[0] = 2
+    system = ForestFireSystem((10, 10), boundary='fixed', growth=0.0, lightning=0.0).prepare()
+    (fire,) = system.simulate(until=40, dt=1, initial_state={'forest.cover': cover}).events
+    assert (fire.label, fire.time, fire.size, fire.duration, fire.area) == ('fire', 0.0, 100, 19, 100)
+    assert fire.profile == (*range(1, 11), *range(9, 0, -1))
+
+
+def test_forest_fire_boundary_of_a_strip():
+    """Test that a fire at column 0 reaches column 19 at step 1 on a periodic strip and at step 19 on a fixed one."""
+    rows = np.arange(5) * 20
+    for boundary, step in (('periodic', 1), ('fixed', 19)):
+        cover = np.ones(100)
+        cover[rows] = 2
+        system = ForestFireSystem((5, 20), boundary=boundary, growth=0.0, lightning=0.0).prepare()
+        covers = system.simulate(until=25, dt=1, initial_state={'forest.cover': cover}).get_values('forest.cover')
+        assert np.argmax(covers[:, rows + 19] == 2, axis=0).tolist() == [step] * 5
+    with pytest.raises(ValidationError, match='boundary'):
+        ForestFireSystem(boundary='open').prepare()
+
+
+def _space_time_fires(burning: np.ndarray, side: int) -> list[int]:
+    """Return the sizes of the clusters of burning sites in space and time that end before the last frame."""
+    lattice = nx.convert_node_labels_to_integers(nx.grid_2d_graph(side, side, periodic=True), ordering='sorted')
+    graph = nx.Graph()
+    for step, sites in enumerate(burning):
+        graph.add_nodes_from((step, int(site)) for site in np.flatnonzero(sites))
+    for step, site in list(graph.nodes):
+        for other in (site, *lattice[site]):
+            graph.add_edges_from(
+                ((step, site), (later, other)) for later in (step, step + 1) if (later, other) in graph
+            )
+    last = len(burning) - 1
+    return [len(fire) for fire in nx.connected_components(graph) if max(step for step, _ in fire) < last]
+
+
+def test_forest_fire_events_of_a_driven_forest():
+    """Test that the fires of a driven forest are the clusters of burning site steps that end in the run."""
+    system = ForestFireSystem((32, 32), growth=0.01, lightning=1e-3).prepare()
+    trajectory = system.simulate(until=500, dt=1, random_state=0)
+    burning = trajectory.get_values('forest.cover') == 2
+    assert trajectory.events
+    assert sorted(event.size for event in trajectory.events) == sorted(_space_time_fires(burning, 32))
+
+
+@pytest.mark.slow
+def test_sandpile_with_random_neighbors_has_mean_field_avalanches():
+    """Test that a sandpile with random neighbours stays stable and has the mean-field size exponent 3/2."""
+    system = SandpileSystem((32, 32), neighbors='random', conservation=0.999).prepare()
+    trajectory = system.simulate(until=110_000, dt=1000, random_state=0)
+    sizes = np.asarray([event.size for event in trajectory.events if event.time > 10_000])
+    fitted = fit_law(sizes, law='power', minimum=1, maximum=300, discrete=True, bootstrap=0)
+    assert trajectory.get_lattice('pile.height').max() < 4
+    assert fitted.exponent == pytest.approx(1.5, abs=0.15)
+
+
+def test_sandpile_with_random_neighbors_needs_a_loss():
+    """Test that a sandpile with random neighbours and no loss of grains is refused, since it never stabilises."""
+    with pytest.raises(ValidationError, match='never stabilises'):
+        SandpileSystem(neighbors='random', conservation=1.0).prepare()
+    with pytest.raises(ValidationError, match='neighbours'):
+        SandpileSystem(neighbors='ring').prepare()

@@ -43,7 +43,7 @@ class CracklingNoiseResult:
             The number of samples of every avalanche.
 
         shapes:
-            The profile of every avalanche of a series, empty for records.
+            The profile of every avalanche, of a series or of records.
 
         exponent:
             The exponent `gamma` of the mean size against the duration.

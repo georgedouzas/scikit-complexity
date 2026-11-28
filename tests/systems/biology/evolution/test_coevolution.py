@@ -42,3 +42,23 @@ def test_bak_sneppen_self_organises():
     late = states[11:].ravel()
     assert np.median(states[-1]) > 0.75
     assert 0.6 < np.quantile(late, 0.1) < 0.72
+
+
+def test_bak_sneppen_random_neighbors_renew_k_species():
+    """Test that every step with random neighbours renews the least fit species and two others, three in all."""
+    system = BakSneppenSystem(20, neighbors='random', k=3).prepare()
+    states = np.asarray(system.simulate(until=10, dt=1, random_state=0).states)
+    for before, after in itertools.pairwise(states):
+        changed = np.flatnonzero(before != after)
+        assert changed.size == 3
+        assert int(np.argmin(before)) in changed
+
+
+def test_bak_sneppen_random_neighbors_gather_above_one_over_k():
+    """Test that the fitnesses of the random neighbour model gather above 1 / 3, uniform over the tenths above it."""
+    system = BakSneppenSystem(1000, neighbors='random', k=3).prepare()
+    states = np.asarray(system.simulate(until=200_000, dt=2_000, random_state=0).states)
+    late = states[50:].ravel()
+    counts, _ = np.histogram(late, bins=6, range=(0.4, 1.0))
+    assert np.mean(late < 1 / 3) < 0.05
+    assert np.all(np.abs(counts / counts.mean() - 1) < 0.1)

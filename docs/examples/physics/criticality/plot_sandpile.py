@@ -17,7 +17,7 @@ import numpy as np
 
 from skcomplex.core.analysis import distribution, events
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems.physics.criticality import SandpileSystem
+from skcomplex.systems.physics.criticality import SandpileSystem, abelian_sandpile
 
 SYSTEM = 'sandpile'
 
@@ -56,5 +56,28 @@ laws.set_xlabel('avalanche size s (topplings)')
 laws.set_ylabel('probability density')
 laws.set_title('Avalanches of all sizes')
 laws.legend()
+fig.tight_layout()
+plt.show()
+
+# %%
+# Dhar's mean avalanche size
+# --------------------------
+# The sandpile is abelian, so its toppling matrix gives its statistics exactly. A grain that falls on a random site
+# makes on average `(1 / N) sum_ij G_ij` topplings, where `G` is the inverse of the toppling matrix, the lattice Green
+# function. The topplings per grain of the simulated pile after its transient should agree with that mean size, which
+# grows as the squared side of the lattice.
+
+dropped = trajectory.times[-1] - 5000
+simulated = sum(record.size for record in trajectory.events if record.time >= 5000) / dropped
+sides = np.array([8, 16, 32, 48, 64])
+means = [abelian_sandpile(SandpileSystem(shape=(side, side)), kind='mean-size').mean_size for side in sides]
+
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.loglog(sides, means, 'o-', label='mean size from the toppling matrix')
+ax.loglog([48], [simulated], 's', color='black', label='simulated 48 x 48 pile')
+ax.set_xlabel('side of the lattice')
+ax.set_ylabel('topplings per grain')
+ax.set_title('The mean avalanche size grows as the squared side')
+ax.legend()
 fig.tight_layout()
 plt.show()
