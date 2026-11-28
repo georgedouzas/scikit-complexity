@@ -3,6 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import contextlib
+import io
+import logging
+import logging.handlers
+import queue
+import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -136,7 +142,9 @@ def events(
             profile, and its duration, the number of its samples. Records with a `size` and a `duration`, such as the
             cascade records of a lattice, are excursions already. `'branching'` gives the branching ratio by the
             multistep regression of `mrestimator`, which fits `r_k ∝ m^k` to the slopes `r_k` of the values `k` steps
-            apart and stays unbiased when only some of the units are observed, with every series one trial.
+            apart and stays unbiased when only some of the units are observed, with every series one trial. It prints
+            nothing, and raises the messages `mrestimator` logs, such as an autocorrelation time long against the
+            trial, as a `RuntimeWarning`.
 
         variables:
             The one variable of a trajectory to read, or `None` for the only scalar series or discrete state.
@@ -316,11 +324,8 @@ def _excursions(values: Array, threshold: float) -> list[Array]:
     return [excess[start:end] for start, end in zip(starts, ends, strict=True)]
 
 
-def _branching_ratio(values: Array, max_step: int, dt: float) -> float:
-    """Return the branching ratio of trials, one per column.
-
-    It is found by the multistep regression of `mrestimator`.
-    """
+def _estimate_branching_ratio(values: Array, max_step: int, dt: float) -> float:
+    """Return the branching ratio of trials by the regression of `mrestimator`."""
     mrestimator = load_module('mrestimator')
     coefficients = mrestimator.coefficients(
         values.T,
@@ -332,6 +337,29 @@ def _branching_ratio(values: Array, max_step: int, dt: float) -> float:
     )
     result = mrestimator.fit(coefficients, fitfunc=mrestimator.f_exponential_offset, numboot=0)
     return float(result.mre)
+
+
+def _branching_ratio(values: Array, max_step: int, dt: float) -> float:
+    """Return the branching ratio of trials, one per column.
+
+    The progress bars of `mrestimator` are silenced, and the warnings it logs are raised as Python warnings.
+    """
+    logger = logging.getLogger('mrestimator')
+    records: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
+    handler = logging.handlers.QueueHandler(records)
+    handler.setLevel(logging.WARNING)
+    propagate = logger.propagate
+    logger.addHandler(handler)
+    logger.propagate = False
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            ratio = _estimate_branching_ratio(values, max_step, dt)
+    finally:
+        logger.removeHandler(handler)
+        logger.propagate = propagate
+    while not records.empty():
+        warnings.warn(records.get().getMessage(), RuntimeWarning, stacklevel=3)
+    return ratio
 
 
 def _check(kind: str, window: float | None, max_step: int, dt: float) -> None:
