@@ -15,10 +15,10 @@ from ....components.laws import NoiseLaw
 from ....enums import FormKind
 from ....types import Array
 from ...problems import LayoutSpec
-from ...problems._fractional_rows_spec import _FractionalRowsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
+from ...problems._problem_spec import _FractionalRows
 from .._base import BasePass
 from .._compilation import Compilation
 from ._check_fractional_noise import CheckFractionalNoisePass
@@ -82,7 +82,7 @@ class FractionalProblemPass(BasePass):
         return lambda p: np.broadcast_to(np.asarray(reference.get_column_of(empty, p), dtype=float), (rows,)).copy()
 
     @staticmethod
-    def _get_fractional_rows(lowered: LoweredKernelsSpec) -> tuple[_FractionalRowsSpec, ...]:
+    def _get_fractional_rows(lowered: LoweredKernelsSpec) -> tuple[_FractionalRows, ...]:
         """Return the noise rows that noise laws with a Hurst index drive.
 
         They are in the order of the noise rows.
@@ -98,7 +98,7 @@ class FractionalProblemPass(BasePass):
                     positions = position + np.arange(kernel.rows, dtype=np.intp)
                     description = CheckFractionalNoisePass._get_fractional_description(spec, law)
                     rows.append(
-                        _FractionalRowsSpec(
+                        _FractionalRows(
                             description,
                             positions,
                             FractionalProblemPass._get_hurst_function(kernel, law.hurst),

@@ -30,7 +30,6 @@ from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import BackendWarning, ValidationError
 from ...types import Array, VectorFunction
 from ..enums import ReadKind
-from ..problems._accelerated_spec import _AcceleratedSpec
 from ..problems._bilinear_law import BilinearLaw
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
@@ -40,6 +39,7 @@ from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._metric_search import MetricSearch
 from ..problems._neighbor_read_spec import _NeighborReadSpec
+from ..problems._problem_spec import _Accelerated
 from ..problems._reduction_schedule_spec import ReductionScheduleSpec
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._source_loader import SourceLoader
@@ -321,12 +321,12 @@ class NumbaBackend(BaseBackend):
         layout: np.ndarray,
         lowering: _LoweredFunctions,
         draws: DrawKernel | None,
-    ) -> _AcceleratedSpec:
+    ) -> _Accelerated:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
             verlet, yoshida4 = module.velocity_verlet, module.yoshida4
-            return _AcceleratedSpec(
+            return _Accelerated(
                 rk4=lambda t, x, p, until, h: function(t, x, p, layout, until, h),
                 yoshida4=lambda t, x, p, until, h, first, second, weights: yoshida4(
                     t,
@@ -352,20 +352,20 @@ class NumbaBackend(BaseBackend):
             )
         if loop == 'euler_maruyama':
             noise = self._get_noise_arrays(lowering)
-            return _AcceleratedSpec(
+            return _Accelerated(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
             targets, increments = self._get_channel_arrays(lowering)
-            return _AcceleratedSpec(
+            return _Accelerated(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
         if loop == 'iterate_random' and draws is not None:
             offset, flags = draws.offset, draws.normal
-            return _AcceleratedSpec(
+            return _Accelerated(
                 iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags),
             )
-        return _AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+        return _Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
 
     @staticmethod
     def _search_entries(search: object) -> dict[str, EntrySpec]:

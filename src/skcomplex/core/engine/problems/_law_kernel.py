@@ -5,6 +5,7 @@
 
 import functools
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -18,7 +19,6 @@ from ..types import OptionalPairs, ReadFunction
 from ._base import BaseKernel
 from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
-from ._jump_channels_spec import _JumpChannelsSpec
 from ._layout_spec import LayoutSpec
 from ._noise_process_spec import _NoiseProcessSpec
 from ._output_spec import OutputSpec
@@ -26,10 +26,61 @@ from ._pair_search import PairSearch
 from ._random_stream import RandomStream
 from ._reference_spec import PairsSearch, ReferenceSpec
 from ._run_state_spec import RunStateSpec
-from ._wiener_block_spec import _WienerBlockSpec
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
+
+
+@dataclass(frozen=True)
+class _JumpChannels:
+    """Random events of one jump law, one channel per evaluation index."""
+
+    offset: int
+    targets: npt.NDArray[np.intp]
+    increments: Array
+    changes: tuple[Callable[[float, Array, Array], Array] | None, ...] = ()
+
+    def get_increments_at(self, t: float, x: Array, p: Array, member: int) -> Array:
+        """Return the increment of every target at a firing.
+
+        Only a target that has a function gets an increment from it.
+        """
+        if not self.changes:
+            return self.increments
+        return np.array(
+            [
+                increment if change is None else change(t, x, p)[member]
+                for increment, change in zip(self.increments, self.changes, strict=True)
+            ],
+            dtype=float,
+        )
+
+    @property
+    def size(self) -> int:
+        """Number of channels."""
+        return int(self.targets.shape[1])
+
+
+@dataclass(frozen=True)
+class _WienerBlock:
+    """A record of the correlated Wiener processes of one process spec.
+
+    They are a contiguous block of the processes of a problem.
+
+    Args:
+        start:
+            The index of the first process of the block.
+
+        size:
+            The number of processes of the block.
+
+        factor:
+            The factor `L` with `L L^T = C` of the covariance `C` of the block.
+    """
+
+    start: int
+    size: int
+    factor: npt.NDArray[np.float64]
 
 
 class LawKernel(BaseKernel):
@@ -522,7 +573,7 @@ class LawKernel(BaseKernel):
         return np.broadcast_to(np.asarray(value, dtype=float), (size,))
 
     @staticmethod
-    def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[_WienerBlockSpec, ...]]:
+    def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[_WienerBlock, ...]]:
         """Return the state and the Wiener process of every amplitude of noise kernels.
 
         The processes they draw are returned too. Processes are numbered in order of first use. An output without a
@@ -550,7 +601,7 @@ class LawKernel(BaseKernel):
         columns: list[Indices] = []
         local: dict[object, Indices] = {}
         starts: dict[object, int] = {}
-        blocks: list[_WienerBlockSpec] = []
+        blocks: list[_WienerBlock] = []
         counter = [0, -1]
         for kernel in kernels:
             for item in kernel.outputs:
@@ -585,7 +636,7 @@ class LawKernel(BaseKernel):
         counter: list[int],
         local: dict[object, Indices],
         starts: dict[object, int],
-        blocks: list[_WienerBlockSpec],
+        blocks: list[_WienerBlock],
     ) -> Indices:
         """Return the process of every evaluation index of a noise output.
 
@@ -598,7 +649,7 @@ class LawKernel(BaseKernel):
         if process.key not in starts and (process.links is not None or process.dimension):
             starts[process.key] = counter[0]
             if process.factor is not None and process.links is None:
-                blocks.append(_WienerBlockSpec(counter[0], process.dimension, process.factor))
+                blocks.append(_WienerBlock(counter[0], process.dimension, process.factor))
             counter[0] += process.dimension
         if process.links is not None:
             links = process.links
@@ -606,7 +657,7 @@ class LawKernel(BaseKernel):
                 return (starts[process.key] + links).astype(np.intp)
             if counter[1] < 0:
                 counter[1] = counter[0]
-                blocks.append(_WienerBlockSpec(counter[0], 1, np.zeros((1, 1))))
+                blocks.append(_WienerBlock(counter[0], 1, np.zeros((1, 1))))
                 counter[0] += 1
             return np.where(links >= 0, starts[process.key] + links, counter[1]).astype(np.intp)
         if process.dimension:
@@ -626,7 +677,7 @@ class LawKernel(BaseKernel):
     def _jump_channels(
         kernels: list['LawKernel'],
         changes: Mapping[int, list[tuple[ReferenceSpec, object]]],
-    ) -> tuple[_JumpChannelsSpec, ...]:
+    ) -> tuple[_JumpChannels, ...]:
         """Return the channels of every jump law of jump kernels.
 
         Args:
@@ -660,7 +711,7 @@ class LawKernel(BaseKernel):
                     for _, increment in law_changes
                 )
                 channels.append(
-                    _JumpChannelsSpec(offset, targets, increments, functions if any(functions) else ()),
+                    _JumpChannels(offset, targets, increments, functions if any(functions) else ()),
                 )
                 offset += kernel.rows
         return tuple(channels)

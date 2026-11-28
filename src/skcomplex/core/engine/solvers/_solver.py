@@ -11,7 +11,7 @@ import numpy as np
 from ...errors import SolverError
 from ...types import Array, VectorFunction
 from ..problems import ProblemSpec
-from ..problems._accelerated_spec import _AcceleratedSpec
+from ..problems._problem_spec import _Accelerated
 from ._base import BaseSolver
 from ._event_locator import EventLocator
 from ._history import RESTART, History
@@ -118,7 +118,7 @@ class Solver(BaseSolver[ProblemSpec]):
         return state
 
     @staticmethod
-    def _warm_loops(accelerated: _AcceleratedSpec, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
+    def _warm_loops(accelerated: _Accelerated, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
         """Call every compiled stepper loop of a problem once.
 
         Each loop thus finishes compiling before a run.

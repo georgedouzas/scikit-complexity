@@ -21,15 +21,14 @@ from ..._utils import components_of, declarations_of, symbols_of
 from ...enums import ReadKind
 from ...problems import CompiledElementSpec, LayoutSpec, ProblemSpec
 from ...problems._block_spec import BlockSpec
-from ...problems._breakpoints_spec import _BreakpointsSpec
 from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
 from ...problems._declarations_spec import DeclarationsSpec
-from ...problems._delay_spec import _DelaySpec
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._node_spec import _NodeSpec
+from ...problems._problem_spec import _Breakpoints, _Delay
 from ...problems._random_stream import RandomStream
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._reference_spec import ReferenceSpec
@@ -553,7 +552,7 @@ class ProblemPass(BasePass):
         return found
 
     @staticmethod
-    def _get_breakpoints_of(expressions: Iterable[object], time: Expression) -> _BreakpointsSpec:
+    def _get_breakpoints_of(expressions: Iterable[object], time: Expression) -> _Breakpoints:
         """Return the times where conditions on time in expressions change.
 
         Examples are step, pulse, and series inputs.
@@ -589,14 +588,14 @@ class ProblemPass(BasePass):
                         resolved = True
                 unresolved = unresolved or not resolved
             stack.extend(item.operands())
-        return _BreakpointsSpec(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
+        return _Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
     @staticmethod
     def _get_breakpoints_in(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
-    ) -> _BreakpointsSpec:
+    ) -> _Breakpoints:
         """Return the breakpoints of time-dependent inputs in every law and event guard.
 
         Args:
@@ -624,7 +623,7 @@ class ProblemPass(BasePass):
         return ProblemPass._get_breakpoints_of(expressions, time)
 
     @staticmethod
-    def _compile_delays(delays: Sequence[_DelayedStateSpec], time: Expression) -> tuple[_DelaySpec, ...]:
+    def _compile_delays(delays: Sequence[_DelayedStateSpec], time: Expression) -> tuple[_Delay, ...]:
         """Return the delays of a system with their delay functions compiled.
 
         Args:
@@ -648,7 +647,7 @@ class ProblemPass(BasePass):
                 spec.owner,
             )
             compiled.append(
-                _DelaySpec(
+                _Delay(
                     parameters=hidden.start + np.arange(hidden.size),
                     states=item.states,
                     tau=ProblemPass._get_first_value(tau),

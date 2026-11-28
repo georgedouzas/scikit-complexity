@@ -14,13 +14,11 @@ from ...errors import ValidationError
 from ...types import Array, Indices, VectorFunction
 from ..enums import ReadKind
 from ..problems import RunStateSpec
-from ..problems._accelerated_spec import _AcceleratedSpec
-from ..problems._jump_channels_spec import _JumpChannelsSpec
-from ..problems._law_kernel import LawKernel
+from ..problems._law_kernel import LawKernel, _JumpChannels, _WienerBlock
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._output_spec import OutputSpec
+from ..problems._problem_spec import _Accelerated
 from ..problems._reference_spec import ReferenceSpec
-from ..problems._wiener_block_spec import _WienerBlockSpec
 from ..types import OptionalPairs
 from ._support_spec import SupportSpec
 
@@ -78,12 +76,12 @@ class _LoweredFunctions:
     noise_rows: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     noise_columns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     n_processes: int = 0
-    noise_blocks: tuple[_WienerBlockSpec, ...] = ()
+    noise_blocks: tuple[_WienerBlock, ...] = ()
     propensities: VectorFunction | None = None
-    jumps: tuple[_JumpChannelsSpec, ...] = ()
+    jumps: tuple[_JumpChannels, ...] = ()
     update: VectorFunction | None = None
     boundary: VectorFunction | None = None
-    accelerated: _AcceleratedSpec | None = None
+    accelerated: _Accelerated | None = None
     backends: Mapping[str, str] = field(default_factory=dict)
 
 
