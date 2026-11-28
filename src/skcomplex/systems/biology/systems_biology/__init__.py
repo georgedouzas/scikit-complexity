@@ -5,7 +5,7 @@ The package covers gene circuits, Boolean networks, circadian clocks, signalling
 
 from ..common.kinetics import RepressionInteraction, SpeciesElement
 from ..common.metabolism import ToyFluxBalanceInteraction
-from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
+from ..common.networks import BooleanNodeElement
 from ._adaptation import (
     EnzymeAdaptationCircuitSystem,
     EnzymeNodeElement,
@@ -21,6 +21,7 @@ from ._boolean import (
     YeastCellCycleSystem,
 )
 from ._boolean_systems import (
+    BooleanFunctionInteraction,
     BooleanRepressilatorSystem,
     MajorityNodeElement,
     MammalianCellCycleSystem,
