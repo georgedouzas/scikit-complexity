@@ -357,7 +357,7 @@ class LabelMeasurementSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _TermSpec(BaseSpec):
+class _Term:
     """Inflow to an elementary metabolite unit.
 
     It holds its directed flux, its weight, and the units it combines.
@@ -369,7 +369,7 @@ class _TermSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _LabellingSpec(BaseSpec):
+class _Labelling:
     """Units of a labelling problem.
 
     They are the network, the settings that read it, and the units of its fragments.
@@ -379,13 +379,13 @@ class _LabellingSpec(BaseSpec):
     reactions: list[str]
     tracers: Mapping[str, Sequence[TracerSpec]]
     fragments: Sequence[FragmentSpec]
-    terms: dict[_Unit, list[_TermSpec]]
+    terms: dict[_Unit, list[_Term]]
     leaves: set[_Unit]
     sizes: list[int]
 
 
 @dataclass(frozen=True)
-class _FitSpec(BaseSpec):
+class _Fit:
     """Parametrization of the net fluxes over a null space basis of the balances.
 
     It has one exchange per reversible flux.
@@ -393,7 +393,7 @@ class _FitSpec(BaseSpec):
     It also holds the data the residuals read.
     """
 
-    units: _LabellingSpec
+    units: _Labelling
     measurements: Sequence[LabelMeasurementSpec]
     measured_fluxes: Mapping[str, tuple[float, float]]
     particular: Array
@@ -669,7 +669,7 @@ def _terms_of(
     maps: Sequence[tuple[int, AtomMapSpec]],
     symmetric: Sequence[str],
     atom_counts: Mapping[str, int],
-) -> list[_TermSpec]:
+) -> list[_Term]:
     """Return the inflows to a unit from every reaction that produces its metabolite."""
     metabolite, atoms = unit
     size = atom_counts.get(metabolite, max(atoms))
@@ -689,7 +689,7 @@ def _terms_of(
                     origin, place = places[letters[atom - 1]]
                     grouped.setdefault(origin, []).append(place)
                 substrates = tuple(sorted((origin, tuple(sorted(found))) for origin, found in grouped.items()))
-                terms.append(_TermSpec(flux, weight, substrates))
+                terms.append(_Term(flux, weight, substrates))
     return terms
 
 
@@ -701,14 +701,14 @@ def _collect_units(
     fragments: Sequence[FragmentSpec],
     symmetric: Sequence[str],
     atom_counts: Mapping[str, int],
-) -> _LabellingSpec:
+) -> _Labelling:
     """Walk the atom maps backward from the fragments.
 
     It returns the terms and the sizes of the units.
     """
     maps = _directed_maps(network, atoms)
     sources = {item.metabolite for found in tracers.values() for item in found}
-    terms: dict[_Unit, list[_TermSpec]] = {}
+    terms: dict[_Unit, list[_Term]] = {}
     leaves: set[_Unit] = set()
     stack: list[_Unit] = [(item.metabolite, tuple(sorted(item.atoms))) for item in fragments]
     while stack:
@@ -727,7 +727,7 @@ def _collect_units(
         terms[unit] = found
         stack += [substrate for term in found for substrate in term.substrates]
     sizes = sorted({len(unit[1]) for unit in terms})
-    return _LabellingSpec(network, list(network.reactions), tracers, fragments, terms, leaves, sizes)
+    return _Labelling(network, list(network.reactions), tracers, fragments, terms, leaves, sizes)
 
 
 def _source_distribution(tracer: TracerSpec, atoms: Sequence[int]) -> Array:
@@ -738,7 +738,7 @@ def _source_distribution(tracer: TracerSpec, atoms: Sequence[int]) -> Array:
     return distribution
 
 
-def _source_units(units: _LabellingSpec, tracers: Sequence[TracerSpec]) -> dict[_Unit, Array]:
+def _source_units(units: _Labelling, tracers: Sequence[TracerSpec]) -> dict[_Unit, Array]:
     """Return the distribution of every leaf unit in one experiment."""
     found = {item.metabolite: item for item in tracers}
     known = {}
@@ -750,7 +750,7 @@ def _source_units(units: _LabellingSpec, tracers: Sequence[TracerSpec]) -> dict[
     return known
 
 
-def _solve_size(units: _LabellingSpec, size: int, flows: Array, known: dict[_Unit, Array]) -> None:
+def _solve_size(units: _Labelling, size: int, flows: Array, known: dict[_Unit, Array]) -> None:
     """Solve the units of one size, `A X = B`.
 
     It adds their distributions to the known ones.
@@ -782,7 +782,7 @@ def _solve_size(units: _LabellingSpec, size: int, flows: Array, known: dict[_Uni
     known.update({unit: solution[position] for unit, position in positions.items()})
 
 
-def _simulated(units: _LabellingSpec, flows: Array, tracers: Sequence[TracerSpec]) -> dict[str, Array]:
+def _simulated(units: _Labelling, flows: Array, tracers: Sequence[TracerSpec]) -> dict[str, Array]:
     """Return the distribution of every fragment at directed fluxes in one experiment."""
     known = _source_units(units, tracers)
     for size in units.sizes:
@@ -790,7 +790,7 @@ def _simulated(units: _LabellingSpec, flows: Array, tracers: Sequence[TracerSpec
     return {item.label: known[(item.metabolite, tuple(sorted(item.atoms)))] for item in units.fragments}
 
 
-def _directed_given(units: _LabellingSpec, fluxes: Mapping[str, float | tuple[float, float]] | None) -> Array:
+def _directed_given(units: _Labelling, fluxes: Mapping[str, float | tuple[float, float]] | None) -> Array:
     """Return the directed fluxes that the `fluxes` setting gives."""
     count = len(units.reactions)
     flows = np.zeros(2 * count)
@@ -801,7 +801,7 @@ def _directed_given(units: _LabellingSpec, fluxes: Mapping[str, float | tuple[fl
     return flows
 
 
-def _balances(units: _LabellingSpec) -> Array:
+def _balances(units: _Labelling) -> Array:
     """Return the matrix of the balances of the network over its net fluxes."""
     network = units.network
     metabolites = list(dict.fromkeys(name for spec in network.reactions.values() for name in spec.coefficients))
@@ -813,10 +813,10 @@ def _balances(units: _LabellingSpec) -> Array:
 
 
 def _parametrization(
-    units: _LabellingSpec,
+    units: _Labelling,
     measurements: Sequence[LabelMeasurementSpec],
     measured_fluxes: Mapping[str, tuple[float, float]],
-) -> _FitSpec:
+) -> _Fit:
     """Return the parametrization of the net fluxes.
 
     It is a particular solution, the null space basis of the net fluxes, and the exchanges.
@@ -831,7 +831,7 @@ def _parametrization(
     system = np.vstack([balances, rows])
     right = np.concatenate([np.zeros(balances.shape[0]), np.fromiter(fixed.values(), dtype=float)])
     exchanges = [name for name in reactions if _reversible(network, name)]
-    return _FitSpec(
+    return _Fit(
         units,
         measurements,
         measured_fluxes,
@@ -844,12 +844,12 @@ def _parametrization(
     )
 
 
-def _net_of(fit: _FitSpec, parameters: Array) -> Array:
+def _net_of(fit: _Fit, parameters: Array) -> Array:
     """Return the net fluxes of parameters."""
     return fit.particular + fit.basis @ parameters[: fit.basis.shape[1]]
 
 
-def _flows_of(fit: _FitSpec, parameters: Array) -> Array:
+def _flows_of(fit: _Fit, parameters: Array) -> Array:
     """Return the directed fluxes of parameters.
 
     The exchanges are added in both directions.
@@ -866,7 +866,7 @@ def _flows_of(fit: _FitSpec, parameters: Array) -> Array:
     return flows
 
 
-def _residuals(fit: _FitSpec, parameters: Array) -> Array:
+def _residuals(fit: _Fit, parameters: Array) -> Array:
     """Return the weighted residuals of the fit.
 
     They are the residuals of the measurements and the measured fluxes, and the penalties of bounds.
@@ -887,7 +887,7 @@ def _residuals(fit: _FitSpec, parameters: Array) -> Array:
     return np.concatenate([*terms, np.asarray(measured, dtype=float), penalties])
 
 
-def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
+def _drawn_vertices(fit: _Fit, rng: np.random.Generator) -> Array:
     """Return a feasible net flux.
 
     It is a random combination of vertices that the core solve finds.
@@ -920,7 +920,7 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
     return shares @ np.asarray(vertices, dtype=float)
 
 
-def _start(fit: _FitSpec, rng: np.random.Generator) -> Array:
+def _start(fit: _Fit, rng: np.random.Generator) -> Array:
     """Return a feasible start.
 
     It holds the coordinates of a drawn flux and random exchanges.
@@ -930,7 +930,7 @@ def _start(fit: _FitSpec, rng: np.random.Generator) -> Array:
     return np.concatenate([coordinates, rng.uniform(0.0, fit.exchange_limit / 2.0)])
 
 
-def _fit(fit: _FitSpec, start: Array, extra: tuple[int, float] | None = None) -> tuple[Array, float]:
+def _fit(fit: _Fit, start: Array, extra: tuple[int, float] | None = None) -> tuple[Array, float]:
     """Return the parameters that minimise the residuals from a start.
 
     It also returns the sum of squares of the residuals.
@@ -959,23 +959,23 @@ def _fit(fit: _FitSpec, start: Array, extra: tuple[int, float] | None = None) ->
     return result.x, float(np.sum(_residuals(fit, result.x) ** 2))
 
 
-def _estimate_of(fit: _FitSpec, parameters: Array) -> Array:
+def _estimate_of(fit: _Fit, parameters: Array) -> Array:
     """Return the net fluxes and the exchanges of parameters."""
     return np.concatenate([_net_of(fit, parameters), parameters[fit.basis.shape[1] :]])
 
 
-def _estimate_names(fit: _FitSpec) -> list[str]:
+def _estimate_names(fit: _Fit) -> list[str]:
     """Return the names of the net fluxes and the exchanges."""
     return [*fit.units.reactions, *(f'{name}.exchange' for name in fit.exchanges)]
 
 
-def _bounds_of_estimate(fit: _FitSpec) -> tuple[Array, Array]:
+def _bounds_of_estimate(fit: _Fit) -> tuple[Array, Array]:
     """Return the bounds of the net fluxes and the exchanges."""
     count = len(fit.exchanges)
     return np.concatenate([fit.lower, np.zeros(count)]), np.concatenate([fit.upper, fit.exchange_limit])
 
 
-def _linear_intervals(fit: _FitSpec, parameters: Array) -> tuple[Array, Array]:
+def _linear_intervals(fit: _Fit, parameters: Array) -> tuple[Array, Array]:
     """Return the intervals of the linearised fit."""
     steps = 1e-6 * np.maximum(1.0, np.abs(parameters))
     center = _residuals(fit, parameters)
@@ -998,7 +998,7 @@ def _linear_intervals(fit: _FitSpec, parameters: Array) -> tuple[Array, Array]:
     )
 
 
-def _profile_side(fit: _FitSpec, parameters: Array, position: int, best: float, limit: float) -> float:
+def _profile_side(fit: _Fit, parameters: Array, position: int, best: float, limit: float) -> float:
     """Return where the sum of squares rises by the threshold.
 
     It searches on the way from the optimum to a bound.
@@ -1029,7 +1029,7 @@ def _profile_side(fit: _FitSpec, parameters: Array, position: int, best: float, 
     return inner
 
 
-def _profile_intervals(fit: _FitSpec, parameters: Array, best: float) -> tuple[Array, Array]:
+def _profile_intervals(fit: _Fit, parameters: Array, best: float) -> tuple[Array, Array]:
     """Return the intervals where the sum of squares stays near its optimum.
 
     It stays within the threshold of the optimum.
@@ -1043,7 +1043,7 @@ def _profile_intervals(fit: _FitSpec, parameters: Array, best: float) -> tuple[A
     return low, high
 
 
-def _estimates(fit: _FitSpec, parameters: Array, best: float, intervals: str) -> LabellingResult:
+def _estimates(fit: _Fit, parameters: Array, best: float, intervals: str) -> LabellingResult:
     """Return the estimates, their intervals, and the test of the fit.
 
     It also returns the distributions at the optimum.

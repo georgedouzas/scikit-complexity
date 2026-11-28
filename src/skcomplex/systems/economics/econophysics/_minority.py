@@ -12,7 +12,6 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
@@ -30,7 +29,7 @@ MAX_SEED = 2**31
 
 
 @dataclass(frozen=True)
-class _GameStateSpec(BaseSpec):
+class _GameState:
     """History and strategy tables of a run.
 
     The game keeps them in the storage of the system.
@@ -213,14 +212,14 @@ class MinorityGameInteraction(Interaction):
             system.storage['game'] = state
         return state.tables[code]
 
-    def _get_state(self, system: SystemView) -> _GameStateSpec:
+    def _get_state(self, system: SystemView) -> _GameState:
         """Return the state of the game in the storage of the system.
 
         The first round starts a random history.
         """
         state = system.storage.get('game')
-        if not isinstance(state, _GameStateSpec):
-            state = _GameStateSpec(int(system.rng.integers(2**self.memory)))
+        if not isinstance(state, _GameState):
+            state = _GameState(int(system.rng.integers(2**self.memory)))
             system.storage['game'] = state
         return state
 
