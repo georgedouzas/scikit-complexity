@@ -7,7 +7,8 @@ The module covers gases, fluids, and spin systems.
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -22,7 +23,7 @@ from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import BaseSpace, LatticeSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, MetropolisSolver
-from ....core.types import Role
+from ....core.types import Indices, Role
 from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 
@@ -186,7 +187,8 @@ class IsingSystem(systems.BaseSystem):
 
     The system orders below the critical temperature `2 / ln(1 + sqrt 2)`.
 
-    One unit of time is one sweep of checkerboard updates. The system has the spins `spins.spin`.
+    One unit of time is one sweep of checkerboard updates. The system has the spins `spins.spin` and records the
+    observable `energy`, the total energy `-J sum s_i s_j - h sum s_i` over the neighbour pairs of the lattice.
 
     Args:
         size:
@@ -238,6 +240,21 @@ class IsingSystem(systems.BaseSystem):
             return tuple(int(item) for item in size)
         return (int(size), int(size))
 
+    @staticmethod
+    def _get_pairs(space: LatticeSpace) -> Indices:
+        """Return the pairs of neighbouring sites of a lattice, one row per pair."""
+        return np.array(space.prepare()._get_neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
+
+    @staticmethod
+    def _get_energy(pairs: Indices, t: float, values: Mapping[str, object]) -> float:
+        """Return the total energy `-J sum s_i s_j - h sum s_i` of the spins."""
+        del t
+        spins = np.asarray(values['spins.spin'], dtype=float)
+        couplings = np.asarray(values['spins.J'], dtype=float) * np.ones_like(spins)
+        field = np.asarray(values['spins.h'], dtype=float) * np.ones_like(spins)
+        first, second = pairs[:, 0], pairs[:, 1]
+        return float(-(couplings[first] * spins[first] * spins[second]).sum() - (field * spins).sum())
+
     def __init__(
         self,
         size: int | Sequence[int] = 64,
@@ -275,13 +292,18 @@ class IsingSystem(systems.BaseSystem):
             if self.initial == 'up'
             else np.random.default_rng(self.random_state).choice([-1.0, 1.0], size=shape)
         )
+        space = LatticeSpace(shape)
+        if not context:
+            self.observables_ = (
+                Observable('energy', function=partial(IsingSystem._get_energy, IsingSystem._get_pairs(space))),
+            )
         group = IsingSpinElement(
             'spins',
             spin=spins.ravel(),
             J=self.J,
             h=self.h,
             temperature=self.temperature,
-            space=LatticeSpace(shape),
+            space=space,
         )
         self.system_ = systems.System(
             self.label,
@@ -296,7 +318,8 @@ class PottsSystem(systems.BaseSystem):
 
     The system orders below the critical temperature `1 / ln(1 + sqrt q)`.
 
-    The system has the states `spins.color`.
+    The system has the states `spins.color` and records the observable `energy`, the total energy
+    `-J sum delta(s_i, s_j)` over the neighbour pairs of the lattice.
 
     Args:
         size:
@@ -359,6 +382,15 @@ class PottsSystem(systems.BaseSystem):
         self.sampler = sampler
         self.random_state = random_state
 
+    @staticmethod
+    def _get_energy(pairs: Indices, t: float, values: Mapping[str, object]) -> float:
+        """Return the total energy `-J sum delta(s_i, s_j)` of the states."""
+        del t
+        colors = np.asarray(values['spins.color'], dtype=float)
+        couplings = np.asarray(values['spins.J'], dtype=float) * np.ones_like(colors)
+        first, second = pairs[:, 0], pairs[:, 1]
+        return float(-(couplings[first] * (colors[first] == colors[second])).sum())
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the q-state Potts system on a torus, which orders below the temperature `1 / ln(1 + sqrt q)`.
 
@@ -369,12 +401,17 @@ class PottsSystem(systems.BaseSystem):
         super()._prepare(context)
         shape = IsingSystem._get_square(self.size)
         colors = np.random.default_rng(self.random_state).integers(0, self.q, size=shape).astype(float)
+        space = LatticeSpace(shape)
+        if not context:
+            self.observables_ = (
+                Observable('energy', function=partial(PottsSystem._get_energy, IsingSystem._get_pairs(space))),
+            )
         group = PottsSpinElement(
             'spins',
             color=colors.ravel(),
             J=self.J,
             temperature=self.temperature,
-            space=LatticeSpace(shape),
+            space=space,
         )
         self.system_ = systems.System(
             self.label,
@@ -393,7 +430,8 @@ class XYSystem(systems.BaseSystem):
 
     Its vortices bind below the Kosterlitz-Thouless point.
 
-    The system has the angles `spins.theta`.
+    The system has the angles `spins.theta` and records the observable `energy`, the total energy
+    `-J sum cos(theta_i - theta_j)` over the neighbour pairs of the lattice.
 
     Args:
         size:
@@ -451,6 +489,15 @@ class XYSystem(systems.BaseSystem):
         self.width = width
         self.random_state = random_state
 
+    @staticmethod
+    def _get_energy(pairs: Indices, t: float, values: Mapping[str, object]) -> float:
+        """Return the total energy `-J sum cos(theta_i - theta_j)` of the angles."""
+        del t
+        angles = np.asarray(values['spins.theta'], dtype=float)
+        couplings = np.asarray(values['spins.J'], dtype=float) * np.ones_like(angles)
+        first, second = pairs[:, 0], pairs[:, 1]
+        return float(-(couplings[first] * np.cos(angles[first] - angles[second])).sum())
+
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set the planar spins of a torus at random angles.
 
@@ -461,12 +508,17 @@ class XYSystem(systems.BaseSystem):
         super()._prepare(context)
         shape = IsingSystem._get_square(self.size)
         angles = np.random.default_rng(self.random_state).uniform(0, 2 * np.pi, size=shape)
+        space = LatticeSpace(shape)
+        if not context:
+            self.observables_ = (
+                Observable('energy', function=partial(XYSystem._get_energy, IsingSystem._get_pairs(space))),
+            )
         group = XYSpinElement(
             'spins',
             theta=angles.ravel(),
             J=self.J,
             temperature=self.temperature,
-            space=LatticeSpace(shape),
+            space=space,
         )
         self.system_ = systems.System(
             self.label,
