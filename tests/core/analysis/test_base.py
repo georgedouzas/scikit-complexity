@@ -64,6 +64,7 @@ from skcomplex.systems.physics.synchronization import (
     SwarmalatorsSystem,
 )
 from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
+from skcomplex.systems.social.spreading import SimonYuleSystem
 
 from ...conftest import _queue_run
 
@@ -399,3 +400,11 @@ def test_snapshots_read_headings_from_roles_alone():
     snapshots = _read_snapshots(trajectory, 'walkers')
     assert np.all(snapshots.directions == 0.5)
     assert np.all(snapshots.states['phase'] == 3.0)
+
+
+def test_series_of_a_growing_group_read_its_reported_size():
+    """Test that the default series of a growing vocabulary is its reported number of words, one per frame."""
+    trajectory = SimonYuleSystem().prepare().simulate(until=20, random_state=0)
+    series = _read_series(trajectory)
+    assert series.labels == ['words.count']
+    assert series.values[:, 0].tolist() == [frame['words.count'] for frame in trajectory.reporters]

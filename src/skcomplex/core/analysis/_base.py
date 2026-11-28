@@ -574,11 +574,13 @@ def _read_series(source: DataSource, names: Sequence[str] | None = None) -> _Ser
     if not chosen:
         raise _get_missing_error(source, 'scalar series')
     columns, labels = [], []
+    reported = source.reporters[0] if source.reporters else {}
     for name in chosen:
         for spec in source.problem.agents:
             if name.rpartition('.')[0] == spec.path:
                 _refuse_objects(source, spec.path, [name.rpartition('.')[2]])
-        values = np.asarray(source.get_values(name), dtype=float).reshape(len(source.times), -1)
+        series = [frame[name] for frame in source.reporters] if name in reported else source.get_values(name)
+        values = np.asarray(series, dtype=float).reshape(len(source.times), -1)
         columns.append(values)
         labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
     return _SeriesSpec(np.asarray(source.times, dtype=float), np.concatenate(columns, axis=1), labels)
