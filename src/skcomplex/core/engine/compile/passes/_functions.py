@@ -24,7 +24,6 @@ from ...backends._base import _LoweredFunctions
 from ...enums import ReadKind
 from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._composite_system import _CompositeSystem
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._draw_recorder import DrawRecorder
 from ...problems._expression_printer import ExpressionPrinter
@@ -33,10 +32,9 @@ from ...problems._law_kernel import LawKernel, _Output
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from ...problems._metric_search import MetricSearch
 from ...problems._neighborhood_kernel import NeighborhoodKernel, _ReductionSchedule
-from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations, _ProblemFunctions
 from .._forms import STEPWISE_FORMS
 from .._phase_spec import PhaseSpec
 from .._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
@@ -85,7 +83,7 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _get_equations_of(
         kernels: list[LawKernel],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
         """Return the symbolic equations and their symbols.
@@ -191,7 +189,7 @@ class FunctionsPass(BasePass):
         return backends
 
     @staticmethod
-    def _lower(compilation: Compilation) -> _ProblemFunctionsSpec:
+    def _lower(compilation: Compilation) -> _ProblemFunctions:
         """Return the numeric functions and equations of a form.
 
         The update of a stochastic map takes a generator.
@@ -245,7 +243,7 @@ class FunctionsPass(BasePass):
             else FunctionsPass._get_phased_equations([items for _, items in phases], declarations, form)
         )
         states = LayoutSpec(tuple(declarations.states))
-        return _ProblemFunctionsSpec(
+        return _ProblemFunctions(
             equations=equations,
             equation_symbols=symbols,
             has_callables=any(item.expression is None for kernel in main for item in kernel.outputs)
@@ -526,7 +524,7 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _get_phased_equations(
         phases: list[list[LawKernel]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
         """Return the symbolic map of the phases that run in every step.

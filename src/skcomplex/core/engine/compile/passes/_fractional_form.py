@@ -13,9 +13,8 @@ from ....errors import BackendError, SolverError
 from ..._utils import declarations_of
 from ...backends import BaseBackend
 from ...problems._composite_system import _CompositeSystem
-from ...problems._node_spec import _NodeSpec
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation, _CensusRecord
+from .._compilation import Compilation, _CensusRecord, _Node
 from .._forms import FORMS
 from .._issue_spec import IssueSpec
 
@@ -106,7 +105,7 @@ class FractionalFormPass(BasePass):
         return times
 
     @staticmethod
-    def _get_fractional_states(nodes: list[_NodeSpec]) -> list[_FractionalState]:
+    def _get_fractional_states(nodes: list[_Node]) -> list[_FractionalState]:
         """Return every state of a fractional order of the elements and groups of a system.
 
         Args:

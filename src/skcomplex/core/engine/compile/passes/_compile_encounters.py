@@ -19,12 +19,11 @@ from ..._utils import symbols_of
 from ...backends import BaseBackend
 from ...enums import ReadKind
 from ...problems._bilinear_law import BilinearLaw
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel, _TableValues
 from ...problems._field_element import _FieldElement
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation, Laws, _Declarations
 
 
 class CompileEncountersPass(BasePass):
@@ -65,7 +64,7 @@ class CompileEncountersPass(BasePass):
     @staticmethod
     def _get_compiled_encounters(
         specs: Laws,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         backend: BaseBackend | None,
     ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered for their members."""

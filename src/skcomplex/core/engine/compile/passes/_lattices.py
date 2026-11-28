@@ -42,7 +42,6 @@ from ....types import Array, Indices
 from ..._utils import symbol
 from ...enums import ReadKind
 from ...problems._cascade_kernel import CascadeKernel
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._drive_kernel import DriveKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
@@ -50,7 +49,7 @@ from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel, _Arguments, _LatticeState, _Lookup
 from .._array_update_law import ArrayUpdateLaw
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 from .._issue_spec import IssueSpec
 from .._laws import LATTICE_LAWS
 from .._relaxation_law import RelaxationLaw
@@ -180,7 +179,7 @@ class LatticeProblemPass(BasePass):
         return _Arguments(tuple(names), (False,) * len(names), tuple(starts), tuple(sizes))
 
     @staticmethod
-    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> _LatticeContext:
+    def _get_lattice_context(spec: KernelSpec, declarations: _Declarations, fused: bool) -> _LatticeContext:
         """Return the lattice states, arguments, and neighbour symbols of a component.
 
         They are those of the symbols the component reads.
@@ -232,7 +231,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _compile_lattice(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         fused: bool,
     ) -> tuple[LatticeStep, ...]:
         """Return the steps of lattice laws in declaration order.

@@ -40,7 +40,6 @@ from .._utils import domain_of, symbol
 from ..enums import ReadKind
 from ..problems import RunStateSpec
 from ..problems._collision_kernel import CollisionKernel
-from ..problems._declarations_spec import DeclarationsSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._field_element import _FieldElement
@@ -49,7 +48,7 @@ from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ._base import BaseLowering, BasePass
-from ._compilation import Compilation
+from ._compilation import Compilation, _Declarations
 from ._flux_law import _FluxLaw
 
 OPERATOR_NAMES = (
@@ -203,7 +202,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         self.lowered_ = result
 
     @staticmethod
-    def _get_field_entries(declarations: DeclarationsSpec) -> dict[str, _FieldElement]:
+    def _get_field_entries(declarations: _Declarations) -> dict[str, _FieldElement]:
         """Return the fields by the name of each of their entries."""
         return {
             entry.name: block.node.component
@@ -213,7 +212,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         }
 
     @staticmethod
-    def _get_initial_values(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[Expression, float]:
+    def _get_initial_values(spec: KernelSpec, declarations: _Declarations) -> dict[Expression, float]:
         """Return the initial value of every symbol of a component.
 
         For groups, it is the value of the first member.

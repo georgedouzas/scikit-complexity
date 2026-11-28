@@ -9,12 +9,10 @@ from sage.all__sagemath_symbolics import SR
 
 from ....components.laws import BaseLaw, UpdateLaw
 from ....errors import ValidationError
-from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block, _Declarations
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass, _Weight
 
@@ -57,7 +55,7 @@ class TowardsPass(BasePass):
         compilation.drawn_apart = [*apart, *towards]
 
     @staticmethod
-    def _get_node_block(space: object, declarations: DeclarationsSpec) -> BlockSpec:
+    def _get_node_block(space: object, declarations: _Declarations) -> _Block:
         """Return the first variable group on the nodes of a network."""
         for block in declarations.capacity.values():
             if getattr(block.node.component, 'on', None) == 'sites' and block.node.space is space:
@@ -68,7 +66,7 @@ class TowardsPass(BasePass):
     @staticmethod
     def _get_toward_specs(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return the specs of the nodes of every request with a weight or a score.
 

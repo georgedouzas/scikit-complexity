@@ -28,13 +28,11 @@ from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
 from ..problems._composite_system import _CompositeSystem
-from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._layout_spec import LayoutSpec
 from ..problems._neighborhood_kernel import _ReductionSchedule
-from ..problems._node_spec import _NodeSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
 from ..problems._operator_problem_spec import OperatorProblemSpec
@@ -43,6 +41,7 @@ from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ..problems._transfer_network_spec import _Recorded
 from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
+from ._compilation import ACTIVE, _Node
 from ._flows import TransferLowering
 from ._member_reductions import _MemberReductions
 from ._members import MemberLowering
@@ -249,7 +248,7 @@ class ObservableEvaluator:
         return copied, held
 
     @staticmethod
-    def _get_held_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> set[str]:
+    def _get_held_observables(system: _CompositeSystem, nodes: list[_Node]) -> set[str]:
         """Return the paths of the observables read only at synchronisation points.
 
         They are the observables that roles bind to and laws read only at those points.
@@ -1158,7 +1157,7 @@ class ObservableEvaluator:
         return f'{scope}/{path}' if scope else path
 
     @staticmethod
-    def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, _NodeSpec]) -> bool:
+    def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, _Node]) -> bool:
         """Check whether laws can read an observable at the current state.
 
         They read it as an expression or a symbolic reduction.
@@ -1169,7 +1168,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _get_lowerable_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> Declared:
+    def _get_lowerable_observables(system: _CompositeSystem, nodes: list[_Node]) -> Declared:
         """Return every observable of a system tree that laws can read, by path.
 
         Laws read them at the current state. An expression of a system's symbols is lowerable when every observable

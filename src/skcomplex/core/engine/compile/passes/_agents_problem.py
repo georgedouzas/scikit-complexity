@@ -14,11 +14,9 @@ from ....enums import VariableKind
 from ....errors import BackendError, LabelError, ValidationError
 from ..._utils import declarations_of
 from ...problems._base_problem_spec import _CompiledAgents
-from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block, _Node
 from ._layout import LayoutPass
 from ._problem import ProblemPass
 
@@ -90,7 +88,7 @@ class AgentsProblemPass(BasePass):
         )
 
     @staticmethod
-    def _check_agent_names(node: _NodeSpec) -> None:
+    def _check_agent_names(node: _Node) -> None:
         """Raise an error for an agent state or parameter named like an attribute.
 
         The attribute is one of the agent view or of Mesa.
@@ -108,7 +106,7 @@ class AgentsProblemPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _get_agent_visual(node: _NodeSpec) -> VisualSpec:
+    def _get_agent_visual(node: _Node) -> VisualSpec:
         """Return the visual of agents and the points of the agents without one.
 
         The visual is their own or that of their element type.
@@ -117,7 +115,7 @@ class AgentsProblemPass(BasePass):
         return VisualSpec('agents') if visual == VisualSpec() else visual
 
     @staticmethod
-    def _get_agent_space(blocks: list[BlockSpec]) -> BaseSpace | None:
+    def _get_agent_space(blocks: list[_Block]) -> BaseSpace | None:
         """Return the one space every agent group lives in.
 
         Groups that live in different spaces raise an error.
@@ -130,7 +128,7 @@ class AgentsProblemPass(BasePass):
 
     @staticmethod
     def _get_compiled_agents(
-        blocks: list[BlockSpec],
+        blocks: list[_Block],
         rules: list[tuple[KernelSpec, tuple[_RuleLaw, ...]]],
     ) -> tuple[_CompiledAgents, ...]:
         """Return the agent elements and groups with their states, values, and rules.

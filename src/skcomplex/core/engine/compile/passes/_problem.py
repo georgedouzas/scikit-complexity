@@ -21,20 +21,16 @@ from ..._utils import components_of, declarations_of, symbols_of
 from ...enums import ReadKind
 from ...problems import CompiledElementSpec, LayoutSpec, ProblemSpec
 from ...problems._base_problem_spec import _CompiledInteraction
-from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import DeclarationsSpec
-from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._neighborhood_kernel import _ReductionSchedule
-from ...problems._node_spec import _NodeSpec
 from ...problems._problem_spec import _Breakpoints, _Delay
 from ...problems._random_stream import RandomStream
 from ...problems._reference_spec import ReferenceSpec
 from ...types import ScalarsFunction
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block, _Declarations, _DelayedState, _Node
 from ._events import RELATIONS, SWITCHES
 
 
@@ -81,7 +77,7 @@ class ProblemPass(BasePass):
         compilation.problem = self._get_problem_of(compilation)
 
     @staticmethod
-    def _get_companions(blocks: list[BlockSpec]) -> dict[str, tuple[str, str, int]]:
+    def _get_companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
         """Return every companion state by name.
 
         It comes with its kind, the name of its state, and its index.
@@ -104,7 +100,7 @@ class ProblemPass(BasePass):
         return companions
 
     @staticmethod
-    def _get_compiled_elements(blocks: list[BlockSpec]) -> tuple[CompiledElementSpec, ...]:
+    def _get_compiled_elements(blocks: list[_Block]) -> tuple[CompiledElementSpec, ...]:
         """Return the elements and groups that are not agents with their names.
 
         The names are the dotted names of their states and parameters.
@@ -150,8 +146,8 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _get_compiled_interactions(
-        blocks: list[BlockSpec],
-        specs: list[tuple[KernelSpec, BlockSpec]],
+        blocks: list[_Block],
+        specs: list[tuple[KernelSpec, _Block]],
     ) -> tuple[_CompiledInteraction, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
@@ -623,7 +619,7 @@ class ProblemPass(BasePass):
         return ProblemPass._get_breakpoints_of(expressions, time)
 
     @staticmethod
-    def _compile_delays(delays: Sequence[_DelayedStateSpec], time: Expression) -> tuple[_Delay, ...]:
+    def _compile_delays(delays: Sequence[_DelayedState], time: Expression) -> tuple[_Delay, ...]:
         """Return the delays of a system with their delay functions compiled.
 
         Args:
@@ -695,7 +691,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         value: object,
         reductions: _ReductionSchedule,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> Callable[[float, Array, Array], object]:
         """Return the function of time and both vectors of one guard or reset value.
 
@@ -729,7 +725,7 @@ class ProblemPass(BasePass):
         event: EventLaw,
         label: str,
         reductions: _ReductionSchedule,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> EventKernel:
         """Return an event whose guard or reset is a function.
 
@@ -770,7 +766,7 @@ class ProblemPass(BasePass):
         events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
         reductions: _ReductionSchedule,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions.
 
@@ -880,7 +876,7 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
-    def _get_history(blocks: list[BlockSpec]) -> dict[str, object]:
+    def _get_history(blocks: list[_Block]) -> dict[str, object]:
         """Return the history every state declares, by the name of its layout entry."""
         history = {}
         for block in blocks:
@@ -894,7 +890,7 @@ class ProblemPass(BasePass):
         return history
 
     @staticmethod
-    def _get_visual_of(node: _NodeSpec) -> VisualSpec:
+    def _get_visual_of(node: _Node) -> VisualSpec:
         """Return the visual of an element or a group.
 
         It is the drawing its class gives, or that a group or a field works out from its member class and space.

@@ -21,11 +21,9 @@ from ....errors import RoleError, ValidationError
 from ....types import Indices
 from ..._utils import vector
 from ...enums import ReadKind
-from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import ACTIVE, MEMBERS
 from ...problems._kernel_spec import KernelSpec
-from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
+from .._compilation import ACTIVE, MEMBERS, _Block, _Node
 
 MEMBER_LAWS = 'member'
 HYPEREDGE_LAWS = 'hyperedge'
@@ -57,7 +55,7 @@ class HyperedgeTables:
     """
 
     @staticmethod
-    def _get_space(node: _NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> NetworkSpace:
+    def _get_space(node: _Node, nodes: _Block, second: _Block | None) -> NetworkSpace:
         """Return the network of the nodes.
 
         It first checks the sizes of the groups the roles bind.
@@ -85,9 +83,9 @@ class HyperedgeTables:
 
     @staticmethod
     def _get_edge_indices(
-        node: _NodeSpec,
+        node: _Node,
         space: NetworkSpace,
-        edges: BlockSpec,
+        edges: _Block,
         ends: tuple[Indices, Indices],
     ) -> Indices:
         """Return the edge of a layer that joins the first two members of every hyperedge.
@@ -193,7 +191,7 @@ class HyperedgeTables:
         return indptr, [item[order] for item in others]
 
     @staticmethod
-    def _get_sizes(node: _NodeSpec, space: NetworkSpace) -> list[int]:
+    def _get_sizes(node: _Node, space: NetworkSpace) -> list[int]:
         """Return the sizes of the hyperedges an interaction runs on.
 
         It is its own size, or every size of the network.
@@ -226,7 +224,7 @@ class HyperedgeTables:
         return [size]
 
     @staticmethod
-    def _get_tables_of(node: _NodeSpec, nodes: BlockSpec, second: BlockSpec | None) -> list[tuple[str, Tables]]:
+    def _get_tables_of(node: _Node, nodes: _Block, second: _Block | None) -> list[tuple[str, Tables]]:
         """Return the gather tables of every hyperedge size an interaction runs on.
 
         Tables are given for both kinds of laws.
@@ -275,10 +273,10 @@ class HyperedgeTables:
 
     @staticmethod
     def _get_growing_tables_of(
-        node: _NodeSpec,
-        nodes: BlockSpec,
-        second: BlockSpec | None,
-        growing: BlockSpec,
+        node: _Node,
+        nodes: _Block,
+        second: _Block | None,
+        growing: _Block,
     ) -> list[tuple[str, Tables]]:
         """Return the gather tables of the rows of a variable group on hyperedges.
 
@@ -424,7 +422,7 @@ class HyperedgeTables:
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _get_neighborhoods(node: _NodeSpec, nodes: BlockSpec) -> list[list[int]]:
+    def _get_neighborhoods(node: _Node, nodes: _Block) -> list[list[int]]:
         """Return every member of a group on the sites of a space and its neighbours.
 
         Every member is followed by the members around it.
@@ -455,7 +453,7 @@ class HyperedgeTables:
         return [[site, *space._get_neighbors(site).tolist()] for site in range(size)]
 
     @staticmethod
-    def _get_groups_of(node: _NodeSpec, nodes: BlockSpec, kind: str, size: int) -> list[np.ndarray]:
+    def _get_groups_of(node: _Node, nodes: _Block, kind: str, size: int) -> list[np.ndarray]:
         """Return the members of the groups of an interaction along groups.
 
         There is one array per size, with one row per group. Pairs and partitions hold positions in an order drawn at

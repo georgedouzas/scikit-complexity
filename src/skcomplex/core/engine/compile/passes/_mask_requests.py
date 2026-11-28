@@ -10,11 +10,10 @@ from sage.modules.free_module_element import FreeModuleElement
 from ....components.laws import BaseLaw, UpdateLaw
 from ..._utils import vector
 from ...enums import ReadKind
-from ...problems._declarations_spec import ACTIVE, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import ACTIVE, Compilation, _Declarations
 
 
 class MaskRequestsPass(BasePass):
@@ -54,7 +53,7 @@ class MaskRequestsPass(BasePass):
         ]
 
     @staticmethod
-    def _get_masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
+    def _get_masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: _Declarations) -> list[BaseLaw]:
         """Return update laws that request topology changes, masked on free rows.
 
         Their probabilities vanish on free rows.
@@ -99,7 +98,7 @@ class MaskRequestsPass(BasePass):
         )
 
     @staticmethod
-    def _mask_of(spec: KernelSpec, declarations: DeclarationsSpec) -> Expression | None:
+    def _mask_of(spec: KernelSpec, declarations: _Declarations) -> Expression | None:
         """Return the activity of the rows a spec runs on.
 
         The rows are the edges of a changing layer or the members of a capacity group.

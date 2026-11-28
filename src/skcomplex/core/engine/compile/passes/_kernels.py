@@ -24,14 +24,13 @@ from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
 from ...enums import ReadKind
 from ...problems import LayoutSpec
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel, _NoiseProcess, _Output
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation, Laws, _Declarations
 from .._laws import KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
@@ -234,7 +233,7 @@ class KernelsPass(BasePass):
         spec: KernelSpec,
         law: RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw,
         targets: list[ReferenceSpec],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         lowered: dict[int, list[_Output]],
     ) -> list[_Output]:
         """Return the outputs of a law for its target components.
@@ -262,7 +261,7 @@ class KernelsPass(BasePass):
     @staticmethod
     def _lower_laws(
         specs: Laws,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         lowered_outputs: dict[int, list[_Output]],
     ) -> LoweredKernelsSpec:
         """Return the kernels of every law kind, with the law of every output.

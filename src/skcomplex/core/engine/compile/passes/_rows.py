@@ -21,11 +21,10 @@ from ....components.spaces._discrete_time import _DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ..._utils import components_of
 from ...enums import ReadKind
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reference_spec import _NeighborRead
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
@@ -103,7 +102,7 @@ class RowsPass(BasePass):
         return {id(law) for items in laws for law in items if id(law) in born and isinstance(law, RateLaw)}
 
     @staticmethod
-    def _get_broadcast(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> KernelSpec:
+    def _get_broadcast(spec: KernelSpec, laws: list[BaseLaw], declarations: _Declarations) -> KernelSpec:
         """Return a spec that reads a field over position at every class of a phase space.
 
         The phase space is that of the field its laws change.

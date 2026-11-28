@@ -3,17 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
+from functools import cached_property
 from typing import Self
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
 from ...components import EntrySpec
+from ...components.base import BaseComponent
+from ...components.elements import Element
+from ...components.interactions import BaseInteraction, WienerProcessSpec
 from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, TopologyRequestSpec
 from ...components.laws._linear_program import _LinearProgramLaw
 from ...components.laws._rule import _RuleLaw
@@ -21,36 +26,440 @@ from ...components.spaces import BaseSpace
 from ...components.spaces._static_time import _StaticTime
 from ...enums import ElementKind, FormKind, VariableKind
 from ...errors import PipelineError, SkcomplexError
-from ...types import ProcessKey
+from ...types import Array, ProcessKey, VectorFunction
 from .._utils import declarations_of
 from ..backends import BaseBackend
 from ..enums import ReadKind
 from ..problems import ProblemSpec
-from ..problems._block_spec import BlockSpec
 from ..problems._composite_system import _CompositeSystem
-from ..problems._declarations_spec import DeclarationsSpec
-from ..problems._delayed_state_spec import _DelayedStateSpec
 from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
+from ..problems._group_element import _GroupElement
 from ..problems._jacobian_kernel import JacobianKernel, _Symmetry
 from ..problems._kernel_spec import KernelSpec
-from ..problems._law_kernel import _Output
+from ..problems._law_kernel import _JumpChannels, _Output, _WienerBlock
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._neighborhood_kernel import _ReductionSchedule
-from ..problems._node_spec import _NodeSpec
-from ..problems._problem_functions_spec import _ProblemFunctionsSpec
+from ..problems._problem_spec import _Accelerated
+from ..problems._reference_spec import ReferenceSpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec, _CompiledDelay, _CompiledFlow
 from ._issue_spec import IssueSpec
 from ._renewal_law import RenewalLaw
 
 TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
+ACTIVE = '_active'
+ENDS = ('_source', '_target')
+MEMBERS = '_members'
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
-type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
+type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], _Block]]
+
+
+@dataclass(frozen=True)
+class _Node:
+    """A record of an element or interaction with its place in the tree of a system.
+
+    Args:
+        path:
+            The slash-separated path of the component.
+
+        scope:
+            The path prefix of the system that holds the component.
+
+        component:
+            The element, group, or interaction, or the Wiener processes that the noise role of an interaction binds.
+
+        space:
+            The nearest enclosing space.
+
+        component_type:
+            What declares the variables of the component, which `declarations_of` reads: the element type of a group,
+            or the type of an element, an interaction, or a Wiener process, or the element or a member of the group for
+            elements that declare their variables from data.
+
+        members:
+            The size of a group, or `None` for a single element, an interaction, or a Wiener process.
+
+        interaction:
+            Whether the component is not an element or a group: an interaction or a Wiener process.
+
+        agent:
+            Whether the component runs on the agent stepper, as a pass of a formalism decides.
+
+        active:
+            The initial number of members of a variable group on the sites or edges of a network, whose capacity is
+            its size, or `None` for every other component.
+    """
+
+    path: str
+    scope: str
+    component: Element | _GroupElement | BaseInteraction | WienerProcessSpec
+    space: BaseSpace | None
+    component_type: type | BaseComponent
+    members: int | None = None
+    interaction: bool = False
+    agent: bool = False
+    active: int | None = None
+
+    @property
+    def as_element(self) -> Element | _GroupElement:
+        """The component of a node of an element or a group.
+
+        Raises:
+            TypeError:
+                The component is an interaction or a Wiener process.
+        """
+        if not isinstance(self.component, Element | _GroupElement):
+            error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not an element or a group.'
+            raise TypeError(error_msg)
+        return self.component
+
+    @property
+    def as_group(self) -> _GroupElement:
+        """The component of a node of a group.
+
+        Raises:
+            TypeError:
+                The component is not a group.
+        """
+        if not isinstance(self.component, _GroupElement):
+            error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not a group.'
+            raise TypeError(error_msg)
+        return self.component
+
+    @property
+    def as_interaction(self) -> BaseInteraction:
+        """The component of a node of an interaction.
+
+        Raises:
+            TypeError:
+                The component is an element, a group, or a Wiener process.
+        """
+        if not isinstance(self.component, BaseInteraction):
+            error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not an interaction.'
+            raise TypeError(error_msg)
+        return self.component
+
+    @property
+    def is_agent(self) -> bool:
+        """Whether the node is an agent element or an agent group.
+
+        Such a node runs on the agent stepper.
+        """
+        return self.agent
+
+
+@dataclass(frozen=True)
+class _Block:
+    """A record of the values of one component and the symbols that stand for them.
+
+    While it compiles, the engine gives every value of an element, group, or interaction a symbol for one member, such
+    as `x_population` for the size of a population, and the entry where the value sits in the vectors of the run. Laws
+    are written in these symbols and read back through this spec. It holds the symbols of a population, a reactor, and a
+    market.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        node:
+            The component with its place in the system tree.
+
+        symbols:
+            The symbol, or the vector of symbols, of every variable of one member by name.
+
+        entries:
+            The layout entry of every variable by name.
+
+        references:
+            The component of a state or parameter every symbol stands for.
+
+        per:
+            The names of the parameters with one value per entry of a variadic role.
+
+    See Also:
+        _Declarations: Holds the block of every component.
+        ReferenceSpec: Says which value a symbol stands for.
+
+    Examples:
+        >>> from dataclasses import fields
+        >>> from skcomplex.core.engine.compile._compilation import _Block
+        >>> [field.name for field in fields(_Block)]
+        ['node', 'symbols', 'entries', 'references', 'per']
+    """
+
+    node: _Node
+    symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict)
+    entries: Mapping[str, EntrySpec] = field(default_factory=dict)
+    references: Mapping[Expression, ReferenceSpec] = field(default_factory=dict)
+    per: frozenset[str] = frozenset()
+
+    @property
+    def rows(self) -> int:
+        """Number of members, 1 for a single element or an interaction."""
+        return self.node.members or 1
+
+
+@dataclass(frozen=True)
+class _Declarations:
+    """A record of every value the components of a system declare, laid out for a run.
+
+    While it compiles, the engine lists the states and parameters of every component in the order of the vectors of the
+    run, with their initial values and the symbols that stand for them, such as the size of a population at index 0 of
+    the states. Later passes of the compiler read the values from it. It lays out the values of an epidemic, a reactor,
+    and a market.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        time:
+            The time symbol.
+
+        states:
+            The entries of the states, in the order of the state vector.
+
+        parameters:
+            The entries of the parameters, in the order of the parameter vector.
+
+        initial_states:
+            The flat initial value of every state entry.
+
+        initial_parameters:
+            The flat initial value of every parameter entry.
+
+        blocks:
+            The block of every element, group, and interaction by path.
+
+        processes:
+            The block of every Wiener process that the noise roles of interactions bind, by path.
+
+        handles:
+            The path of the Wiener process and the component of every handle symbol.
+
+        agents:
+            The path of the agent group and the variable of every symbol of agents.
+
+    See Also:
+        _Block: The values and symbols of one component.
+        EntrySpec: Where one value sits in a vector.
+
+    Examples:
+        >>> from skcomplex.core.engine._utils import symbol
+        >>> from skcomplex.core.engine.compile._compilation import _Declarations
+        >>> _Declarations(symbol('t')).states
+        ()
+    """
+
+    time: Expression
+    states: tuple[EntrySpec, ...] = ()
+    parameters: tuple[EntrySpec, ...] = ()
+    initial_states: tuple[Array, ...] = ()
+    initial_parameters: tuple[Array, ...] = ()
+    blocks: Mapping[str, _Block] = field(default_factory=dict)
+    processes: Mapping[str, _Block] = field(default_factory=dict)
+    handles: Mapping[Expression, tuple[str, int]] = field(default_factory=dict)
+    agents: Mapping[Expression, tuple[str, str]] = field(default_factory=dict)
+
+    @property
+    def ends(self) -> dict[bool, int]:
+        """Sizes of the state vector and of the parameter vector.
+
+        The size of the state vector is under `True`, and that of the parameter vector under `False`.
+        """
+        return {True: sum(entry.size for entry in self.states), False: sum(entry.size for entry in self.parameters)}
+
+    @property
+    def wieners(self) -> dict[str, WienerProcessSpec]:
+        """Wiener processes that the noise roles of interactions bind, by path."""
+        return {
+            path: block.node.component
+            for path, block in self.processes.items()
+            if isinstance(block.node.component, WienerProcessSpec)
+        }
+
+    @property
+    def members(self) -> int:
+        """Number of members of the groups, leaving out agents.
+
+        The number chooses a default backend.
+        """
+        return sum(block.node.members or 0 for block in self.blocks.values() if not block.node.is_agent)
+
+    @cached_property
+    def capacity(self) -> dict[str, _Block]:
+        """Blocks of the variable groups on the sites or edges of networks, by path."""
+        return {path: block for path, block in self.blocks.items() if block.node.active is not None}
+
+    @cached_property
+    def groups(self) -> frozenset[str]:
+        """Paths of the declared groups."""
+        return frozenset(path for path, block in self.blocks.items() if block.node.members is not None)
+
+    def get_changing_edges(self, space: object) -> dict[str | None, _Block]:
+        """Return the variable edge group of every layer of a network whose edges change.
+
+        Args:
+            space:
+                The network space.
+
+        Returns:
+            groups:
+                The block of the variable edge group by layer.
+        """
+        return {
+            getattr(block.node.component, 'layer', None): block
+            for block in self.capacity.values()
+            if getattr(block.node.component, 'on', None) == 'edges' and block.node.space is space
+        }
+
+    def get_changing_entries(self, space: object) -> dict[str | None, tuple[EntrySpec, EntrySpec, EntrySpec]]:
+        """Return the source, target, and activity entries of every changing layer.
+
+        The entries are those of the variable edge group of the layer.
+
+        Args:
+            space:
+                The network space.
+
+        Returns:
+            entries:
+                The entries by layer.
+        """
+        return {
+            layer: (block.entries[ENDS[0]], block.entries[ENDS[1]], block.entries[ACTIVE])
+            for layer, block in self.get_changing_edges(space).items()
+        }
+
+
+@dataclass(frozen=True)
+class _DelayedState:
+    """State a law reads with a delay.
+
+    The law reads it through the hidden parameter that solvers fill from its history.
+
+    Args:
+        entry:
+            The entry of the hidden parameter.
+
+        states:
+            The indices of the delayed state in the state vector.
+
+        tau:
+            The delay.
+
+        minimum:
+            The smallest value of the delay.
+
+        spec:
+            The kernel spec of the law that reads the delayed state.
+
+        symbol:
+            The symbol of the hidden parameter in the law.
+
+        state:
+            The symbol of the delayed state.
+    """
+
+    entry: EntrySpec
+    states: npt.NDArray[np.intp]
+    tau: Expression
+    minimum: float
+    spec: KernelSpec
+    symbol: Expression
+    state: Expression
+
+
+@dataclass(frozen=True)
+class _ProblemFunctions:
+    """Numeric functions, equations, and backends of a problem.
+
+    The passes lower them and the problem takes them.
+
+    Args:
+        equations:
+            The equation of every state, by state name.
+
+        equation_symbols:
+            The symbol of every state the equations read, by state name.
+
+        has_callables:
+            Whether a law of the form holds a Python callable.
+
+        has_group_sums:
+            Whether a law of the form sums over the members of a group.
+
+        drift:
+            The drift function, or `None`.
+
+        sources:
+            The part of the drift without the flux differences of finite-volume fields, or `None` without fluxes.
+
+        diffusion:
+            The function that returns every Wiener process amplitude, or `None`.
+
+        noise_rows:
+            The state index each noise amplitude drives.
+
+        noise_columns:
+            The Wiener process each noise amplitude multiplies.
+
+        n_processes:
+            The number of Wiener processes.
+
+        noise_blocks:
+            The blocks of correlated Wiener processes.
+
+        propensities:
+            The propensity function of the jumps, or `None`.
+
+        jumps:
+            The channels of the jumps.
+
+        update:
+            The update of a map, which takes a generator when the map draws random numbers, or `None`.
+
+        boundary:
+            The boundary laws, or `None`.
+
+        algebraic:
+            The function that sets the algebraic states of a state vector, or `None`.
+
+        draws:
+            The draws of the update laws, or `None`.
+
+        backend:
+            The name of the backend that lowered the functions.
+
+        backends:
+            The backend that runs the form and every law kind.
+
+        accelerated:
+            The compiled loops of the form, or `None`.
+    """
+
+    equations: Mapping[str, Expression]
+    equation_symbols: Mapping[str, Expression]
+    has_callables: bool
+    has_group_sums: bool
+    drift: VectorFunction | None = None
+    sources: VectorFunction | None = None
+    diffusion: VectorFunction | None = None
+    noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
+    n_processes: int = 0
+    noise_blocks: tuple[_WienerBlock, ...] = ()
+    propensities: VectorFunction | None = None
+    jumps: tuple[_JumpChannels, ...] = ()
+    update: Callable[..., Array] | None = None
+    boundary: VectorFunction | None = None
+    algebraic: VectorFunction | None = None
+    draws: DrawKernel | None = None
+    backend: str = 'numpy'
+    backends: Mapping[str, str] = field(default_factory=dict)
+    accelerated: _Accelerated | None = None
 
 
 @dataclass(frozen=True)
@@ -505,11 +914,11 @@ class Compilation:
         ['prey.x', 'predators.x']
     """
 
-    nodes: list[_NodeSpec] | None = None
+    nodes: list[_Node] | None = None
     census: _Census | None = None
     plan: tuple[tuple[_PlannedPartition, ...], tuple[IssueSpec, ...]] | None = None
-    layout: DeclarationsSpec | None = None
-    specs: list[tuple[KernelSpec, BlockSpec]] | None = None
+    layout: _Declarations | None = None
+    specs: list[tuple[KernelSpec, _Block]] | None = None
     collected: BlockLaws | None = None
     apart: Laws | None = None
     programs: Laws | None = None
@@ -527,10 +936,10 @@ class Compilation:
     reduced_apart: Laws | None = None
     reductions: _ReductionSchedule | None = None
     kernels: LoweredKernelsSpec | None = None
-    functions: _ProblemFunctionsSpec | None = None
+    functions: _ProblemFunctions | None = None
     jacobian: JacobianKernel | None = None
     problem: ProblemSpec | None = None
-    delays: list[_DelayedStateSpec] | None = None
+    delays: list[_DelayedState] | None = None
     placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
     events: list[tuple[KernelSpec, EventLaw]] | None = None
     renewals: list[_BoundRenewal] | None = None
@@ -651,7 +1060,7 @@ class Compilation:
         return value
 
     @staticmethod
-    def _has_motion(layout: DeclarationsSpec) -> bool:
+    def _has_motion(layout: _Declarations) -> bool:
         """Return whether a state of the layout has a derivative, as a moving point does.
 
         A point given a starting velocity has one. Such a state moves at its derivative without any law, so its system

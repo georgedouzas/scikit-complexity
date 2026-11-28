@@ -7,11 +7,10 @@ from dataclasses import replace
 
 from ....components.laws import EventLaw
 from ...enums import ReadKind
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._neighborhood_kernel import _ReductionSchedule
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 from ._reduction_lowering import ReductionLowering
 
 
@@ -70,7 +69,7 @@ class ReductionsPass(BasePass):
         )
 
     @staticmethod
-    def _get_pruned(spec: KernelSpec, declarations: DeclarationsSpec) -> KernelSpec:
+    def _get_pruned(spec: KernelSpec, declarations: _Declarations) -> KernelSpec:
         """Return a spec without the references of the groups read only in reductions.
 
         Operands are kept. Kernels then loop over its own group.

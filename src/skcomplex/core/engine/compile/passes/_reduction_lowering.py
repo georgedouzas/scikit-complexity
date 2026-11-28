@@ -43,8 +43,6 @@ from ....errors import PipelineError, RoleError, ValidationError
 from ....types import Indices
 from ..._utils import declarations_of, domain_of, symbol, symbols_of, vector
 from ...enums import ReadKind
-from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LATTICE_BOUNDARIES
@@ -55,7 +53,7 @@ from ...problems._reference_spec import ReferenceSpec
 from ...problems._static_search import StaticSearch
 from ...problems._topology_kernel import ACTIVE_THRESHOLD
 from .._base import BaseLowering, BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block, _Declarations
 from .._observables import _HeldElement, _HeldReduction
 from ._cells import DEGREES, CellTables
 from ._complex import LowerComplexPass
@@ -117,7 +115,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         3
     """
 
-    declarations_: DeclarationsSpec
+    declarations_: _Declarations
     drawn_: int
     found_: dict[tuple[object, ...], ReductionKernel]
     by_symbol_: dict[Expression, ReductionKernel]
@@ -1455,7 +1453,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
     def _get_hyperedge_search(
         self,
         reduction: _HyperedgeReductionSpec,
-        block: BlockSpec,
+        block: _Block,
         size: int,
     ) -> tuple[StaticSearch | MetricSearch, list[Indices] | None]:
         """Return the hyperedge search around every member and the tables of other members.

@@ -22,16 +22,14 @@ from ....enums import VariableKind
 from ....errors import ValidationError
 from ....types import Array
 from ..._utils import components_of, declarations_of, symbol, vector
-from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block
 from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
-from ._equation_blocks import EquationBlocksLowering
+from ._equation_blocks import EquationBlocksLowering, _Relation
 
 EQUATION_UNKNOWNS = 6
 
@@ -97,7 +95,7 @@ class OrdersPass(BasePass):
     def _get_specs_of(
         compilation: Compilation,
         orders: _Orders,
-    ) -> list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]:
+    ) -> list[tuple[KernelSpec, list[BaseLaw | _Relation]]]:
         """Return the laws of every spec with orders and lags read.
 
         Equations become relations.
@@ -125,7 +123,7 @@ class OrdersPass(BasePass):
         }
 
     @staticmethod
-    def _get_algebraic_symbols(blocks: list[BlockSpec], orders: _Orders) -> list[Expression]:
+    def _get_algebraic_symbols(blocks: list[_Block], orders: _Orders) -> list[Expression]:
         """Return the symbols of every algebraic state that equations determine.
 
         The states are those of the blocks.
@@ -145,16 +143,16 @@ class OrdersPass(BasePass):
 
     @staticmethod
     def _get_unknowns_of(
-        specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
-        blocks: list[BlockSpec],
+        specs: list[tuple[KernelSpec, list[BaseLaw | _Relation]]],
+        blocks: list[_Block],
         orders: _Orders,
-    ) -> tuple[list[_RelationSpec], dict[Expression, Expression]]:
+    ) -> tuple[list[_Relation], dict[Expression, Expression]]:
         """Return the relations with those of one target added, and their unknowns.
 
         It gives the state of every unknown they solve for.
         """
         relations = OrdersPass._get_summed(
-            [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)],
+            [item for _, laws in specs for item in laws if isinstance(item, _Relation)],
         )
         unknowns = {item: item for item in OrdersPass._get_algebraic_symbols(blocks, orders)}
         for relation in relations:
@@ -185,7 +183,7 @@ class OrdersPass(BasePass):
         return EquationBlocksLowering._get_structure_issues(relations, unknowns, references, compilation.system.label)
 
     @staticmethod
-    def _get_orders_of(blocks: list[BlockSpec], programmed: set[str]) -> _Orders:
+    def _get_orders_of(blocks: list[_Block], programmed: set[str]) -> _Orders:
         """Return the orders above 1 and lags of every state, and the solved states.
 
         The states are those of the blocks, and the solved states are those equations determine.
@@ -335,7 +333,7 @@ class OrdersPass(BasePass):
         return BasePass._get_replaced(law, target=target)
 
     @staticmethod
-    def _get_intrinsic_laws(spec: KernelSpec, block: BlockSpec, orders: _Orders) -> list[BaseLaw]:
+    def _get_intrinsic_laws(spec: KernelSpec, block: _Block, orders: _Orders) -> list[BaseLaw]:
         """Return the chains of higher-order states and the shifts of lagged states.
 
         The chain of every higher-order state is `x' = x_d1, ...`.
@@ -355,7 +353,7 @@ class OrdersPass(BasePass):
         return laws
 
     @staticmethod
-    def _get_relation(spec: KernelSpec, law: ConstraintLaw, orders: _Orders) -> _RelationSpec:
+    def _get_relation(spec: KernelSpec, law: ConstraintLaw, orders: _Orders) -> _Relation:
         """Return an equation law as a relation in highest derivative placeholders.
 
         The placeholders stand for the highest derivatives it contains.
@@ -379,10 +377,10 @@ class OrdersPass(BasePass):
                 if item in spec.references and spec.references[item].entry.name in orders.algebraic
             },
         )
-        return _RelationSpec(spec, expression, highest, description, key, target)
+        return _Relation(spec, expression, highest, description, key, target)
 
     @staticmethod
-    def _check_relation(relation: _RelationSpec) -> None:
+    def _check_relation(relation: _Relation) -> None:
         """Raise an error for a relation with no highest state derivative to solve for."""
         if not relation.highest:
             description = relation.description
@@ -392,9 +390,9 @@ class OrdersPass(BasePass):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _get_summed(relations: list[_RelationSpec]) -> list[_RelationSpec]:
+    def _get_summed(relations: list[_Relation]) -> list[_Relation]:
         """Return the relations with those of one target added into one."""
-        groups: dict[tuple[str, int] | int, list[_RelationSpec]] = {}
+        groups: dict[tuple[str, int] | int, list[_Relation]] = {}
         for index, relation in enumerate(relations):
             groups.setdefault(index if relation.key is None else relation.key, []).append(relation)
         summed = []
@@ -404,7 +402,7 @@ class OrdersPass(BasePass):
                 references = {key: value for item in group for key, value in item.spec.references.items()}
                 owner = ', '.join(dict.fromkeys(item.spec.owner for item in group))
                 spec = KernelSpec(owner, SimpleNamespace(), references, max(item.spec.rows for item in group))
-                first = _RelationSpec(
+                first = _Relation(
                     spec,
                     sum((item.expression for item in group), SR(0)),
                     {key: value for item in group for key, value in item.highest.items()},
@@ -470,9 +468,9 @@ class OrdersPass(BasePass):
     def _copy_with_orders(
         spec: KernelSpec,
         laws: list[BaseLaw],
-        block: BlockSpec,
+        block: _Block,
         orders: _Orders,
-    ) -> list[BaseLaw | _RelationSpec]:
+    ) -> list[BaseLaw | _Relation]:
         """Return laws with derivatives and lags replaced and rates retargeted.
 
         Equations become relations, and chains are added.
@@ -483,7 +481,7 @@ class OrdersPass(BasePass):
         lowered = any(isinstance(law, ConstraintLaw) or OrdersPass._reads_derivatives(law) for law in laws)
         if not orders.orders and not orders.lags and not lowered:
             return list(laws)
-        result: list[BaseLaw | _RelationSpec] = []
+        result: list[BaseLaw | _Relation] = []
         for law in laws:
             if isinstance(law, KERNEL_FREE_LAWS):
                 result.append(law)
@@ -520,13 +518,13 @@ class OrdersPass(BasePass):
         return solve
 
     @staticmethod
-    def _get_checked_relations(specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]) -> list[_RelationSpec]:
+    def _get_checked_relations(specs: list[tuple[KernelSpec, list[BaseLaw | _Relation]]]) -> list[_Relation]:
         """Return the relations of specs with those of one target added.
 
         Each is checked for a highest derivative.
         """
         relations = OrdersPass._get_summed(
-            [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)],
+            [item for _, laws in specs for item in laws if isinstance(item, _Relation)],
         )
         for relation in relations:
             OrdersPass._check_relation(relation)
@@ -534,14 +532,14 @@ class OrdersPass(BasePass):
 
     @staticmethod
     def _solve_equations(
-        specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+        specs: list[tuple[KernelSpec, list[BaseLaw | _Relation]]],
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return specs whose equations are replaced by rate laws on highest derivatives.
 
         They are the highest derivatives the equations solve for jointly.
         """
         relations = OrdersPass._get_checked_relations(specs)
-        kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]
+        kept = [(spec, [law for law in laws if not isinstance(law, _Relation)]) for spec, laws in specs]
         if not relations:
             return kept
         highest: dict[Expression, Expression] = {}
@@ -593,7 +591,7 @@ class OrdersPass(BasePass):
         return [*kept, (merged, laws)]
 
     @staticmethod
-    def _get_exact_solution(relations: list[_RelationSpec]) -> list[Expression] | None:
+    def _get_exact_solution(relations: list[_Relation]) -> list[Expression] | None:
         """Return the unique explicit solution of static equations for their targets.
 
         It is `None` when Sage finds none.
@@ -617,16 +615,16 @@ class OrdersPass(BasePass):
 
     @staticmethod
     def _solve_static(
-        specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+        specs: list[tuple[KernelSpec, list[BaseLaw | _Relation]]],
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return specs whose equations are replaced by updates or residual rates.
 
         The updates are those of an exact solution, and else the rates are those of their residuals. An equation without
         a state as its target is left out, since the compiler reports it.
         """
-        declared = [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)]
+        declared = [item for _, laws in specs for item in laws if isinstance(item, _Relation)]
         relations = OrdersPass._get_summed([item for item in declared if item.key is not None])
-        kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]
+        kept = [(spec, [law for law in laws if not isinstance(law, _Relation)]) for spec, laws in specs]
         if not relations:
             return kept
         values = OrdersPass._get_exact_solution(relations)

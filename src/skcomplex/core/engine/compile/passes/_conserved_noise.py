@@ -13,12 +13,11 @@ from ....components.spaces import LatticeSpace
 from ....errors import ValidationError
 from ....types import Indices
 from ...enums import ReadKind
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._field_element import _FieldElement
 from ...problems._law_kernel import _NoiseProcess, _Output
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation, Laws, _CensusRecord
+from .._compilation import Compilation, Laws, _CensusRecord, _Declarations
 from .._field_lowering import FieldLowering
 from .._issue_spec import IssueSpec
 
@@ -59,7 +58,7 @@ class ConservedNoisePass(BasePass):
         compilation.outputs = self._get_conserved_outputs(reduced, declarations)
 
     @staticmethod
-    def _get_conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[_Output]]:
+    def _get_conserved_outputs(specs: Laws, declarations: _Declarations) -> dict[int, list[_Output]]:
         """Return the outputs of every conserved noise law, by law identity.
 
         There is one process per link of its field.

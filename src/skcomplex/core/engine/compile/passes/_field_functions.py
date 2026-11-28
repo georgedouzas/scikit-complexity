@@ -21,18 +21,15 @@ from ....types import Array, VectorFunction
 from ..._utils import declarations_of
 from ...enums import ReadKind
 from ...problems import LayoutSpec, RunStateSpec
-from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._field_element import _FieldElement
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
 from ...problems._jacobian_kernel import _Symmetry
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
-from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block, _Declarations, _ProblemFunctions
 from .._flux_law import _FluxLaw
 
 PAIR = 2
@@ -107,7 +104,7 @@ class FieldFunctionsPass(BasePass):
     @staticmethod
     def _compile_fluxes(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> tuple[FiniteVolumeKernel, ...]:
         """Return the conservation laws of every finite-volume field.
 
@@ -135,7 +132,7 @@ class FieldFunctionsPass(BasePass):
         return tuple(volumes)
 
     @staticmethod
-    def _get_mesh_constraints(blocks: list[BlockSpec]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
+    def _get_mesh_constraints(blocks: list[_Block]) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]]:
         """Return the state indices and values of the fixed boundary nodes.
 
         They are the boundary nodes of finite element fields with fixed boundaries.
@@ -185,7 +182,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _get_symmetries(
-        blocks: list[BlockSpec],
+        blocks: list[_Block],
     ) -> list[_Symmetry]:
         """Return the mirror symmetries of the field states."""
         found = []
@@ -275,12 +272,12 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _copy_with_discretizations(
-        functions: _ProblemFunctionsSpec,
+        functions: _ProblemFunctions,
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
-        blocks: list[BlockSpec],
+        declarations: _Declarations,
+        blocks: list[_Block],
     ) -> tuple[
-        _ProblemFunctionsSpec,
+        _ProblemFunctions,
         tuple[FiniteVolumeKernel, ...],
         tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]],
     ]:
@@ -575,7 +572,7 @@ class FieldFunctionsPass(BasePass):
     def _get_parameter_reads(
         parameters: Sequence[ReferenceSpec],
         references: Mapping[Expression, ReferenceSpec],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         owner: str,
     ) -> tuple[Callable[[float, Array, Array], object] | None, ...]:
         """Return the function that reads every flux value held by no vector.
@@ -606,7 +603,7 @@ class FieldFunctionsPass(BasePass):
         laws: Sequence[tuple[_FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         place: _FieldElement,
         owner: str,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> FiniteVolumeKernel:
         """Return the conservation laws of one finite-volume field.
 

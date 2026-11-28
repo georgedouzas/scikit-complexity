@@ -9,9 +9,9 @@ import scipy.sparse
 from ....components.spaces import CellComplexSpace, LatticeSpace
 from ....errors import SpaceError
 from ....types import Array
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._declared_element import _DeclaredElement
 from ...problems._group_element import _GroupElement
+from .._compilation import _Declarations
 
 DEGREES = {'sites': 0, 'edges': 1, 'hyperedges': 2}
 PARTS = tuple(DEGREES)
@@ -40,7 +40,7 @@ class CellTables:
     """
 
     @staticmethod
-    def _get_star(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> Array:
+    def _get_star(space: CellComplexSpace, degree: int, declarations: _Declarations) -> Array:
         """Return the diagonal of the Hodge star of a degree.
 
         On a network complex, it holds the weights of the group, a parameter of its class or a value of a plain
@@ -101,7 +101,7 @@ class CellTables:
     def get_codifferential_of(
         space: CellComplexSpace,
         degree: int,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> scipy.sparse.csr_array:
         """Return the matrix `(-1)^k star^-1 d^T star` of the codifferential of degree `k`.
 
@@ -135,7 +135,7 @@ class CellTables:
     def get_hodge_star_of(
         space: CellComplexSpace,
         degree: int,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> scipy.sparse.csr_array:
         """Return the diagonal matrix of the Hodge star of a degree.
 
@@ -156,7 +156,7 @@ class CellTables:
         return CellTables._get_diagonal(CellTables._get_star(space, degree, declarations))
 
     @staticmethod
-    def get_group_at(space: CellComplexSpace, degree: int, declarations: DeclarationsSpec) -> str:
+    def get_group_at(space: CellComplexSpace, degree: int, declarations: _Declarations) -> str:
         """Return the path of a group on the cells of a degree.
 
         It is an empty path without one.

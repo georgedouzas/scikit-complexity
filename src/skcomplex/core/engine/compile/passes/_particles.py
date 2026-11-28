@@ -12,10 +12,9 @@ from ....components.laws.utils import either, mod, where
 from ....components.spaces import ContinuousSpace
 from ....enums import VariableKind
 from ..._utils import components_of, declarations_of
-from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block
 
 
 class BoundaryLawsPass(BasePass):
@@ -54,7 +53,7 @@ class BoundaryLawsPass(BasePass):
         ]
 
     @staticmethod
-    def _get_space_boundary_laws(block: BlockSpec, spec: KernelSpec) -> list[BaseLaw]:
+    def _get_space_boundary_laws(block: _Block, spec: KernelSpec) -> list[BaseLaw]:
         """Return the laws by which a continuous space boundary acts on a component.
 
         It acts on the position states of the component: a vector position, or a scalar value named after an axis of

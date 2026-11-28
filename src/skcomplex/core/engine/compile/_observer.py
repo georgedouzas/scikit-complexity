@@ -18,11 +18,8 @@ from ...errors import ValidationError
 from .._utils import vector
 from ..enums import ReadKind
 from ..problems import ProblemSpec
-from ..problems._block_spec import BlockSpec
-from ..problems._declarations_spec import DeclarationsSpec
-from ..problems._node_spec import _NodeSpec
-from ..problems._observed_spec import ObservedSpec
 from ..problems._reference_spec import ReferenceSpec
+from ._compilation import _Block, _Declarations, _Node
 from ._observables import Declared, ObservableEvaluator
 
 REDUCERS: dict[str, Callable[..., Expression]] = {
@@ -34,7 +31,7 @@ REDUCERS: dict[str, Callable[..., Expression]] = {
 }
 
 
-class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
+class Observer(BaseConfig[None, tuple[_Node, object]]):
     """An observer that gives the values of the observables that laws read.
 
     A law may read an observable of the system, such as the mean opinion of a crowd that pulls every person towards it.
@@ -56,8 +53,8 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
             The value of every evaluated observable with the references of the symbols it reads, by path.
 
         observed_:
-            The namespace of the observable the last run's role binds to with the references of its symbols, or `None`
-            for a role bound to no live observable.
+            The namespace the expression of the observable the last run's role binds to reads, with the value every
+            symbol of it stands for, or `None` for a role bound to no live observable.
 
     See Also:
         ObservableEvaluator: Computes the observables a run records.
@@ -72,9 +69,9 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
     """
 
     values_: dict[str, tuple[object, dict[Expression, ReferenceSpec]]]
-    observed_: ObservedSpec | None
+    observed_: tuple[SimpleNamespace, dict[Expression, ReferenceSpec]] | None
 
-    def __init__(self, declarations: DeclarationsSpec, live: Declared) -> None:
+    def __init__(self, declarations: _Declarations, live: Declared) -> None:
         self.declarations = declarations
         self.live = live
 
@@ -87,7 +84,7 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         """
         self.values_ = {}
 
-    def _run(self, inputs: tuple[_NodeSpec, object] | None) -> None:
+    def _run(self, inputs: tuple[_Node, object] | None) -> None:
         """Set the namespace of the observable a role binds to.
 
         It is `None` for a role bound to no live observable.
@@ -110,7 +107,7 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
             return
         scope, observable = self.live[path]
         value, references = self._get_value(path, scope, observable)
-        self.observed_ = ObservedSpec(SimpleNamespace(value=value), dict(references))
+        self.observed_ = SimpleNamespace(value=value), dict(references)
 
     def _get_system_value(
         self,
@@ -176,7 +173,7 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         return BaseInteraction._get_translated(value, time, functions, False)
 
     @staticmethod
-    def _get_source_of(block: BlockSpec) -> ReadKind:
+    def _get_source_of(block: _Block) -> ReadKind:
         """Return how laws read the variables of a block from outside it.
 
         A group is read per member.
@@ -184,7 +181,7 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         return ReadKind.MEMBER if block.node.members is not None else ReadKind.SINGLE
 
     @staticmethod
-    def _get_namespace_of(block: BlockSpec) -> SimpleNamespace:
+    def _get_namespace_of(block: _Block) -> SimpleNamespace:
         """Return the namespace of the variables of a block.
 
         Per-entry parameters and tensor states are tuples.
@@ -199,7 +196,7 @@ class Observer(BaseConfig[None, tuple[_NodeSpec, object]]):
         return SimpleNamespace(**symbols)
 
     @staticmethod
-    def _get_reduced_value(path: str, observable: Observable, block: BlockSpec, time: Expression) -> object:
+    def _get_reduced_value(path: str, observable: Observable, block: _Block, time: Expression) -> object:
         """Return an observable that reduces a group over its member symbols.
 
         The expression of one member reads its states as functions of the time `time`, so it may read their

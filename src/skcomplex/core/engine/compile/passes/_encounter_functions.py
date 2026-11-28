@@ -11,9 +11,8 @@ from ....errors import PipelineError
 from ....types import Array, VectorFunction
 from ...problems import RunStateSpec
 from ...problems._encounter_kernel import EncounterKernel
-from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _ProblemFunctions
 
 
 class EncounterFunctionsPass(BasePass):
@@ -55,10 +54,10 @@ class EncounterFunctionsPass(BasePass):
 
     @staticmethod
     def _copy_with_encounters(
-        functions: _ProblemFunctionsSpec,
+        functions: _ProblemFunctions,
         encounters: tuple[EncounterKernel, ...],
         size: int,
-    ) -> _ProblemFunctionsSpec:
+    ) -> _ProblemFunctions:
         """Add the gain and loss rates of encounter laws to the drift.
 
         The drift then runs outside compiled steppers.

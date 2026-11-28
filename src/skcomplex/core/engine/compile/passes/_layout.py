@@ -27,15 +27,12 @@ from ....errors import LabelError, SpaceError, ValidationError
 from ....types import Array
 from ..._utils import binding_of, components_of, declarations_of, default_of, symbol, vector
 from ...enums import ReadKind
-from ...problems._block_spec import BlockSpec
 from ...problems._compiled_element_spec import _Variable
-from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._field_element import _FieldElement
 from ...problems._group_element import _GroupElement
-from ...problems._node_spec import _NodeSpec
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation, _CensusRecord
+from .._compilation import ACTIVE, ENDS, MEMBERS, Compilation, _Block, _CensusRecord, _Declarations, _Node
 
 HIDDEN_MEMBERS = '~members'
 MATRIX_AXES = 2
@@ -74,7 +71,7 @@ class LayoutPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Declare the components of the nodes."""
         compilation = self.compilation_
-        declarations = DeclarationsSpec(time=symbol('t'))
+        declarations = _Declarations(time=symbol('t'))
         nodes = Compilation._get_required(compilation.nodes, 'nodes')
         groups = LayoutPass._get_group_sizes(nodes)
         trained = frozenset(compilation.trained)
@@ -88,9 +85,9 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _copy_with_program_values(
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         records: Sequence[_CensusRecord],
-    ) -> DeclarationsSpec:
+    ) -> _Declarations:
         """Return the declarations with the hidden states of linear programs.
 
         The states record the objective values and duals of linear programs. Every partition compiles the same layout,
@@ -125,7 +122,7 @@ class LayoutPass(BasePass):
         return declarations
 
     @staticmethod
-    def _check_symbol_names(blocks: Mapping[str, BlockSpec]) -> None:
+    def _check_symbol_names(blocks: Mapping[str, _Block]) -> None:
         """Raise an error when two variables produce the same symbol name."""
         seen: dict[str, str] = {}
         for block in blocks.values():
@@ -142,17 +139,17 @@ class LayoutPass(BasePass):
                 seen[name] = reference.entry.name
 
     @staticmethod
-    def _get_group_sizes(nodes: list[_NodeSpec]) -> dict[str, int]:
+    def _get_group_sizes(nodes: list[_Node]) -> dict[str, int]:
         """Return the number of members of every group of a system tree, by path."""
         return {node.path: node.members for node in nodes if node.members is not None and not node.interaction}
 
     @staticmethod
     def _declare_component(
-        declarations: DeclarationsSpec,
-        node: _NodeSpec,
+        declarations: _Declarations,
+        node: _Node,
         groups: Mapping[str, int],
         trained: frozenset[str] = frozenset(),
-    ) -> tuple[DeclarationsSpec, BlockSpec]:
+    ) -> tuple[_Declarations, _Block]:
         """Return the declarations with a component added, and the block of the component.
 
         The states and parameters of the component are added. A parameter that a training trains is adaptive, a state
@@ -179,7 +176,7 @@ class LayoutPass(BasePass):
             block:
                 The block of the component.
         """
-        block = BlockSpec(node)
+        block = _Block(node)
         states = {} if node.is_agent else declarations_of(node.component_type, VariableKind.STATE)
         shaped = LayoutPass._get_member_shaped(node, groups)
         parameters = {**declarations_of(node.component_type, VariableKind.PARAMETER), **shaped}
@@ -209,7 +206,7 @@ class LayoutPass(BasePass):
         return replace(declarations, blocks={**declarations.blocks, node.path: block}), block
 
     @staticmethod
-    def _declare_activity(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
+    def _declare_activity(declarations: _Declarations, block: _Block) -> tuple[_Declarations, _Block]:
         """Return the declarations and block with the activity of a growing or bare group."""
         node = block.node
         if node.active is not None:
@@ -219,7 +216,7 @@ class LayoutPass(BasePass):
         return declarations, block
 
     @staticmethod
-    def _is_bare_group(node: _NodeSpec, block: BlockSpec) -> bool:
+    def _is_bare_group(node: _Node, block: _Block) -> bool:
         """Return whether a block is a group with no values, such as network nodes.
 
         Such a group gets the activity of its members, so a law can count them with `count(over=s.target)`, such as
@@ -230,7 +227,7 @@ class LayoutPass(BasePass):
         return on_nodes and node.members is not None and not block.symbols
 
     @staticmethod
-    def _declare_processes(declarations: DeclarationsSpec, node: _NodeSpec) -> DeclarationsSpec:
+    def _declare_processes(declarations: _Declarations, node: _Node) -> _Declarations:
         """Return the declarations with a block of Wiener process handles.
 
         The block holds the handle `dW` of every Wiener process an interaction binds.
@@ -245,19 +242,19 @@ class LayoutPass(BasePass):
                 if wiener.dimension == 1
                 else vector(symbol(f'{base}_{index}') for index in range(wiener.dimension))
             )
-            process = _NodeSpec(path, node.scope, wiener, node.space, WienerProcessSpec, interaction=True)
-            processes[path] = BlockSpec(process, {'dW': handle})
+            process = _Node(path, node.scope, wiener, node.space, WienerProcessSpec, interaction=True)
+            processes[path] = _Block(process, {'dW': handle})
             for index, item in enumerate(components_of(handle)):
                 handles[item] = (path, index)
         return replace(declarations, processes=processes, handles=handles)
 
     @staticmethod
     def _copy_with_entry(
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         entry: EntrySpec,
         value: Array,
         is_state: bool,
-    ) -> DeclarationsSpec:
+    ) -> _Declarations:
         """Return the declarations with an entry and its initial value added.
 
         They are added to the states or the parameters.
@@ -276,12 +273,12 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _declare(
-        declarations: DeclarationsSpec,
-        block: BlockSpec,
+        declarations: _Declarations,
+        block: _Block,
         variable: str,
         declaration: _Variable,
         is_state: bool,
-    ) -> tuple[DeclarationsSpec, BlockSpec]:
+    ) -> tuple[_Declarations, _Block]:
         """Return the declarations and the block with one variable of a component added."""
         node = block.node
         name = f'{node.path}.{variable}'
@@ -328,7 +325,7 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _get_role_shape(
-        node: _NodeSpec,
+        node: _Node,
         variable: str,
         declaration: _Variable,
         groups: Mapping[str, int],
@@ -373,7 +370,7 @@ class LayoutPass(BasePass):
         return tuple(shape)
 
     @staticmethod
-    def _get_member_shaped(node: _NodeSpec, groups: Mapping[str, int]) -> dict[str, _Variable]:
+    def _get_member_shaped(node: _Node, groups: Mapping[str, int]) -> dict[str, _Variable]:
         """Return the matrix arguments of an interaction shaped by the sizes of its groups.
 
         An argument given as an array of two or more axes, each as long as a group bound to a role of the interaction,
@@ -410,12 +407,12 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _declare_shaped(
-        declarations: DeclarationsSpec,
-        block: BlockSpec,
+        declarations: _Declarations,
+        block: _Block,
         variable: str,
         shape: tuple[int, ...],
         declaration: _Variable,
-    ) -> tuple[DeclarationsSpec, BlockSpec]:
+    ) -> tuple[_Declarations, _Block]:
         """Return the declarations and the block with a shaped parameter added.
 
         The parameter is one of a component. The parameter takes one block of the vector in row-major order, which laws
@@ -442,9 +439,9 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _declare_coordinates(
-        declarations: DeclarationsSpec,
-        block: BlockSpec,
-    ) -> tuple[DeclarationsSpec, BlockSpec]:
+        declarations: _Declarations,
+        block: _Block,
+    ) -> tuple[_Declarations, _Block]:
         """Return the declarations and block with the hidden class coordinate parameters.
 
         There is a parameter of every class coordinate at every site.
@@ -471,7 +468,7 @@ class LayoutPass(BasePass):
         return declarations, block
 
     @staticmethod
-    def _declare_agents(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
+    def _declare_agents(declarations: _Declarations, block: _Block) -> tuple[_Declarations, _Block]:
         """Return the declarations and block with the symbols agent reductions read.
 
         The reductions are those of an agent group. The symbols are the members, the scalar states, and the scalar
@@ -497,11 +494,11 @@ class LayoutPass(BasePass):
 
     @staticmethod
     def _declare_hidden(
-        declarations: DeclarationsSpec,
-        block: BlockSpec,
+        declarations: _Declarations,
+        block: _Block,
         variable: str,
         values: Array,
-    ) -> tuple[DeclarationsSpec, BlockSpec]:
+    ) -> tuple[_Declarations, _Block]:
         """Return the declarations and block with a hidden parameter.
 
         The parameter has one value, or one row per member of a group. Laws read the parameter as `s.<variable>`, a
@@ -528,7 +525,7 @@ class LayoutPass(BasePass):
         )
 
     @staticmethod
-    def _declare_topology(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
+    def _declare_topology(declarations: _Declarations, block: _Block) -> tuple[_Declarations, _Block]:
         """Return the declarations and block with the activity of every row.
 
         The rows are those of a capacity group. A group on edges also gets the ends of every edge, and a group on
@@ -565,7 +562,7 @@ class LayoutPass(BasePass):
         return declarations, block
 
     @staticmethod
-    def _get_members(node: _NodeSpec, space: NetworkSpace) -> Array:
+    def _get_members(node: _Node, space: NetworkSpace) -> Array:
         """Return the member nodes of every row of a variable group on hyperedges.
 
         The free rows hold zeros. A group with a rank holds a column per member of its largest hyperedge, and a smaller
@@ -619,7 +616,7 @@ class LayoutPass(BasePass):
         return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
 
     @staticmethod
-    def _get_value_of(node: _NodeSpec, variable: str) -> object:
+    def _get_value_of(node: _Node, variable: str) -> object:
         """Return the value of a variable of a component.
 
         For a group without it, it is the default of the element type.
@@ -657,7 +654,7 @@ class LayoutPass(BasePass):
         return value
 
     @staticmethod
-    def _get_per_entry_shape(node: _NodeSpec, variable: str, declaration: _Variable) -> tuple[int, ...]:
+    def _get_per_entry_shape(node: _Node, variable: str, declaration: _Variable) -> tuple[int, ...]:
         """Return the shape of a parameter with one value per entry of a variadic role.
 
         It first checks its length.
@@ -873,7 +870,7 @@ class LayoutPass(BasePass):
         return np.ascontiguousarray(flat).view(float) if domain is CC else np.asarray(flat, dtype=float)
 
     @staticmethod
-    def _get_noise_processes(nodes: list[_NodeSpec]) -> dict[str, WienerProcessSpec]:
+    def _get_noise_processes(nodes: list[_Node]) -> dict[str, WienerProcessSpec]:
         """Return the Wiener processes bound by the noise roles of a tree, by path.
 
         The noise roles are those of the interactions of a system tree. Interactions of one system that bind processes
