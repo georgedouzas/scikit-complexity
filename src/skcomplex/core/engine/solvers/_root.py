@@ -5,6 +5,8 @@
 
 import numpy as np
 from scipy.optimize import root
+from scipy.sparse import csc_matrix
+from scipy.sparse.linalg import splu
 
 from ...components.laws import ConstraintLaw
 from ...components.laws._linear_program import _LinearProgramLaw
@@ -18,22 +20,25 @@ from ..problems import ProblemSpec, RunStateSpec
 from ..problems._jacobian_kernel import JacobianKernel
 from ._solver import Solver
 
+NEWTON_STEPS = 50
+
 
 class RootSolver(Solver):
     """A solver of the equations of a static system, solved once.
 
     It solves the constraint laws once for the one frame of the run, such as the outputs 3.33 and 2.33 at which two
     firms of a market both make their best reply. It takes the exact solution when Sage finds a unique one, and
-    otherwise solves the equations with `scipy.optimize.root` and their exact Jacobian from the starting values. A
-    system without equations keeps its starting values. It finds the equilibria of markets, the balance of forces in a
-    truss, and the steady state of a reaction.
+    otherwise solves the equations from the starting values with their exact Jacobian, by Newton steps on the sparse
+    Jacobian and then by `scipy.optimize.root`. A system without equations keeps its starting values. It finds the
+    equilibria of markets, the balance of forces in a truss, and the steady state of a reaction.
 
     Read more in the user guide, under Solvers.
 
     Args:
         method:
-            The method of `scipy.optimize.root`, or `'auto'` for `'hybr'` with a second try by `'lm'` from the same
-            starting values when it does not converge, as an exponential diode from zero volts needs.
+            The method of `scipy.optimize.root`, or `'auto'` for Newton steps on the sparse Jacobian, whose cost grows
+            with the number of nonzero entries, then `'hybr'`, then `'lm'`, each from the same starting values when the
+            one before does not converge, as an exponential diode from zero volts needs.
 
         tolerance:
             The largest residual of a solution.
@@ -102,13 +107,33 @@ class RootSolver(Solver):
             raise SolverError(error_msg)
         return kernel
 
-    def _get_jacobian(self, unknowns: Array, x: Array, p: Array) -> Array:
-        """Return the exact Jacobian of the residuals in their unknowns."""
+    def _get_sparse_jacobian(self, unknowns: Array, x: Array, p: Array) -> csc_matrix:
+        """Return the exact Jacobian of the residuals in their unknowns as a sparse matrix."""
         indices = self.problem_.unknowns
         state = x.copy()
         state[indices] = unknowns
         matrix = self._get_kernel().run(RunStateSpec(0.0, state, p)).values_
-        return np.asarray(matrix.toarray(), dtype=float)[np.ix_(indices, indices)]
+        return csc_matrix(csc_matrix(matrix)[indices][:, indices], dtype=float)
+
+    def _get_jacobian(self, unknowns: Array, x: Array, p: Array) -> Array:
+        """Return the exact Jacobian of the residuals in their unknowns."""
+        return np.asarray(self._get_sparse_jacobian(unknowns, x, p).toarray(), dtype=float)
+
+    def _get_newton_solved(self, x: Array, p: Array) -> Array | None:
+        """Return the unknowns that Newton steps reach, or `None` if they do not converge."""
+        unknowns = x[self.problem_.unknowns].astype(float)
+        for _ in range(NEWTON_STEPS):
+            residuals = self._get_residuals(unknowns, x, p)
+            if not np.all(np.isfinite(residuals)):
+                return None
+            if float(np.max(np.abs(residuals))) <= self.tolerance:
+                return unknowns
+            try:
+                step = splu(self._get_sparse_jacobian(unknowns, x, p)).solve(residuals)
+            except RuntimeError:
+                return None
+            unknowns = unknowns - step
+        return None
 
     def _get_solved(self, x: Array, p: Array) -> Array:
         """Return the state vector that solves the equations.
@@ -120,6 +145,11 @@ class RootSolver(Solver):
         if not indices.size:
             return np.asarray(problem.update(0.0, x, p), dtype=float) if problem.update is not None else x
         self._get_kernel().prepare(problem)
+        solution = x.copy()
+        newton = self._get_newton_solved(x, p) if self.method == 'auto' else None
+        if newton is not None:
+            solution[indices] = newton
+            return solution
         methods = ('hybr', 'lm') if self.method == 'auto' else (self.method,)
         for method in methods:
             result = root(
@@ -141,7 +171,6 @@ class RootSolver(Solver):
                 'solution, or check that one exists.'
             )
             raise SolverError(error_msg)
-        solution = x.copy()
         solution[indices] = result.x
         return solution
 

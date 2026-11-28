@@ -727,8 +727,12 @@ class ContactProcessSystem(BaseSystem):
 
     The process survives above a critical infection rate near 1.65.
 
-    Below the critical rate the infection dies out and the lattice falls into the absorbing healthy state. The system
-    has the infections `lattice.infected`.
+    Below the critical rate the infection dies out and the lattice falls into the absorbing healthy state. Every step
+    updates all sites at once over a time slice `tau`, so the critical rate depends on `tau`. It approaches the value
+    1.64872 of the contact process in continuous time on the square lattice as `tau` shrinks. Locate it for a given
+    `tau` as the rate at which the density of infected sites, started from a full lattice, decays as a power law of
+    time, `t^(-0.451)` in two dimensions, while it bends down below that rate and levels off above it. Fit the
+    exponents of the transition with that rate. The system has the infections `lattice.infected`.
 
     Args:
         shape:
@@ -738,7 +742,7 @@ class ContactProcessSystem(BaseSystem):
             The infection rate.
 
         tau:
-            The time slice of one step.
+            The time slice of one step, which shifts the critical rate.
 
         infected:
             The initial fraction of infected sites.
