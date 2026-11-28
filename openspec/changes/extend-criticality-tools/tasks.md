@@ -32,14 +32,14 @@
 
 ## 4. Fires, jams and branching avalanches (#77)
 
-- [ ] 4.1 Label the update of `FireInteraction` `'fire'` with the activity of burning sites, add `boundary` to
+- [x] 4.1 Label the update of `FireInteraction` `'fire'` with the activity of burning sites, add `boundary` to
   `ForestFireSystem`, and test the corner fire, the strip and the driven forest in
   `tests/systems/physics/criticality/test_criticality.py`
 - [x] 4.2 Give the movement law of `NagelSchreckenbergInteraction` the activity of stopped cars and the label `'jam'`,
   and test the dissolving queue in `tests/systems/engineering/traffic/test_traffic.py`
 - [x] 4.3 Give the update of `z` in `BranchingInteraction` the activity and the label `'avalanche'`, add the state
   `sigma`, and test the profiles and the balance of dissipation in `tests/systems/physics/criticality/test_sandpiles.py`
-- [ ] 4.4 Update the docstrings of the three systems and the gallery examples
+- [x] 4.4 Update the docstrings of the three systems and the gallery examples
   `docs/examples/physics/criticality/plot_forest_fire.py` and `plot_self_organized_branching.py` to read the events,
   and verify that the examples run
 

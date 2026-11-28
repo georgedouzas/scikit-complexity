@@ -12,7 +12,9 @@ tree, or burning, with fire fronts sweeping through the older, denser stands.
 # per step. The observer saves every second step with the default blueprint, whose primary view shows the cells.
 
 import matplotlib.pyplot as plt
+import numpy as np
 
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.criticality import ForestFireSystem
 
@@ -40,5 +42,24 @@ ax.set_xlabel('step')
 ax.set_ylabel('density of trees')
 ax.set_title('The forest settles below the percolation threshold')
 ax.legend()
+fig.tight_layout()
+plt.show()
+
+# %%
+# Sizes of fires
+# --------------
+# Every fire is a `fire` event of the run, the burning trees connected in space and time, with its size, the number of
+# trees that burn. Rare lightning lets the forest grow large stands between strikes, so the sizes of the fires should
+# spread over several decades.
+
+sizes = np.asarray([event.size for event in steady.events if event.time > 1000])
+histogram = distribution(sizes, kind='histogram', bins=20, log=True)
+centers = np.sqrt(histogram.edges[1:] * histogram.edges[:-1])
+
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.loglog(centers[histogram.density > 0], histogram.density[histogram.density > 0], 'o')
+ax.set_xlabel('size of a fire, trees')
+ax.set_ylabel('density')
+ax.set_title(f'{sizes.size} fires of the steady forest')
 fig.tight_layout()
 plt.show()

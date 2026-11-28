@@ -156,6 +156,7 @@ class FireInteraction(Interaction):
 
     Every step a tree catches fire from a burning neighbour or from lightning with the probability `lightning` of the
     site, a burning site becomes empty, and a tree grows on an empty site with the probability `growth` of the site.
+    The rule, labelled `fire`, records every fire as a `fire` event, the burning sites connected in space and time.
 
     Args:
         label:
@@ -466,7 +467,9 @@ class HexagonalForestFireSystem(BaseSystem):
     The hexagonal cells form a triangular lattice, and on a graph the sites are its nodes.
 
     Every site of the periodic triangular lattice has six neighbours, and every node of a graph has the neighbours along
-    its edges. Slow growth and rare lightning give fires of every size. The system has the covers `forest.cover`.
+    its edges. Slow growth and rare lightning give fires of every size. Every fire is recorded as a `fire` event, the
+    burning sites connected in space and time along the neighbours of the cells or the edges of the graph, whose size
+    is the number of trees that burn. The system has the covers `forest.cover`.
 
     Args:
         shape:
