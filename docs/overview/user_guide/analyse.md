@@ -902,10 +902,32 @@ triangles.
 
 `network_measures` measures the network of a graph, or of every frame of a trajectory, by its `kind`:
 
-- the `'degrees'`, with their moments and tail exponent,
-- the `'assortativity'`, the `'centrality'`, the `'neighbor-degree'`, and the `'summary'`,
-- the `'communities'`, by Louvain modularity maximization or label propagation, with their agreement with a reference
-  partition.
+- the `'degrees'`, with their moments and tail exponent, and the in and out degrees of a directed graph,
+- the `'assortativity'`, the `'centrality'`, Katz and edge betweenness among them, and the `'neighbor-degree'`,
+- the `'summary'`, of the `measures` chosen, with the transitivity and the reciprocity, and with the mean path length
+  estimated from `samples` seeded sources on a large graph,
+- the `'spectrum'`, the adjacency and Laplacian eigenvalues, the algebraic connectivity with its Fiedler vector, the
+  spectral radius, whose inverse is the epidemic threshold, and the modularity matrix,
+- the `'communities'`, by Louvain modularity maximization, label propagation, Girvan-Newman, or the leading eigenvector
+  of the modularity matrix, with their agreement with a reference partition,
+- the `'modularity'` of a given `partition`.
+
+The communities, the modularity, and the spectrum read the edge attribute `weight`, and `weight=None` treats the graph
+as unweighted.
+
+```python
+import networkx as nx
+
+from skcomplex.core.analysis import network_measures
+
+club = nx.karate_club_graph()
+factions = network_measures(club, kind='modularity', partition='club', weight=None)
+spectrum = network_measures(club, kind='spectrum', weight=None)
+factions.modularity.round(2).tolist(), round(1 / spectrum.spectral_radius[0], 2)
+```
+
+The two factions that split the club have modularity 0.36, and an epidemic spreads on the unweighted club above the
+threshold 0.15 of the ratio of the infection rate to the recovery rate.
 
 `motifs` counts motifs of three and four nodes, and scores them against degree-preserving edge switches or the
 configuration model. The system `network_structure_analysis` records a network with these measures.
