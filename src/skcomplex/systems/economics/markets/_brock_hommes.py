@@ -7,14 +7,12 @@ Its traders switch between forecasting heuristics.
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
 from typing import Annotated, ClassVar, Protocol, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.types import AgentViewProtocol
@@ -22,7 +20,7 @@ from ....core.engine.backends import BaseBackend
 from ....core.engine.compile import PhaseSpec
 from ....core.engine.solvers import BaseSolver, MesaSolver, SystemView
 from ....core.systems import BaseSystem, System
-from ....core.types import Array, Role
+from ....core.types import Role
 from ...general.agents import ChoiceInteraction
 from ..common.forecasting import heuristics
 from ..common.learning import PayoffLearningInteraction
@@ -30,24 +28,6 @@ from ..common.policy import PolicyRuleInteraction
 
 PREDICTORS = ('fundamentalist', 'trend')
 PRICING = 'pricing'
-
-
-@dataclass(frozen=True)
-class _MarketStateSpec(BaseSpec):
-    """Last two prices and forecasts of the market.
-
-    Its institution keeps them in the storage of the system.
-
-    Args:
-        history:
-            The last two deviations of the price, or the initial one.
-
-        forecasts:
-            The forecasts of the heuristics at the last step, or `None` before the first.
-    """
-
-    history: tuple[float, ...]
-    forecasts: Array | None = None
 
 
 class HeuristicTraderView(AgentViewProtocol, Protocol):
@@ -230,23 +210,23 @@ class HeuristicPricingInteraction(PolicyRuleInteraction[SystemView]):
         """
         rate, strength = system.get_parameter('rate'), system.get_parameter('strength')
         state = system.storage.get('market')
-        if not isinstance(state, _MarketStateSpec):
-            state = _MarketStateSpec((system.get_parameter('initial'),))
-        history = list(state.history)
+        if not isinstance(state, tuple):
+            state = ((system.get_parameter('initial'),), None)
+        last, previous = state
+        history = list(last)
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
         traders = cast(list[HeuristicTraderView], system.get_agents('traders'))
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = float(forecasts @ [1 - share, share] + system.rng.normal(0.0, system.get_parameter('noise'))) / rate
-        previous = state.forecasts
         excess = price - rate * history[-1]
         if previous is None:
             fitness = np.zeros(len(PREDICTORS))
         else:
             fitness = excess * (previous - rate * history[-1]) / system.get_parameter('risk')
         fitness -= [system.get_parameter('cost'), 0.0]
-        system.storage['market'] = _MarketStateSpec((history[-1], price), forecasts)
+        system.storage['market'] = ((history[-1], price), forecasts)
         system.report('deviation', price)
         system.report('trend_share', share)
         for name, value in zip(PREDICTORS, fitness, strict=True):

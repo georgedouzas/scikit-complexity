@@ -7,7 +7,6 @@ Foragers live on a landscape of regrowing sugar.
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from typing import Annotated, Protocol, runtime_checkable
 
 import numpy as np
@@ -15,7 +14,6 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
-from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
@@ -109,20 +107,6 @@ class SugarPatchView(AgentViewProtocol, Protocol):
     sugar: float
     capacity: float
     growback: float
-
-
-@dataclass(frozen=True)
-class _PatchMapSpec(BaseSpec):
-    """Patches of a run by cell.
-
-    The foragers build them once and keep them in the storage of the system.
-
-    Args:
-        patches:
-            The patch of every cell.
-    """
-
-    patches: Mapping[tuple[int, int], SugarPatchView]
 
 
 class SugarPatchElement(Element):
@@ -255,15 +239,14 @@ class SugarscapeSystem(BaseSystem):
     def _get_patches(system: SystemViewProtocol) -> Mapping[tuple[int, int], SugarPatchView]:
         """Return the patches by cell, built once per run in the storage of the movement."""
         cached = system.storage.get('patches')
-        if not isinstance(cached, _PatchMapSpec):
-            patches = {
+        if not isinstance(cached, dict):
+            cached = {
                 SugarscapeSystem._get_cell_of(patch.location): patch
                 for patch in system.get_agents('patches')
                 if isinstance(patch, SugarPatchView)
             }
-            cached = _PatchMapSpec(patches)
             system.storage['patches'] = cached
-        return cached.patches
+        return cached
 
     @staticmethod
     def _get_sugar(agent: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:

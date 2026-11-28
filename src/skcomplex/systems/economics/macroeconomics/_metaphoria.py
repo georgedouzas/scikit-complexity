@@ -8,7 +8,6 @@ The monetary economy has firms and a bank.
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated, ClassVar, Protocol, cast, runtime_checkable
 
@@ -17,7 +16,6 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.analysis import distribution
-from ....core.base import BaseSpec
 from ....core.components import Observable
 from ....core.components.elements import Element, Member, Quantity
 from ....core.components.interactions import BaseInteraction, Interaction
@@ -217,24 +215,6 @@ class SettlerView(AgentViewProtocol, Protocol):
     sight: float
     reserve: float
     monetary: float
-
-
-@dataclass(frozen=True)
-class _PeopleSpec(BaseSpec):
-    """Living people by id at one time.
-
-    The rules build them once per step and keep them in the storage of the system.
-
-    Args:
-        time:
-            The time the people were read at.
-
-        people:
-            The living people by id.
-    """
-
-    time: float
-    people: Mapping[int, SettlerView]
 
 
 class SettlerElement(Element):
@@ -645,13 +625,13 @@ class BusinessElement(Element):
         They are built once per step in the storage of the caller.
         """
         cached = system.storage.get('people')
-        if not isinstance(cached, _PeopleSpec) or cached.time != system.time:
+        if not isinstance(cached, tuple) or cached[0] != system.time:
             people = {
                 person.id: person for person in cast(list[SettlerView], system.get_agents('people')) if person.alive
             }
-            cached = _PeopleSpec(system.time, people)
+            cached = (system.time, people)
             system.storage['people'] = cached
-        return dict(cached.people)
+        return dict(cached[1])
 
 
 class ProductionInteraction(Interaction):
