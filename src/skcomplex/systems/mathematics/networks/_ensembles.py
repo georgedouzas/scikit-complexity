@@ -6,6 +6,7 @@ The robustness is that of networks.
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
@@ -131,6 +132,9 @@ class EnsembleNodeElement(Element):
         rate:
             The probability that the node adds an edge to a random node in a step.
 
+        position:
+            The place of the node on the ring of a Watts-Strogatz graph.
+
         space:
             The network whose nodes hold one member each, or `None` for one node.
 
@@ -148,11 +152,50 @@ class EnsembleNodeElement(Element):
         *,
         degree: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         rate: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
+        position: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, space=space)
         self.degree = degree
         self.rate = rate
+        self.position = position
+
+
+class LatticeLinkElement(Element):
+    """Link of a Watts-Strogatz graph, with the places of the two nodes it joined on the ring.
+
+    A link whose ends still sit at these places has not been rewired.
+
+    Args:
+        label:
+            The label of the link group.
+
+        first:
+            The place on the ring of the end of the link first in node order.
+
+        second:
+            The place on the ring of the other end of the link.
+
+        space:
+            The network whose links hold one member each, or `None` for one link.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import LatticeLinkElement
+        >>> LatticeLinkElement('links', first=0.0, second=1.0).second
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        second: Annotated[object, RealSet.closed_open(0, oo)] = 0.0,
+        space: BaseSpace | None = None,
+    ) -> None:
+        super().__init__(label, space=space, on='edges' if space is not None else None)
+        self.first = first
+        self.second = second
 
 
 class FailingElement(Element):
@@ -334,11 +377,13 @@ class RandomGraphEnsemblesSystem(BaseSystem):
     The graph is built one step of new edges at a time.
 
     The Erdős-Rényi graph starts empty and every node adds an edge to a random node with a probability that brings the
-    mean degree to `mean_degree` after `steps` steps, so a giant component emerges when the mean degree passes 1. The
-    Watts-Strogatz graph starts as a ring where every node joins its `mean_degree` nearest nodes, and every edge moves
-    its target to a random node at a rate that rewires a fraction `rewiring` of the edges after `steps` steps, which
-    shortens paths while the clustering stays high. The system has the groups `nodes` and `links`, the map `degree`, and
-    the interaction `linking` or `rewiring`.
+    mean degree to `mean_degree` after `steps` steps, so a giant component emerges when the mean degree passes 1. A node
+    adds at most one edge per step, so the construction takes at least `mean_degree / 2` steps. The Watts-Strogatz
+    graph starts as a ring where every node `i` joins its `mean_degree` nearest nodes, and every edge from `i` to
+    `i + j` not yet rewired keeps `i` and moves its other end to a random node at a rate that rewires a fraction
+    `rewiring` of the edges after `steps` steps, as `nx.watts_strogatz_graph` does. Every edge is rewired at most once,
+    so every node keeps at least `mean_degree / 2` edges, and paths shorten while the clustering stays high. The system
+    has the groups `nodes` and `links`, the map `degree`, and the interaction `linking` or `rewiring`.
 
     Args:
         n_nodes:
@@ -367,7 +412,7 @@ class RandomGraphEnsemblesSystem(BaseSystem):
 
     Raises:
         ValidationError:
-            The ensemble is unknown.
+            The ensemble is unknown, or the Erdős-Rényi mean degree needs more than `steps` steps.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import RandomGraphEnsemblesSystem
@@ -424,13 +469,20 @@ class RandomGraphEnsemblesSystem(BaseSystem):
 
         Raises:
             ValidationError:
-                The ensemble is unknown.
+                The ensemble is unknown, or the Erdős-Rényi mean degree needs more than `steps` steps.
         """
         super()._prepare(context)
         if self.ensemble not in ENSEMBLES:
             error_msg = f'Unknown ensemble {self.ensemble!r}. Use one of {", ".join(ENSEMBLES)}.'
             raise ValidationError(error_msg)
         if self.ensemble == 'erdos_renyi':
+            fewest = math.ceil(self.mean_degree / 2)
+            if self.steps < fewest:
+                error_msg = (
+                    f'A node adds at most one edge per step, so a mean degree of {self.mean_degree!r} needs at least '
+                    f'{fewest} steps, not {self.steps!r}. Give `steps` of at least {fewest}.'
+                )
+                raise ValidationError(error_msg)
             space = NetworkSpace(nx.empty_graph(self.n_nodes))
             rate = self.mean_degree / 2 / self.steps
             groups = RandomGraphEnsemblesSystem._get_variable_network(space, rate)
@@ -446,21 +498,41 @@ class RandomGraphEnsemblesSystem(BaseSystem):
                 space=space,
             )
             return
-        space = NetworkSpace(nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0))
+        ring = nx.watts_strogatz_graph(self.n_nodes, int(self.mean_degree), 0.0)
+        space = NetworkSpace(ring)
+        ends = np.sort(np.asarray(ring.edges(), dtype=float).reshape(-1, 2), axis=1)
+        nodes = EnsembleNodeElement('nodes', position=np.arange(self.n_nodes, dtype=float), space=space)
+        links = LatticeLinkElement('links', first=ends[:, 0], second=ends[:, 1], space=space)
         rate = 1 - (1 - self.rewiring) ** (1 / self.steps)
-        groups = RandomGraphEnsemblesSystem._get_variable_network(space)
+        reach = int(self.mean_degree) // 2
         rewiring = Interaction(
             'rewiring',
             among='nodes',
             along=True,
-            laws=lambda s: [UpdateLaw(TopologyRequestSpec('rewire'), rate)],
+            laws=lambda s: self._get_rewiring(s, rate, reach),
         )
         self.system_ = System(
             self.label,
-            elements=groups,
+            elements=[nodes, links],
             interactions=[RandomGraphEnsemblesSystem._get_degree(), rewiring],
             space=space,
         )
+
+    @staticmethod
+    def _get_rewiring(edge: SimpleNamespace, rate: float, reach: int) -> list[BaseLaw]:
+        """Return the rewiring of a link of the ring that has not been rewired yet.
+
+        The link keeps its lattice end and moves the other one, as `nx.watts_strogatz_graph` does. The lattice end of
+        the link from the place `i` to the place `i + j` is `i`, which comes last in node order when the link wraps
+        around the ring. A rewired link has left the places it joined, so it is never rewired again.
+        """
+        moved = (edge.source.position - edge.edge.first) ** 2 + (edge.target.position - edge.edge.second) ** 2
+        chance = rate * where(moved < 1, 1, 0)
+        wraps = where(edge.edge.second - edge.edge.first > reach, 1, 0)
+        return [
+            UpdateLaw(TopologyRequestSpec('rewire'), chance * (1 - wraps)),
+            UpdateLaw(TopologyRequestSpec('rewire', keep='target'), chance * wraps),
+        ]
 
 
 class KroneckerGraphSystem(BaseSystem):
@@ -571,7 +643,9 @@ class ConfigurationModelSystem(BaseSystem):
             Whether self-loops and multilinks are rewired away, or dropped, which lowers some degrees.
 
         random_state:
-            The seed or generator of the degrees, the pairing, and the rewiring.
+            The seed or generator of the degrees, the pairing, and the rewiring. They are drawn when the system is
+            prepared from `np.random.default_rng(random_state)`, as in scikit-learn, so they follow the first draws of
+            that generator. The `random_state` of `simulate` seeds the run apart.
 
         label:
             The label of the system, which names it when it is nested in another one.

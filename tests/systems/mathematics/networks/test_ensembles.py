@@ -65,6 +65,35 @@ def test_watts_strogatz_construction_shortens_paths_and_keeps_clustering():
     assert clustering > 0.4
 
 
+@pytest.mark.parametrize('steps', [1, 10])
+def test_watts_strogatz_construction_keeps_the_degrees_near_the_lattice_degree(steps):
+    """Test that rewiring every edge of a ring once, by its lattice end, gives the degrees of NetworkX."""
+    system = RandomGraphEnsemblesSystem(2000, ensemble='watts_strogatz', mean_degree=10, rewiring=1.0, steps=steps)
+    graph, _ = _final_graph(system, steps, seed=1)
+    degrees = np.array([degree for _, degree in graph.degree])
+    references = [nx.watts_strogatz_graph(2000, 10, 1.0, seed=seed) for seed in range(5)]
+    reference = np.mean([np.var([degree for _, degree in ring.degree]) for ring in references])
+    assert degrees.min() >= 5
+    assert degrees.var() == pytest.approx(reference, rel=0.2)
+
+
+def test_watts_strogatz_construction_rewires_the_requested_share_of_edges():
+    """Test that a partial rewiring over several steps moves about the requested share of the ring edges."""
+    system = RandomGraphEnsemblesSystem(500, ensemble='watts_strogatz', mean_degree=10, rewiring=0.3, steps=10)
+    graph, _ = _final_graph(system, 10, seed=2)
+    ring = nx.watts_strogatz_graph(500, 10, 0.0)
+    kept = sum(ring.has_edge(*edge) for edge in graph.edges)
+    assert 1 - kept / graph.number_of_edges() == pytest.approx(0.3, abs=0.03)
+
+
+def test_erdos_renyi_construction_reaches_its_mean_degree_or_refuses():
+    """Test that the Erdős-Rényi construction reaches its mean degree, and refuses steps too few to reach it."""
+    graph, _ = _final_graph(RandomGraphEnsemblesSystem(1000, mean_degree=10.0, steps=100), 100, seed=1)
+    assert 2 * graph.number_of_edges() / graph.number_of_nodes() == pytest.approx(10, rel=0.05)
+    with pytest.raises(ValidationError, match='at least 5 steps'):
+        RandomGraphEnsemblesSystem(1000, mean_degree=10.0, steps=1).prepare()
+
+
 def test_random_graph_ensembles_reject_an_unknown_ensemble():
     """Test that an unknown ensemble raises an error that lists the ensembles."""
     with pytest.raises(ValidationError, match='watts_strogatz'):

@@ -16,6 +16,7 @@ from ._ensembles import (
     InterdependenceInteraction,
     InterdependentNetworkCascadeSystem,
     KroneckerGraphSystem,
+    LatticeLinkElement,
     NetworkAttackSystem,
     RandomGraphEnsemblesSystem,
 )
@@ -93,6 +94,7 @@ __all__: list[str] = [
     'InterdependenceInteraction',
     'InterdependentNetworkCascadeSystem',
     'KroneckerGraphSystem',
+    'LatticeLinkElement',
     'LoadedNodeElement',
     'MergingNodeElement',
     'MotterLaiOverloadSystem',
