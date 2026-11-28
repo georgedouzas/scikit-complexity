@@ -1460,7 +1460,14 @@ system = System(elements=[cells], interactions=[division], space=LatticeSpace((3
 system.simulate(until=2, random_state=0).get_agents('cells', 2).values['mass'].tolist()
 ```
 
-After two steps four cells of mass 2.0 share the mass 8 of the first.
+After two steps four cells of mass 2.0 share the mass 8 of the first. The group grows, so `get_values` gives the masses
+as one array per frame, one value per cell alive at that frame.
+
+```python continuation
+[mass.tolist() for mass in system.simulate(until=2, random_state=0).get_values('cells.mass')]
+```
+
+The masses are `[8.0]`, then `[4.0, 4.0]`, then four times 2.0.
 
 Rabbits in a warren breed with the probability 0.3 and die with the probability 0.1 each step. The interaction reports
 the births and deaths of every step.

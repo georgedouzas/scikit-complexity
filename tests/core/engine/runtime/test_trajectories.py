@@ -1,10 +1,11 @@
 """Test reading the recorded values of a trajectory by name."""
 
+import numpy as np
 import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
-from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.experiments._replicate import _replicate_prepared
 from skcomplex.core.systems import System
@@ -57,3 +58,38 @@ def test_get_values_lists_names_with_primes_when_one_is_unknown():
     """An unknown name raises an error that lists the names with primes."""
     with pytest.raises(KeyError, match=r"body\.h'"):
         _falling_trajectory().get_values('body.v')
+
+
+def _age(agent, system):
+    """Grow one step older."""
+    agent.age += 1.0
+
+
+def _age_and_breed(agent, system):
+    """Grow one step older and create one offspring of age zero."""
+    agent.age += 1.0
+    agent.create(age=0.0)
+
+
+def _herd(rule) -> Trajectory:
+    """Return the trajectory of two agents that follow a rule for two steps."""
+    rules = Interaction('rules', roles={'target': 'herd'}, laws=lambda s: [UpdateLaw(s.target, rule)])
+    system = System(elements=[Element('herd', values={'age': 0.0}, size=2)], interactions=[rules])
+    return system.prepare().simulate(until=2)
+
+
+def test_get_values_reads_a_state_of_a_growing_group_per_frame():
+    """A state of agents whose group grows is one array per frame, as the agents of that frame hold it."""
+    trajectory = _herd(_age_and_breed)
+    values = trajectory.get_values('herd.age')
+    assert isinstance(values, list)
+    assert [len(frame) for frame in values] == [2, 4, 8]
+    for frame, read in enumerate(values):
+        np.testing.assert_array_equal(read, trajectory.get_agents('herd', frame).values['age'])
+
+
+def test_get_values_reads_a_state_of_a_fixed_group_as_rows():
+    """A state of agents whose group keeps its members is one row per frame."""
+    trajectory = _herd(_age)
+    assert trajectory.get_values('herd.age').tolist() == [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]
+    assert 'herd.age' in trajectory.names

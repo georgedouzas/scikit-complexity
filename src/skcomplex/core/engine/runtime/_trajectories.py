@@ -110,22 +110,51 @@ class Trajectory:
         shaped = present.reshape(present.shape + (1,) * (np.ndim(values) - present.ndim))
         return np.where(shaped, np.asarray(values, dtype=float), np.nan)
 
-    def get_values(self, name: str) -> AnyArray:
+    def _get_agent_names(self) -> list[str]:
+        """Return the dotted names of the states of the agent groups."""
+        groups = self.agents_by_frame[0] if self.agents_by_frame else {}
+        return [f'{group}.{state}' for group, snapshot in groups.items() for state in snapshot.values]
+
+    def _get_agent_values(self, name: str) -> AnyArray | list[AnyArray]:
+        """Return the values of a state of an agent group at every frame.
+
+        They are one row per frame when the group keeps the same members, and one array per frame otherwise.
+        """
+        group, _, state = name.rpartition('.')
+        snapshots = [frame[group] for frame in self.agents_by_frame]
+        values = [np.asarray(snapshot.values[state]) for snapshot in snapshots]
+        if all(np.array_equal(snapshot.ids, snapshots[0].ids) for snapshot in snapshots):
+            return np.stack(values)
+        return values
+
+    def get_values(self, name: str) -> AnyArray | list[AnyArray]:
         """Return the values of a state or a parameter over time by dotted name.
 
         Args:
             name:
-                The dotted name, such as `rabbits.n` or `growth.r`.
+                The dotted name, such as `rabbits.n`, `growth.r`, or `words.count` for the count of every word.
 
         Returns:
             values:
                 One value per frame for a scalar, or one row per frame for a vector, NaN in the rows of a variable
-                group on a network that hold no member at a frame.
+                group on a network that hold no member at a frame. A state of agents is one row per frame when the
+                group keeps the same members, and else a list of one array per frame, in the order of the members
+                at that frame, as `get_agents` gives them.
 
         Raises:
             KeyError:
                 The name is neither a state nor a parameter.
+
+        Examples:
+            A text of words grows its vocabulary, so the counts of the words are one array per frame.
+
+            >>> from skcomplex.systems.social.spreading import SimonYuleSystem
+            >>> trajectory = SimonYuleSystem(words_per_step=10).prepare().simulate(until=2, random_state=0)
+            >>> [counts.tolist() for counts in trajectory.get_values('words.count')]
+            [[1.0], [10.0, 1.0], [18.0, 2.0, 1.0]]
         """
+        if name in self._get_agent_names():
+            return self._get_agent_values(name)
         name = LayoutSpec._get_internal_name(name)
         if self.problem.states.has(name):
             entry = self.problem.states.get_entry(name)
@@ -147,6 +176,7 @@ class Trajectory:
             LayoutSpec._get_display_name(item)
             for item in [*self.problem.states.names, *self.problem.parameters.names, *reporter_names, *observable_names]
         ]
+        names = list(dict.fromkeys([*names, *self._get_agent_names()]))
         error_msg = f'No state or parameter named {name!r}. Available names are: {", ".join(names)}.'
         raise KeyError(error_msg)
 
@@ -205,14 +235,14 @@ class Trajectory:
 
     @property
     def names(self) -> list[str]:
-        """Names that `values` reads.
+        """Names that `get_values` reads.
 
-        They are the names of the states, parameters, reporters, and observables.
+        They are the names of the states, parameters, reporters, observables, and states of agents.
         """
         reporters = list(self.reporters[0]) if self.reporters else []
         observables = list(self.observables[0]) if self.observables else []
         names = [*self.problem.states.names, *self.problem.parameters.names, *reporters, *observables]
-        return [LayoutSpec._get_display_name(name) for name in names]
+        return list(dict.fromkeys([*(LayoutSpec._get_display_name(name) for name in names), *self._get_agent_names()]))
 
     def get_agent_locations(self, group: str) -> list[AnyArray]:
         """Return the locations of the agents of a group.
@@ -259,7 +289,8 @@ class Trajectory:
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self.get_values(name).reshape(len(self.times), *shape, *self.problem.states.get_entry(name).member_shape)
+        values = np.asarray(self.get_values(name))
+        return values.reshape(len(self.times), *shape, *self.problem.states.get_entry(name).member_shape)
 
     def get_agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame.

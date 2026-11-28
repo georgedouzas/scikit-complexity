@@ -66,6 +66,10 @@ trajectory.names, trajectory.times[:3].tolist(), trajectory.states.shape, trajec
 `get_values(name)` returns the column of one name, a state or a parameter. A parameter is recorded at every frame,
 because a [schedule](glossary.md#schedule) may change it during the run, as the next section shows.
 
+A state of a group of [agents](glossary.md#agent), such as `herd.age`, is one row per frame while the group keeps its
+members. When agents are born or die, `get_values` returns a list of one array per frame instead, in the order of the
+agents at that frame, the values that `get_agents(group, frame)` gives.
+
 ## Run settings
 
 The arguments of `simulate` set how a run starts and evolves. Each one left out comes from the tuned run settings of
