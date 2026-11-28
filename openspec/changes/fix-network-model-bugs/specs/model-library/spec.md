@@ -2,7 +2,8 @@
 
 ### Requirement: Network models match the graphs they construct
 The growing networks and the random graph ensembles SHALL reproduce the degree statistics of their reference
-constructions. A Holme-Kim node SHALL hold all its edges in the frame after the step it joins. The Watts-Strogatz
+constructions.
+A Holme-Kim node SHALL hold all its edges in the frame after the step it joins. The Watts-Strogatz
 construction SHALL rewire each lattice edge at most once and keep its lattice end. The Erdős-Rényi construction SHALL
 reach the requested mean degree or raise a `ValidationError` naming the smallest number of steps that reaches it.
 
@@ -12,7 +13,9 @@ reach the requested mean degree or raise a `ValidationError` naming the smallest
 
 #### Scenario: Holme-Kim transitivity follows the triad probability
 - **WHEN** Holme-Kim growth with 3 edges reaches 1000 nodes with `triad` 0 and with `triad` 1
-- **THEN** its transitivity is within 0.02 of that of `nx.powerlaw_cluster_graph(1000, 3, triad)` averaged over seeds
+- **THEN** at `triad` 0 its transitivity is within 0.02 of that of `nx.powerlaw_cluster_graph(1000, 3, 0)`, and at
+  `triad` 1 within 0.02 of the triad formation of Holme and Kim 2002, where triad edges join neighbours of the first
+  preferential contact
 
 #### Scenario: Watts-Strogatz degrees stay near the lattice degree
 - **WHEN** the Watts-Strogatz construction on 2000 nodes of mean degree 10 rewires all edges over 1 or 10 steps

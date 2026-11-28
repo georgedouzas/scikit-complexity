@@ -5,11 +5,17 @@ Issues #59 to #64 and #75 came from the network tutorials. Each was reproduced a
 
 ## Decisions
 
-- **Holme-Kim (#61).** Today the node joins with one edge and the `closure` interaction adds `edges - 1` triad edges
-  the next step, when the node's age is below `JOINING_AGE`. The fix makes the triad edges part of the joining step,
-  so the last frame never holds a half-joined node. If the engine applies topology requests of one step in order, the
-  closure runs after `growth` in the same step. Otherwise the run takes one more closure step after the last arrival.
-  The implementer picks whichever needs no change to the engine, and states which in the commit.
+- **Holme-Kim (#61).** Decided 2026-11-28. The engine decides every topology request of a step from the state at
+  the start of the step, and a system does not know `until`, so neither a same-step closure nor an extra closure step
+  works inside the model. An `'add-node'` request of `TopologyRequestSpec` gains further edges: after its first
+  `edges` edges are drawn, it adds more edges in the same step whose weights may read the new node's first contacts,
+  such as their neighbours. This is a general primitive for triadic growth. The step meaning of every other request
+  and system stays the same. Holme-Kim growth uses it and drops its `near` and `closure` interactions.
+- **Holme-Kim reference (#62).** Decided 2026-11-28. The model follows Holme and Kim 2002, where triad edges go to
+  neighbours of the first preferential contact. `nx.powerlaw_cluster_graph` closes triangles on the most recent target
+  instead, so at `triad=1` and 1000 nodes it gives 0.144 against 0.170 for the paper's rule. The test compares with
+  NetworkX at `triad=0` and with a hand-written version of the paper's rule at `triad=1`, and the docstring states
+  the difference.
 - **Watts-Strogatz (#63).** Each lattice edge gets one chance over the whole run: at every step an edge not yet
   considered is rewired with probability `1 - (1 - rewiring) ** (1 / steps)` and is then never rewired again, and
   the rewired edge keeps its lattice source and moves its target, as `nx.watts_strogatz_graph` does. If the `rewire`
