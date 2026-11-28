@@ -4,7 +4,8 @@
 # License: MIT
 
 import itertools
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -15,9 +16,37 @@ from ...errors import ValidationError
 from ...types import Array, Indices
 from ._base import BaseKernel
 from ._draw_recorder import DrawRecorder
-from ._named_draw_spec import _NamedDrawSpec
 from ._run_state_spec import RunStateSpec
-from ._sampled_draw_spec import _SampledDrawSpec
+
+
+@dataclass(frozen=True)
+class _NamedDraw:
+    """A record of a named draw of a stochastic map, as runs record and replay it.
+
+    Args:
+        label:
+            The path of the component and the name of the draw, such as `walker.kick`.
+
+        draw:
+            The draw, with its kind and distribution.
+
+        start:
+            The index of its first value in the extended parameter vector.
+
+        rows:
+            The number of values, one per member.
+
+        arguments:
+            The function `arguments(t, x, q)` that returns the values of the arguments of the distribution, given
+            the extended parameter vector `q`, or `None` when they read more than the states and parameters of the
+            member, so runs cannot record the draw.
+    """
+
+    label: str
+    draw: DrawSpec
+    start: int
+    rows: int
+    arguments: Callable[[float, Array, Array], list[npt.ArrayLike]] | None
 
 
 class DrawKernel(BaseKernel):
@@ -39,7 +68,9 @@ class DrawKernel(BaseKernel):
             `[0, 1)`, in the order the draws are taken, by component path, draw name, and member index.
 
         sampled:
-            The draws from `scipy.stats` distributions, stored after the uniform and normal values and taken after them.
+            The draws from `scipy.stats` distributions, stored after the uniform and normal values and taken after them,
+            each as the index of its first value in the extended parameter vector, its number of values, one per
+            member, and the function `sample(t, x, q, rng)` that returns them.
 
         orders:
             The orders of the members that gather tables read through, each drawn again in place as a random permutation
@@ -65,9 +96,9 @@ class DrawKernel(BaseKernel):
         self,
         offset: int,
         normal: npt.NDArray[np.bool_],
-        sampled: tuple[_SampledDrawSpec, ...] = (),
+        sampled: tuple[tuple[int, int, Callable[[float, Array, Array, np.random.Generator], Array]], ...] = (),
         orders: tuple[Indices, ...] = (),
-        named: tuple[_NamedDrawSpec, ...] = (),
+        named: tuple[_NamedDraw, ...] = (),
     ) -> None:
         self.offset = offset
         self.normal = normal
@@ -78,7 +109,7 @@ class DrawKernel(BaseKernel):
     @property
     def size(self) -> int:
         """Number of values drawn at every step."""
-        return int(self.normal.size) + sum(item.rows for item in self.sampled)
+        return int(self.normal.size) + sum(rows for _, rows, _ in self.sampled)
 
     def extend(self, p: Array) -> Array:
         """Return a parameter vector extended with room for the draws.
@@ -111,8 +142,8 @@ class DrawKernel(BaseKernel):
             count = end - start
             values = rng.standard_normal(count) if self.normal[start] else rng.random(count)
             q[self.offset + start : self.offset + end] = values
-        for item in self.sampled:
-            q[item.start : item.start + item.rows] = item.sample(t, x, q, rng)
+        for start, rows, sample in self.sampled:
+            q[start : start + rows] = sample(t, x, q, rng)
         for order in self.orders:
             order[:] = rng.permutation(order.size)
 
