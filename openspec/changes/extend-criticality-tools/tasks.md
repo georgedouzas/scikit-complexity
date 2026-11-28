@@ -45,10 +45,10 @@
 
 ## 5. Toppling matrix and Green function (#76)
 
-- [ ] 5.1 Add `abelian_sandpile` and `AbelianSandpileResult` in `systems/physics/criticality/_abelian_sandpile.py` with
+- [x] 5.1 Add `abelian_sandpile` and `AbelianSandpileResult` in `systems/physics/criticality/_abelian_sandpile.py` with
   the kinds `'toppling'`, `'green'` and `'mean-size'` and their errors, and re-export them from
   `skcomplex.systems.physics.criticality`
-- [ ] 5.2 Test the three by three matrix, the inverse, the agreement with a simulated pile and the growth with the side
+- [x] 5.2 Test the three by three matrix, the inverse, the agreement with a simulated pile and the growth with the side
   in `tests/systems/physics/criticality/test_abelian_sandpile.py`
 - [ ] 5.3 Show the mean size against a simulated pile in `docs/examples/physics/criticality/plot_sandpile.py`, and
   verify that the example runs
@@ -57,10 +57,10 @@
 
 - [x] 6.1 Add `neighbors='random'` and `conservation` to `TopplingInteraction`, tested in
   `tests/systems/physics/common/avalanches/test_toppling.py`
-- [ ] 6.2 Add `neighbors` and `conservation` to `SandpileSystem`, with the error for `conservation=1`, test the
+- [x] 6.2 Add `neighbors` and `conservation` to `SandpileSystem`, with the error for `conservation=1`, test the
   mean-field avalanches in `tests/systems/physics/criticality/test_criticality.py`, and test that `abelian_sandpile`
   refuses random neighbours in `tests/systems/physics/criticality/test_abelian_sandpile.py`
-- [ ] 6.3 Add `neighbors='random'` and `k` to `ExtinctionInteraction` and `BakSneppenSystem`, and test the threshold
+- [x] 6.3 Add `neighbors='random'` and `k` to `ExtinctionInteraction` and `BakSneppenSystem`, and test the threshold
   `1 / k` in `tests/systems/biology/evolution/test_coevolution.py`
 - [ ] 6.4 Document both options in the docstrings of the systems, and verify the doctests
 
