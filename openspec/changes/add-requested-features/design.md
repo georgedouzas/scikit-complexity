@@ -51,9 +51,13 @@ interaction needs one.
     initial heading.
   - The ant's position and heading are recorded as states at every step.
   - A step updates only the ant's cell instead of the whole lattice.
-  - `shape=None` is the unbounded plane. The black cells are a sparse set held by the ant, through the mechanism of
-    rewritten elements whose structure `get_structure` reads, so memory grows with the cells visited and not with a
-    lattice. If the engine cannot express this, the implementer stops and reports before choosing another design.
+  - The ant is one agent, `AntElement`, moved by `LangtonsAntInteraction` through the agent path, because a local
+    rule over the lattice cannot read another element's state. Its states are `ant.row`, `ant.column`,
+    `ant.heading` and `ant.colors`.
+  - `shape=None` is the unbounded plane. The ant holds the set of its black cells instead of an array and never
+    wraps, so memory grows with the black cells and not with a lattice. Frames then hold sets of cells, not images.
+    The rewriting mechanism was considered and rejected: it accepts only words and patches, so the ant would need a
+    new element, law and kernel in the shared compiler.
 - **Boolean networks (#58):**
   - One group element holds all nodes, with the state `nodes.x`, the inputs and the tables as parameters.
   - `update='synchronous'` stays the default. `'asynchronous'` updates one node drawn uniformly per step, where one
