@@ -327,7 +327,7 @@ class TopologyKernel(BaseKernel):
             The state vector after the requests of the last run.
 
     See Also:
-        _CompiledRequest: One request with the kernels that decide it.
+        TopologyRequestSpec: A request of a law to change the network.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem

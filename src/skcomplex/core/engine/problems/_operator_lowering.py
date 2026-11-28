@@ -7,22 +7,484 @@ import functools
 import math
 import operator
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 
 import numpy as np
+import numpy.typing as npt
+import qutip
 import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR, ZZ, Expression
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...base import BaseConfig
+from ...components.elements import Element
 from ...components.laws.utils import dagger, operator_product
 from ...components.laws.utils._local_operators import LOCAL_OPERATOR, has_operator
 from ...errors import ValidationError
 from ...types import Array
+from ..types import HilbertSpaceProtocol
 from ._expression_printer import ExpressionPrinter
-from ._local_operator_spec import LocalOperatorSpec
 from ._operator_kernel import OperatorKernel
-from ._operator_spec import OperatorSpec
-from ._subsystem_spec import _SubsystemSpec
+
+NORM_TOLERANCE = 1e-8
+
+type Factor = tuple[str, '_LocalOperator']
+
+type Product = tuple[Factor, ...]
+
+ADJOINT_NAMES = {'plus': 'minus', 'minus': 'plus', 'annihilate': 'create', 'create': 'annihilate'}
+
+ADJOINT_SUFFIX = '.dag'
+
+
+@dataclass(frozen=True)
+class _LocalOperator:
+    """A record of a named operator that acts on the space of one subsystem.
+
+    It holds the name and the matrix of an operator of one subsystem, such as the raising operator `'plus'` of a qubit,
+    and gives its adjoint, the lowering operator `'minus'`. Products of them make the operators of the whole system, for
+    qubits, spins, and the modes of light.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        name:
+            The name of the operator, unique among the operators of its subsystem.
+
+        matrix:
+            The matrix of the operator.
+
+        hermitian:
+            Whether the operator equals its adjoint.
+
+    See Also:
+        _Operator: A sum of products of local operators.
+
+    Examples:
+        >>> import qutip
+        >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator
+        >>> _LocalOperator('plus', qutip.sigmap()).get_adjoint().name
+        'minus'
+    """
+
+    name: str
+    matrix: object = field(default=None, compare=False, repr=False)
+    hermitian: bool = field(default=False, compare=False)
+
+    def get_adjoint(self) -> '_LocalOperator':
+        """Return the adjoint of the operator.
+
+        Returns:
+            adjoint:
+                The operator itself when it is Hermitian, or the operator with the conjugate transposed matrix.
+        """
+        if self.hermitian:
+            return self
+        if self.name in ADJOINT_NAMES:
+            name = ADJOINT_NAMES[self.name]
+        elif self.name.endswith(ADJOINT_SUFFIX):
+            name = self.name.removesuffix(ADJOINT_SUFFIX)
+        else:
+            name = f'{self.name}{ADJOINT_SUFFIX}'
+        matrix = self._get_sparse_matrix(self.matrix).conj().T.tocsr()
+        return _LocalOperator(name, matrix, hermitian=False)
+
+    @staticmethod
+    def _get_sparse_matrix(matrix: object) -> sp.csr_array:
+        """Return a matrix, a QuTiP object, or an array as a complex sparse array."""
+        if isinstance(matrix, qutip.Qobj):
+            dense = matrix.full()
+        elif isinstance(matrix, sp.sparray | sp.spmatrix):
+            dense = matrix.toarray()
+        else:
+            dense = matrix
+        return sp.csr_array(np.asarray(dense, dtype=complex))
+
+
+@dataclass(frozen=True, eq=False)
+class _Operator:
+    """A record of a sum of products of local operators of subsystems.
+
+    Each product of local operators has a coefficient, a number or a Sage expression of parameters and time, such as
+    `J*a.x*b.x` for the coupling of two spins. Operators combine with `add`, `subtract`, `multiply`, `divide`, `negate`,
+    and `adjoint`, a number stands for that multiple of the identity, and a product keeps its order. The compiler turns
+    the operator expressions of laws and observables into it, for qubits, spin chains, and quantum optics.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        terms:
+            A mapping from a tuple of factors, each the key of a subsystem and a local operator, in product order, to
+            the coefficient of the product. The empty tuple is the identity.
+
+    See Also:
+        _LocalOperator: An operator of one subsystem.
+
+    Examples:
+        >>> import qutip
+        >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator, _Operator
+        >>> x = _LocalOperator('x', qutip.sigmax(), hermitian=True)
+        >>> _Operator({(('a', x),): 1}).multiply(_Operator({(('b', x),): 1})).text
+        'a.x*b.x'
+    """
+
+    terms: Mapping[Product, object]
+
+    def _get_items(self) -> dict[Product, Expression]:
+        """Return the terms with Sage coefficients."""
+        return {key: SR(value) for key, value in self.terms.items()}
+
+    @staticmethod
+    def _get_combined(terms: dict[Product, Expression]) -> '_Operator':
+        """Return an operator from terms, without the terms whose coefficient is zero."""
+        return _Operator({key: value for key, value in terms.items() if not value.is_trivial_zero()})
+
+    def _convert_to_operator(self, other: object, operation: str) -> '_Operator':
+        """Return an operator, or a scalar as a multiple of the identity.
+
+        Args:
+            other:
+                The operand.
+
+            operation:
+                The name of the operation, for the error message.
+
+        Returns:
+            operator:
+                The operand as an operator.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+        """
+        if isinstance(other, _Operator):
+            return other
+        return _Operator({(): self._get_scalar(other, operation)})
+
+    def _get_scalar(self, other: object, operation: str) -> Expression:
+        """Return a scalar as a Sage expression.
+
+        Args:
+            other:
+                The operand.
+
+            operation:
+                The name of the operation, for the error message.
+
+        Returns:
+            coefficient:
+                The operand as a Sage expression.
+
+        Raises:
+            ValidationError:
+                The operand is not a number or a symbolic expression.
+        """
+        coefficient = self._get_coefficient(other)
+        if coefficient is None:
+            error_msg = (
+                f'An operator cannot {operation} {other!r} of type {type(other).__name__}. The operand must be an '
+                'operator, a number, or a Sage expression.'
+            )
+            raise ValidationError(error_msg)
+        return coefficient
+
+    def add(self, other: object) -> '_Operator':
+        """Return the sum of the operator and an operator or a multiple of the identity.
+
+        Args:
+            other:
+                An operator, or a number or a Sage expression, which stands for that multiple of the identity.
+
+        Returns:
+            sum:
+                The sum.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+
+        Examples:
+            >>> import qutip
+            >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator, _Operator
+            >>> z = _Operator({(('q', _LocalOperator('z', qutip.sigmaz(), hermitian=True)),): 1})
+            >>> z.add(1).text
+            'q.z + 1'
+        """
+        terms = self._get_items()
+        for key, value in self._convert_to_operator(other, 'add')._get_items().items():
+            self._add_term(terms, key, value)
+        return self._get_combined(terms)
+
+    def negate(self) -> '_Operator':
+        """Return the operator with every coefficient negated.
+
+        Returns:
+            negation:
+                The negated operator.
+        """
+        return _Operator({key: -value for key, value in self._get_items().items()})
+
+    def subtract(self, other: object) -> '_Operator':
+        """Return the difference of the operator and an operator or a multiple of identity.
+
+        Args:
+            other:
+                An operator, or a number or a Sage expression, which stands for that multiple of the identity.
+
+        Returns:
+            difference:
+                The difference.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+        """
+        return self.add(self._convert_to_operator(other, 'subtract').negate())
+
+    def multiply(self, other: object) -> '_Operator':
+        """Return the product of the operator and an operator or a scalar, in this order.
+
+        Args:
+            other:
+                The right factor, an operator, or a number or a Sage expression, which stands for that multiple of the
+                identity.
+
+        Returns:
+            product:
+                The product.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+        """
+        operand = self._convert_to_operator(other, 'multiply by')
+        terms: dict[Product, Expression] = {}
+        for left, first in self._get_items().items():
+            for right, second in operand._get_items().items():
+                self._add_term(terms, left + right, first * second)
+        return self._get_combined(terms)
+
+    def divide(self, other: object) -> '_Operator':
+        """Return the operator divided by a scalar.
+
+        Args:
+            other:
+                A number or a Sage expression.
+
+        Returns:
+            quotient:
+                The quotient.
+
+        Raises:
+            ValidationError:
+                The operand is not a scalar.
+        """
+        return self.multiply(1 / self._get_scalar(other, 'divide by'))
+
+    @property
+    def text(self) -> str:
+        """_Operator in operator notation.
+
+        It is a sum of coefficients times products of local operators.
+        """
+        if not self.terms:
+            return '0'
+        parts = []
+        for key, value in self._get_items().items():
+            factors = '*'.join(f'{subsystem}.{local.name}' for subsystem, local in key)
+            if not factors:
+                parts.append(str(value))
+            elif value == 1:
+                parts.append(factors)
+            else:
+                text = str(value)
+                parts.append(f'({text})*{factors}' if any(sign in text for sign in '+- ') else f'{text}*{factors}')
+        return ' + '.join(parts)
+
+    def get_adjoint(self) -> '_Operator':
+        """Return the adjoint operator.
+
+        It has conjugate coefficients and reversed products of adjoint factors.
+
+        Returns:
+            adjoint:
+                The adjoint operator.
+
+        Examples:
+            >>> import qutip
+            >>> from skcomplex.core.engine.problems._operator_lowering import _LocalOperator, _Operator
+            >>> plus = _LocalOperator('plus', qutip.sigmap())
+            >>> _Operator({(('q', plus),): 1}).multiply(2j).get_adjoint().text
+            '(-2j)*q.minus'
+        """
+        return _Operator(
+            {
+                tuple((subsystem, local.get_adjoint()) for subsystem, local in reversed(key)): value.conjugate()
+                for key, value in self._get_items().items()
+            },
+        )
+
+    @property
+    def subsystems(self) -> list[set[str]]:
+        """Keys of the subsystems every term acts on, in term order."""
+        return [{subsystem for subsystem, _ in key} for key in self.terms]
+
+    @staticmethod
+    def _get_coefficient(value: object) -> Expression | None:
+        """Return a number or a symbolic expression as a Sage expression.
+
+        It returns `None` for any other value.
+        """
+        if isinstance(value, np.ndarray | _Operator | str):
+            return None
+        if isinstance(value, np.generic):
+            value = value.item()
+        try:
+            return SR(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _add_term(terms: dict[Product, Expression], key: Product, coefficient: Expression) -> None:
+        """Add a coefficient to the term of a key, in place."""
+        terms[key] = terms[key] + coefficient if key in terms else coefficient
+
+
+@dataclass(frozen=True)
+class _OperatorView:
+    """A record of an element whose state is a vector of a Hilbert space.
+
+    A Hilbert space is the space of the states of a quantum system. The compiler of operators reads this view to build
+    the matrices of the evolution.
+
+    Args:
+        element:
+            The element.
+
+        state:
+            The name of the state of the element in its Hilbert space.
+
+        space:
+            The Hilbert space of the element.
+    """
+
+    element: Element
+    state: str
+    space: HilbertSpaceProtocol
+
+    @property
+    def label(self) -> str:
+        """Label of the element."""
+        return self.element.label
+
+    @property
+    def dimension(self) -> int:
+        """Dimension of the Hilbert space."""
+        return self.space.dimension
+
+    @property
+    def display(self) -> str | None:
+        """Operator whose expectation visuals show for a group.
+
+        It is `None` for the probabilities of the basis.
+        """
+        return self.space.display
+
+    def get_local_operators(self) -> dict[str, _LocalOperator]:
+        """Return the local operators of the element by name.
+
+        Returns:
+            operators:
+                A mapping from name to local operator.
+        """
+        return {
+            name: _LocalOperator(name, _LocalOperator._get_sparse_matrix(matrix), hermitian=hermitian)
+            for name, (matrix, hermitian) in self.space.operators.items()
+        }
+
+    def get_basis_index(self, label: object) -> int:
+        """Return the index of the basis state of a label or an index.
+
+        Args:
+            label:
+                The label of a basis state, or its index.
+
+        Returns:
+            index:
+                The index of the basis state.
+
+        Raises:
+            ValidationError:
+                The label names no basis state.
+        """
+        space = self.space
+        if isinstance(label, str) and label in space.basis:
+            return space.basis[label]
+        if isinstance(label, int | np.integer) and not isinstance(label, bool) and 0 <= label < space.dimension:
+            return int(label)
+        labels = ', '.join(map(repr, space.basis)) or 'none'
+        error_msg = (
+            f'{type(self.element).__name__} {self.label!r}: {label!r} is no basis state. Use a label ({labels}) or an '
+            f'index from 0 to {space.dimension - 1}.'
+        )
+        raise ValidationError(error_msg)
+
+    def get_initial_vector(self) -> npt.NDArray[np.complex128]:
+        """Return the initial state of the element as a normalised vector.
+
+        Returns:
+            vector:
+                The initial state.
+
+        Raises:
+            ValidationError:
+                The initial state names no basis state, or is a vector of the wrong size or norm.
+        """
+        given = getattr(self.element, 'values', None) or {}
+        initial = given[self.state] if self.state in given else getattr(self.element, self.state)
+        if isinstance(initial, str | int | np.integer):
+            vector = np.zeros(self.dimension, dtype=complex)
+            vector[self.get_basis_index(initial)] = 1.0
+            return vector
+        vector = np.asarray(initial, dtype=complex).ravel()
+        norm = float(np.linalg.norm(vector))
+        if vector.size != self.dimension or abs(norm - 1) > NORM_TOLERANCE:
+            error_msg = (
+                f'The initial vector of {self.label!r} has {vector.size} components and norm {norm:.6g}, but its '
+                f'space has dimension {self.dimension} and states have norm 1. Normalise the vector.'
+            )
+            raise ValidationError(error_msg)
+        return vector
+
+
+@dataclass(frozen=True)
+class _Subsystem:
+    """A record of a subsystem of a tensor product, such as one qubit of a register.
+
+    The compiler of operators builds one per operator element, and the lowering of operators reads them.
+
+    Args:
+        key:
+            The key of the subsystem, the path of its element.
+
+        element:
+            The operator view of the element.
+
+        index:
+            The index of the subsystem in the tensor product.
+
+        symbol:
+            The state symbol of the subsystem.
+
+        operators:
+            The local operators of the element, by name.
+    """
+
+    key: str
+    element: _OperatorView
+    index: int
+    symbol: Expression
+    operators: Mapping[str, _LocalOperator]
 
 
 class OperatorLowering(BaseConfig[None, tuple[object, str]]):
@@ -73,7 +535,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
     def __init__(
         self,
         time: Expression,
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, _Subsystem],
         dimensions: tuple[int, ...],
         arguments: Mapping[Expression, int],
     ) -> None:
@@ -121,7 +583,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             )
         self.kernels_ = tuple(terms)
 
-    def _get_operator(self, expression: object, owner: str) -> OperatorSpec:
+    def _get_operator(self, expression: object, owner: str) -> _Operator:
         """Return the operator of a Sage expression of local operators of the subsystems.
 
         Args:
@@ -146,7 +608,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
             error_msg = f'The operator of {owner} is invalid: {error}'
             raise ValidationError(error_msg) from error
 
-    def _get_matrix(self, key: tuple[tuple[str, LocalOperatorSpec], ...], owner: str) -> sp.csr_array:
+    def _get_matrix(self, key: tuple[tuple[str, _LocalOperator], ...], owner: str) -> sp.csr_array:
         """Return the matrix of a product of local operators on the whole space.
 
         Args:
@@ -246,15 +708,15 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         return result
 
     @staticmethod
-    def _get_acted_on(operator: OperatorSpec) -> set[str]:
+    def _get_acted_on(operator: _Operator) -> set[str]:
         """Return the keys of the subsystems any term of an operator acts on."""
         return {subsystem for key in operator.terms for subsystem, _ in key}
 
     @staticmethod
     def _get_local_of(
         expression: Expression,
-        subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperatorSpec]]],
-    ) -> OperatorSpec:
+        subsystems: Mapping[Expression, tuple[str, Mapping[str, _LocalOperator]]],
+    ) -> _Operator:
         """Return the operator of a call `local_operator(subsystem, name)`."""
         subsystem, name = expression.operands()
         if subsystem not in subsystems:
@@ -266,10 +728,10 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         if str(name) not in locals_:
             error_msg = f'{expression} names the operator {name}, but {key} has the operators {", ".join(locals_)}.'
             raise ValidationError(error_msg)
-        return OperatorSpec({((key, locals_[str(name)]),): 1})
+        return _Operator({((key, locals_[str(name)]),): 1})
 
     @staticmethod
-    def _get_product_of(factors: list[OperatorSpec], expression: Expression) -> OperatorSpec:
+    def _get_product_of(factors: list[_Operator], expression: Expression) -> _Operator:
         """Return the product of the factors of a Sage product.
 
         The factors commute only on distinct subsystems.
@@ -281,13 +743,13 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
                 'product in its order with `operator_product`.'
             )
             raise ValidationError(error_msg)
-        return functools.reduce(OperatorSpec.multiply, factors, OperatorSpec({(): 1}))
+        return functools.reduce(_Operator.multiply, factors, _Operator({(): 1}))
 
     @staticmethod
     def _get_operator_of(
         expression: object,
-        subsystems: Mapping[Expression, tuple[str, Mapping[str, LocalOperatorSpec]]],
-    ) -> OperatorSpec:
+        subsystems: Mapping[Expression, tuple[str, Mapping[str, _LocalOperator]]],
+    ) -> _Operator:
         """Return the operator of a Sage expression.
 
         The expression is built of local operators, products, and adjoints.
@@ -311,7 +773,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         """
         value = SR(expression)
         if not has_operator(value):
-            return OperatorSpec({(): value})
+            return _Operator({(): value})
         function, operands = value.operator(), value.operands()
         if function == LOCAL_OPERATOR:
             return OperatorLowering._get_local_of(value, subsystems)
@@ -321,9 +783,9 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         if function == dagger:
             return parts[0].get_adjoint()
         if function == operator_product:
-            return functools.reduce(OperatorSpec.multiply, parts)
+            return functools.reduce(_Operator.multiply, parts)
         if function is add_vararg:
-            return functools.reduce(OperatorSpec.add, parts)
+            return functools.reduce(_Operator.add, parts)
         if function is mul_vararg:
             return OperatorLowering._get_product_of(parts, value)
         error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'

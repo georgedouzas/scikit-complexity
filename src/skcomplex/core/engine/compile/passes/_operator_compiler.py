@@ -34,10 +34,8 @@ from ...problems._declared_element import _DeclaredElement
 from ...problems._group_element import _GroupElement
 from ...problems._node_spec import _NodeSpec
 from ...problems._operator_kernel import OperatorKernel
-from ...problems._operator_lowering import OperatorLowering
+from ...problems._operator_lowering import OperatorLowering, _OperatorView, _Subsystem
 from ...problems._operator_problem_spec import REAL_TOLERANCE, OperatorProblemSpec
-from ...problems._operator_view_spec import _OperatorViewSpec
-from ...problems._subsystem_spec import _SubsystemSpec
 from ...types import Dissipators, Generators, HilbertSpaceProtocol
 from .._base import BaseCompiler
 from .._issue_spec import IssueSpec
@@ -168,7 +166,7 @@ class OperatorCompiler(BaseCompiler):
         return self._compile_operator(system, initial=initial_state.get(whole), max_dimension=limit)
 
     @staticmethod
-    def _get_view_of(element: Element) -> _OperatorViewSpec:
+    def _get_view_of(element: Element) -> _OperatorView:
         """Return the operator view of an element.
 
         It holds the name of its state and its Hilbert space.
@@ -208,7 +206,7 @@ class OperatorCompiler(BaseCompiler):
                 f'Hilbert space has dimension {space.dimension}.'
             )
             raise ValidationError(error_msg)
-        return _OperatorViewSpec(element, state, space)
+        return _OperatorView(element, state, space)
 
     @staticmethod
     def _get_hilbert_of(element: BaseElement) -> HilbertSpaceProtocol | None:
@@ -408,7 +406,7 @@ class OperatorCompiler(BaseCompiler):
         return items[member] if size is None or len(items) == size else value
 
     @staticmethod
-    def _get_members_of(node: _NodeSpec) -> list[tuple[str, _OperatorViewSpec]]:
+    def _get_members_of(node: _NodeSpec) -> list[tuple[str, _OperatorView]]:
         """Return the key and the element of every member of an operator element or group."""
         component = node.as_element
         if isinstance(component, Element) and node.members is None:
@@ -750,16 +748,16 @@ class OperatorCompiler(BaseCompiler):
         return namespaces
 
     @staticmethod
-    def _get_subsystems_of(operator_nodes: list[_NodeSpec]) -> dict[str, _SubsystemSpec]:
+    def _get_subsystems_of(operator_nodes: list[_NodeSpec]) -> dict[str, _Subsystem]:
         """Return the subsystems of the operator elements and groups in tensor order.
 
         Each comes with its state symbol.
         """
-        subsystems: dict[str, _SubsystemSpec] = {}
+        subsystems: dict[str, _Subsystem] = {}
         for node in operator_nodes:
             for key, element in OperatorCompiler._get_members_of(node):
                 state = symbol(f'{element.state}_{OperatorCompiler._get_name_of(key)}', CC)
-                subsystems[key] = _SubsystemSpec(key, element, len(subsystems), state, element.get_local_operators())
+                subsystems[key] = _Subsystem(key, element, len(subsystems), state, element.get_local_operators())
         return subsystems
 
     @staticmethod
@@ -775,7 +773,7 @@ class OperatorCompiler(BaseCompiler):
     @staticmethod
     def _get_member_namespaces(
         operator_nodes: list[_NodeSpec],
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, _Subsystem],
         symbols: Mapping[str, object],
     ) -> dict[str, tuple[SimpleNamespace, ...]]:
         """Return the namespaces of every operator element and member, by path.
@@ -799,7 +797,7 @@ class OperatorCompiler(BaseCompiler):
         system: _CompositeSystem,
         initial: object,
         *,
-        subsystems: Mapping[str, _SubsystemSpec],
+        subsystems: Mapping[str, _Subsystem],
         generator: tuple[OperatorKernel, ...],
         p: Array,
         is_open: bool,

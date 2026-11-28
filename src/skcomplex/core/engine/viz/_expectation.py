@@ -18,8 +18,8 @@ from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._operator_kernel import OperatorKernel
+from ..problems._operator_lowering import _OperatorView
 from ..problems._operator_problem_spec import OperatorProblemSpec
-from ..problems._operator_view_spec import _OperatorViewSpec
 from ._base import BaseVisual
 from ._images import SPACE_TIME, ImageVisual
 
@@ -128,7 +128,7 @@ class ExpectationVisual(ImageVisual):
         return str(ExpectationVisual._get_view_of(element).display)
 
     @staticmethod
-    def _get_view_of(element: CompiledElementSpec) -> _OperatorViewSpec:
+    def _get_view_of(element: CompiledElementSpec) -> _OperatorView:
         """Return the operator view of a compiled element, of its first member for a group.
 
         Args:
