@@ -18,8 +18,8 @@ from ..._utils import binding_of, declarations_of, probe_laws
 from ...problems._composite_system import _CompositeSystem
 from ...problems._declared_element import _DeclaredElement
 from ...problems._group_element import _GroupElement
-from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
+from .._compilation import _Node
 from .._laws import AGENT_LAWS
 
 LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
@@ -345,14 +345,14 @@ class FlattenPass(BasePass):
         scope: str,
         space: BaseSpace | None,
         place: BaseSpace | None,
-    ) -> _NodeSpec:
+    ) -> _Node:
         """Return the node of an element or a group of a system with a space, on its place."""
         sized, active = FlattenPass._copy_with_capacity(FlattenPass._get_sized(element, space), place)
         if isinstance(sized, _GroupElement):
             path, members = f'{scope}{element.label}', sized.size_
-            return _NodeSpec(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
+            return _Node(path, scope, sized, place, sized.get_declaring_element(), members, active=active)
         declaring = sized if isinstance(sized, _DeclaredElement) else type(sized)
-        return _NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
+        return _Node(f'{scope}{element.label}', scope, sized, place, declaring)
 
     @staticmethod
     def _get_scope_spaces(
@@ -372,10 +372,10 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _get_declared_nodes(
-        nodes: list[_NodeSpec],
+        nodes: list[_Node],
         system: _CompositeSystem,
         declared: Mapping[str, list[BaseElement]],
-    ) -> list[_NodeSpec]:
+    ) -> list[_Node]:
         """Return the nodes of a flat tree with the declared elements in place.
 
         Each element is replaced by the elements that declare it, such as a group of agents for an element of one
@@ -406,7 +406,7 @@ class FlattenPass(BasePass):
             return nodes
         seen = list({id(node.space): node.space for node in nodes if node.space is not None}.values())
         spaces = FlattenPass._get_scope_spaces(system)
-        replaced: list[_NodeSpec] = []
+        replaced: list[_Node] = []
         for node in nodes:
             if node.path not in declared:
                 replaced.append(node)
@@ -427,7 +427,7 @@ class FlattenPass(BasePass):
         scope: str,
         space: BaseSpace | None,
         seen: list[BaseSpace] | None = None,
-    ) -> list[_NodeSpec]:
+    ) -> list[_Node]:
         """Return the nodes of a system tree in tree order."""
         if not isinstance(system, _CompositeSystem):
             error_msg = f'{system!r} is not a system.'
@@ -447,7 +447,7 @@ class FlattenPass(BasePass):
             for element, place in zip(system.elements, places, strict=True)
         ]
         nodes += [
-            _NodeSpec(
+            _Node(
                 f'{scope}{interaction.label}',
                 scope,
                 interaction,
@@ -462,7 +462,7 @@ class FlattenPass(BasePass):
         return nodes
 
     @staticmethod
-    def _flatten_system(system: _CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[_NodeSpec]:
+    def _flatten_system(system: _CompositeSystem, scope: str = '', space: BaseSpace | None = None) -> list[_Node]:
         """Return the elements and interactions of a system tree with their paths.
 
         Args:

@@ -23,21 +23,12 @@ from ...errors import ConservationError, LabelError, ValidationError
 from ...types import Array
 from .._utils import declarations_of, symbol, symbols_of
 from ..enums import ReadKind
-from ..problems._block_spec import BlockSpec
-from ..problems._born_spec import _BornSpec
-from ..problems._compiled_delay_spec import _CompiledDelaySpec
-from ..problems._compiled_flow_spec import _CompiledFlowSpec
-from ..problems._declarations_spec import DeclarationsSpec
-from ..problems._flow_term_spec import _FlowTermSpec
 from ..problems._kernel_spec import KernelSpec
 from ..problems._loop_term_spec import LoopTermSpec
-from ..problems._record_spec import _RecordSpec
-from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reference_spec import ReferenceSpec
-from ..problems._transfer_network_spec import TransferNetworkSpec
-from ..problems._transfer_state_spec import TransferStateSpec
+from ..problems._transfer_network_spec import TransferNetworkSpec, _CompiledDelay, _CompiledFlow, _Recorded
 from ._base import BaseLowering, BasePass
-from ._compilation import Compilation
+from ._compilation import Compilation, _Block, _Born, _Declarations, _FlowTerm, _Record, _TransferState
 
 BOUNDARY_PREFIX = '__boundary'
 ENVIRONMENT = 'environment'
@@ -91,11 +82,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
     """
 
     quantities_: dict[str, str]
-    born_: dict[int, _BornSpec]
-    flows_: list[_BornSpec]
-    records_: list[_RecordSpec]
-    delays_: list[_CompiledDelaySpec]
-    terms_: list[_FlowTermSpec]
+    born_: dict[int, _Born]
+    flows_: list[_Born]
+    records_: list[_Record]
+    delays_: list[_CompiledDelay]
+    terms_: list[_FlowTerm]
     claimed_: set[tuple[str, int]]
 
     def _prepare(self, context: Compilation | None) -> None:
@@ -136,7 +127,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         self.claimed_ = set()
         self.lowered_ = [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
 
-    def _get_declarations(self) -> DeclarationsSpec:
+    def _get_declarations(self) -> _Declarations:
         """Return the layout of the compilation.
 
         An error is raised before the layout pass has run.
@@ -155,12 +146,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             raise ValidationError(error_msg)
         return layout
 
-    def _get_state(self) -> TransferStateSpec:
+    def _get_state(self) -> _TransferState:
         """Return the state of the lowering.
 
         The compilation keeps it for the pass that lowers the flows.
         """
-        return TransferStateSpec(
+        return _TransferState(
             self.quantities_,
             self.born_,
             tuple(self.flows_),
@@ -183,7 +174,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         self.terms_ = list(state.terms)
 
     @staticmethod
-    def _get_quantities_of(blocks: Mapping[str, BlockSpec]) -> dict[str, str]:
+    def _get_quantities_of(blocks: Mapping[str, _Block]) -> dict[str, str]:
         """Return the quantity of every state tagged with one, by entry name."""
         quantities = {}
         for block in blocks.values():
@@ -266,7 +257,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 and isinstance(law._get_targets()[0], Expression)
             ):
                 target, _ = self._get_quantity_of(law._get_targets()[0], spec)
-                self.terms_.append(_FlowTermSpec(spec, 'rate', target, law.value))
+                self.terms_.append(_FlowTerm(spec, 'rate', target, law.value))
             expanded.append(law)
         for label, terms in labelled.items():
             self._record_flow(spec, label, terms)
@@ -359,7 +350,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 f'{sorted(map(str, tags))}. A flow connects stocks of one quantity.'
             )
             raise ConservationError(error_msg)
-        compiled = _CompiledFlowSpec(
+        compiled = _CompiledFlow(
             path,
             source,
             sink,
@@ -367,11 +358,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             sink or ENVIRONMENT,
             next(iter(tags)),
         )
-        born = _BornSpec(spec, compiled, amount, 1 if source is None else -1 if sink is None else 0)
+        born = _Born(spec, compiled, amount, 1 if source is None else -1 if sink is None else 0)
         self.flows_.append(born)
         self.born_.update({id(term): born for term in terms})
-        self.records_.append(_RecordSpec(path, self._get_expected(amount), spec))
-        self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
+        self.records_.append(_Record(path, self._get_expected(amount), spec))
+        self.terms_.append(_FlowTerm(spec, 'flow', path, amount, source, sink))
 
     def _check_conserved(self, spec: KernelSpec, law: BaseLaw) -> None:
         """Raise an error for a law outside flows that changes a quantity-tagged state."""
@@ -437,15 +428,15 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
     def _accumulate(
         self,
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         discrete: bool,
-    ) -> tuple[DeclarationsSpec, dict[str, str]]:
+    ) -> tuple[_Declarations, dict[str, str]]:
         """Add a hidden state per quantity that accumulates its net inflow.
 
         The inflow comes from the environment. Returns the declarations with the hidden states, and the name of the
         hidden state of every quantity.
         """
-        boundary: dict[str, list[_BornSpec]] = defaultdict(list)
+        boundary: dict[str, list[_Born]] = defaultdict(list)
         for born in self.flows_:
             if born.sign and born.flow.quantity is not None:
                 boundary[born.flow.quantity].append(born)
@@ -470,7 +461,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 self._add_boundary(laws_of[id(born.spec)], born, accumulator)
         return declarations, names
 
-    def _add_boundary(self, laws: list[BaseLaw], born: _BornSpec, accumulator: Expression) -> None:
+    def _add_boundary(self, laws: list[BaseLaw], born: _Born, accumulator: Expression) -> None:
         """Add the inflow of a boundary flow to the accumulator of its quantity as a rate."""
         laws.append(RateLaw(accumulator, born.sign * born.amount))
 
@@ -478,9 +469,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
         self,
         spec: KernelSpec,
         laws: list[BaseLaw],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         discrete: bool,
-    ) -> DeclarationsSpec:
+    ) -> _Declarations:
         """Replace the delays and smoothings in a spec's laws by hidden states.
 
         The delays and smoothings of its rate laws and records become hidden states with their own laws. Returns the
@@ -520,7 +511,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
                 self._add_reference(spec, stage, reference)
             output = stages[-1] / (time / order) if material else stages[-1]
             mapping = {call: output}
-            self.delays_.append(_CompiledDelaySpec(call, output, references))
+            self.delays_.append(_CompiledDelay(call, output, references))
             laws[:] = [self._get_substituted_law(law, mapping) for law in laws]
             laws.extend(self._get_delay_laws(kind, stages, value, time))
             self.records_ = [
@@ -577,7 +568,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             quantities={quantity: tuple(names) for quantity, names in quantities.items()},
             flows=tuple(born.flow for born in self.flows_),
             recorded=tuple(
-                _RecordedSpec(record.path, record.expression, dict(record.spec.references)) for record in self.records_
+                _Recorded(record.path, record.expression, dict(record.spec.references)) for record in self.records_
             ),
             boundary=boundary,
             terms=tuple(
@@ -590,11 +581,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
 
     @staticmethod
     def _declare_state(
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         name: str,
         initial: Array,
         shape: tuple[int, ...],
-    ) -> tuple[DeclarationsSpec, EntrySpec]:
+    ) -> tuple[_Declarations, EntrySpec]:
         """Return the declarations with a real hidden state added, and its entry.
 
         The state is added after every state declared so far.
@@ -704,7 +695,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list
             raise LabelError(error_msg)
         self.claimed_.add((f'{owner}.{label}', set_index))
 
-    def _get_initial(self, item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
+    def _get_initial(self, item: Expression, spec: KernelSpec, declarations: _Declarations) -> float:
         """Return the value of an expression of a spec's single symbols initially.
 
         The value is taken at the initial state and time zero.

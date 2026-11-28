@@ -22,11 +22,11 @@ from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
 from ..enums import VariableKind
 from ..errors import SkcomplexError
-from .problems._variable_spec import _VariableSpec
+from .problems._compiled_element_spec import _Variable
 
 INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
     BaseComponent,
-    tuple[Mapping[str, _DeclaredVariableSpec], dict[str, tuple[_VariableSpec, object]]],
+    tuple[Mapping[str, _DeclaredVariableSpec], dict[str, tuple[_Variable, object]]],
 ] = weakref.WeakKeyDictionary()
 
 
@@ -252,12 +252,12 @@ def binding_of(component: object, role: str) -> object:
     return getattr(component, role, None)
 
 
-def _variable_of(spec: _StateSpec | _ParameterSpec | RoleSpec) -> _VariableSpec:
+def _variable_of(spec: _StateSpec | _ParameterSpec | RoleSpec) -> _Variable:
     """Return the declaration of a spec."""
     if isinstance(spec, RoleSpec):
-        return _VariableSpec(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise, optional=spec.optional)
+        return _Variable(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise, optional=spec.optional)
     if isinstance(spec, _ParameterSpec):
-        return _VariableSpec(
+        return _Variable(
             VariableKind.STATE if spec.adaptive else VariableKind.PARAMETER,
             spec.domain,
             spec.vector,
@@ -269,7 +269,7 @@ def _variable_of(spec: _StateSpec | _ParameterSpec | RoleSpec) -> _VariableSpec:
             n_dim=spec.n_dim,
         )
     order = int(spec.order) if float(spec.order).is_integer() else float(spec.order)
-    return _VariableSpec(
+    return _Variable(
         VariableKind.STATE,
         spec.domain,
         spec.vector,
@@ -288,16 +288,16 @@ def _variable_of(spec: _StateSpec | _ParameterSpec | RoleSpec) -> _VariableSpec:
     )
 
 
-def _companions(name: str, variable: _VariableSpec, default: object) -> dict[str, tuple[_VariableSpec, object]]:
+def _companions(name: str, variable: _Variable, default: object) -> dict[str, tuple[_Variable, object]]:
     """Return the companion states of a state of higher order or with lags.
 
     They are given by name, with their defaults.
     """
-    companions: dict[str, tuple[_VariableSpec, object]] = {}
+    companions: dict[str, tuple[_Variable, object]] = {}
     domain = CC if variable.domain is CC else RR
     for index in range(1, variable.derivatives + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else 0.0
-        companion = _VariableSpec(
+        companion = _Variable(
             VariableKind.STATE,
             domain,
             variable.vector,
@@ -309,7 +309,7 @@ def _companions(name: str, variable: _VariableSpec, default: object) -> dict[str
         companions[f'{name}_d{index}'] = (companion, value)
     for index in range(1, variable.lags + 1):
         value = variable.initial[index - 1] if index <= len(variable.initial) else default
-        companion = _VariableSpec(
+        companion = _Variable(
             VariableKind.STATE,
             variable.domain,
             variable.vector,
@@ -322,7 +322,7 @@ def _companions(name: str, variable: _VariableSpec, default: object) -> dict[str
     return companions
 
 
-def _instance_variables(component: BaseComponent) -> dict[str, tuple[_VariableSpec, object]]:
+def _instance_variables(component: BaseComponent) -> dict[str, tuple[_Variable, object]]:
     """Return the variables of a component instance.
 
     They are those of its class and those it declares, read once per declaration.
@@ -343,7 +343,7 @@ def _instance_variables(component: BaseComponent) -> dict[str, tuple[_VariableSp
     return variables
 
 
-def declared_variables(component: object) -> dict[str, tuple[_VariableSpec, object]]:
+def declared_variables(component: object) -> dict[str, tuple[_Variable, object]]:
     """Return the declaration and the default of every value a component declares.
 
     A component declares its states, parameters, and roles in the annotations of the arguments of its `__init__`, such
@@ -383,7 +383,7 @@ def declared_variables(component: object) -> dict[str, tuple[_VariableSpec, obje
 
 
 @functools.cache
-def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[_VariableSpec, object]]:
+def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[_Variable, object]]:
     """Return the declaration and the default of every variable of a component class.
 
     They are read once per class. Rules read the declarations of their agents every step, such as the group a reference
@@ -391,7 +391,7 @@ def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[_VariableSpec,
     `declared_variables`.
     """
     parameters = inspect.signature(cls).parameters
-    variables: dict[str, tuple[_VariableSpec, object]] = {}
+    variables: dict[str, tuple[_Variable, object]] = {}
     for name, spec in cls._get_specs().items():
         variable = _variable_of(spec)
         default = parameters[name].default
@@ -402,7 +402,7 @@ def _class_variables(cls: type[BaseComponent]) -> dict[str, tuple[_VariableSpec,
     return variables
 
 
-def declarations_of(component: object, kind: VariableKind) -> dict[str, _VariableSpec]:
+def declarations_of(component: object, kind: VariableKind) -> dict[str, _Variable]:
     """Return the declarations of one kind of a component, such as its parameters.
 
     It keeps the values of `declared_variables` of one kind, states, parameters, or roles, with the past values and

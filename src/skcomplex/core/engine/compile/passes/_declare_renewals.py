@@ -11,10 +11,9 @@ from sage.all__sagemath_symbolics import NN
 from ....components import EntrySpec
 from ....components.laws import BaseLaw
 from ..._utils import symbol
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._compilation import Compilation, _BoundRenewal
+from .._compilation import Compilation, _BoundRenewal, _Declarations
 from .._renewal_law import RenewalLaw
 from ._census import CensusPass
 from ._layout import LayoutPass
@@ -61,9 +60,9 @@ class DeclareRenewalsPass(BasePass):
     def _declare_renewal(
         spec: KernelSpec,
         law: RenewalLaw,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         label: str,
-    ) -> tuple[DeclarationsSpec, _BoundRenewal]:
+    ) -> tuple[_Declarations, _BoundRenewal]:
         """Return the declarations with the hidden state that counts renewals.
 
         The state counts the renewals of every member of a renewal law. Returns the declarations and the renewal law
@@ -88,8 +87,8 @@ class DeclareRenewalsPass(BasePass):
     def _get_declared_renewals(
         spec: KernelSpec,
         laws: list[BaseLaw],
-        declarations: DeclarationsSpec,
-    ) -> tuple[DeclarationsSpec, list[_BoundRenewal]]:
+        declarations: _Declarations,
+    ) -> tuple[_Declarations, list[_BoundRenewal]]:
         """Return the declarations with the hidden states that count renewals.
 
         They count the renewals of a spec, and its renewal laws are also returned.

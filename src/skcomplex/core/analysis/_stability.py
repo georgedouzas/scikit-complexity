@@ -22,7 +22,6 @@ from ..engine._utils import binding_of, bound_labels, components_of, declaration
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
-from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._field_element import _FieldElement
 from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
@@ -46,6 +45,26 @@ DERIVATIVE = '_derivative_{}_'
 ZERO = 1e-9
 MEMBER_LIMIT = 64
 TAGS = AnalysisTags(DataKind.SYSTEM)
+
+
+@dataclass(frozen=True)
+class _Dynamics:
+    """First-order equations of a system.
+
+    They hold its state symbols, their right sides, and its parameter values.
+    """
+
+    problem: ProblemSpec
+    names: list[str]
+    symbols: list[Expression]
+    rates: list[Expression]
+    parameters: dict[Expression, float]
+    discrete: bool
+
+    @property
+    def time(self) -> Expression:
+        """Time symbol of the equations."""
+        return self.problem.time
 
 
 @dataclass(frozen=True)
@@ -267,7 +286,7 @@ class StabilityResult:
     def _get_dynamics_of(
         system: _CompositeSystem | BaseProblemSpec,
         parameters: Mapping[str, float] | None = None,
-    ) -> _DynamicsSpec:
+    ) -> _Dynamics:
         """Return the first-order equations of a system.
 
         The parameters are at their current values.
@@ -300,7 +319,7 @@ class StabilityResult:
             for column, item in enumerate(components_of(problem.symbols[entry.name])):
                 current[item] = float(values[entry.start + column])
         names, symbols, rates, members = StabilityResult._expand_groups(problem, values)
-        return _DynamicsSpec(
+        return _Dynamics(
             problem=problem,
             names=names,
             symbols=symbols,
@@ -419,7 +438,7 @@ def stability(
     )
 
 
-def _find_points(dynamics: _DynamicsSpec, *, substitute: bool) -> list[dict[str, Expression | float]]:
+def _find_points(dynamics: _Dynamics, *, substitute: bool) -> list[dict[str, Expression | float]]:
     """Return the fixed points, solved symbolically or else searched numerically.
 
     The parameters take their values before solving when `substitute` is set, and stay symbols otherwise.
@@ -443,7 +462,7 @@ def _find_points(dynamics: _DynamicsSpec, *, substitute: bool) -> list[dict[str,
 
 
 def _sort_points(
-    dynamics: _DynamicsSpec,
+    dynamics: _Dynamics,
     points: list[dict[str, Expression | float]],
 ) -> list[dict[str, Expression | float]]:
     """Return fixed points sorted by their values, in the order of the state names.
@@ -467,7 +486,7 @@ def _sort_points(
     return sorted(points, key=get_key)
 
 
-def _eigenvalues_at(dynamics: _DynamicsSpec, jacobian: Matrix, point: Point) -> npt.NDArray[np.complex128]:
+def _eigenvalues_at(dynamics: _Dynamics, jacobian: Matrix, point: Point) -> npt.NDArray[np.complex128]:
     """Return the eigenvalues of the Jacobian at a point.
 
     The parameters are at their values, a float as the exact decimal it is written as, so `2 - 3.2` is -1.2.
@@ -500,7 +519,7 @@ def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expressio
     return all(item in solution for item in symbols) and not any(re.fullmatch(r'r\d+', name) for name in free)
 
 
-def _numeric_points(dynamics: _DynamicsSpec) -> list[dict[str, Expression | float]]:
+def _numeric_points(dynamics: _Dynamics) -> list[dict[str, Expression | float]]:
     """Return fixed points found numerically from a grid of starting points."""
     values = [
         rate.subs(dynamics.parameters) - (item if dynamics.discrete else 0)

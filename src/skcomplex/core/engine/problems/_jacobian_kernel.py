@@ -4,7 +4,8 @@
 # License: MIT
 
 import functools
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -20,19 +21,44 @@ from ..types import Sparse
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._finite_volume_kernel import FiniteVolumeKernel
-from ._law_kernel import LawKernel
-from ._neighborhood_kernel import NeighborhoodKernel
-from ._output_spec import OutputSpec
-from ._partials_spec import PartialsSpec
-from ._read_spec import _ReadSpec
-from ._reduction_kernel import ReductionKernel
-from ._reduction_schedule_spec import ReductionScheduleSpec
+from ._law_kernel import LawKernel, _Output
+from ._neighborhood_kernel import NeighborhoodKernel, _ReductionSchedule
+from ._reduction_kernel import ReductionKernel, _Read
 from ._reference_spec import ReferenceSpec
 from ._run_state_spec import RunStateSpec
-from ._symmetry_spec import SymmetrySpec
 from ._too_dense import _TooDenseError
 
 PATTERN_LIMIT = 4_000_000
+
+
+@dataclass(frozen=True, eq=False)
+class _Symmetry:
+    """A record of a mirror symmetry of a field on a periodic lattice.
+
+    A field that is odd or even about an axis, such as a velocity that changes sign under a mirror, should keep that
+    symmetry, but rounding errors break it over many steps. The engine projects the rates of the field onto the odd or
+    even part along every axis of the symmetry, so it holds exactly. It keeps the symmetry of a flow, a wave, and a
+    pattern of a reaction.
+
+    Read more in the user guide, under Solvers.
+
+    Args:
+        indices:
+            The state indices of the field state, one per lattice site.
+
+        shape:
+            The shape of the lattice.
+
+        signs:
+            The axes of the symmetry with their signs, `-1` for an odd and `1` for an even part.
+
+    See Also:
+        JacobianKernel: Reads the symmetries of the fields.
+    """
+
+    indices: Indices
+    shape: tuple[int, ...]
+    signs: tuple[tuple[int, int], ...]
 
 
 class JacobianKernel(BaseKernel):
@@ -73,7 +99,6 @@ class JacobianKernel(BaseKernel):
 
     See Also:
         LawKernel: The kernels whose rates it differentiates.
-        PartialsSpec: The partial derivatives it compiles.
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
@@ -87,12 +112,12 @@ class JacobianKernel(BaseKernel):
     def __init__(
         self,
         kernels: tuple[LawKernel, ...],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         size: int,
         time: Expression,
         volumes: tuple[FiniteVolumeKernel, ...] = (),
         *,
-        symmetries: tuple[SymmetrySpec, ...] = (),
+        symmetries: tuple[_Symmetry, ...] = (),
         constrained: Indices | None = None,
     ) -> None:
         self.kernels = kernels
@@ -157,17 +182,18 @@ class JacobianKernel(BaseKernel):
         for reduction in self.reductions.reductions:
             by = [item for item in reduction.symbols if reduction.reads[item].is_state or item in self._by_symbol]
             self.reduction_partials_[reduction.symbol] = self._get_partials(reduction.symbols, [reduction.argument], by)
-        self.operand_partials_: dict[int, PartialsSpec] = {}
+        self.operand_partials_: dict[int, tuple[tuple[tuple[int, Expression], ...], Callable[..., object] | None]] = {}
 
     def _get_partials(
         self,
         arguments: list[Expression],
         expressions: list[Expression],
         by: list[Expression],
-    ) -> PartialsSpec:
+    ) -> tuple[tuple[tuple[int, Expression], ...], Callable[..., object] | None]:
         """Return the nonzero partial derivatives of expressions by symbols.
 
-        They are compiled into one NumPy function.
+        They are compiled into one NumPy function of the time and the arguments, which is `None` for no derivative,
+        and come with the index of the expression and the symbol of every derivative.
         """
         pairs = tuple(
             (index, item)
@@ -177,13 +203,13 @@ class JacobianKernel(BaseKernel):
         )
         derivatives = [SR(expressions[index]).diff(item) for index, item in pairs]
         if not derivatives:
-            return PartialsSpec(pairs, None)
+            return pairs, None
         printer = ExpressionPrinter(time=self.time, compiled=True).prepare(arguments)
-        return PartialsSpec(pairs, ExpressionPrinter._get_function_of(printer.run(derivatives).code_))
+        return pairs, ExpressionPrinter._get_function_of(printer.run(derivatives).code_)
 
     @staticmethod
     def _get_derivatives(
-        partials: PartialsSpec,
+        partials: tuple[tuple[tuple[int, Expression], ...], Callable[..., object] | None],
         t: float,
         values: Sequence[object],
     ) -> list[tuple[int, Expression, npt.ArrayLike]]:
@@ -191,10 +217,11 @@ class JacobianKernel(BaseKernel):
 
         Each comes with the symbol it is taken by.
         """
-        if partials.function is None:
+        pairs, function = partials
+        if function is None:
             return []
-        results = ExpressionPrinter._get_values_of(partials.function(t, *values))
-        return [(index, item, value) for (index, item), value in zip(partials.pairs, results, strict=True)]
+        results = ExpressionPrinter._get_values_of(function(t, *values))
+        return [(index, item, value) for (index, item), value in zip(pairs, results, strict=True)]
 
     @property
     def _by_symbol(self) -> dict[Expression, ReductionKernel]:
@@ -570,7 +597,7 @@ class JacobianKernel(BaseKernel):
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
             weights = reduction.weights
-            pattern = np.ones(weights.shape) if isinstance(weights, _ReadSpec) else weights
+            pattern = np.ones(weights.shape) if isinstance(weights, _Read) else weights
             return scipy.sparse.csr_array((abs(pattern) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
 
@@ -598,7 +625,7 @@ class JacobianKernel(BaseKernel):
         )
 
     @staticmethod
-    def _get_target_of(output: OutputSpec) -> ReferenceSpec:
+    def _get_target_of(output: _Output) -> ReferenceSpec:
         """Return the target component of a rate output.
 
         An error is raised for an output without one.
@@ -621,7 +648,7 @@ class JacobianKernel(BaseKernel):
         return output.target
 
     @staticmethod
-    def _get_output_symbols(output: OutputSpec) -> set[Expression] | None:
+    def _get_output_symbols(output: _Output) -> set[Expression] | None:
         """Return the symbols an output reads.
 
         A callable law reads every state and returns `None`.
@@ -646,7 +673,7 @@ class JacobianKernel(BaseKernel):
         return members[inside], columns.astype(np.intp)
 
     @staticmethod
-    def _mirror_projections(symmetries: Sequence[SymmetrySpec], size: int) -> list[Sparse]:
+    def _mirror_projections(symmetries: Sequence[_Symmetry], size: int) -> list[Sparse]:
         """Return the matrices that project the rates of symmetric states.
 
         They project onto the odd or even parts, axis by axis.

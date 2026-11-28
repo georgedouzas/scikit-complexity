@@ -6,7 +6,7 @@
 import math
 from abc import abstractmethod
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 
 import numpy as np
@@ -20,8 +20,6 @@ from ...types import Array
 from .._utils import symbols_of
 from ..compile._observables import ObservableEvaluator
 from ..problems import ProblemSpec
-from ..problems._control_problem_spec import _ControlProblemSpec
-from ..problems._control_spec import _ControlSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..types import Cost, GridFunction
 from ._solver import Solver
@@ -29,6 +27,97 @@ from ._solver import Solver
 TIME_TOLERANCE = 1e-9
 SENSES = ('min', 'max')
 NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
+
+
+@dataclass(frozen=True)
+class _Control:
+    """Control of an optimal control problem.
+
+    It holds its dotted name, state index, symbol, and bounds.
+    """
+
+    name: str
+    index: int
+    symbol: Expression
+    lower: float
+    upper: float
+
+
+@dataclass(frozen=True)
+class _ControlProblem:
+    """Optimal control problem of a compiled system.
+
+    Its cost is written to be minimised.
+
+    Args:
+        problem:
+            The compiled problem.
+
+        names:
+            The dotted names of the steered states.
+
+        indices:
+            The indices of the steered states in the state vector.
+
+        states:
+            The symbols of the steered states.
+
+        controls:
+            The controls, the bounded adaptive parameters.
+
+        parameters:
+            The symbols of the parameters.
+
+        rates:
+            The rates of the steered states.
+
+        running:
+            The running cost, written to be minimised.
+
+        terminal:
+            The terminal cost, written to be minimised.
+
+        sign:
+            1 to minimise the objective, and -1 to maximise it.
+
+        lower:
+            The lower bound of every steered state.
+    """
+
+    problem: ProblemSpec
+    names: tuple[str, ...]
+    indices: npt.NDArray[np.intp]
+    states: tuple[Expression, ...]
+    controls: tuple[_Control, ...]
+    parameters: tuple[Expression, ...]
+    rates: tuple[Expression, ...]
+    running: Expression
+    terminal: Expression
+    sign: float
+    lower: Array = field(repr=False)
+
+    @property
+    def time(self) -> Expression:
+        """Time symbol of the expressions."""
+        return self.problem.time
+
+    @property
+    def control_symbols(self) -> list[Expression]:
+        """Symbols of the controls."""
+        return [control.symbol for control in self.controls]
+
+    @property
+    def control_indices(self) -> npt.NDArray[np.intp]:
+        """Indices of the controls in the state vector."""
+        return np.array([control.index for control in self.controls], dtype=np.intp)
+
+    @property
+    def bounds(self) -> tuple[Array, Array]:
+        """Lower and upper bounds of the controls."""
+        return (
+            np.array([control.lower for control in self.controls]),
+            np.array([control.upper for control in self.controls]),
+        )
 
 
 @dataclass(frozen=True)
@@ -238,7 +327,7 @@ class OptimalControlSolver(Solver):
             raise SolverError(error_msg)
         return self.solution_.get_state_at(until)
 
-    def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive what the solver needs from the optimal control problem.
 
         This happens once per compiled problem.
@@ -251,7 +340,7 @@ class OptimalControlSolver(Solver):
 
     @staticmethod
     def _get_function(
-        control_problem: _ControlProblemSpec,
+        control_problem: _ControlProblem,
         expressions: Sequence[Expression],
         extra: Sequence[Expression] = (),
     ) -> GridFunction:
@@ -289,7 +378,7 @@ class OptimalControlSolver(Solver):
         return evaluate
 
     @staticmethod
-    def _check_symbols(control_problem: _ControlProblemSpec) -> None:
+    def _check_symbols(control_problem: _ControlProblem) -> None:
         """Raise an error for a rate or a cost that reads a foreign symbol.
 
         Only states, controls, parameters, and time may be read.
@@ -309,7 +398,7 @@ class OptimalControlSolver(Solver):
             )
             raise SolverError(error_msg)
 
-    def _get_control_problem(self, problem: ProblemSpec) -> _ControlProblemSpec:
+    def _get_control_problem(self, problem: ProblemSpec) -> _ControlProblem:
         """Return the optimal control problem of a compiled problem.
 
         It holds its bounded controls and the objective.
@@ -336,7 +425,7 @@ class OptimalControlSolver(Solver):
         controlled = {control.index for control in controls}
         indices = np.array([index for index in range(len(symbols)) if index not in controlled], dtype=np.intp)
         names = [name for entry in problem.states.entries for name in entry.component_names]
-        control_problem = _ControlProblemSpec(
+        control_problem = _ControlProblem(
             problem=problem,
             names=tuple(names[index] for index in indices),
             indices=indices,
@@ -406,7 +495,7 @@ class OptimalControlSolver(Solver):
         return lower[list(indices)]
 
     @staticmethod
-    def _get_objective_controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_ControlSpec, ...]:
+    def _get_objective_controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_Control, ...]:
         """Return the controls an objective law names, bounded by their allowed values.
 
         A control without allowed values is unbounded.
@@ -436,11 +525,11 @@ class OptimalControlSolver(Solver):
             domain = entry.domain
             lower = float(domain.inf()) if isinstance(domain, RealSet) else -math.inf
             upper = float(domain.sup()) if isinstance(domain, RealSet) else math.inf
-            controls.append(_ControlSpec(entry.name, entry.start, symbols[entry.start], lower, upper))
+            controls.append(_Control(entry.name, entry.start, symbols[entry.start], lower, upper))
         return tuple(controls)
 
     @staticmethod
-    def _controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_ControlSpec, ...]:
+    def _controls(problem: ProblemSpec, symbols: Sequence[Expression]) -> tuple[_Control, ...]:
         """Return the bounded adaptive parameters of a problem as its controls."""
         controls = []
         for name, declaration in problem.adaptive_parameters.items():
@@ -451,7 +540,7 @@ class OptimalControlSolver(Solver):
                 error_msg = f'The control {name} is not a scalar. Declare every control as a scalar adaptive parameter.'
                 raise SolverError(error_msg)
             lower, upper = declaration.bounds
-            controls.append(_ControlSpec(name, entry.start, symbols[entry.start], lower, upper))
+            controls.append(_Control(name, entry.start, symbols[entry.start], lower, upper))
         if not controls:
             error_msg = (
                 'The system has no bounded adaptive parameter to control. Give the objective law the control '

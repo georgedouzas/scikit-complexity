@@ -41,19 +41,15 @@ from ....errors import SpaceError, ValidationError
 from ....types import Array, Indices
 from ..._utils import symbol
 from ...enums import ReadKind
-from ...problems._arguments_spec import _ArgumentsSpec
 from ...problems._cascade_kernel import CascadeKernel
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._drive_kernel import DriveKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
-from ...problems._lattice_state_spec import _LatticeStateSpec
-from ...problems._lookup_spec import _LookupSpec
 from ...problems._monte_carlo_kernel import MonteCarloKernel
-from ...problems._rule_kernel import RuleKernel
+from ...problems._rule_kernel import RuleKernel, _Arguments, _LatticeState, _Lookup
 from .._array_update_law import ArrayUpdateLaw
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 from .._issue_spec import IssueSpec
 from .._laws import LATTICE_LAWS
 from .._relaxation_law import RelaxationLaw
@@ -97,7 +93,7 @@ class _LatticeContext:
     """
 
     owner: str
-    states: Mapping[Expression, _LatticeStateSpec]
+    states: Mapping[Expression, _LatticeState]
     arguments: Mapping[Expression, tuple[str, bool, int, int]]
     fused: bool = False
     others: Mapping[Expression, str] = field(default_factory=dict)
@@ -152,7 +148,7 @@ class LatticeProblemPass(BasePass):
         law: str,
         *,
         components: bool = False,
-    ) -> _LatticeStateSpec:
+    ) -> _LatticeState:
         """Return the lattice state of a target symbol, or raise an error naming the law.
 
         Only a law that changes every component of a member, a drive or a local rule, may target a state of several
@@ -172,7 +168,7 @@ class LatticeProblemPass(BasePass):
         return state
 
     @staticmethod
-    def _get_keywords(context: _LatticeContext) -> _ArgumentsSpec:
+    def _get_keywords(context: _LatticeContext) -> _Arguments:
         """Return every parameter its component reads, which a rule receives by keyword."""
         names, starts, sizes = [], [], []
         for name, is_state, start, size in context.arguments.values():
@@ -180,10 +176,10 @@ class LatticeProblemPass(BasePass):
                 names.append(name)
                 starts.append(start)
                 sizes.append(size)
-        return _ArgumentsSpec(tuple(names), (False,) * len(names), tuple(starts), tuple(sizes))
+        return _Arguments(tuple(names), (False,) * len(names), tuple(starts), tuple(sizes))
 
     @staticmethod
-    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> _LatticeContext:
+    def _get_lattice_context(spec: KernelSpec, declarations: _Declarations, fused: bool) -> _LatticeContext:
         """Return the lattice states, arguments, and neighbour symbols of a component.
 
         They are those of the symbols the component reads.
@@ -198,7 +194,7 @@ class LatticeProblemPass(BasePass):
             if reference.is_state and is_lattice and isinstance(space, BaseSpace) and space._has_sites():
                 part = (getattr(block.node.component, 'on', None) if block is not None else None) or 'sites'
                 rows = None if part == 'sites' else entry.rows
-                states[item] = _LatticeStateSpec(entry.name, entry.start, space, part, rows, entry.columns)
+                states[item] = _LatticeState(entry.name, entry.start, space, part, rows, entry.columns)
             if not entry.member_shape:
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
             if reference.source is ReadKind.OTHER:
@@ -235,7 +231,7 @@ class LatticeProblemPass(BasePass):
     @staticmethod
     def _compile_lattice(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         fused: bool,
     ) -> tuple[LatticeStep, ...]:
         """Return the steps of lattice laws in declaration order.
@@ -423,7 +419,7 @@ class LatticeProblemPass(BasePass):
             raise ValidationError(error_msg) from error
 
     @staticmethod
-    def _get_lookup_of(rule: object, n_offsets: int, owner: str) -> _LookupSpec | None:
+    def _get_lookup_of(rule: object, n_offsets: int, owner: str) -> _Lookup | None:
         """Return the lookup array of a table or totalistic rule.
 
         It is `None` for a function rule.
@@ -436,7 +432,7 @@ class LatticeProblemPass(BasePass):
                     error_msg = f'{owner} has a table pattern {pattern} for a neighbourhood of {n_offsets} cells.'
                     raise ValidationError(error_msg)
                 values[int(np.ravel_multi_index(tuple(int(item) for item in pattern), (base,) * n_offsets))] = value
-            return _LookupSpec('table', base, values)
+            return _Lookup('table', base, values)
         if isinstance(rule, TotalisticSpec | OuterTotalisticSpec):
             sums = np.arange(n_offsets * (rule.states - 1) + 1)
             if isinstance(rule, TotalisticSpec):
@@ -444,7 +440,7 @@ class LatticeProblemPass(BasePass):
                     values = np.broadcast_to(np.asarray(rule.rule(sums), dtype=float), sums.shape).copy()
                 else:
                     values = np.asarray([float(rule.rule.get(int(total), rule.default)) for total in sums])
-                return _LookupSpec('totalistic', rule.states, values)
+                return _Lookup('totalistic', rule.states, values)
             centers = np.arange(rule.states)[:, None]
             if callable(rule.rule):
                 grid = np.broadcast_to(
@@ -458,7 +454,7 @@ class LatticeProblemPass(BasePass):
                         for center in range(rule.states)
                     ],
                 )
-            return _LookupSpec('outer', rule.states, grid.ravel().copy(), sums.size)
+            return _Lookup('outer', rule.states, grid.ravel().copy(), sums.size)
         return None
 
     @staticmethod
@@ -553,7 +549,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_coface_tables(
-        target: _LatticeStateSpec,
+        target: _LatticeState,
         owner: str,
     ) -> tuple[Indices, Array, scipy.sparse.csr_array]:
         """Return the cofaces of the moved cells, their signs, and incidences.
@@ -687,7 +683,7 @@ class LatticeProblemPass(BasePass):
             lookup=lookup,
             schedule=law.schedule,
             stochastic=law.stochastic,
-            arguments=LatticeProblemPass._get_keywords(context) if function is not None else _ArgumentsSpec(),
+            arguments=LatticeProblemPass._get_keywords(context) if function is not None else _Arguments(),
             fused=context.fused and lookup is not None and law.schedule == 'synchronous',
             degrees=LatticeProblemPass._get_degrees_of(table, law.over, space) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
@@ -718,7 +714,7 @@ class LatticeProblemPass(BasePass):
     def _get_translations_of(
         law: _LocalRuleLaw,
         space: BaseSpace,
-        reads: tuple[_LatticeStateSpec, ...],
+        reads: tuple[_LatticeState, ...],
         owner: str,
     ) -> Indices | None:
         """Return the translation table of a memory translated by the values of a state.
@@ -876,7 +872,7 @@ class LatticeProblemPass(BasePass):
         move: MoveSpec,
         sampler: SamplerSpec,
         context: _LatticeContext,
-        target: _LatticeStateSpec,
+        target: _LatticeState,
     ) -> LoweredObjective:
         """Return the table, classes, symbols, and expression of a neighbour objective.
 
@@ -913,7 +909,7 @@ class LatticeProblemPass(BasePass):
         move: MoveSpec,
         sampler: SamplerSpec,
         context: _LatticeContext,
-        target: _LatticeStateSpec,
+        target: _LatticeState,
     ) -> LoweredObjective:
         """Return the table, classes, symbols, expression, and incidence of an objective.
 
@@ -1004,7 +1000,7 @@ class LatticeProblemPass(BasePass):
                 error_msg = f'{owner} read {item}, which is not a parameter or state of the lattice group.'
                 raise ValidationError(error_msg)
         found = [context.arguments[item] for item in extra]
-        arguments = _ArgumentsSpec(
+        arguments = _Arguments(
             tuple(str(item) for item in extra),
             tuple(item[1] for item in found),
             tuple(item[2] for item in found),

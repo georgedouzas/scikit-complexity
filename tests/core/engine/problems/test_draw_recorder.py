@@ -1,5 +1,7 @@
 """Test the `_draw_recorder` module of `skcomplex.core.engine.problems`."""
 
+import dataclasses
+
 import numpy as np
 import pytest
 from scipy import stats
@@ -59,3 +61,11 @@ def test_recorder_scores_bernoulli_categorical_and_scipy_draws():
     expected = np.log(0.25) + np.log(0.75) + np.log(0.75) + stats.expon.logpdf(1.0, scale=2.0)
     assert recorder.log_probability_ == pytest.approx(expected)
     assert recorder.log_.draws['a.pick'].arguments['weights'].tolist() == [[1.0, 3.0]]
+
+
+def test_recorder_rejects_a_replay_with_decreasing_firing_times():
+    """Test that preparing a recorder raises an error when the log to replay has firing times that decrease."""
+    log = DrawRecorder().prepare().log_
+    replay = dataclasses.replace(log, firing_times=np.array([1.0, 0.5]), firing_laws=np.array([0, 0]))
+    with pytest.raises(ValidationError, match='must not decrease'):
+        DrawRecorder(replay).prepare()

@@ -21,11 +21,12 @@ from sage.all__sagemath_symbolics import SR
 from ...components.elements import VisualSpec
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._declared_element import _DeclaredElement
 from ..problems._group_element import _GroupElement
 from ..problems._learning_problem_spec import LearningProblemSpec
+from ..problems._renewal_kernel import _RenewalRecordSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._axes import AxisVisual
@@ -269,7 +270,7 @@ class RerunObserver(BaseObserver):
 
     def _get_visual_of(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> BaseVisual:
         """Return the visual the spec of an element names.
@@ -288,7 +289,7 @@ class RerunObserver(BaseObserver):
     @staticmethod
     def _get_option_value(
         value: object,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> object:
         """Return an option, with an expression of parameters replaced by its value."""
@@ -308,7 +309,7 @@ class RerunObserver(BaseObserver):
         }
         return float(expression.subs(values))
 
-    def _get_agents_visual_of(self, agents: _CompiledAgentsSpec, problem: BaseProblemSpec) -> AgentsVisual:
+    def _get_agents_visual_of(self, agents: _CompiledAgents, problem: BaseProblemSpec) -> AgentsVisual:
         """Return the visual of an agent group.
 
         It is its declared agents visual, or the histogram visual without a space.
@@ -352,7 +353,7 @@ class RerunObserver(BaseObserver):
         series: list[rrb.View] = []
         points: dict[type, list[rrb.View]] = {}
         for visual in self.visuals_:
-            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, _CompiledAgentsSpec):
+            if isinstance(visual, ScalarsVisual) or isinstance(visual.element_, _CompiledAgents):
                 continue
             for view in visual.views_:
                 if isinstance(view, rrb.TimeSeriesView):
@@ -368,7 +369,7 @@ class RerunObserver(BaseObserver):
 
         They are merged into one per view class when the groups share a space.
         """
-        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, _CompiledAgentsSpec)]
+        agents = [visual for visual in self.visuals_ if isinstance(visual.element_, _CompiledAgents)]
         views = [view for visual in agents for view in visual.views_]
         if problem.agent_space is None:
             return views
@@ -472,7 +473,7 @@ class RerunObserver(BaseObserver):
             if np.ndim(parameter) <= MATRIX_RANK:
                 BaseVisual._log_scalars(self.recording_, f'parameters/{name}', parameter)
         for record in frame.events:
-            if isinstance(record, RenewalRecordSpec):
+            if isinstance(record, _RenewalRecordSpec):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._get_renewal_text(record)))
         self.logged_frames_ += 1
 
@@ -540,7 +541,7 @@ class RerunObserver(BaseObserver):
         return RerunObserver._get_sanitised(f'{owner}/{leaf}' if owner in owners else name)
 
     @staticmethod
-    def _get_renewal_text(record: RenewalRecordSpec) -> str:
+    def _get_renewal_text(record: _RenewalRecordSpec) -> str:
         """Return the text log entry of the renewals of one pass.
 
         It names the members that renewed.

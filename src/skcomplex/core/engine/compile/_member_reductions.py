@@ -15,8 +15,7 @@ from ...components.laws._reduction_spec import _ReductionSpec
 from ...components.laws.utils._reductions import reductions_in
 from ...errors import RoleError, ValidationError
 from .._utils import symbol, symbols_of
-from ..problems._read_spec import _ReadSpec
-from ..problems._reduction_kernel import ReductionKernel
+from ..problems._reduction_kernel import ReductionKernel, _Read
 
 
 class _MemberReductions(BaseConfig[None, object]):
@@ -56,7 +55,7 @@ class _MemberReductions(BaseConfig[None, object]):
             The expression the last run lowered, with placeholders, or the value it ran on when not an expression.
     """
 
-    reads_: dict[Expression, _ReadSpec]
+    reads_: dict[Expression, _Read]
     found_: dict[str, ReductionKernel]
     expression_: object
 
@@ -66,7 +65,7 @@ class _MemberReductions(BaseConfig[None, object]):
         path: str,
         group: str,
         size: int,
-        reads: Mapping[Expression, _ReadSpec],
+        reads: Mapping[Expression, _Read],
         time: Expression,
         parameters: int,
     ) -> None:
@@ -131,7 +130,7 @@ class _MemberReductions(BaseConfig[None, object]):
         )
         raise RoleError(error_msg)
 
-    def _read(self, item: Expression) -> _ReadSpec:
+    def _read(self, item: Expression) -> _Read:
         """Return how the reduction pass reads one symbol of a reduction."""
         if item not in self.reads_:
             error_msg = (
@@ -198,5 +197,5 @@ class _MemberReductions(BaseConfig[None, object]):
             time=self.time,
         ).prepare()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
-        self.reads_[placeholder] = _ReadSpec(False, indices, entry)
+        self.reads_[placeholder] = _Read(False, indices, entry)
         return placeholder

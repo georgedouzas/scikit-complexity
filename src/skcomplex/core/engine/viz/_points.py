@@ -13,7 +13,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._layout_spec import LayoutSpec
 from ._base import UPWARD, BaseVisual
 
@@ -270,7 +270,7 @@ class PointsVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return a spatial view of the positions and a time series view of other states.

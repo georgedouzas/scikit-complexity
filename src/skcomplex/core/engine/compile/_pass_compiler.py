@@ -83,11 +83,10 @@ from ..problems._field_element import _FieldElement
 from ..problems._group_element import _GroupElement
 from ..problems._layout_spec import LayoutSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
-from ..problems._node_spec import _NodeSpec
 from ..problems._partition_spec import PartitionSpec
 from ..problems._topology_kernel import TopologyKernel
 from ._base import FIXES, BaseCompiler, BasePass
-from ._compilation import Compilation, _Census, _CensusRecord
+from ._compilation import Compilation, _Census, _CensusRecord, _Node
 from ._field_lowering import FieldLowering
 from ._issue_spec import IssueSpec
 from ._learning_compiler import _LearningCompiler
@@ -213,7 +212,7 @@ class PassCompiler(BaseCompiler):
     compilation_: Compilation | None
     learning_: _LearningCompiler | None
     probed_: dict[str, SkcomplexError]
-    nodes_: list[_NodeSpec] | None
+    nodes_: list[_Node] | None
     nested_: dict[str, BaseCompiler]
 
     def __init__(
@@ -257,7 +256,7 @@ class PassCompiler(BaseCompiler):
         passes = self.passes if self.passes is not None else [item() for item in PASSES]
         self.passes_ = tuple(clone(item) for item in passes)
 
-    def _get_census_of(self, system: _CompositeSystem, nodes: list[_NodeSpec] | None = None) -> Compilation:
+    def _get_census_of(self, system: _CompositeSystem, nodes: list[_Node] | None = None) -> Compilation:
         """Return a compilation of a system run up to its census of laws and its layout.
 
         The system is flattened unless its nodes are given. An observable that a role binds and that is read only at
@@ -572,7 +571,7 @@ class PassCompiler(BaseCompiler):
         self,
         system: _CompositeSystem,
         held: tuple[str, ...] = (),
-        nodes: list[_NodeSpec] | None = None,
+        nodes: list[_Node] | None = None,
     ) -> Compilation:
         """Return a new compilation of a system, with no pass run yet.
 
@@ -1030,7 +1029,7 @@ class PassCompiler(BaseCompiler):
         return ' or '.join(f"{getattr(item, 'time_tag', '')} time" for item in classes)
 
     @staticmethod
-    def _get_layer_issues(node: _NodeSpec, space: BaseSpace | None) -> list[IssueSpec]:
+    def _get_layer_issues(node: _Node, space: BaseSpace | None) -> list[IssueSpec]:
         """Return the issue of an interaction over neighbours with an unknown layer.
 
         The network of the interaction does not have the layer it names.
@@ -1050,7 +1049,7 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
-    def _get_hyperedge_issues(node: _NodeSpec, space: NetworkSpace, edges: _NodeSpec | None) -> list[IssueSpec]:
+    def _get_hyperedge_issues(node: _Node, space: NetworkSpace, edges: _Node | None) -> list[IssueSpec]:
         """Return the issues of a hyperedge interaction its hyperedges do not fit.
 
         The hyperedges do not fit its size or its edge group.
@@ -1100,7 +1099,7 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
-    def _get_binding_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_binding_issues(nodes: list[_Node]) -> list[IssueSpec]:
         """Return the interactions over hyperedges or edge groups a space lacks.
 
         They are interactions over hyperedges, or over neighbours with an edge group, on a space without them. An
@@ -1148,10 +1147,10 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _get_bound_nodes(
-        node: _NodeSpec,
+        node: _Node,
         role: str,
-        by_path: dict[str, _NodeSpec],
-    ) -> list[tuple[ElementKind, _NodeSpec]]:
+        by_path: dict[str, _Node],
+    ) -> list[tuple[ElementKind, _Node]]:
         """Return the kind and node of every element or group a role binds.
 
         A member of a group counts as an element.
@@ -1166,7 +1165,7 @@ class PassCompiler(BaseCompiler):
         return found
 
     @staticmethod
-    def _get_carried_issues(node: _NodeSpec, role: str, needs: RoleSpec, bound: _NodeSpec) -> list[IssueSpec]:
+    def _get_carried_issues(node: _Node, role: str, needs: RoleSpec, bound: _Node) -> list[IssueSpec]:
         """Return the states a role reads that its bound element or group lacks.
 
         The element or group it binds does not carry these states.
@@ -1186,7 +1185,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_role_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_role_issues(nodes: list[_Node]) -> list[IssueSpec]:
         """Return the roles bound to a wrong kind of element or one without a read state.
 
         A role is wrong when it does not accept the kind of the element, or the element lacks a state it reads.
@@ -1218,7 +1217,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_shape_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_shape_issues(nodes: list[_Node]) -> list[IssueSpec]:
         """Return the shaped parameters whose roles are not bound to groups."""
         groups = LayoutPass._get_group_sizes(nodes)
         issues = []
@@ -1239,7 +1238,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_bound_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_bound_issues(nodes: list[_Node]) -> list[IssueSpec]:
         """Return the adaptive parameters whose initial values lie outside their bounds."""
         issues = []
         for node in nodes:
@@ -1259,7 +1258,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_space_issues(system: _CompositeSystem, nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_space_issues(system: _CompositeSystem, nodes: list[_Node]) -> list[IssueSpec]:
         """Return the issues of the spaces that fail their own check."""
         issues = []
         spaces: dict[int, tuple[str, BaseSpace]] = {}
@@ -1299,7 +1298,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_location_issues(nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_location_issues(nodes: list[_Node]) -> list[IssueSpec]:
         """Return the groups whose initial locations do not fit their space.
 
         Each location must have one coordinate per dimension of the space.
@@ -1578,7 +1577,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_field_symbols(nodes: list[_NodeSpec]) -> tuple[dict[str, _FieldElement], dict[str, float]]:
+    def _get_field_symbols(nodes: list[_Node]) -> tuple[dict[str, _FieldElement], dict[str, float]]:
         """Return the field of every state symbol of a field and the parameter numbers.
 
         Every parameter symbol that has a number is included.
@@ -1599,7 +1598,7 @@ class PassCompiler(BaseCompiler):
         return fields, numbers
 
     @staticmethod
-    def _get_field_parameters(nodes: list[_NodeSpec]) -> dict[str, _FieldElement]:
+    def _get_field_parameters(nodes: list[_Node]) -> dict[str, _FieldElement]:
         """Return the field of every parameter symbol of a field, such as `u_b`."""
         return {
             f'{name}_{node.component.label}': node.component
@@ -1697,7 +1696,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_nonlocal_issues(records: list[_CensusRecord], nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_nonlocal_issues(records: list[_CensusRecord], nodes: list[_Node]) -> list[IssueSpec]:
         """Return the nonlocal operators of laws with a wrong space, kernel, or screening.
 
         They are convolutions, shifted reads, and inversions.
@@ -1720,7 +1719,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_held_axes(record: _CensusRecord, nodes: Mapping[str, _NodeSpec]) -> list[str]:
+    def _get_held_axes(record: _CensusRecord, nodes: Mapping[str, _Node]) -> list[str]:
         """Return the class axes of the space of the group of a law and of its fields.
 
         The fields are those the roles of its interaction bind, such as a phase-space field whose moments a rate over
@@ -1762,7 +1761,7 @@ class PassCompiler(BaseCompiler):
         return IssueSpec('law-space', record.path, message, fix)
 
     @staticmethod
-    def _get_coordinate_issues(records: list[_CensusRecord], nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_coordinate_issues(records: list[_CensusRecord], nodes: list[_Node]) -> list[IssueSpec]:
         """Return the coordinates and axis reductions of laws off a fitting phase space.
 
         The group of the law is not on a phase space with them.
@@ -1871,7 +1870,7 @@ class PassCompiler(BaseCompiler):
     def _get_distance_issue(
         name: str,
         record: _CensusRecord,
-        node: _NodeSpec,
+        node: _Node,
         over: BaseNeighborhood,
     ) -> IssueSpec | None:
         """Return the issue of a reduction over distances in a continuous space.
@@ -1912,7 +1911,7 @@ class PassCompiler(BaseCompiler):
         return None
 
     @staticmethod
-    def _get_neighborhood_issues(records: list[_CensusRecord], nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_neighborhood_issues(records: list[_CensusRecord], nodes: list[_Node]) -> list[IssueSpec]:
         """Return the unoffered neighbourhood reductions and the cones without a direction.
 
         A reduction is unoffered when its space does not offer it.
@@ -2023,7 +2022,7 @@ class PassCompiler(BaseCompiler):
         return PassCompiler._get_matrix_problem(matrix)
 
     @staticmethod
-    def _get_wiener_issues(system: _CompositeSystem, nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_wiener_issues(system: _CompositeSystem, nodes: list[_Node]) -> list[IssueSpec]:
         """Return the Wiener processes outside continuous time or with a bad covariance.
 
         A bad covariance is an invalid one.
@@ -2284,7 +2283,7 @@ class PassCompiler(BaseCompiler):
         return list(found.values())
 
     @staticmethod
-    def _get_cascaded_paths(nodes: list[_NodeSpec], errors: Sequence[tuple[str, SkcomplexError]]) -> set[str]:
+    def _get_cascaded_paths(nodes: list[_Node], errors: Sequence[tuple[str, SkcomplexError]]) -> set[str]:
         """Return the interactions whose role error comes from a failed element.
 
         A tensor value without a space fails its element, and the interaction that binds that element then fails to
@@ -2396,8 +2395,8 @@ class PassCompiler(BaseCompiler):
     @staticmethod
     def _get_fixed_groups(
         request: TopologyRequestSpec,
-        owner: _NodeSpec | None,
-        groups: list[_NodeSpec],
+        owner: _Node | None,
+        groups: list[_Node],
     ) -> tuple[list[str], bool]:
         """Return the fixed groups a request changes and if its layer lacks an edge group."""
         edges = [node for node in groups if node.as_group.on == 'edges' and node.as_group.layer == request.layer]
@@ -2413,7 +2412,7 @@ class PassCompiler(BaseCompiler):
         return fixed, TopologyKernel._changes_edges(request) and not edges
 
     @staticmethod
-    def _get_fixed_group_issues(records: list[_CensusRecord], nodes: list[_NodeSpec]) -> list[IssueSpec]:
+    def _get_fixed_group_issues(records: list[_CensusRecord], nodes: list[_Node]) -> list[IssueSpec]:
         """Return the topology requests that change fixed groups or bad layers.
 
         A bad layer is one without a variable edge group whose edges they change.

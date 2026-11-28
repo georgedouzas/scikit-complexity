@@ -4,7 +4,8 @@
 # License: MIT
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -14,15 +15,70 @@ from ...base import BaseConfig
 from ...components.laws import DrawSpec
 from ...enums import DrawKind
 from ...errors import ValidationError
-from ...types import Array
-from ._draw_log_spec import _DrawLogSpec
-from ._draw_record_spec import _DrawRecordSpec
+from ...types import Array, IntArray
 
 KEYWORDS: dict[str, tuple[str, ...]] = {
     DrawKind.UNIFORM: ('low', 'high'),
     DrawKind.NORMAL: ('mean', 'deviation'),
     DrawKind.BERNOULLI: ('p',),
 }
+
+
+@dataclass(frozen=True)
+class _DrawRecord:
+    """A record of the values a run drew under one name, with their distribution.
+
+    Args:
+        kind:
+            `'uniform'`, `'normal'`, `'bernoulli'`, `'categorical'`, or `'draw'` for a distribution of `scipy.stats`.
+
+        distribution:
+            The name of the `scipy.stats` distribution of a draw of kind `'draw'`, or `None`.
+
+        steps:
+            The step of the run every value was drawn in.
+
+        values:
+            The drawn values, in the order the run drew them.
+
+        arguments:
+            The value of every argument of the distribution per drawn value, by keyword, such as `mean` and
+            `deviation` of a normal draw, `low` and `high` of a uniform draw, `p` of a Bernoulli draw, `weights` of a
+            categorical draw with one row per value, and the keywords of a draw from `scipy.stats`.
+    """
+
+    kind: str
+    distribution: str | None
+    steps: Array
+    values: Array
+    arguments: Mapping[str, Array]
+
+
+@dataclass(frozen=True)
+class _DrawLog:
+    """A record of the named draws and jumps of one run, with their log-probability.
+
+    A run records it with `simulate(record_draws=True)` and replays it with `simulate(replay=trajectory)`.
+
+    Args:
+        draws:
+            The values of every named draw of the run, by the path of its owner and its name, such as
+            `walker.kick`.
+
+        firing_times:
+            The time of every firing of a jump law, in order.
+
+        firing_laws:
+            The index of the jump law of every firing, in the order of the propensities of the problem.
+
+        log_probability:
+            The total log-probability of the draws and the firings under the parameters of the run.
+    """
+
+    draws: Mapping[str, _DrawRecord]
+    firing_times: Array
+    firing_laws: IntArray
+    log_probability: float
 
 
 class DrawRecorder(BaseConfig[None, int]):
@@ -62,13 +118,28 @@ class DrawRecorder(BaseConfig[None, int]):
     step_: int
     log_probability_: float
 
-    def __init__(self, replay: _DrawLogSpec | None = None) -> None:
+    def __init__(self, replay: _DrawLog | None = None) -> None:
         self.replay = replay
+
+    @staticmethod
+    def _check_replay(replay: _DrawLog) -> None:
+        """Raise an error for a log whose lengths differ or whose times decrease."""
+        if len(replay.firing_times) != len(replay.firing_laws):
+            error_msg = 'The firings hold times and laws of different lengths.'
+            raise ValidationError(error_msg)
+        if np.any(np.diff(replay.firing_times) < 0):
+            error_msg = 'The firing times must not decrease.'
+            raise ValidationError(error_msg)
+        for record in replay.draws.values():
+            lengths = {len(record.steps), len(record.values), *(len(item) for item in record.arguments.values())}
+            if len(lengths) > 1:
+                error_msg = f'The draws of kind {record.kind} hold steps, values, and arguments of different lengths.'
+                raise ValidationError(error_msg)
 
     def _prepare(self, context: None) -> None:
         """Forget earlier draws and firings and check the log to replay."""
         if self.replay is not None:
-            self.replay._check()
+            self._check_replay(self.replay)
         self.step_ = 0
         self.log_probability_ = 0.0
         self._kinds: dict[str, DrawSpec] = {}
@@ -254,7 +325,7 @@ class DrawRecorder(BaseConfig[None, int]):
         self.log_probability_ += value
 
     @property
-    def log_(self) -> _DrawLogSpec:
+    def log_(self) -> _DrawLog:
         """Log of the draws and firings so far."""
         draws = {}
         for label, draw in self._kinds.items():
@@ -262,7 +333,7 @@ class DrawRecorder(BaseConfig[None, int]):
             arguments = {
                 keyword: np.concatenate([item[keyword] for item in self._arguments[label]]) for keyword in keywords
             }
-            draws[label] = _DrawRecordSpec(
+            draws[label] = _DrawRecord(
                 draw.kind,
                 draw.distribution,
                 np.concatenate(self._steps[label]),
@@ -271,4 +342,4 @@ class DrawRecorder(BaseConfig[None, int]):
             )
         times = np.asarray([time for time, _ in self._firings], dtype=float)
         laws = np.asarray([law for _, law in self._firings], dtype=np.int64)
-        return _DrawLogSpec(draws, times, laws, self.log_probability_)
+        return _DrawLog(draws, times, laws, self.log_probability_)

@@ -20,22 +20,17 @@ from ....types import Array, Indices
 from ..._utils import components_of, declarations_of, symbols_of
 from ...enums import ReadKind
 from ...problems import CompiledElementSpec, LayoutSpec, ProblemSpec
-from ...problems._block_spec import BlockSpec
-from ...problems._breakpoints_spec import _BreakpointsSpec
-from ...problems._compiled_interaction_spec import _CompiledInteractionSpec
-from ...problems._declarations_spec import DeclarationsSpec
-from ...problems._delay_spec import _DelaySpec
-from ...problems._delayed_state_spec import _DelayedStateSpec
+from ...problems._base_problem_spec import _CompiledInteraction
 from ...problems._event_kernel import EventKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
-from ...problems._node_spec import _NodeSpec
+from ...problems._neighborhood_kernel import _ReductionSchedule
+from ...problems._problem_spec import _Breakpoints, _Delay
 from ...problems._random_stream import RandomStream
-from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...types import ScalarsFunction
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Block, _Declarations, _DelayedState, _Node
 from ._events import RELATIONS, SWITCHES
 
 
@@ -82,7 +77,7 @@ class ProblemPass(BasePass):
         compilation.problem = self._get_problem_of(compilation)
 
     @staticmethod
-    def _get_companions(blocks: list[BlockSpec]) -> dict[str, tuple[str, str, int]]:
+    def _get_companions(blocks: list[_Block]) -> dict[str, tuple[str, str, int]]:
         """Return every companion state by name.
 
         It comes with its kind, the name of its state, and its index.
@@ -105,7 +100,7 @@ class ProblemPass(BasePass):
         return companions
 
     @staticmethod
-    def _get_compiled_elements(blocks: list[BlockSpec]) -> tuple[CompiledElementSpec, ...]:
+    def _get_compiled_elements(blocks: list[_Block]) -> tuple[CompiledElementSpec, ...]:
         """Return the elements and groups that are not agents with their names.
 
         The names are the dotted names of their states and parameters.
@@ -151,12 +146,12 @@ class ProblemPass(BasePass):
 
     @staticmethod
     def _get_compiled_interactions(
-        blocks: list[BlockSpec],
-        specs: list[tuple[KernelSpec, BlockSpec]],
-    ) -> tuple[_CompiledInteractionSpec, ...]:
+        blocks: list[_Block],
+        specs: list[tuple[KernelSpec, _Block]],
+    ) -> tuple[_CompiledInteraction, ...]:
         """Return the interactions with the paths their roles bind to."""
         return tuple(
-            _CompiledInteractionSpec(
+            _CompiledInteraction(
                 path=block.node.path,
                 interaction=block.node.as_interaction,
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
@@ -323,7 +318,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _get_reduced_guard(
         function: ScalarsFunction,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> Callable[[float, Array, Array], float]:
         """Return a function that gives the single value of a scalar function.
 
@@ -424,7 +419,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         event: EventLaw,
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         *,
         members: bool = False,
     ) -> Callable[..., Array] | None:
@@ -488,7 +483,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         guard: Expression,
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> Callable[[float, Array, Array], Array]:
         """Return a function that gives the value of a guard for every member of a group."""
         arguments = sorted(symbols_of([guard]) - {time}, key=str)
@@ -553,7 +548,7 @@ class ProblemPass(BasePass):
         return found
 
     @staticmethod
-    def _get_breakpoints_of(expressions: Iterable[object], time: Expression) -> _BreakpointsSpec:
+    def _get_breakpoints_of(expressions: Iterable[object], time: Expression) -> _Breakpoints:
         """Return the times where conditions on time in expressions change.
 
         Examples are step, pulse, and series inputs.
@@ -589,14 +584,14 @@ class ProblemPass(BasePass):
                         resolved = True
                 unresolved = unresolved or not resolved
             stack.extend(item.operands())
-        return _BreakpointsSpec(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
+        return _Breakpoints(tuple(sorted(fixed)), tuple(sorted(periodic)), unresolved=unresolved)
 
     @staticmethod
     def _get_breakpoints_in(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
-    ) -> _BreakpointsSpec:
+    ) -> _Breakpoints:
         """Return the breakpoints of time-dependent inputs in every law and event guard.
 
         Args:
@@ -624,7 +619,7 @@ class ProblemPass(BasePass):
         return ProblemPass._get_breakpoints_of(expressions, time)
 
     @staticmethod
-    def _compile_delays(delays: Sequence[_DelayedStateSpec], time: Expression) -> tuple[_DelaySpec, ...]:
+    def _compile_delays(delays: Sequence[_DelayedState], time: Expression) -> tuple[_Delay, ...]:
         """Return the delays of a system with their delay functions compiled.
 
         Args:
@@ -648,7 +643,7 @@ class ProblemPass(BasePass):
                 spec.owner,
             )
             compiled.append(
-                _DelaySpec(
+                _Delay(
                     parameters=hidden.start + np.arange(hidden.size),
                     states=item.states,
                     tau=ProblemPass._get_first_value(tau),
@@ -664,7 +659,7 @@ class ProblemPass(BasePass):
     def _get_symbolic_value(
         spec: KernelSpec,
         value: object,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         time: Expression,
     ) -> Callable[[float, Array, Array], object]:
         """Return the function of time and both vectors of a symbolic guard or reset.
@@ -695,8 +690,8 @@ class ProblemPass(BasePass):
     def _get_value_function(
         spec: KernelSpec,
         value: object,
-        reductions: ReductionScheduleSpec,
-        declarations: DeclarationsSpec,
+        reductions: _ReductionSchedule,
+        declarations: _Declarations,
     ) -> Callable[[float, Array, Array], object]:
         """Return the function of time and both vectors of one guard or reset value.
 
@@ -729,8 +724,8 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         event: EventLaw,
         label: str,
-        reductions: ReductionScheduleSpec,
-        declarations: DeclarationsSpec,
+        reductions: _ReductionSchedule,
+        declarations: _Declarations,
     ) -> EventKernel:
         """Return an event whose guard or reset is a function.
 
@@ -770,8 +765,8 @@ class ProblemPass(BasePass):
     def _compile_events(
         events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
-        reductions: ReductionScheduleSpec,
-        declarations: DeclarationsSpec,
+        reductions: _ReductionSchedule,
+        declarations: _Declarations,
     ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions.
 
@@ -833,7 +828,7 @@ class ProblemPass(BasePass):
     def _get_hidden_events(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> tuple[EventKernel, ...]:
         """Return one hidden event per single component condition that switches a flow.
 
@@ -881,7 +876,7 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
-    def _get_history(blocks: list[BlockSpec]) -> dict[str, object]:
+    def _get_history(blocks: list[_Block]) -> dict[str, object]:
         """Return the history every state declares, by the name of its layout entry."""
         history = {}
         for block in blocks:
@@ -895,7 +890,7 @@ class ProblemPass(BasePass):
         return history
 
     @staticmethod
-    def _get_visual_of(node: _NodeSpec) -> VisualSpec:
+    def _get_visual_of(node: _Node) -> VisualSpec:
         """Return the visual of an element or a group.
 
         It is the drawing its class gives, or that a group or a field works out from its member class and space.

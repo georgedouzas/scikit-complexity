@@ -24,16 +24,13 @@ from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
 from ...enums import ReadKind
 from ...problems import LayoutSpec
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._law_kernel import LawKernel
+from ...problems._law_kernel import LawKernel, _NoiseProcess, _Output
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
-from ...problems._noise_process_spec import _NoiseProcessSpec
-from ...problems._output_spec import OutputSpec
 from ...problems._random_stream import RandomStream
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation, Laws, _Declarations
 from .._laws import KERNEL_FREE_LAWS
 from ._noise import NoisePass
 
@@ -80,7 +77,7 @@ class KernelsPass(BasePass):
         )
 
     @staticmethod
-    def _call_outputs(value: CallSpec, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
+    def _call_outputs(value: CallSpec, targets: Sequence[ReferenceSpec | None], owner: str) -> list[_Output]:
         """Return the outputs of a call for its target components, one call per law."""
         named = value.arguments is None or value.relative
         given = () if named else value.arguments or ()
@@ -97,7 +94,7 @@ class KernelsPass(BasePass):
         if value.relative or value.random or value.vectorized:
             function = functools.partial(function)
         return [
-            OutputSpec(
+            _Output(
                 target,
                 function=function,
                 arguments=None if named else arguments,
@@ -111,7 +108,7 @@ class KernelsPass(BasePass):
         ]
 
     @staticmethod
-    def _get_outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
+    def _get_outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[_Output]:
         """Return the outputs of one law value for its target components.
 
         The law and component are the owner.
@@ -125,10 +122,10 @@ class KernelsPass(BasePass):
                 error_msg = f'A {owner} has the value {value!r}, which is not a symbolic expression or a function.'
                 raise ValidationError(error_msg)
             return [
-                OutputSpec(target, function=value, component=index, components=len(targets))
+                _Output(target, function=value, component=index, components=len(targets))
                 for index, target in enumerate(targets)
             ]
-        return [OutputSpec(target, expression) for target, expression in zip(targets, expressions, strict=True)]
+        return [_Output(target, expression) for target, expression in zip(targets, expressions, strict=True)]
 
     @staticmethod
     def _combines(laws: Sequence[BaseLaw]) -> bool:
@@ -236,9 +233,9 @@ class KernelsPass(BasePass):
         spec: KernelSpec,
         law: RateLaw | NoiseLaw | UpdateLaw | _BoundaryLaw,
         targets: list[ReferenceSpec],
-        declarations: DeclarationsSpec,
-        lowered: dict[int, list[OutputSpec]],
-    ) -> list[OutputSpec]:
+        declarations: _Declarations,
+        lowered: dict[int, list[_Output]],
+    ) -> list[_Output]:
         """Return the outputs of a law for its target components.
 
         A noise law adds its named Wiener process. A law that a pass of a formalism lowered takes the outputs of that
@@ -264,8 +261,8 @@ class KernelsPass(BasePass):
     @staticmethod
     def _lower_laws(
         specs: Laws,
-        declarations: DeclarationsSpec,
-        lowered_outputs: dict[int, list[OutputSpec]],
+        declarations: _Declarations,
+        lowered_outputs: dict[int, list[_Output]],
     ) -> LoweredKernelsSpec:
         """Return the kernels of every law kind, with the law of every output.
 
@@ -281,7 +278,7 @@ class KernelsPass(BasePass):
             lambda: defaultdict(list),
         )
         for spec, laws in specs:
-            outputs: dict[tuple[type, bool, str | None], list[OutputSpec]] = defaultdict(list)
+            outputs: dict[tuple[type, bool, str | None], list[_Output]] = defaultdict(list)
             for law in laws:
                 if isinstance(law, KERNEL_FREE_LAWS):
                     continue
@@ -358,7 +355,7 @@ class KernelsPass(BasePass):
     def _get_noise_process(
         key: ProcessKey | None,
         wieners: Mapping[str, WienerProcessSpec],
-    ) -> _NoiseProcessSpec | None:
+    ) -> _NoiseProcess | None:
         """Return the named Wiener process of a process key.
 
         It holds the covariance factor of a `WienerProcessSpec`.
@@ -367,10 +364,10 @@ class KernelsPass(BasePass):
             return None
         kind, owner, item = key
         if kind == 'local':
-            return _NoiseProcessSpec(key)
+            return _NoiseProcess(key)
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._get_covariance_factor(wiener.covariance)
-        return _NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
+        return _NoiseProcess(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
     def _get_kind_of(law: BaseLaw) -> type[BaseLaw]:

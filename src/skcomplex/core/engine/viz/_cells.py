@@ -12,7 +12,7 @@ from ...components.spaces import CellComplexSpace, LatticeSpace
 from ...errors import ValidationError
 from ...types import Array, Indices
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ._base import BaseVisual
 
 FACES = 'faces'
@@ -251,7 +251,7 @@ class CellVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return one 2D spatial view of the state of the group.

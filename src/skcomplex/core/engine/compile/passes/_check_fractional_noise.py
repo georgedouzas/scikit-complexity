@@ -13,10 +13,9 @@ from ....components.laws import BaseLaw, NoiseLaw
 from ....components.laws._ordered_noise import _OrderedNoiseLaw
 from ....errors import ValidationError
 from ..._utils import components_of, symbols_of
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 
 BROWNIAN_HURST = 0.5
 
@@ -62,7 +61,7 @@ class CheckFractionalNoisePass(BasePass):
     def _get_checked_hurst(
         spec: KernelSpec,
         law: NoiseLaw,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         description: str,
     ) -> None:
         """Raise an error for a bad Hurst index of a noise law.
@@ -89,7 +88,7 @@ class CheckFractionalNoisePass(BasePass):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _get_checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
+    def _get_checked_fractional(spec: KernelSpec, laws: list[BaseLaw], declarations: _Declarations) -> list[BaseLaw]:
         """Return laws with every noise law of Hurst index 1/2 as a noise law without one.
 
         The others are checked first.

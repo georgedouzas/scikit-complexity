@@ -21,7 +21,7 @@ from ..problems import (
     NetworkSnapshotSpec,
     ProblemSpec,
 )
-from ..problems._draw_log_spec import _DrawLogSpec
+from ..problems._draw_recorder import _DrawLog
 from ..problems._metric_search import MetricSearch
 from ..problems._monte_carlo_kernel import MonteCarloKernel
 from ..problems._rule_kernel import RuleKernel
@@ -97,7 +97,7 @@ class Trajectory:
         observables: Sequence[Mapping[str, object]] = (),
         events: Sequence[BaseRecordSpec] = (),
         structures: Sequence[Mapping[str, object]] = (),
-        draws: _DrawLogSpec | None = None,
+        draws: _DrawLog | None = None,
         log_probability: float | None = None,
     ) -> None:
         self.problem = problem

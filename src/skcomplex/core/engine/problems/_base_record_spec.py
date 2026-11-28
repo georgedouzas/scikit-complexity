@@ -19,7 +19,7 @@ class BaseRecordSpec(BaseSpec):
     Read more in the user guide, under Analyse.
 
     See Also:
-        RenewalRecordSpec: A record of renewals.
+        Trajectory: Holds the records of a run in its events.
 
     Examples:
         >>> from skcomplex.core.engine.problems import BaseRecordSpec

@@ -34,7 +34,7 @@ from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend, SupportSpec
 from ..compile._pass_compiler import PassCompiler
 from ..problems import CompiledElementSpec, ProblemSpec
-from ..problems._compiled_interaction_spec import _CompiledInteractionSpec
+from ..problems._base_problem_spec import _CompiledInteraction
 from ..problems._composite_system import _CompositeSystem
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._group_element import _GroupElement
@@ -187,7 +187,7 @@ class LammpsSolver(ExternalSolver):
             unsupported += self._check_external(problem, external)
         return unsupported
 
-    def _check_pair(self, problem: ProblemSpec, item: _CompiledInteractionSpec) -> list[str]:
+    def _check_pair(self, problem: ProblemSpec, item: _CompiledInteraction) -> list[str]:
         """Return a description of a pair interaction whose energy has no Lepton form."""
         if self._get_native(self.pairs or {}, item.interaction) is not None:
             return []
@@ -225,7 +225,7 @@ class LammpsSolver(ExternalSolver):
             return []
         return [f'interactions {", ".join(sorted(external))}, which have {", ".join(sorted(set(reasons)))}']
 
-    def _get_pair_expression(self, problem: ProblemSpec, p: Array, item: _CompiledInteractionSpec) -> str:
+    def _get_pair_expression(self, problem: ProblemSpec, p: Array, item: _CompiledInteraction) -> str:
         """Return the Lepton expression of a pair energy.
 
         Its parameters take their current values.
@@ -239,7 +239,7 @@ class LammpsSolver(ExternalSolver):
         self,
         problem: ProblemSpec,
         p: Array,
-        item: _CompiledInteractionSpec,
+        item: _CompiledInteraction,
         distance: Expression,
     ) -> Expression | None:
         """Return the energy of a pair as a function of the distance, or `None`.
@@ -596,7 +596,7 @@ class LammpsSolver(ExternalSolver):
         self.atom_types_ = np.concatenate(types)
 
     @staticmethod
-    def _get_role_path(item: _CompiledInteractionSpec, role: str) -> str:
+    def _get_role_path(item: _CompiledInteraction, role: str) -> str:
         """Return the path of the group or element a role of an interaction binds to."""
         path = item.roles[role]
         if not isinstance(path, str):
@@ -619,7 +619,7 @@ class LammpsSolver(ExternalSolver):
             return float(LammpsSolver._get_parameter(problem, p, element.path, 'm')[0])
         return 1.0
 
-    def _is_potential(self, problem: ProblemSpec, item: _CompiledInteractionSpec) -> bool:
+    def _is_potential(self, problem: ProblemSpec, item: _CompiledInteraction) -> bool:
         """Return whether an interaction is a pair coupling through a pair potential.
 
         It is an interaction of a class `pairs` gives a native pair style, such as a Lennard-Jones force written as a
@@ -632,7 +632,7 @@ class LammpsSolver(ExternalSolver):
         return self._get_pair_energy(problem, problem.initial_parameters, item, distance) is not None
 
     @staticmethod
-    def _get_cutoff(problem: ProblemSpec, p: Array, item: _CompiledInteractionSpec) -> float:
+    def _get_cutoff(problem: ProblemSpec, p: Array, item: _CompiledInteraction) -> float:
         """Return the distance beyond which a pair interaction acts on no pair.
 
         It is the radius of the pairs it binds with `within=RadiusNeighborhood(r)`, or else its parameter `cutoff`.
@@ -643,7 +643,7 @@ class LammpsSolver(ExternalSolver):
         return float(LammpsSolver._get_parameter(problem, p, item.path, 'cutoff')[0])
 
     @staticmethod
-    def _get_pair_paths(item: _CompiledInteractionSpec) -> tuple[str, str]:
+    def _get_pair_paths(item: _CompiledInteraction) -> tuple[str, str]:
         """Return the paths of the two groups of a pair interaction.
 
         An interaction that binds pairs with `within=` pairs the members of its roles `first` and `second`, and an

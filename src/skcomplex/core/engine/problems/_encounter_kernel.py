@@ -4,16 +4,43 @@
 # License: MIT
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 
 import numba
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
-from ...types import Array, Indices
+from ...types import AnyArray, Array, Indices
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
 from ._run_state_spec import RunStateSpec
-from ._table_values_spec import _TableValuesSpec
+
+
+@dataclass(frozen=True)
+class _TableValues:
+    """A record of the values of chosen entries of a table at a parameter vector.
+
+    The table holds numbers or parameter expressions.
+
+    Args:
+        table:
+            The table, a float array or an object array of Sage expressions.
+
+        positions:
+            The indices of the selected entries, one array per dimension.
+
+        parameters:
+            The flat index in the parameter vector of every parameter symbol the selected entries read.
+
+        time:
+            The time symbol.
+    """
+
+    table: AnyArray
+    positions: tuple[Indices, ...]
+    parameters: Mapping[Expression, int]
+    time: Expression
 
 
 @numba.njit(cache=True)
@@ -95,9 +122,9 @@ class EncounterKernel(BaseKernel):
         field: Indices,
         test: Indices,
         *,
-        rate: _TableValuesSpec,
+        rate: _TableValues,
         entries: tuple[Indices, Indices, Indices],
-        probabilities: _TableValuesSpec,
+        probabilities: _TableValues,
         fused: bool = False,
         positions: int = 1,
     ) -> None:
@@ -120,7 +147,7 @@ class EncounterKernel(BaseKernel):
         """
         return {}
 
-    def _get_values(self, table: _TableValuesSpec, p: Array) -> Array:
+    def _get_values(self, table: _TableValues, p: Array) -> Array:
         """Return the values of the selected entries of a table at a parameter vector."""
         values = table.table
         selected = values[table.positions] if values.ndim else np.full(table.positions[0].size, values[()])

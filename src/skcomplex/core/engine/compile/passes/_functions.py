@@ -24,22 +24,17 @@ from ...backends._base import _LoweredFunctions
 from ...enums import ReadKind
 from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._composite_system import _CompositeSystem
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._draw_kernel import DrawKernel
 from ...problems._draw_recorder import DrawRecorder
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
-from ...problems._law_kernel import LawKernel
+from ...problems._law_kernel import LawKernel, _Output
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from ...problems._metric_search import MetricSearch
-from ...problems._neighborhood_kernel import NeighborhoodKernel
-from ...problems._output_spec import OutputSpec
-from ...problems._problem_functions_spec import _ProblemFunctionsSpec
-from ...problems._reduction_schedule_spec import ReductionScheduleSpec
-from ...problems._sweep_spec import _SweepSpec
+from ...problems._neighborhood_kernel import NeighborhoodKernel, _ReductionSchedule
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations, _ProblemFunctions
 from .._forms import STEPWISE_FORMS
 from .._phase_spec import PhaseSpec
 from .._phases_schedule_spec import DEFAULT_PHASE, PhasesScheduleSpec
@@ -79,7 +74,7 @@ class FunctionsPass(BasePass):
         compilation.functions = self._lower(compilation)
 
     @staticmethod
-    def _sums_over_members(kernel: LawKernel, item: OutputSpec) -> bool:
+    def _sums_over_members(kernel: LawKernel, item: _Output) -> bool:
         """Check whether an output sums over the pairs or the members of a group."""
         if kernel.pairs is not None:
             return True
@@ -88,7 +83,7 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _get_equations_of(
         kernels: list[LawKernel],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
         """Return the symbolic equations and their symbols.
@@ -167,7 +162,7 @@ class FunctionsPass(BasePass):
         return chosen
 
     @staticmethod
-    def _triangulates(reductions: ReductionScheduleSpec | None) -> bool:
+    def _triangulates(reductions: _ReductionSchedule | None) -> bool:
         """Return whether a reduction searches neighbours by a Delaunay triangulation."""
         steps = reductions.steps if reductions is not None else ()
         return any(
@@ -194,7 +189,7 @@ class FunctionsPass(BasePass):
         return backends
 
     @staticmethod
-    def _lower(compilation: Compilation) -> _ProblemFunctionsSpec:
+    def _lower(compilation: Compilation) -> _ProblemFunctions:
         """Return the numeric functions and equations of a form.
 
         The update of a stochastic map takes a generator.
@@ -248,7 +243,7 @@ class FunctionsPass(BasePass):
             else FunctionsPass._get_phased_equations([items for _, items in phases], declarations, form)
         )
         states = LayoutSpec(tuple(declarations.states))
-        return _ProblemFunctionsSpec(
+        return _ProblemFunctions(
             equations=equations,
             equation_symbols=symbols,
             has_callables=any(item.expression is None for kernel in main for item in kernel.outputs)
@@ -276,7 +271,7 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _get_algebraic_function(
         lowered: LoweredKernelsSpec,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> VectorFunction | None:
         """Return the function that sets the algebraic states of a state vector.
 
@@ -337,10 +332,13 @@ class FunctionsPass(BasePass):
         return key
 
     @staticmethod
-    def _get_sweeps_of(lowered: LoweredKernelsSpec, time: Expression) -> list[_SweepSpec]:
+    def _get_sweeps_of(
+        lowered: LoweredKernelsSpec,
+        time: Expression,
+    ) -> list[tuple[Indices, Callable[[float, Array, Array], Array]]]:
         """Return the update laws whose members update one after the other.
 
-        It also returns the indices each member sets.
+        Each comes with the indices every member sets, one row per member, and the function of their order.
         """
         found: dict[int, tuple[KernelSpec, UpdateLaw, list[Indices]]] = {}
         for kernel in lowered.kernels.get(UpdateLaw, []):
@@ -359,12 +357,15 @@ class FunctionsPass(BasePass):
                 )
                 found.setdefault(id(law), (spec, law, []))[2].append(indices)
         return [
-            _SweepSpec(np.stack(columns, axis=1), FunctionsPass._get_key_function(spec, law.order, time))
+            (np.stack(columns, axis=1), FunctionsPass._get_key_function(spec, law.order, time))
             for spec, law, columns in found.values()
         ]
 
     @staticmethod
-    def _get_ordered_update(update: Callable[..., Array], sweeps: list[_SweepSpec]) -> Callable[..., Array]:
+    def _get_ordered_update(
+        update: Callable[..., Array],
+        sweeps: list[tuple[Indices, Callable[[float, Array, Array], Array]]],
+    ) -> Callable[..., Array]:
         """Return an update whose ordered laws set their members one after the other.
 
         Each member reads those before it. Every other law updates at once from the state at the start of the step.
@@ -380,13 +381,13 @@ class FunctionsPass(BasePass):
             update:
                 The update `F(t, x, q)`.
         """
-        written = np.concatenate([sweep.indices.ravel() for sweep in sweeps])
+        written = np.concatenate([indices.ravel() for indices, _ in sweeps])
 
         def ordered(t: float, x: Array, q: Array) -> Array:
             swept = x.copy()
-            for sweep in sweeps:
-                for row in np.argsort(sweep.key(t, swept, q), kind='stable'):
-                    indices = sweep.indices[row]
+            for members, key in sweeps:
+                for row in np.argsort(key(t, swept, q), kind='stable'):
+                    indices = members[row]
                     swept[indices] = update(t, swept, q)[indices]
             following = update(t, x, q)
             following[written] = swept[written]
@@ -523,7 +524,7 @@ class FunctionsPass(BasePass):
     @staticmethod
     def _get_phased_equations(
         phases: list[list[LawKernel]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
         """Return the symbolic map of the phases that run in every step.

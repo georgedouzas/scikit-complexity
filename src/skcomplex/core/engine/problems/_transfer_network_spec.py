@@ -6,11 +6,47 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from sage.all__sagemath_symbolics import Expression
+
 from ...base import BaseSpec
-from ._compiled_delay_spec import _CompiledDelaySpec
-from ._compiled_flow_spec import _CompiledFlowSpec
 from ._loop_term_spec import LoopTermSpec
-from ._recorded_spec import _RecordedSpec
+from ._reference_spec import ReferenceSpec
+
+
+@dataclass(frozen=True)
+class _CompiledDelay:
+    """Delay or smoothing of a compiled system.
+
+    It holds its call in the laws and its output, read from hidden states.
+    """
+
+    call: Expression
+    output: Expression
+    references: Mapping[Expression, ReferenceSpec]
+
+
+@dataclass(frozen=True)
+class _CompiledFlow:
+    """Transfer of a compiled system between two holders."""
+
+    path: str
+    source: str | None
+    sink: str | None
+    source_label: str
+    sink_label: str
+    quantity: str | None
+
+
+@dataclass(frozen=True)
+class _Recorded:
+    """Expression a trajectory records at every frame.
+
+    It holds the references of its symbols.
+    """
+
+    path: str
+    expression: Expression
+    references: Mapping[Expression, ReferenceSpec]
 
 
 @dataclass(frozen=True)
@@ -57,9 +93,9 @@ class TransferNetworkSpec(BaseSpec):
     """
 
     quantities: Mapping[str, tuple[str, ...]]
-    flows: tuple[_CompiledFlowSpec, ...] = ()
-    recorded: tuple[_RecordedSpec, ...] = ()
+    flows: tuple[_CompiledFlow, ...] = ()
+    recorded: tuple[_Recorded, ...] = ()
     boundary: Mapping[str, str] = field(default_factory=dict)
     terms: tuple[LoopTermSpec, ...] = ()
     discrete: bool = False
-    delays: tuple[_CompiledDelaySpec, ...] = ()
+    delays: tuple[_CompiledDelay, ...] = ()

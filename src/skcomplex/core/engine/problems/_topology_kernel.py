@@ -4,27 +4,298 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
 
 from ...components import EntrySpec
 from ...components.laws import EDGE_KINDS, JumpLaw, TopologyRequestSpec, UpdateLaw
-from ...errors import ValidationError
+from ...errors import CapacityError, ValidationError
 from ...types import Array, Indices, Pair
 from ._base import BaseKernel
-from ._capacity_rows_spec import _CapacityRowsSpec
-from ._compiled_request_spec import CompiledRequestSpec
-from ._network_rows_spec import _NetworkRowsSpec
+from ._edge_row_search import ACTIVE_THRESHOLD
+from ._law_kernel import LawKernel
+from ._neighborhood_kernel import _ReductionSchedule
 from ._network_snapshot_spec import NetworkSnapshotSpec
-from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._run_state_spec import RunStateSpec
 
-NO_REDUCTIONS = ReductionScheduleSpec()
+NO_REDUCTIONS = _ReductionSchedule()
 MIN_EDGE_HYPEREDGE = 2
 
 
 type Fired = tuple[int, int, Mapping[str, object] | None, Array | None]
+
+
+@dataclass(frozen=True)
+class _CapacityRows:
+    """A record of the rows of a variable group on a network and a new member.
+
+    The group is on the nodes, edges, or hyperedges of the network.
+
+    Args:
+        path:
+            The path of the group.
+
+        variables:
+            The entry of every state and parameter of the members by name, with whether it is a state.
+
+        defaults:
+            The flat values of one new member of every variable by name.
+
+        active:
+            The parameter entry of the activity of every row.
+
+        source:
+            The parameter entry of the source node of every edge row, or `None` for a group on the nodes.
+
+        target:
+            The parameter entry of the target node of every edge row, or `None` for a group on the nodes.
+
+        members:
+            The parameter entry of the member nodes of every hyperedge row, one column per member, or `None` for a
+            group on the nodes or edges.
+    """
+
+    path: str
+    variables: Mapping[str, tuple[EntrySpec, bool]]
+    defaults: Mapping[str, Array]
+    active: EntrySpec
+    source: EntrySpec | None = None
+    target: EntrySpec | None = None
+    members: EntrySpec | None = None
+
+    def get_present(self, p: Array) -> npt.NDArray[np.bool_]:
+        """Return whether every row holds a member.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            present:
+                One flag per row.
+        """
+        return self.active.get_view(p)[:, 0] > ACTIVE_THRESHOLD
+
+    def take_row(self, p: Array) -> int:
+        """Return the first free row.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            row:
+                The row.
+
+        Raises:
+            CapacityError:
+                Every row holds a member.
+        """
+        free = np.flatnonzero(~self.get_present(p))
+        if not free.size:
+            error_msg = (
+                f'The group {self.path} holds {self.active.rows} members, its capacity, and a topology request adds '
+                'another. Give the element room for more members.'
+            )
+            raise CapacityError(error_msg, path=self.path, rows=self.active.rows)
+        return int(free[0])
+
+    def get_ends(self, p: Array) -> tuple[Indices, Indices]:
+        """Return the source and target node of every edge row.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            ends:
+                The source and target node rows.
+        """
+        assert self.source is not None
+        assert self.target is not None
+        return self.source.get_view(p)[:, 0].astype(np.intp), self.target.get_view(p)[:, 0].astype(np.intp)
+
+    def get_hyperedges(self, p: Array) -> Indices:
+        """Return the member nodes of every hyperedge row.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            members:
+                One row of member nodes per hyperedge row.
+        """
+        assert self.members is not None
+        return self.members.get_view(p).astype(np.intp)
+
+
+@dataclass(frozen=True)
+class _NetworkRows:
+    """A record of the variable groups of one network.
+
+    They are the groups on its nodes, the edge group of every changing layer, and hyperedges.
+
+    Args:
+        nodes:
+            The groups on the nodes, which share their rows.
+
+        edges:
+            The variable edge group of every layer by label, `None` for the graph of the network.
+
+        directed:
+            Whether the edges of every layer are directed.
+
+        hyperedges:
+            The variable group on the hyperedges of the network, or `None` for hyperedges that do not change.
+    """
+
+    nodes: tuple[_CapacityRows, ...]
+    edges: Mapping[str | None, _CapacityRows]
+    directed: Mapping[str | None, bool]
+    hyperedges: _CapacityRows | None = None
+
+    def get_present(self, p: Array) -> npt.NDArray[np.bool_]:
+        """Return whether every node row holds a node.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            present:
+                One flag per node row.
+        """
+        return self.nodes[0].get_present(p)
+
+    def get_order_ends(self, layer: str | None, first: int, second: int) -> Pair:
+        """Return the ends of an edge, in node order on an undirected layer.
+
+        Args:
+            layer:
+                The layer.
+
+            first:
+                The node row of one end.
+
+            second:
+                The node row of the other end.
+
+        Returns:
+            ends:
+                The source and target node rows.
+        """
+        return (first, second) if self.directed[layer] else (min(first, second), max(first, second))
+
+    def get_neighbours(self, layer: str | None, node: int, p: Array) -> Indices:
+        """Return the node rows a node joins in a layer.
+
+        On a directed layer they are its successors.
+
+        Args:
+            layer:
+                The layer.
+
+            node:
+                The node row.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            neighbours:
+                The node rows.
+        """
+        edges = self.edges[layer]
+        sources, targets = edges.get_ends(p)
+        present = edges.get_present(p)
+        found = targets[present & (sources == node)]
+        if self.directed[layer]:
+            return found
+        return np.concatenate([found, sources[present & (targets == node)]])
+
+    def get_snapshot(self, p: Array, layer: str | None) -> NetworkSnapshotSpec:
+        """Return the nodes and the edges of a layer present at the parameters of a frame.
+
+        Args:
+            p:
+                The parameter vector of the frame.
+
+            layer:
+                The layer.
+
+        Returns:
+            snapshot:
+                The nodes and edges present.
+        """
+        edges = self.edges[layer]
+        present = edges.get_present(p)
+        sources, targets = edges.get_ends(p)
+        hyperedges = None
+        if self.hyperedges is not None:
+            hyperedges = self.hyperedges.get_hyperedges(p)[self.hyperedges.get_present(p)]
+        return NetworkSnapshotSpec(
+            np.flatnonzero(self.get_present(p)).astype(np.intp),
+            sources[present],
+            targets[present],
+            np.flatnonzero(present).astype(np.intp),
+            hyperedges,
+        )
+
+
+@dataclass(frozen=True)
+class _CompiledRequest:
+    """A record of a request to change a network, with the kernels that decide it.
+
+    A law may ask to add or remove a node or an edge, such as a new node that joins old nodes in proportion to their
+    degree. The spec holds that request, the rows of the network it runs for, and the compiled kernels of its
+    probability, of the weight of every candidate end, and of the score of every candidate edge. It grows the web of
+    citations, the friendships of a school, and the trade links of countries.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        request:
+            The request.
+
+        owner:
+            The path of the component whose law requests it.
+
+        network:
+            The variable groups of the network it changes.
+
+        rows:
+            `'node'` for a law of the nodes, `'edge'` for a law of the edges of a layer, `'hyperedge'` for a law of the
+            hyperedges, or `'single'` for a law that runs once.
+
+        condition:
+            The kernel of the probability that an update law fires the request for every row, or `None` for a jump.
+
+        toward:
+            The kernel of the weight of every node row as a new end, or `None` for equal weights.
+
+        score:
+            The kernel of the score of every node row as the end of a candidate edge, or `None` for none.
+
+    See Also:
+        TopologyKernel: Applies the requests between steps.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
+        >>> request = BarabasiAlbertSystem().prepare().simulate(until=0).problem.topology.requests[0]
+        >>> request.owner, request.rows
+        ('growth', 'single')
+    """
+
+    request: TopologyRequestSpec
+    owner: str
+    network: _NetworkRows
+    rows: str
+    condition: LawKernel | None = None
+    toward: LawKernel | None = None
+    score: LawKernel | None = None
 
 
 class TopologyKernel(BaseKernel):
@@ -56,7 +327,7 @@ class TopologyKernel(BaseKernel):
             The state vector after the requests of the last run.
 
     See Also:
-        CompiledRequestSpec: One request with the kernels that decide it.
+        TopologyRequestSpec: A request of a law to change the network.
 
     Examples:
         >>> from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem
@@ -69,10 +340,10 @@ class TopologyKernel(BaseKernel):
 
     def __init__(
         self,
-        networks: tuple[_NetworkRowsSpec, ...],
-        requests: tuple[CompiledRequestSpec, ...] = (),
-        channels: Mapping[int, CompiledRequestSpec] | None = None,
-        reductions: ReductionScheduleSpec = NO_REDUCTIONS,
+        networks: tuple[_NetworkRows, ...],
+        requests: tuple[_CompiledRequest, ...] = (),
+        channels: Mapping[int, _CompiledRequest] | None = None,
+        reductions: _ReductionSchedule = NO_REDUCTIONS,
     ) -> None:
         self.networks = networks
         self.requests = requests
@@ -133,7 +404,7 @@ class TopologyKernel(BaseKernel):
         return fired
 
     @staticmethod
-    def _draw_one(item: CompiledRequestSpec, chances: Array, p: Array, rng: np.random.Generator) -> list[int]:
+    def _draw_one(item: _CompiledRequest, chances: Array, p: Array, rng: np.random.Generator) -> list[int]:
         """Return the row drawn uniformly among the rows present of a request.
 
         No row is returned if the request does not fire there. The row is drawn among the rows present when the request
@@ -288,7 +559,7 @@ class TopologyKernel(BaseKernel):
                     return group.get_present(p)
         return None
 
-    def _get_weights(self, item: CompiledRequestSpec, end: int, t: float, x: Array, p: Array) -> Array:
+    def _get_weights(self, item: _CompiledRequest, end: int, t: float, x: Array, p: Array) -> Array:
         """Return the weight of every node row as a new end of a request.
 
         The request has edges that start from a node row.
@@ -302,7 +573,7 @@ class TopologyKernel(BaseKernel):
         weights = np.broadcast_to(np.asarray(values[0], dtype=float), (size,))
         return np.where(np.isfinite(weights) & (weights > 0), weights, 0.0)
 
-    def _get_scores(self, item: CompiledRequestSpec, end: int, t: float, x: Array, p: Array) -> Array:
+    def _get_scores(self, item: _CompiledRequest, end: int, t: float, x: Array, p: Array) -> Array:
         """Return the score of every node row as the other end of a candidate edge.
 
         The candidate edge starts from a node row.
@@ -334,7 +605,7 @@ class TopologyKernel(BaseKernel):
 
     @staticmethod
     def _get_allowed(
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         end: int,
         p: Array,
         *,
@@ -383,7 +654,7 @@ class TopologyKernel(BaseKernel):
 
     def _join(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         end: int,
         t: float,
         x: Array,
@@ -427,7 +698,7 @@ class TopologyKernel(BaseKernel):
 
     def _choose(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         end: int,
         t: float,
         x: Array,
@@ -483,7 +754,7 @@ class TopologyKernel(BaseKernel):
             allowed[best] = False
         return chosen
 
-    def _join_pairs(self, item: CompiledRequestSpec, t: float, x: Array, p: Array, *, rng: np.random.Generator) -> None:
+    def _join_pairs(self, item: _CompiledRequest, t: float, x: Array, p: Array, *, rng: np.random.Generator) -> None:
         """Add the edges of a request that runs once per step.
 
         Each edge is the candidate pair of the smallest score. Every candidate joins two distinct nodes not yet joined,
@@ -521,7 +792,7 @@ class TopologyKernel(BaseKernel):
             self._add_edge(network, request.layer, best, x, p, values=self._get_initial_values(request, rng))
 
     @staticmethod
-    def _get_pair(item: CompiledRequestSpec, p: Array, rng: np.random.Generator, tries: int = 100) -> Pair | None:
+    def _get_pair(item: _CompiledRequest, p: Array, rng: np.random.Generator, tries: int = 100) -> Pair | None:
         """Return two distinct present nodes not yet joined in the layer of a request.
 
         They are drawn uniformly, and `None` is returned when there are none.
@@ -555,7 +826,7 @@ class TopologyKernel(BaseKernel):
 
     def _close(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         node: int,
         t: float,
         x: Array,
@@ -607,7 +878,7 @@ class TopologyKernel(BaseKernel):
                 return
 
     @staticmethod
-    def _get_adjacent(network: _NetworkRowsSpec, layer: str | None, node: int, p: Array) -> Indices:
+    def _get_adjacent(network: _NetworkRows, layer: str | None, node: int, p: Array) -> Indices:
         """Return the node rows joined to a node in a layer in either direction."""
         edges = network.edges[layer]
         sources, targets = edges.get_ends(p)
@@ -616,7 +887,7 @@ class TopologyKernel(BaseKernel):
 
     def _contract(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         node: int,
         t: float,
         x: Array,
@@ -673,7 +944,7 @@ class TopologyKernel(BaseKernel):
 
     def _duplicate(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         node: int,
         t: float,
         x: Array,
@@ -740,7 +1011,7 @@ class TopologyKernel(BaseKernel):
 
     def _attach(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         node: int,
         t: float,
         x: Array,
@@ -797,7 +1068,7 @@ class TopologyKernel(BaseKernel):
         if request.kind == 'add-node' and not anchored:
             self._join(item, node, t, x, p, rng=rng)
 
-    def _add_hyperedge(self, item: CompiledRequestSpec, members: list[int], x: Array, p: Array) -> None:
+    def _add_hyperedge(self, item: _CompiledRequest, members: list[int], x: Array, p: Array) -> None:
         """Write a new hyperedge of member node rows into the variable group on hyperedges.
 
         It goes into the first free row of the group.
@@ -835,7 +1106,7 @@ class TopologyKernel(BaseKernel):
 
     def _rewire(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         row: int,
         t: float,
         x: Array,
@@ -858,7 +1129,7 @@ class TopologyKernel(BaseKernel):
 
     def _execute(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         row: int,
         t: float,
         x: Array,
@@ -897,7 +1168,7 @@ class TopologyKernel(BaseKernel):
             }
             changes[kind](item, row, t, x, p, rng=rng)
 
-    def _remove(self, item: CompiledRequestSpec, row: int, p: Array) -> None:
+    def _remove(self, item: _CompiledRequest, row: int, p: Array) -> None:
         """Remove the node, the edge, or the hyperedge of a row by the kind of a request.
 
         Args:
@@ -919,7 +1190,7 @@ class TopologyKernel(BaseKernel):
             self._clear(network.hyperedges, row, p)
 
     @staticmethod
-    def _holds(item: CompiledRequestSpec, row: int, p: Array) -> bool:
+    def _holds(item: _CompiledRequest, row: int, p: Array) -> bool:
         """Return whether the node, edge, or hyperedge of the row of a request is present.
 
         A request of one run returns `True`.
@@ -956,7 +1227,7 @@ class TopologyKernel(BaseKernel):
         return {name: value(rng) if callable(value) else value for name, value in request.values}
 
     @staticmethod
-    def _get_row_values(group: _CapacityRowsSpec, row: int, x: Array, p: Array) -> dict[str, Array]:
+    def _get_row_values(group: _CapacityRows, row: int, x: Array, p: Array) -> dict[str, Array]:
         """Return the values of the member in a row of a group by dotted name."""
         values = {}
         for entry, is_state in group.variables.values():
@@ -965,7 +1236,7 @@ class TopologyKernel(BaseKernel):
         return values
 
     @staticmethod
-    def _get_new_values(group: _CapacityRowsSpec, values: Mapping[str, object]) -> dict[str, Array]:
+    def _get_new_values(group: _CapacityRows, values: Mapping[str, object]) -> dict[str, Array]:
         """Return the values a new member of a group would take by dotted name.
 
         They are the given values or the defaults.
@@ -976,7 +1247,7 @@ class TopologyKernel(BaseKernel):
         }
 
     @staticmethod
-    def _write(group: _CapacityRowsSpec, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:
+    def _write(group: _CapacityRows, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:
         """Start a member in a row and mark the row present.
 
         The member takes the given values or the defaults.
@@ -1005,7 +1276,7 @@ class TopologyKernel(BaseKernel):
         p[group.active.start + row] = 1.0
 
     @staticmethod
-    def _clear(group: _CapacityRowsSpec, row: int, p: Array) -> None:
+    def _clear(group: _CapacityRows, row: int, p: Array) -> None:
         """Mark a row free.
 
         Args:
@@ -1020,7 +1291,7 @@ class TopologyKernel(BaseKernel):
         """
         p[group.active.start + row] = 0.0
 
-    def _add_node(self, network: _NetworkRowsSpec, x: Array, p: Array, values: Mapping[str, object]) -> int:
+    def _add_node(self, network: _NetworkRows, x: Array, p: Array, values: Mapping[str, object]) -> int:
         """Add a node in the first free node row of every group on the nodes.
 
         Args:
@@ -1047,7 +1318,7 @@ class TopologyKernel(BaseKernel):
 
     def _add_edge(
         self,
-        network: _NetworkRowsSpec,
+        network: _NetworkRows,
         layer: str | None,
         ends: Pair,
         x: Array,
@@ -1083,7 +1354,7 @@ class TopologyKernel(BaseKernel):
         self._set_ends(edges, row, (first, second), p)
 
     @staticmethod
-    def _set_ends(edges: _CapacityRowsSpec, row: int, ends: Pair, p: Array) -> None:
+    def _set_ends(edges: _CapacityRows, row: int, ends: Pair, p: Array) -> None:
         """Write the source and target node of an edge row into the parameter vector.
 
         Args:
@@ -1108,7 +1379,7 @@ class TopologyKernel(BaseKernel):
             raise ValidationError(error_msg)
         p[edges.source.start + row], p[edges.target.start + row] = ends
 
-    def _remove_node(self, network: _NetworkRowsSpec, row: int, p: Array) -> None:
+    def _remove_node(self, network: _NetworkRows, row: int, p: Array) -> None:
         """Remove a node with every edge that joins it and every hyperedge that holds it.
 
         Args:

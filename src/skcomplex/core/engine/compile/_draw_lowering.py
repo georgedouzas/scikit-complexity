@@ -6,6 +6,7 @@
 import difflib
 import re
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
@@ -23,14 +24,10 @@ from ...errors import ValidationError
 from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
 from ..enums import ReadKind
-from ..problems._draw_kernel import DrawKernel
+from ..problems._draw_kernel import DrawKernel, _NamedDraw
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._kernel_spec import KernelSpec
-from ..problems._named_draw_spec import _NamedDrawSpec
-from ..problems._neighbor_read_spec import _NeighborReadSpec
-from ..problems._reference_spec import ReferenceSpec
-from ..problems._request_spec import _RequestSpec
-from ..problems._sampled_draw_spec import _SampledDrawSpec
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
@@ -45,6 +42,21 @@ DISTRIBUTIONS = tuple(
         if not name.startswith('_') and isinstance(getattr(stats, name), stats.rv_continuous | stats.rv_discrete)
     ),
 )
+
+
+@dataclass(frozen=True)
+class _Request:
+    """DrawSpec of a component that needs a value per evaluation row at every step."""
+
+    owner: str
+    name: str
+    normal: bool
+    rows: int
+    slot: Expression
+    spec: KernelSpec
+    draw: DrawSpec | None = None
+    slots: Mapping[str, Expression] = field(default_factory=dict)
+    declared: DrawSpec | None = None
 
 
 class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
@@ -94,7 +106,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
 
     offset_: int
     time_: Expression
-    requests_: list[_RequestSpec]
+    requests_: list[_Request]
     draws_: DrawKernel | None
     shifted_: dict[tuple[int, str, int, str, float], Expression]
     relaxes_: bool
@@ -174,7 +186,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             slot = symbol(f'{draw.kind}_{name}_{sanitized}')
             slots[name] = slot
             sampled = draw if draw.kind == 'draw' else None
-            request = _RequestSpec(
+            request = _Request(
                 owner,
                 name,
                 draw.kind in NORMAL_KINDS,
@@ -270,7 +282,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         for spec in specs:
             for reference in spec.references.values():
                 read = reference.neighbor
-                if isinstance(read, _NeighborReadSpec) and read.order is not None:
+                if isinstance(read, _NeighborRead) and read.order is not None:
                     orders.setdefault(id(read.order), read.order)
         return tuple(orders.values())
 
@@ -300,8 +312,8 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
             start += request.rows
-        sampled: list[_SampledDrawSpec] = []
-        named: list[_NamedDrawSpec] = []
+        sampled: list[tuple[int, int, Callable[[float, Array, Array, np.random.Generator], Array]]] = []
+        named: list[_NamedDraw] = []
         position = self.offset_
         for request in ordered:
             if request.draw is None:
@@ -309,7 +321,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
                 position += request.rows
         for request in ordered:
             if request.draw is not None:
-                sampled.append(_SampledDrawSpec(position, request.rows, self._get_sampler(request)))
+                sampled.append((position, request.rows, self._get_sampler(request)))
                 named.append(self._get_named(request, position))
                 position += request.rows
         self.draws_ = DrawKernel(
@@ -320,7 +332,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             tuple(named),
         ).prepare()
 
-    def _get_named(self, request: _RequestSpec, start: int) -> _NamedDrawSpec:
+    def _get_named(self, request: _Request, start: int) -> _NamedDraw:
         """Return a draw of a request as runs record and replay it.
 
         Its arguments are evaluated from the states and parameters of the member.
@@ -331,11 +343,11 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             raise ValidationError(error_msg)
         nested = draws_in(list(draw.arguments))
         arguments = None if nested else self._get_arguments_of(request, draw)
-        return _NamedDrawSpec(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
+        return _NamedDraw(f'{request.owner}.{request.name}', draw, start, request.rows, arguments)
 
     def _get_arguments_of(
         self,
-        request: _RequestSpec,
+        request: _Request,
         draw: DrawSpec,
     ) -> Callable[[float, Array, Array], list[npt.ArrayLike]] | None:
         """Return the function of the values of the arguments of a draw.
@@ -367,7 +379,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         return evaluate
 
     @staticmethod
-    def _get_entry_name(request: _RequestSpec, names: dict[str, int]) -> str:
+    def _get_entry_name(request: _Request, names: dict[str, int]) -> str:
         """Return the name of the entry of the drawn values of a request.
 
         The name is unique among the entries of the draws. A component with several kernel specs, such as a hyperedge
@@ -466,7 +478,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
             found = draws_in(expression)
         return expression
 
-    def _get_sampler(self, request: _RequestSpec) -> Callable[[float, Array, Array, np.random.Generator], Array]:
+    def _get_sampler(self, request: _Request) -> Callable[[float, Array, Array, np.random.Generator], Array]:
         """Return the function that samples a draw for every row of a request.
 
         It samples from a `scipy.stats` distribution.

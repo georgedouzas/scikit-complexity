@@ -36,7 +36,8 @@ from ..compile import PhaseSpec, PhasesScheduleSpec
 from ..compile._observables import ObservableEvaluator
 from ..compile._phases_schedule_spec import DEFAULT_PHASE
 from ..problems import AgentSnapshotSpec, ProblemSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
+from ..problems._compiled_element_spec import _Variable
 from ..problems._composite_system import _CompositeSystem
 from ..problems._declared_element import _DeclaredElement
 from ..problems._draw_kernel import DrawKernel
@@ -44,7 +45,6 @@ from ..problems._draw_recorder import KEYWORDS
 from ..problems._group_element import _GroupElement
 from ..problems._layout_spec import LayoutSpec
 from ..problems._metric_search import MetricSearch
-from ..problems._variable_spec import _VariableSpec
 from ..types import MesaSpace
 from ._external import ExternalSolver
 
@@ -1277,7 +1277,7 @@ class MesaSolver(ExternalSolver):
         }
         self._positions = {spec.path: self._get_positions_of(spec, problem.agent_space) for spec in problem.agents}
         self._defaults = {spec.path: self._get_defaults_of(spec) for spec in problem.agents}
-        self._classes: dict[type, _CompiledAgentsSpec] = {}
+        self._classes: dict[type, _CompiledAgents] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
         self.members_: dict[int, mesa.Agent] = {}
         self.system_ = _AgentSystem(self._run_rules, self._seed())
@@ -1341,7 +1341,7 @@ class MesaSolver(ExternalSolver):
             declared = [PhaseSpec(DEFAULT_PHASE, activation=self.activation), *declared]
         return declared
 
-    def _get_agent_class(self, spec: _CompiledAgentsSpec) -> type:
+    def _get_agent_class(self, spec: _CompiledAgents) -> type:
         """Return the Mesa agent class of a group, created on first use."""
         for agent_class, known in self._classes.items():
             if known is spec:
@@ -1369,7 +1369,7 @@ class MesaSolver(ExternalSolver):
         self._view_classes[agent_class] = self._get_view_class(spec)
         return agent_class
 
-    def _get_agent_rules(self, spec: _CompiledAgentsSpec) -> list[tuple[SystemView, _RuleLaw]]:
+    def _get_agent_rules(self, spec: _CompiledAgents) -> list[tuple[SystemView, _RuleLaw]]:
         """Return the rules of an agent with their views.
 
         Those of its element come first, then its member rules.
@@ -1606,7 +1606,7 @@ class MesaSolver(ExternalSolver):
         self._recount(agent, 1)
         return agent
 
-    def _populate(self, spec: _CompiledAgentsSpec) -> None:
+    def _populate(self, spec: _CompiledAgents) -> None:
         """Create the initial agents of a group.
 
         They take their per-agent or shared initial values.
@@ -1621,7 +1621,7 @@ class MesaSolver(ExternalSolver):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
 
-    def _get_reference_of(self, spec: _CompiledAgentsSpec, state: str) -> str | None:
+    def _get_reference_of(self, spec: _CompiledAgents, state: str) -> str | None:
         """Return the path of the group a reference state of a group names members of.
 
         Args:
@@ -1652,7 +1652,7 @@ class MesaSolver(ExternalSolver):
         except SimulationError:
             return None
 
-    def _resolve_references(self, spec: _CompiledAgentsSpec) -> None:
+    def _resolve_references(self, spec: _CompiledAgents) -> None:
         """Turn the initial positions of the reference states of a group into ids.
 
         The ids are those of the members they name.
@@ -1694,7 +1694,7 @@ class MesaSolver(ExternalSolver):
                 if float(getattr(other, name)) == agent.unique_id:
                     setattr(other, name, -1.0)
 
-    def _get_spec_of(self, agent: mesa.Agent) -> _CompiledAgentsSpec:
+    def _get_spec_of(self, agent: mesa.Agent) -> _CompiledAgents:
         """Return the group of a Mesa agent created by the stepper.
 
         Args:
@@ -1841,7 +1841,7 @@ class MesaSolver(ExternalSolver):
             self._set_positions(agent, positions)
 
     @staticmethod
-    def _get_positions_of(spec: _CompiledAgentsSpec, space: BaseSpace | None) -> tuple[str, ...]:
+    def _get_positions_of(spec: _CompiledAgents, space: BaseSpace | None) -> tuple[str, ...]:
         """Return the states that place the agents of a group, or none.
 
         They are named after the axes of its space and inferred as positions, such as `x` and `y` of an agent on a
@@ -2191,7 +2191,7 @@ class MesaSolver(ExternalSolver):
     def _get_snapshot_of(
         agents: list[mesa.Agent],
         reporters: Mapping[str, Callable[[mesa.Agent], object]],
-        spec: _CompiledAgentsSpec,
+        spec: _CompiledAgents,
     ) -> AgentSnapshotSpec:
         """Return the ids, reported values, and locations of agents.
 
@@ -2213,7 +2213,7 @@ class MesaSolver(ExternalSolver):
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, roles)
 
     @staticmethod
-    def _get_defaults_of(spec: _CompiledAgentsSpec) -> dict[str, object]:
+    def _get_defaults_of(spec: _CompiledAgents) -> dict[str, object]:
         """Return the state values a new agent takes when none is given, by name.
 
         An agent takes the value its group shares, such as the `innovation` of
@@ -2233,7 +2233,7 @@ class MesaSolver(ExternalSolver):
         return defaults
 
     @staticmethod
-    def _check_given(spec: _CompiledAgentsSpec, names: Sequence[str], defaults: Mapping[str, object]) -> None:
+    def _check_given(spec: _CompiledAgents, names: Sequence[str], defaults: Mapping[str, object]) -> None:
         """Raise an error for the states a new agent is not given and has no default of.
 
         Args:
@@ -2285,7 +2285,7 @@ class MesaSolver(ExternalSolver):
         return property(read, doc=f'Parameter {name} of the group of the agent.')
 
     @staticmethod
-    def _get_view_class(spec: _CompiledAgentsSpec) -> type[AgentView]:
+    def _get_view_class(spec: _CompiledAgents) -> type[AgentView]:
         """Return the class of the views of a group's agents.
 
         The class has a property per parameter and per state that is not primed. It reads and sets every state by the
@@ -2320,7 +2320,7 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _get_member_of(spec: _CompiledAgentsSpec, name: str, value: object, index: int) -> object:
+    def _get_member_of(spec: _CompiledAgents, name: str, value: object, index: int) -> object:
         """Return the initial value of one agent.
 
         It comes from a list of one object per agent, or from one shared value.
@@ -2339,7 +2339,7 @@ class MesaSolver(ExternalSolver):
         return value
 
     @staticmethod
-    def _get_declared_view(spec: _CompiledAgentsSpec) -> type | None:
+    def _get_declared_view(spec: _CompiledAgents) -> type | None:
         """Return the view class of a declared element, or `None`."""
         element = spec.element
         if isinstance(element, _GroupElement):
@@ -2348,7 +2348,7 @@ class MesaSolver(ExternalSolver):
         return element.view if isinstance(element, _DeclaredElement) else None
 
     @staticmethod
-    def _get_declarations(spec: _CompiledAgentsSpec) -> dict[str, _VariableSpec]:
+    def _get_declarations(spec: _CompiledAgents) -> dict[str, _Variable]:
         """Return the declared states of the members of a compiled agent element or group.
 
         A group of plain elements declares them on its members as data, such as the firm a worker names.
@@ -2358,7 +2358,7 @@ class MesaSolver(ExternalSolver):
         return declarations_of(declaring, VariableKind.STATE)
 
     @staticmethod
-    def _get_declaring(spec: _CompiledAgentsSpec) -> type[BaseElement] | BaseElement:
+    def _get_declaring(spec: _CompiledAgents) -> type[BaseElement] | BaseElement:
         """Return what declares the states of a compiled agent element or group.
 
         It is the element class, or for an element declared from a plain element, a member with its declarations, such
@@ -2367,7 +2367,7 @@ class MesaSolver(ExternalSolver):
         return spec.element.get_declaring_element() if isinstance(spec.element, _GroupElement) else spec.element
 
     @staticmethod
-    def _get_agent_type(spec: _CompiledAgentsSpec) -> type[BaseElement]:
+    def _get_agent_type(spec: _CompiledAgents) -> type[BaseElement]:
         """Return the element type of a compiled agent element or group."""
         return spec.element.element if isinstance(spec.element, _GroupElement) else type(spec.element)
 
@@ -2383,7 +2383,7 @@ class MesaSolver(ExternalSolver):
         return location.item() if isinstance(location, np.generic) else location
 
     @staticmethod
-    def _check_variable(spec: _CompiledAgentsSpec, action: str) -> None:
+    def _check_variable(spec: _CompiledAgents, action: str) -> None:
         """Raise an error when a rule changes the size of a fixed agent element or group.
 
         Groups that are not variable have a fixed size.

@@ -16,10 +16,10 @@ from ...errors import ValidationError
 from ...types import Array
 from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._operator_kernel import OperatorKernel
+from ..problems._operator_lowering import _OperatorView
 from ..problems._operator_problem_spec import OperatorProblemSpec
-from ..problems._operator_view_spec import _OperatorViewSpec
 from ._base import BaseVisual
 from ._images import SPACE_TIME, ImageVisual
 
@@ -87,7 +87,7 @@ class ExpectationVisual(ImageVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the views of an operator element, group, or particle.
@@ -128,7 +128,7 @@ class ExpectationVisual(ImageVisual):
         return str(ExpectationVisual._get_view_of(element).display)
 
     @staticmethod
-    def _get_view_of(element: CompiledElementSpec) -> _OperatorViewSpec:
+    def _get_view_of(element: CompiledElementSpec) -> _OperatorView:
         """Return the operator view of a compiled element, of its first member for a group.
 
         Args:

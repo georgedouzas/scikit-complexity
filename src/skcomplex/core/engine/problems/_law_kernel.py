@@ -5,6 +5,7 @@
 
 import functools
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
 
 import numpy as np
 import numpy.typing as npt
@@ -14,22 +15,181 @@ from ...components.laws import CallSpec
 from ...errors import ValidationError
 from ...types import Array, Indices
 from ..enums import ReadKind
-from ..types import OptionalPairs, ReadFunction
+from ..types import NumericFunction, OptionalPairs, ReadFunction
 from ._base import BaseKernel
 from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
-from ._jump_channels_spec import _JumpChannelsSpec
 from ._layout_spec import LayoutSpec
-from ._noise_process_spec import _NoiseProcessSpec
-from ._output_spec import OutputSpec
 from ._pair_search import PairSearch
 from ._random_stream import RandomStream
 from ._reference_spec import PairsSearch, ReferenceSpec
 from ._run_state_spec import RunStateSpec
-from ._wiener_block_spec import _WienerBlockSpec
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
 LATTICE_BOUNDARIES = {'periodic': 'periodic', 'zero-flux': 'reflecting', 'fixed': 'fixed'}
+
+
+@dataclass(frozen=True)
+class _NoiseProcess:
+    """A record of a named Wiener process that a noise output draws.
+
+    It is shared by every output with the same key.
+
+    Args:
+        key:
+            The identity of the process: a local label of a component, or the path of a `WienerProcessSpec`.
+
+        index:
+            The process within a `WienerProcessSpec`.
+
+        dimension:
+            The number of processes of a `WienerProcessSpec`, or 0 for a local label, which takes one process per
+            member.
+
+        factor:
+            The factor `L` with `L L^T = C` of the covariance of a `WienerProcessSpec`, or `None` for the identity.
+
+        links:
+            For the link processes of a conserved noise, the process of every evaluation index among the `dimension`
+            processes of the key, or -1 for a link that carries no process, otherwise `None`.
+    """
+
+    key: object
+    index: int = 0
+    dimension: int = 0
+    factor: npt.NDArray[np.float64] | None = field(default=None, compare=False)
+    links: npt.NDArray[np.intp] | None = field(default=None, compare=False)
+
+
+@dataclass(frozen=True)
+class _Output:
+    """A record of one value that a kernel of laws gives for one target.
+
+    Every law of a kernel gives one value for its target, such as the rate of the size of a population, written as a
+    symbolic expression or computed by a Python function. The spec also says how the value is combined when several laws
+    set one state, whether it reads a named noise process, and whether its function draws random numbers. It holds the
+    rate of a population, the noise of a price, and the update of a cell.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        target:
+            The target component, or `None` for the propensity of a jump.
+
+        expression:
+            The symbolic value, or `None` when a callable produces it.
+
+        function:
+            The callable or `Call` function that produces the values of every component of its target, or `None`.
+
+        arguments:
+            The argument expressions of a `Call` function, or `None` for a function of time and the named values.
+
+        component:
+            The component of the callable's result that this output holds.
+
+        components:
+            The number of components the callable returns per evaluation index.
+
+        process:
+            The named Wiener process of a noise output, or `None` for one independent process per evaluation index.
+
+        combined:
+            Whether an assigned output adds its change from the state to the value an earlier output set, so that
+            several update laws of one state combine.
+
+        reduce:
+            `'sum'` or `'mean'` for an assigned output that sets every member it writes to the sum or the mean of the
+            values of the rows that write it, or `None`.
+
+        counts:
+            The number of rows, over every kernel, that write the member of every row of an output that reduces, or
+            `None`.
+
+        relative:
+            Whether a function reads the values keyed by the names of its component.
+
+        random:
+            Whether a function receives the random stream as the keyword argument `rng`.
+
+        vectorized:
+            Whether a `Call` function runs once per evaluation with arrays.
+
+    See Also:
+        LawKernel: The kernel that gives the values.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> kernel = LogisticGrowthSystem().prepare().simulate(until=0).problem.jacobian.kernels[0]
+        >>> kernel.outputs[0].expression
+        -r_growth*x_population*(x_population/K_growth - 1)
+    """
+
+    target: ReferenceSpec | None
+    expression: Expression | None = None
+    function: NumericFunction | Callable[..., object] | None = None
+    arguments: tuple[Expression, ...] | None = None
+    component: int = 0
+    components: int = 1
+    process: _NoiseProcess | None = None
+    combined: bool = False
+    reduce: str | None = None
+    counts: Indices | None = field(default=None, compare=False, repr=False)
+    relative: bool = False
+    random: bool = False
+    vectorized: bool = False
+
+
+@dataclass(frozen=True)
+class _JumpChannels:
+    """Random events of one jump law, one channel per evaluation index."""
+
+    offset: int
+    targets: npt.NDArray[np.intp]
+    increments: Array
+    changes: tuple[Callable[[float, Array, Array], Array] | None, ...] = ()
+
+    def get_increments_at(self, t: float, x: Array, p: Array, member: int) -> Array:
+        """Return the increment of every target at a firing.
+
+        Only a target that has a function gets an increment from it.
+        """
+        if not self.changes:
+            return self.increments
+        return np.array(
+            [
+                increment if change is None else change(t, x, p)[member]
+                for increment, change in zip(self.increments, self.changes, strict=True)
+            ],
+            dtype=float,
+        )
+
+    @property
+    def size(self) -> int:
+        """Number of channels."""
+        return int(self.targets.shape[1])
+
+
+@dataclass(frozen=True)
+class _WienerBlock:
+    """A record of the correlated Wiener processes of one process spec.
+
+    They are a contiguous block of the processes of a problem.
+
+    Args:
+        start:
+            The index of the first process of the block.
+
+        size:
+            The number of processes of the block.
+
+        factor:
+            The factor `L` with `L L^T = C` of the covariance `C` of the block.
+    """
+
+    start: int
+    size: int
+    factor: npt.NDArray[np.float64]
 
 
 class LawKernel(BaseKernel):
@@ -81,7 +241,7 @@ class LawKernel(BaseKernel):
 
     See Also:
         KernelSpec: What the laws read while they compile.
-        OutputSpec: One value the kernel gives.
+        _Output: One value the kernel gives.
 
     Examples:
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
@@ -102,7 +262,7 @@ class LawKernel(BaseKernel):
         *,
         layout_parameters: LayoutSpec,
         pairs: PairsSearch | None = None,
-        outputs: Sequence[OutputSpec] = (),
+        outputs: Sequence[_Output] = (),
         names: Mapping[str, str] | None = None,
         stream: RandomStream | None = None,
     ) -> None:
@@ -451,7 +611,7 @@ class LawKernel(BaseKernel):
             return values
         return {name: values[path] for name, path in (self.names or {}).items() if path in values}
 
-    def _get_keywords(self, output: OutputSpec) -> dict[str, np.random.Generator]:
+    def _get_keywords(self, output: _Output) -> dict[str, np.random.Generator]:
         """Return the keyword arguments of a function.
 
         The random stream is passed when the function asks for it.
@@ -463,7 +623,7 @@ class LawKernel(BaseKernel):
             raise ValidationError(error_msg)
         return {'rng': self.stream.generator}
 
-    def _call(self, output: OutputSpec, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
+    def _call(self, output: _Output, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
         """Return the result of a function as an array.
 
         It has one row per evaluation index and one column per component.
@@ -522,7 +682,7 @@ class LawKernel(BaseKernel):
         return np.broadcast_to(np.asarray(value, dtype=float), (size,))
 
     @staticmethod
-    def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[_WienerBlockSpec, ...]]:
+    def _lower_noise(kernels: list['LawKernel']) -> tuple[Indices, Indices, int, tuple[_WienerBlock, ...]]:
         """Return the state and the Wiener process of every amplitude of noise kernels.
 
         The processes they draw are returned too. Processes are numbered in order of first use. An output without a
@@ -550,7 +710,7 @@ class LawKernel(BaseKernel):
         columns: list[Indices] = []
         local: dict[object, Indices] = {}
         starts: dict[object, int] = {}
-        blocks: list[_WienerBlockSpec] = []
+        blocks: list[_WienerBlock] = []
         counter = [0, -1]
         for kernel in kernels:
             for item in kernel.outputs:
@@ -579,13 +739,13 @@ class LawKernel(BaseKernel):
 
     @staticmethod
     def _get_process_columns(
-        process: _NoiseProcessSpec | None,
+        process: _NoiseProcess | None,
         size: int,
         *,
         counter: list[int],
         local: dict[object, Indices],
         starts: dict[object, int],
-        blocks: list[_WienerBlockSpec],
+        blocks: list[_WienerBlock],
     ) -> Indices:
         """Return the process of every evaluation index of a noise output.
 
@@ -598,7 +758,7 @@ class LawKernel(BaseKernel):
         if process.key not in starts and (process.links is not None or process.dimension):
             starts[process.key] = counter[0]
             if process.factor is not None and process.links is None:
-                blocks.append(_WienerBlockSpec(counter[0], process.dimension, process.factor))
+                blocks.append(_WienerBlock(counter[0], process.dimension, process.factor))
             counter[0] += process.dimension
         if process.links is not None:
             links = process.links
@@ -606,7 +766,7 @@ class LawKernel(BaseKernel):
                 return (starts[process.key] + links).astype(np.intp)
             if counter[1] < 0:
                 counter[1] = counter[0]
-                blocks.append(_WienerBlockSpec(counter[0], 1, np.zeros((1, 1))))
+                blocks.append(_WienerBlock(counter[0], 1, np.zeros((1, 1))))
                 counter[0] += 1
             return np.where(links >= 0, starts[process.key] + links, counter[1]).astype(np.intp)
         if process.dimension:
@@ -626,7 +786,7 @@ class LawKernel(BaseKernel):
     def _jump_channels(
         kernels: list['LawKernel'],
         changes: Mapping[int, list[tuple[ReferenceSpec, object]]],
-    ) -> tuple[_JumpChannelsSpec, ...]:
+    ) -> tuple[_JumpChannels, ...]:
         """Return the channels of every jump law of jump kernels.
 
         Args:
@@ -660,7 +820,7 @@ class LawKernel(BaseKernel):
                     for _, increment in law_changes
                 )
                 channels.append(
-                    _JumpChannelsSpec(offset, targets, increments, functions if any(functions) else ()),
+                    _JumpChannels(offset, targets, increments, functions if any(functions) else ()),
                 )
                 offset += kernel.rows
         return tuple(channels)

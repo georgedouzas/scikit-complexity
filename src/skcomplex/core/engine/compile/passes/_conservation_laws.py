@@ -9,11 +9,10 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 from ....components.laws import BaseLaw, RateLaw
 from ....components.laws._ordered_rate import _OrderedRateLaw
 from ....errors import ValidationError
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 from .._flux_law import _FluxLaw
 
 
@@ -56,7 +55,7 @@ class ConservationLawsPass(BasePass):
         ]
 
     @staticmethod
-    def _get_field(spec: KernelSpec, law: RateLaw, declarations: DeclarationsSpec) -> _FieldElement | None:
+    def _get_field(spec: KernelSpec, law: RateLaw, declarations: _Declarations) -> _FieldElement | None:
         """Return the finite-volume field whose scalar state a rate law targets, or `None`."""
         scalar = isinstance(law.target, Expression) and isinstance(law.value, Expression)
         if law._get_order() not in (None, 1) or not scalar:
@@ -88,7 +87,7 @@ class ConservationLawsPass(BasePass):
         return coefficient, operand, int(axis)
 
     @staticmethod
-    def _split(spec: KernelSpec, law: BaseLaw, declarations: DeclarationsSpec) -> list[BaseLaw]:
+    def _split(spec: KernelSpec, law: BaseLaw, declarations: _Declarations) -> list[BaseLaw]:
         """Return a rate law as a flux law and a rate law of its sources.
 
         Any other law, and a rate law that is no conservation law, stays as it is.

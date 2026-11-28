@@ -12,9 +12,8 @@ from ....components.laws._rule import _RuleLaw
 from ....enums import VariableKind
 from ..._utils import binding_of, bound_labels, declarations_of, probe_laws
 from ...problems._group_element import _GroupElement
-from ...problems._node_spec import _NodeSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Node
 
 MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
 
@@ -63,7 +62,7 @@ class AgentsPass(BasePass):
         return isinstance(component, _GroupElement) and component.on is None and probe_laws(component) == []
 
     @staticmethod
-    def _get_bound_paths(node: _NodeSpec) -> set[str]:
+    def _get_bound_paths(node: _Node) -> set[str]:
         """Return the paths of the components the roles of an interaction bind.
 
         The paths have no member indices.
@@ -75,7 +74,7 @@ class AgentsPass(BasePass):
         return paths
 
     @staticmethod
-    def _get_agent_paths(nodes: list[_NodeSpec]) -> set[str]:
+    def _get_agent_paths(nodes: list[_Node]) -> set[str]:
         """Return the paths of the rule-running components and the passive groups read.
 
         The components are elements and groups, and rules read the passive groups.

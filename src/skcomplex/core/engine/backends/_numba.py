@@ -30,7 +30,6 @@ from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import BackendWarning, ValidationError
 from ...types import Array, VectorFunction
 from ..enums import ReadKind
-from ..problems._accelerated_spec import _AcceleratedSpec
 from ..problems._bilinear_law import BilinearLaw
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
@@ -39,9 +38,9 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._metric_search import MetricSearch
-from ..problems._neighbor_read_spec import _NeighborReadSpec
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._neighborhood_kernel import _ReductionSchedule
+from ..problems._problem_spec import _Accelerated
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
 from . import _numba_components, _numba_neighbours, _numba_stencils
@@ -170,7 +169,7 @@ class NumbaBackend(BaseBackend):
             JumpLaw: kernels.get(JumpLaw, []) if form == FormKind.JUMP else [],
             UpdateLaw: kernels.get(UpdateLaw, []) if form in (FormKind.DISCRETE, FormKind.STATIC) else [],
         }
-        reductions = inputs.reductions or ReductionScheduleSpec()
+        reductions = inputs.reductions or _ReductionSchedule()
         reduced = bool(reductions.steps)
         fused = self._get_reductions_compile(reductions)
         compiled: dict[type[BaseLaw], bool] = {
@@ -246,7 +245,7 @@ class NumbaBackend(BaseBackend):
         size: int,
         module: ModuleType,
         layout: tuple[np.ndarray, list[tuple[int, np.ndarray]]],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> _LoweredFunctions:
         """Return the lowering that binds the compiled functions to the layout.
 
@@ -321,12 +320,12 @@ class NumbaBackend(BaseBackend):
         layout: np.ndarray,
         lowering: _LoweredFunctions,
         draws: DrawKernel | None,
-    ) -> _AcceleratedSpec:
+    ) -> _Accelerated:
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
             verlet, yoshida4 = module.velocity_verlet, module.yoshida4
-            return _AcceleratedSpec(
+            return _Accelerated(
                 rk4=lambda t, x, p, until, h: function(t, x, p, layout, until, h),
                 yoshida4=lambda t, x, p, until, h, first, second, weights: yoshida4(
                     t,
@@ -352,20 +351,20 @@ class NumbaBackend(BaseBackend):
             )
         if loop == 'euler_maruyama':
             noise = self._get_noise_arrays(lowering)
-            return _AcceleratedSpec(
+            return _Accelerated(
                 euler_maruyama=lambda t, x, p, until, h, rng: function(t, x, p, layout, until, h, rng, *noise),
             )
         if loop == 'gillespie':
             targets, increments = self._get_channel_arrays(lowering)
-            return _AcceleratedSpec(
+            return _Accelerated(
                 gillespie=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, targets, increments),
             )
         if loop == 'iterate_random' and draws is not None:
             offset, flags = draws.offset, draws.normal
-            return _AcceleratedSpec(
+            return _Accelerated(
                 iterate=lambda t, x, p, until, rng: function(t, x, p, layout, until, rng, offset, flags),
             )
-        return _AcceleratedSpec(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
+        return _Accelerated(iterate=lambda t, x, p, until: function(t, x, p, layout, until))
 
     @staticmethod
     def _search_entries(search: object) -> dict[str, EntrySpec]:
@@ -386,7 +385,7 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _get_layout_entries(
         used: Mapping[type[BaseLaw], list[LawKernel]],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> dict[str, EntrySpec]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
         entries = {
@@ -403,7 +402,7 @@ class NumbaBackend(BaseBackend):
                     entries[search.target.name] = search.target
                 for reference in kernel.references.values():
                     read = reference.neighbor
-                    if isinstance(read, _NeighborReadSpec) and read.entry is not None:
+                    if isinstance(read, _NeighborRead) and read.entry is not None:
                         entries[read.entry.name] = read.entry
         for item in reductions.reductions:
             entries[item.entry.name] = item.entry
@@ -444,7 +443,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _get_reductions_compile(reductions: ReductionScheduleSpec) -> bool:
+    def _get_reductions_compile(reductions: _ReductionSchedule) -> bool:
         """Check whether every reduction compiles with Numba.
 
         Every reduction must print in Numba's dialect, and no reduction may run shortest paths in NetworkX.
@@ -501,7 +500,7 @@ class NumbaBackend(BaseBackend):
         return targets, increments
 
     @staticmethod
-    def _get_unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
+    def _get_unprinted_reduction(reductions: _ReductionSchedule) -> str | None:
         """Return the first reduction that does not print in the scalar dialect.
 
         It returns `None` when every one prints.
@@ -528,7 +527,7 @@ class NumbaBackend(BaseBackend):
         name: str,
         used: Mapping[type[BaseLaw], list[LawKernel]],
         compiled: Mapping[type[BaseLaw], bool],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> dict[str, str]:
         """Warn once about the kinds run in Python, and return the runners.
 

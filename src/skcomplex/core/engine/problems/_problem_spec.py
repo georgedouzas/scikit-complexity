@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
@@ -16,19 +17,15 @@ from sage.modules.free_module_element import FreeModuleElement
 from ...components.laws import BaseLaw
 from ...errors import ValidationError
 from ...types import Array, Indices, VectorFunction
-from ._accelerated_spec import _AcceleratedSpec
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
-from ._breakpoints_spec import _BreakpointsSpec
-from ._delay_spec import _DelaySpec
+from ._compiled_element_spec import _Variable
 from ._diffusive_limit_spec import DiffusiveLimitSpec
 from ._draw_kernel import DrawKernel
 from ._event_kernel import EventKernel
 from ._finite_volume_kernel import FiniteVolumeKernel
-from ._fractional_rows_spec import _FractionalRowsSpec
 from ._jacobian_kernel import JacobianKernel
-from ._jump_channels_spec import _JumpChannelsSpec
-from ._law_kernel import LawKernel
+from ._law_kernel import LawKernel, _JumpChannels, _WienerBlock
 from ._layout_spec import LayoutSpec
 from ._linear_program_kernel import LinearProgramKernel
 from ._linear_term_spec import LinearTermSpec
@@ -36,8 +33,129 @@ from ._neighborhood_kernel import NeighborhoodKernel
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
-from ._variable_spec import _VariableSpec
-from ._wiener_block_spec import _WienerBlockSpec
+
+
+@dataclass(frozen=True)
+class _Breakpoints:
+    """Times where time-dependent inputs jump, at which solvers restart."""
+
+    fixed: tuple[float, ...] = ()
+    periodic: tuple[tuple[float, float], ...] = field(default=())
+    unresolved: bool = False
+
+    def get_next_after(self, time: float) -> float | None:
+        """Return the first breakpoint strictly after a time, or `None` when none follows.
+
+        Args:
+            time:
+                The time.
+
+        Returns:
+            breakpoint:
+                The first later breakpoint.
+        """
+        candidates = [item for item in self.fixed if item > time]
+        for origin, period in self.periodic:
+            following = origin + (math.floor((time - origin) / period) + 1) * period
+            while following <= time:
+                following += period
+            candidates.append(following)
+        return min(candidates, default=None)
+
+    def get_between(self, start: float, end: float) -> list[float]:
+        """Return the breakpoints strictly between two times, in order.
+
+        Args:
+            start:
+                The first time.
+
+            end:
+                The last time.
+
+        Returns:
+            times:
+                The breakpoints.
+        """
+        times = {time for time in self.fixed if start < time < end}
+        for origin, period in self.periodic:
+            first = math.floor((start - origin) / period) + 1
+            last = math.ceil((end - origin) / period)
+            times.update(origin + k * period for k in range(first, last) if start < origin + k * period < end)
+        return sorted(times)
+
+
+@dataclass(frozen=True)
+class _Delay:
+    """Delayed state read by laws through a hidden parameter.
+
+    Solvers fill the parameter from the run's history.
+    """
+
+    parameters: npt.NDArray[np.intp]
+    states: npt.NDArray[np.intp]
+    tau: Callable[[float, Array, Array], float]
+    minimum: float
+    symbol: Expression
+    state: Expression
+    delay: Expression
+
+
+@dataclass(frozen=True)
+class _FractionalRows:
+    """A record of the noise rows of one noise law with a Hurst index.
+
+    The law is driven by fractional Brownian motion of a Hurst index.
+
+    Args:
+        law:
+            The description of the law, such as `fractional noise law of walkers.x`.
+
+        positions:
+            The positions of the law's rows among the noise rows of the problem.
+
+        hurst:
+            The function `H(p)` that returns the Hurst index of every row from the parameter vector.
+    """
+
+    law: str
+    positions: npt.NDArray[np.intp]
+    hurst: Callable[[Array], Array]
+
+
+@dataclass(frozen=True)
+class _Accelerated:
+    """A record of the compiled loops that step a problem.
+
+    They run every internal step of a frame in compiled code. Every loop takes `(t, x, p, until, ...)` and returns the
+    state at `until`. A loop is `None` when the problem's form does not use it.
+
+    Args:
+        rk4:
+            The fourth-order Runge-Kutta loop `rk4(t, x, p, until, h)`.
+
+        velocity_verlet:
+            The velocity Verlet loop `velocity_verlet(t, x, p, until, h, positions, velocities)`.
+
+        yoshida4:
+            The fourth-order Yoshida loop `yoshida4(t, x, p, until, h, first, second, weights)`, which drifts the first
+            block and kicks the second in every velocity Verlet stage of a weight.
+
+        euler_maruyama:
+            The Euler-Maruyama loop `euler_maruyama(t, x, p, until, h, rng)`.
+
+        gillespie:
+            The Gillespie loop `gillespie(t, x, p, until, rng)`.
+
+        iterate:
+            The discrete map loop `iterate(t, x, p, until)`, or `iterate(t, x, p, until, rng)` for a stochastic map.
+    """
+
+    rk4: Callable[..., Array] | None = None
+    velocity_verlet: Callable[..., Array] | None = None
+    yoshida4: Callable[..., Array] | None = None
+    euler_maruyama: Callable[..., Array] | None = None
+    gillespie: Callable[..., Array] | None = None
+    iterate: Callable[..., Array] | None = None
 
 
 @dataclass(frozen=True)
@@ -268,9 +386,9 @@ class ProblemSpec(BaseProblemSpec):
     has_group_sums: bool
     system_rules: tuple[tuple[str, BaseLaw], ...] = ()
     partitions: tuple[PartitionSpec, ...] = ()
-    delays: tuple[_DelaySpec, ...] = ()
+    delays: tuple[_Delay, ...] = ()
     events: tuple[EventKernel, ...] = ()
-    breakpoints: _BreakpointsSpec = field(default_factory=_BreakpointsSpec)
+    breakpoints: _Breakpoints = field(default_factory=_Breakpoints)
     history: Mapping[str, object] = field(default_factory=dict)
     lattice: tuple[BaseKernel, ...] = field(default=(), repr=False)
     stable_step: float | None = None
@@ -293,20 +411,20 @@ class ProblemSpec(BaseProblemSpec):
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     n_processes: int = 0
-    noise_blocks: tuple[_WienerBlockSpec, ...] = field(default=(), repr=False)
+    noise_blocks: tuple[_WienerBlock, ...] = field(default=(), repr=False)
     propensities: VectorFunction | None = field(default=None, repr=False)
-    jumps: tuple[_JumpChannelsSpec, ...] = field(default=(), repr=False)
+    jumps: tuple[_JumpChannels, ...] = field(default=(), repr=False)
     update: Callable[..., Array] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
     algebraic: VectorFunction | None = field(default=None, repr=False)
     programs: tuple[LinearProgramKernel, ...] = field(default=(), repr=False)
     draws: DrawKernel | None = field(default=None, repr=False)
-    fractional: tuple[_FractionalRowsSpec, ...] = field(default=(), repr=False)
+    fractional: tuple[_FractionalRows, ...] = field(default=(), repr=False)
     orders: Array = field(default_factory=lambda: np.zeros(0), repr=False)
 
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)
-    accelerated: _AcceleratedSpec | None = field(default=None, repr=False)
+    accelerated: _Accelerated | None = field(default=None, repr=False)
 
     def _flatten_symbols(self, layout: LayoutSpec) -> list[Expression]:
         """Return the symbols of the entries of a layout as a flat list."""
@@ -321,7 +439,7 @@ class ProblemSpec(BaseProblemSpec):
         return tuple(partition.problem for partition in self.partitions)
 
     @property
-    def adaptive_parameters(self) -> dict[str, _VariableSpec]:
+    def adaptive_parameters(self) -> dict[str, _Variable]:
         """Declarations of the adaptive parameters of the elements and groups.
 
         They are keyed by dotted state name.

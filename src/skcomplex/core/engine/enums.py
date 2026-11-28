@@ -17,7 +17,7 @@ class LinearProgramBound(IntEnum):
     Read more in the user guide, under Solvers.
 
     See Also:
-        LinearProgramSideSpec: Says which bound a computed value sets.
+        LinearProgramKernel: Solves the linear program of a problem.
 
     Examples:
         >>> from skcomplex.core.engine.enums import LinearProgramBound

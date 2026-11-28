@@ -66,7 +66,7 @@ class OperatorProblemSpec(BaseProblemSpec):
             The matrices of local operators computed so far.
 
     See Also:
-        OperatorSpec: A sum of products of local operators.
+        OperatorLowering: Lowers the operators of the problem to matrices.
 
     Examples:
         >>> from skcomplex.core.systems import System

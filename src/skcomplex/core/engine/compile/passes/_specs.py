@@ -32,27 +32,23 @@ from ....types import Indices
 from ..._utils import binding_of, bound_labels, declarations_of, domain_of, symbol, vector
 from ...enums import ReadKind
 from ...problems import ProblemSpec
-from ...problems._block_spec import BlockSpec
-from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._declared_element import _DeclaredElement
 from ...problems._edge_search import EdgeSearch
 from ...problems._field_element import _FieldElement
 from ...problems._group_element import _GroupElement
-from ...problems._kernel_spec import KernelSpec
-from ...problems._neighbor_read_spec import _NeighborReadSpec
-from ...problems._node_spec import _NodeSpec
-from ...problems._observed_spec import ObservedSpec
+from ...problems._kernel_spec import KernelSpec, _SetSymbol
 from ...problems._pair_search import PairSearch
-from ...problems._reference_spec import ReferenceSpec
-from ...problems._set_symbol_spec import EDGE_NAMES, MEMBER_REFERENCE, SetSymbolSpec
+from ...problems._reference_spec import ReferenceSpec, _NeighborRead
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import ACTIVE, ENDS, MEMBERS, Compilation, _Block, _Declarations, _Node
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from ._hyperedges import MEMBER_LAWS, HyperedgeTables, Tables
 from ._layout import LayoutPass
 
 END_SUFFIXES = ('__source', '__target')
+MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
+EDGE_NAMES = ('source', 'target', 'edge')
 HYPEREDGE_NAMES = ('member', 'others', 'members', 'hyperedge', 'edge', 't')
 MAX_HYPEREDGE_ROLES = 2
 SECOND_PARTS = ('edges', 'hyperedges')
@@ -105,7 +101,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_namespace(
-        block: BlockSpec,
+        block: _Block,
         source: ReadKind,
         alias: str = '',
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
@@ -135,7 +131,7 @@ class SpecsPass(BasePass):
         return SpecsPass._get_renamed_namespace(block, mapping), references
 
     @staticmethod
-    def _get_member_namespace(block: BlockSpec, index: int) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
+    def _get_member_namespace(block: _Block, index: int) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of one member of a group and its symbol references.
 
         The member is read like a single element.
@@ -164,7 +160,7 @@ class SpecsPass(BasePass):
         return SpecsPass._get_renamed_namespace(block, mapping), references
 
     @staticmethod
-    def _get_renamed_namespace(block: BlockSpec, mapping: dict[Expression, Expression]) -> SimpleNamespace:
+    def _get_renamed_namespace(block: _Block, mapping: dict[Expression, Expression]) -> SimpleNamespace:
         """Return the namespace of the variables of a block in renamed symbols.
 
         Per-entry parameters are tuples.
@@ -191,7 +187,7 @@ class SpecsPass(BasePass):
         return mapping.get(value, value) if value.operator() is None else value.subs(mapping)
 
     @staticmethod
-    def _get_group_space(block: BlockSpec) -> BaseSpace | None:
+    def _get_group_space(block: _Block) -> BaseSpace | None:
         """Return the space of a group, its own or the enclosing one.
 
         The groups of one network share it.
@@ -199,7 +195,7 @@ class SpecsPass(BasePass):
         return block.node.space
 
     @staticmethod
-    def _get_space_period(node: _NodeSpec) -> float | None:
+    def _get_space_period(node: _Node) -> float | None:
         """Return the side of the periodic box of a pair interaction, or `None`.
 
         The pair interaction measures minimum image distances in the box.
@@ -216,7 +212,7 @@ class SpecsPass(BasePass):
         return space.extent_[0]
 
     @staticmethod
-    def _set_symbols(members: list[BlockSpec], index: int) -> dict[Expression, SetSymbolSpec]:
+    def _set_symbols(members: list[_Block], index: int) -> dict[Expression, _SetSymbol]:
         """Return the symbols of one element of a set, the same for every element."""
         label = ', '.join(member.node.path for member in members)
         symbols = {}
@@ -226,7 +222,7 @@ class SpecsPass(BasePass):
                     member.references[ProblemSpec._get_real_components_of(member.symbols[variable])[column]]
                     for member in members
                 )
-                symbols[item] = SetSymbolSpec(
+                symbols[item] = _SetSymbol(
                     ProblemSpec._get_real_components_of(members[0].symbols[variable])[column],
                     references,
                     label,
@@ -234,7 +230,7 @@ class SpecsPass(BasePass):
         return symbols
 
     @staticmethod
-    def _resolve_path(node: _NodeSpec, role: str, label: object, elements: dict[str, BlockSpec]) -> BlockSpec:
+    def _resolve_path(node: _Node, role: str, label: object, elements: dict[str, _Block]) -> _Block:
         """Return the block a role of an interaction binds to by label.
 
         The block is that of an element, a group, or Wiener processes.
@@ -251,12 +247,12 @@ class SpecsPass(BasePass):
         return elements[path]
 
     @staticmethod
-    def _resolve_role(node: _NodeSpec, role: str, elements: dict[str, BlockSpec]) -> BlockSpec:
+    def _resolve_role(node: _Node, role: str, elements: dict[str, _Block]) -> _Block:
         """Return the block of the element or group bound to a role of an interaction."""
         return SpecsPass._resolve_path(node, role, binding_of(node.component, role), elements)
 
     @staticmethod
-    def _get_end_names(node: _NodeSpec, ends: Sequence[str]) -> tuple[str, ...]:
+    def _get_end_names(node: _Node, ends: Sequence[str]) -> tuple[str, ...]:
         """Return the names the laws of an interaction give edge ends or pair members.
 
         Each end, such as `'source'`, `'target'`, `'edge'`, `'first'`, or `'second'`, takes the name the interaction's
@@ -267,11 +263,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_set(
-        node: _NodeSpec,
+        node: _Node,
         role: str,
         labels: Sequence[str],
-        elements: dict[str, BlockSpec],
-    ) -> list[BlockSpec]:
+        elements: dict[str, _Block],
+    ) -> list[_Block]:
         """Return the blocks of the single elements a role binds to as an element set.
 
         The elements are of one type, the class of a plain element for an element declared from one.
@@ -301,11 +297,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_member(
-        node: _NodeSpec,
+        node: _Node,
         role: str,
         reference: str,
-        elements: dict[str, BlockSpec],
-    ) -> tuple[BlockSpec, int] | None:
+        elements: dict[str, _Block],
+    ) -> tuple[_Block, int] | None:
         """Return the group block and member index of a member reference.
 
         An example reference is `sites[3]`, and the result is `None` for a path.
@@ -325,11 +321,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_entry(
-        node: _NodeSpec,
+        node: _Node,
         role: str,
         entry: object,
-        elements: dict[str, BlockSpec],
-    ) -> tuple[BlockSpec, int | None]:
+        elements: dict[str, _Block],
+    ) -> tuple[_Block, int | None]:
         """Return the block of one entry of a variadic role.
 
         It comes with the member index of a member reference. An entry that names a whole group binds its agents, which
@@ -342,11 +338,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _resolve_entries(
-        node: _NodeSpec,
+        node: _Node,
         role: str,
         entries: object,
-        elements: dict[str, BlockSpec],
-    ) -> list[tuple[BlockSpec, int | None]]:
+        elements: dict[str, _Block],
+    ) -> list[tuple[_Block, int | None]]:
         """Return the blocks and member indices of the entries of a variadic role.
 
         They are in the given order. An entry is an element path or a group member reference, alone or paired with the
@@ -368,7 +364,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_entry_namespace(
-        block: BlockSpec,
+        block: _Block,
         index: int | None,
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of an entry of a variadic role.
@@ -384,9 +380,9 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_source_namespace(
-        block: BlockSpec,
+        block: _Block,
         index: int | None,
-        bound: Mapping[str, BlockSpec],
+        bound: Mapping[str, _Block],
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of a source of an interaction.
 
@@ -410,7 +406,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _broadcast_namespace(
-        block: BlockSpec,
+        block: _Block,
         target: PhaseSpace,
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of a field over a position lattice on a phase space.
@@ -440,12 +436,12 @@ class SpecsPass(BasePass):
             )
             raise ValidationError(error_msg)
         table = np.repeat(np.arange(block.rows), target.size_ // target.position_size_)
-        read = _NeighborReadSpec(table, None, None, None, 0)
+        read = _NeighborRead(table, None, None, None, 0)
         namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias='__broadcast')
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
-    def _get_entry_path(block: BlockSpec, index: int | None) -> str:
+    def _get_entry_path(block: _Block, index: int | None) -> str:
         """Return the path of an entry of a variadic role.
 
         It comes with the member index of a member reference.
@@ -454,7 +450,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _copy_with_other(
-        block: BlockSpec,
+        block: _Block,
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
     ) -> SimpleNamespace:
@@ -471,7 +467,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _copy_with_source(
-        block: BlockSpec,
+        block: _Block,
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
     ) -> SimpleNamespace:
@@ -488,7 +484,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _copy_with_hyperedges(
-        block: BlockSpec,
+        block: _Block,
         namespace: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
     ) -> SimpleNamespace:
@@ -521,10 +517,10 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_changing_search(
-        node: _NodeSpec,
-        nodes: BlockSpec,
-        edges: BlockSpec | None,
-        changing: BlockSpec,
+        node: _Node,
+        nodes: _Block,
+        edges: _Block | None,
+        changing: _Block,
     ) -> EdgeSearch:
         """Return the edge rows of a layer whose edges change.
 
@@ -546,7 +542,7 @@ class SpecsPass(BasePass):
         return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]]).prepare()
 
     @staticmethod
-    def _get_edge_layer(node: _NodeSpec, nodes: BlockSpec, edges: BlockSpec | None) -> str | None:
+    def _get_edge_layer(node: _Node, nodes: _Block, edges: _Block | None) -> str | None:
         """Return the layer an interaction over neighbours runs on.
 
         It is checked against the layer of its edge group.
@@ -572,9 +568,9 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_edge_roles(
-        node: _NodeSpec,
-        elements: dict[str, BlockSpec],
-    ) -> tuple[BlockSpec, BlockSpec | None, BlockSpec | None]:
+        node: _Node,
+        elements: dict[str, _Block],
+    ) -> tuple[_Block, _Block | None, _Block | None]:
         """Return the node group, edge group, and second node group of an interaction.
 
         The edge group and the second node group may be absent. The first role bound to a group of nodes binds the
@@ -605,11 +601,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_along(
-        node: _NodeSpec,
-        nodes: Sequence[BlockSpec],
+        node: _Node,
+        nodes: Sequence[_Block],
         parts: Sequence[str],
-        elements: dict[str, BlockSpec],
-    ) -> BlockSpec | None:
+        elements: dict[str, _Block],
+    ) -> _Block | None:
         """Return the group with values on the links an interaction runs along, or `None`.
 
         The group sits on the first of `parts` that holds one, such as the hyperedges and then the edges, of the network
@@ -663,10 +659,10 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_edge_search(
-        node: _NodeSpec,
-        nodes: BlockSpec,
-        edges: BlockSpec | None,
-        elements: dict[str, BlockSpec],
+        node: _Node,
+        nodes: _Block,
+        edges: _Block | None,
+        elements: dict[str, _Block],
     ) -> EdgeSearch:
         """Return the edges an interaction over neighbours runs on.
 
@@ -721,7 +717,7 @@ class SpecsPass(BasePass):
         return EdgeSearch(sources, targets).prepare()
 
     @staticmethod
-    def _get_degrees(nodes: BlockSpec, search: EdgeSearch) -> np.ndarray | None:
+    def _get_degrees(nodes: _Block, search: EdgeSearch) -> np.ndarray | None:
         """Return the number of fixed edges of a layer at every node, or `None`.
 
         On a directed graph, they are counted both ways. A layer whose edges change has no fixed degrees.
@@ -750,11 +746,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _declare_degrees(
-        node: _NodeSpec,
-        nodes: BlockSpec,
+        node: _Node,
+        nodes: _Block,
         search: EdgeSearch,
-        declarations: DeclarationsSpec,
-    ) -> tuple[DeclarationsSpec, dict[str, ReferenceSpec]]:
+        declarations: _Declarations,
+    ) -> tuple[_Declarations, dict[str, ReferenceSpec]]:
         """Return the declarations with a hidden degree parameter and its references.
 
         The parameter holds the degree of every node, and the references are by end.
@@ -790,7 +786,7 @@ class SpecsPass(BasePass):
         return declarations, references
 
     @staticmethod
-    def _get_end_spec(edge: KernelSpec, nodes: BlockSpec) -> KernelSpec:
+    def _get_end_spec(edge: KernelSpec, nodes: _Block) -> KernelSpec:
         """Return the spec of the laws of a neighbour interaction that read one edge end.
 
         The interaction is an interaction over neighbours. The spec reads the laws in the namespace of an edge, and
@@ -848,13 +844,13 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_ends_spec(
-        block: BlockSpec,
-        nodes: BlockSpec,
+        block: _Block,
+        nodes: _Block,
         parameters: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
         time: Expression,
         *,
-        others: BlockSpec | None = None,
+        others: _Block | None = None,
         place: _FieldElement | None = None,
     ) -> KernelSpec:
         """Return the spec of the laws of the members of a neighbour interaction.
@@ -913,10 +909,10 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_edge_specs(
-        block: BlockSpec,
-        elements: dict[str, BlockSpec],
-        declarations: DeclarationsSpec,
-    ) -> tuple[list[KernelSpec], DeclarationsSpec]:
+        block: _Block,
+        elements: dict[str, _Block],
+        declarations: _Declarations,
+    ) -> tuple[list[KernelSpec], _Declarations]:
         """Return the specs of an interaction over neighbours.
 
         There is one per edge of its layer and one per node member. Members of a space without edges, such as a
@@ -1014,7 +1010,7 @@ class SpecsPass(BasePass):
         return [spec, SpecsPass._get_end_spec(spec, nodes)], declarations
 
     @staticmethod
-    def _get_hyperedge_roles(node: _NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
+    def _get_hyperedge_roles(node: _Node, elements: dict[str, _Block]) -> tuple[_Block, _Block | None]:
         """Return the node group of a hyperedge interaction and the second role's group.
 
         The second role may bind no group.
@@ -1044,7 +1040,7 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_gathered(
-        block: BlockSpec,
+        block: _Block,
         alias: str,
         table: Indices | None,
         entry: EntrySpec | None = None,
@@ -1060,17 +1056,17 @@ class SpecsPass(BasePass):
         namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias=alias)
         if table is None:
             return namespace, {}
-        read = _NeighborReadSpec(table, None, None, None, 0, entry, order)
+        read = _NeighborRead(table, None, None, None, 0, entry, order)
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
     def _get_hyperedge_spec(
-        block: BlockSpec,
-        roles: tuple[BlockSpec, BlockSpec | None],
+        block: _Block,
+        roles: tuple[_Block, _Block | None],
         tables: tuple[str, Tables],
         time: Expression,
         *,
-        growing: BlockSpec | None = None,
+        growing: _Block | None = None,
         order: Indices | None = None,
     ) -> KernelSpec:
         """Return the spec of the laws of one kind and one size of hyperedge.
@@ -1104,7 +1100,7 @@ class SpecsPass(BasePass):
             paths[part] = second.node.path
         if growing is not None:
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", block.node.path)}_{mode}_hyperedges', RR)
-            read_activity = _NeighborReadSpec(hyperedges, None, None, None, 0)
+            read_activity = _NeighborRead(hyperedges, None, None, None, 0)
             references[activity] = ReferenceSpec(growing.entries[ACTIVE], False, 0, ReadKind.NEIGHBOR, read_activity)
         return KernelSpec(
             block.node.path,
@@ -1116,7 +1112,7 @@ class SpecsPass(BasePass):
         )
 
     @staticmethod
-    def _get_hyperedge_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
+    def _get_hyperedge_specs(block: _Block, elements: dict[str, _Block], time: Expression) -> list[KernelSpec]:
         """Return the specs of a hyperedge interaction.
 
         They are the specs of the laws of the focal member and of the hyperedge per size.
@@ -1163,7 +1159,7 @@ class SpecsPass(BasePass):
         ]
 
     @staticmethod
-    def _check_slot_names(block: BlockSpec) -> None:
+    def _check_slot_names(block: _Block) -> None:
         """Raise an error for an interaction parameter named like a hyperedge slot.
 
         Args:
@@ -1184,7 +1180,7 @@ class SpecsPass(BasePass):
             raise LabelError(error_msg)
 
     @staticmethod
-    def _get_grouping_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
+    def _get_grouping_specs(block: _Block, elements: dict[str, _Block], time: Expression) -> list[KernelSpec]:
         """Return the specs of an interaction along groups, one per size of its groups.
 
         Their rows are the members of a group. Random groups read the members at positions of an order drawn at every
@@ -1231,7 +1227,7 @@ class SpecsPass(BasePass):
         return specs
 
     @staticmethod
-    def _get_member_spec(block: BlockSpec, time: Expression) -> KernelSpec:
+    def _get_member_spec(block: _Block, time: Expression) -> KernelSpec:
         """Return the kernel spec of the intrinsic laws of an element or group."""
         namespace, references = SpecsPass._get_namespace(block, ReadKind.MEMBER)
         namespace = SpecsPass._copy_with_other(block, namespace, references)
@@ -1245,7 +1241,7 @@ class SpecsPass(BasePass):
         )
 
     @staticmethod
-    def _get_pair_spec(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> KernelSpec:
+    def _get_pair_spec(block: _Block, elements: dict[str, _Block], time: Expression) -> KernelSpec:
         """Return the kernel spec of a pair interaction.
 
         It is evaluated once per pair within its cutoff.
@@ -1280,8 +1276,8 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_interaction_specs(
-        block: BlockSpec,
-        elements: dict[str, BlockSpec],
+        block: _Block,
+        elements: dict[str, _Block],
         time: Expression,
         observer: Observer,
     ) -> list[KernelSpec]:
@@ -1311,7 +1307,7 @@ class SpecsPass(BasePass):
             for role, label in labels.items()
             if role not in sets
             and role not in variadic
-            and isinstance(found := observer.run((node, label)).observed_, ObservedSpec)
+            and (found := observer.run((node, label)).observed_) is not None
         }
         single_members = {
             role: member
@@ -1343,14 +1339,14 @@ class SpecsPass(BasePass):
         for index in range(next(iter(sizes), 1)):
             parameters, references = SpecsPass._get_namespace(block, ReadKind.SINGLE)
             namespaces: dict[str, SimpleNamespace | tuple[SimpleNamespace, ...]] = {}
-            set_symbols: dict[Expression, SetSymbolSpec] = {}
+            set_symbols: dict[Expression, _SetSymbol] = {}
             for role, members in sets.items():
                 namespaces[role], role_references = SpecsPass._get_namespace(members[index], ReadKind.SINGLE)
                 references.update(role_references)
                 set_symbols.update(SpecsPass._set_symbols(members, index))
-            for role, value in observed.items():
-                namespaces[role] = value.namespace
-                references.update(value.references)
+            for role, (namespace, observed_references) in observed.items():
+                namespaces[role] = namespace
+                references.update(observed_references)
             for role, entries in variadic.items():
                 read = [SpecsPass._get_source_namespace(*entry, bound) for entry in entries]
                 namespaces[role] = tuple(namespace for namespace, _ in read)
@@ -1382,7 +1378,7 @@ class SpecsPass(BasePass):
         return specs
 
     @staticmethod
-    def _binds_separate(block: BlockSpec, bound: list[str], elements: dict[str, BlockSpec]) -> bool:
+    def _binds_separate(block: _Block, bound: list[str], elements: dict[str, _Block]) -> bool:
         """Check whether a neighbour interaction binds a role to separate elements.
 
         The interaction is over neighbours, and the role binds an element set or a single element.
@@ -1400,9 +1396,9 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _separate_specs(
-        block: BlockSpec,
+        block: _Block,
         bound: list[str],
-        elements: dict[str, BlockSpec],
+        elements: dict[str, _Block],
         time: Expression,
         observer: Observer,
     ) -> list[KernelSpec]:
@@ -1438,10 +1434,10 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_other_namespace(
-        node: _NodeSpec,
+        node: _Node,
         role: str,
         label: str,
-        elements: dict[str, BlockSpec],
+        elements: dict[str, _Block],
         references: dict[Expression, ReferenceSpec],
     ) -> SimpleNamespace:
         """Return the namespace of one separate element a neighbour interaction reads.
@@ -1457,11 +1453,11 @@ class SpecsPass(BasePass):
 
     @staticmethod
     def _get_specs_of(
-        block: BlockSpec,
-        elements: dict[str, BlockSpec],
-        declarations: DeclarationsSpec,
+        block: _Block,
+        elements: dict[str, _Block],
+        declarations: _Declarations,
         observer: Observer,
-    ) -> tuple[list[KernelSpec], DeclarationsSpec]:
+    ) -> tuple[list[KernelSpec], _Declarations]:
         """Return the kernel specs of a component.
 
         They come from its intrinsic laws, its edges, its pairs, or its roles.

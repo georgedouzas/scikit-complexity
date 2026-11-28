@@ -21,7 +21,7 @@ from ...types import VectorFunction
 from ..problems._bilinear_law import BilinearLaw
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._neighborhood_kernel import _ReductionSchedule
 from ._base import BaseBackend, _LoweredFunctions
 from ._support_spec import SupportSpec
 
@@ -132,7 +132,7 @@ class NumpyBackend(BaseBackend):
     @staticmethod
     def _copy_with_reductions(
         lowering: _LoweredFunctions,
-        reductions: ReductionScheduleSpec | None,
+        reductions: _ReductionSchedule | None,
         kernels: Mapping[type, list[LawKernel]] | None = None,
     ) -> _LoweredFunctions:
         """Return a lowering whose functions evaluate the reductions before their kernels.
@@ -169,7 +169,7 @@ class NumpyBackend(BaseBackend):
     def _get_wrapped(
         function: VectorFunction | None,
         kind: type,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         kernels: Mapping[type, list[LawKernel]] | None,
     ) -> VectorFunction | None:
         """Return a function that evaluates the reductions before it.

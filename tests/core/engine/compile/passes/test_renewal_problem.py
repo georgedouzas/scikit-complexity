@@ -103,4 +103,4 @@ def test_compiler_accepts_draws_in_update_laws_from_scipy():
     problem = _system('g', laws, 4, x=0.0).prepare()._problem
     assert problem.draws is not None
     assert problem.draws.size == 8
-    assert problem.draws.sampled[0].rows == 4
+    assert problem.draws.sampled[0][1] == 4

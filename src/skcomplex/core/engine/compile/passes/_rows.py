@@ -21,11 +21,10 @@ from ....components.spaces._discrete_time import _DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ..._utils import components_of
 from ...enums import ReadKind
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._neighbor_read_spec import _NeighborReadSpec
+from ...problems._reference_spec import _NeighborRead
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
@@ -103,7 +102,7 @@ class RowsPass(BasePass):
         return {id(law) for items in laws for law in items if id(law) in born and isinstance(law, RateLaw)}
 
     @staticmethod
-    def _get_broadcast(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> KernelSpec:
+    def _get_broadcast(spec: KernelSpec, laws: list[BaseLaw], declarations: _Declarations) -> KernelSpec:
         """Return a spec that reads a field over position at every class of a phase space.
 
         The phase space is that of the field its laws change.
@@ -139,7 +138,7 @@ class RowsPass(BasePass):
             ):
                 continue
             table = np.repeat(np.arange(block.rows), phase.size_ // phase.position_size_)
-            read = _NeighborReadSpec(table, None, None, None, 0)
+            read = _NeighborRead(table, None, None, None, 0)
             references[item] = replace(reference, source=ReadKind.NEIGHBOR, neighbor=read)
         return replace(spec, references=references) if references != spec.references else spec
 

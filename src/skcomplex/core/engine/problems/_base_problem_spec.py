@@ -13,18 +13,87 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...base import BaseSpec
 from ...components import Observable
+from ...components.elements import Element, VisualSpec
+from ...components.interactions import BaseInteraction
+from ...components.laws import BaseLaw
 from ...components.spaces import BaseSpace
 from ...enums import FormKind
 from ...types import Array
-from ._compiled_agents_spec import _CompiledAgentsSpec
-from ._compiled_element_spec import CompiledElementSpec
-from ._compiled_interaction_spec import _CompiledInteractionSpec
+from ._compiled_element_spec import CompiledElementSpec, _Variable
 from ._composite_system import _CompositeSystem
+from ._group_element import _GroupElement
 from ._layout_spec import LayoutSpec
 from ._renewal_kernel import RenewalKernel
 from ._topology_kernel import TopologyKernel
 from ._transfer_network_spec import TransferNetworkSpec
-from ._variable_spec import _VariableSpec
+
+
+@dataclass(frozen=True)
+class _CompiledAgents:
+    """A record of an agent element or agent group of an agent-based problem.
+
+    The states of its agents live in the Mesa model that runs them.
+
+    Args:
+        path:
+            The slash-separated path of the agents in the system tree.
+
+        element:
+            The agent element or the agent group.
+
+        size:
+            The initial number of agents.
+
+        states:
+            The names of the states every agent holds.
+
+        values:
+            A mapping from state name to its initial per-agent array or shared value.
+
+        parameters:
+            A mapping from parameter name to dotted name in the parameter vector.
+
+        rules:
+            The rules every agent runs each step, in declaration order.
+
+        objects:
+            The names of the states that hold hashable objects.
+
+        roles:
+            A mapping from the name of a state with a role in a snapshot to its role.
+    """
+
+    path: str
+    element: Element | _GroupElement
+    size: int
+    states: tuple[str, ...]
+    values: Mapping[str, object]
+    parameters: Mapping[str, str]
+    rules: tuple[BaseLaw, ...]
+    visual: VisualSpec
+    objects: tuple[str, ...] = ()
+    roles: Mapping[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _CompiledInteraction:
+    """A record of an interaction of a compiled problem, with the paths its roles bind.
+
+    Args:
+        path:
+            The slash-separated path of the interaction in the system tree.
+
+        interaction:
+            The interaction.
+
+        roles:
+            A mapping from role name to the path of the element, group, or observable bound to it, or to the paths
+            of the elements of an element set.
+    """
+
+    path: str
+    interaction: BaseInteraction
+    roles: Mapping[str, str | tuple[str, ...]]
 
 
 @dataclass(frozen=True)
@@ -115,9 +184,9 @@ class BaseProblemSpec(BaseSpec):
     _: KW_ONLY
     symbols: Mapping[str, Expression | FreeModuleElement] = field(default_factory=dict, repr=False)
     elements: tuple[CompiledElementSpec, ...] = ()
-    interactions: tuple[_CompiledInteractionSpec, ...] = ()
+    interactions: tuple[_CompiledInteraction, ...] = ()
     system: _CompositeSystem | None = field(default=None, repr=False)
-    agents: tuple[_CompiledAgentsSpec, ...] = ()
+    agents: tuple[_CompiledAgents, ...] = ()
     agent_space: BaseSpace | None = None
     companions: Mapping[str, tuple[str, str, int]] = field(default_factory=dict)
     renewals: tuple[RenewalKernel, ...] = field(default=(), repr=False)
@@ -142,7 +211,7 @@ class BaseProblemSpec(BaseSpec):
         return False
 
     @property
-    def adaptive_parameters(self) -> dict[str, _VariableSpec]:
+    def adaptive_parameters(self) -> dict[str, _Variable]:
         """Declarations of the adaptive parameters, by dotted state name.
 
         Adaptive parameters are states that a schedule may set.

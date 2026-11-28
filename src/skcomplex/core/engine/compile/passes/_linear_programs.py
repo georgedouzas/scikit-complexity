@@ -22,12 +22,11 @@ from ...enums import LinearProgramBound
 from ...problems import LayoutSpec, ProblemSpec, RunStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
-from ...problems._linear_program_kernel import LinearProgramKernel
-from ...problems._linear_program_spec import (
-    LinearProgramDualSpec,
-    LinearProgramEntrySpec,
-    LinearProgramSideSpec,
-    LinearProgramSpec,
+from ...problems._linear_program_kernel import (
+    LinearProgramKernel,
+    _LinearProgram,
+    _LinearProgramDual,
+    _LinearProgramSide,
 )
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
@@ -379,7 +378,7 @@ class LinearProgramsPass(BasePass):
         states: LayoutSpec,
         time: Expression,
         offsets: Mapping[int, tuple[int, int]],
-    ) -> LinearProgramSpec:
+    ) -> _LinearProgram:
         """Return the program of laws that share variables.
 
         It holds its constant matrix and its compiled values.
@@ -472,7 +471,7 @@ class _Lowering:
                 else:
                     self._upper[column] = min(self._upper[column], value)
             else:
-                self._sides.append(LinearProgramSideSpec(kind, column, self._get_value(side), coefficient))
+                self._sides.append(_LinearProgramSide(kind, column, self._get_value(side), coefficient))
         return kinds[sense]
 
     def _add_row(self, coefficients: Mapping[int, Expression], sense: object, side: Expression, text: str) -> int:
@@ -493,12 +492,12 @@ class _Lowering:
             if side.is_numeric():
                 (self._row_lower if kind == LinearProgramBound.ROW_LOWER else self._row_upper)[row] = float(side)
             else:
-                self._sides.append(LinearProgramSideSpec(kind, row, self._get_value(side)))
+                self._sides.append(_LinearProgramSide(kind, row, self._get_value(side)))
         for column, coefficient in coefficients.items():
             if coefficient.is_numeric():
                 self._triplets.append((row, column, float(coefficient)))
             else:
-                self._entries.append(LinearProgramEntrySpec(row, column, self._get_value(coefficient)))
+                self._entries.append((row, column, self._get_value(coefficient)))
         return row
 
     def _add_relation(self, bound: _BoundLawSpec, relation: Expression, position: int) -> None:
@@ -525,7 +524,7 @@ class _Lowering:
         if bound.law.duals:
             index = self.offsets[id(bound.law)][1] + position
             self._duals.append(
-                LinearProgramDualSpec(
+                _LinearProgramDual(
                     self._get_indices_of(f'{bound.owner}.dual_{index}'),
                     text,
                     row=row,
@@ -550,7 +549,7 @@ class _Lowering:
             if coefficient.is_numeric():
                 costs[column] = sign * float(coefficient)
             else:
-                self._cost_entries.append(LinearProgramEntrySpec(position, column, self._get_value(coefficient)))
+                self._cost_entries.append((position, column, self._get_value(coefficient)))
         rest = parts.rest
         for index, call in enumerate(BasePass._get_calls_of(expression, ABSOLUTE)):
             placeholder = symbol(f'_absolute_{index}')
@@ -581,21 +580,21 @@ class _Lowering:
         size = len(self._columns)
         self._expressions: list[Expression] = []
         self._lower, self._upper = np.full(size, -np.inf), np.full(size, np.inf)
-        self._sides: list[LinearProgramSideSpec] = []
-        self._entries: list[LinearProgramEntrySpec] = []
-        self._cost_entries: list[LinearProgramEntrySpec] = []
+        self._sides: list[_LinearProgramSide] = []
+        self._entries: list[tuple[int, int, int]] = []
+        self._cost_entries: list[tuple[int, int, int]] = []
         self._constraints: list[str] = []
         self._relations: list[str] = []
         self._row_lower: list[float] = []
         self._row_upper: list[float] = []
         self._triplets: list[tuple[int, int, float]] = []
-        self._duals: list[LinearProgramDualSpec] = []
+        self._duals: list[_LinearProgramDual] = []
         self._costs: list[dict[int, float]] = []
         self._signs: list[float] = []
         self._offsets: list[float] = []
         self._parts: dict[int, int] = {}
 
-    def get_lowered_program(self) -> LinearProgramSpec:
+    def get_lowered_program(self) -> _LinearProgram:
         """Return the lowered program."""
         group = self.group
         self._columns = LinearProgramsPass._get_columns_of(group)
@@ -619,7 +618,7 @@ class _Lowering:
         )
         references = {key: value for bound in group for key, value in bound.spec.references.items()}
         function, arguments = LinearProgramsPass._get_printed_values(self._expressions, references, self.time)
-        return LinearProgramSpec(
+        return _LinearProgram(
             path=holder.owner,
             names=names,
             variables=indices,
@@ -631,13 +630,13 @@ class _Lowering:
             row_lower=np.asarray(self._row_lower, dtype=float),
             row_upper=np.asarray(self._row_upper, dtype=float),
             sides=tuple(self._sides),
-            entries=tuple(self._entries),
+            entries=np.array(self._entries, dtype=np.intp).reshape(-1, 3),
             function=function,
             arguments=arguments,
             members=max(bound.spec.rows for bound in group),
             activity=tuple(activity),
             costs=self._get_cost_matrix(),
-            cost_entries=tuple(self._cost_entries),
+            cost_entries=np.array(self._cost_entries, dtype=np.intp).reshape(-1, 3),
             signs=tuple(self._signs),
             offsets=tuple(self._offsets),
             parts=tuple(self._parts),

@@ -24,7 +24,6 @@ from ..._utils import symbols_of, vector
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation, Laws
@@ -42,6 +41,25 @@ type _BlockSolution = Callable[[float, list[float]], list[float]]
 
 
 @dataclass(frozen=True)
+class _Relation:
+    """Equation of a component as `expression == 0`, with its unknowns.
+
+    It holds the states the unknowns stand for, by their symbols. The unknowns are the placeholders of its highest
+    derivatives and the symbols of its algebraic states.
+
+    The key names the state whose equation it is, as its entry and column, so that the relations of one key add, or is
+    `None` for a relation of its own. The target is the symbol of that state.
+    """
+
+    spec: KernelSpec
+    expression: Expression
+    highest: dict[Expression, Expression]
+    description: str
+    key: tuple[str, int] | None = None
+    target: Expression | None = None
+
+
+@dataclass(frozen=True)
 class _NumericBlockSpec(BaseSpec):
     """Equations `residuals == 0` that a block solves numerically for its unknowns.
 
@@ -53,7 +71,7 @@ class _NumericBlockSpec(BaseSpec):
     linear: bool
 
 
-class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]]):
+class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[BaseLaw | _Relation]]]]):
     """A lowering that solves the equations of a system for its algebraic states.
 
     An algebraic state is fixed at every moment by equations, such as the currents of a circuit that Kirchhoff's laws
@@ -107,17 +125,17 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
     arguments_: list[Expression]
     solve_: Callable[..., list[float]]
 
-    def __init__(self, relations: Sequence[_RelationSpec], unknowns: Mapping[Expression, Expression]) -> None:
+    def __init__(self, relations: Sequence[_Relation], unknowns: Mapping[Expression, Expression]) -> None:
         self.relations = relations
         self.unknowns = unknowns
 
     @staticmethod
-    def _get_held(relation: _RelationSpec, unknowns: Mapping[Expression, Expression]) -> list[Expression]:
+    def _get_held(relation: _Relation, unknowns: Mapping[Expression, Expression]) -> list[Expression]:
         """Return the unknowns a relation holds, in the order of its variables."""
         return [item for item in relation.expression.variables() if item in unknowns]
 
     @staticmethod
-    def _get_matching(relations: Sequence[_RelationSpec], unknowns: Mapping[Expression, Expression]) -> dict[int, int]:
+    def _get_matching(relations: Sequence[_Relation], unknowns: Mapping[Expression, Expression]) -> dict[int, int]:
         """Return a maximum matching of relations to unknowns.
 
         It gives the position of the unknown of every relation.
@@ -137,7 +155,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
     @staticmethod
     def _get_overdetermined(
-        relations: Sequence[_RelationSpec],
+        relations: Sequence[_Relation],
         unknowns: Mapping[Expression, Expression],
         matching: Mapping[int, int],
     ) -> list[int]:
@@ -158,14 +176,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         return sorted(found)
 
     @staticmethod
-    def _get_state_names(relation: _RelationSpec, items: Sequence[Expression]) -> list[str]:
+    def _get_state_names(relation: _Relation, items: Sequence[Expression]) -> list[str]:
         """Return the dotted names of the states that symbols of a relation stand for."""
         references = relation.spec.references
         return [references[item].entry.name for item in items if item in references and references[item].is_state]
 
     @staticmethod
     def _get_structure_issues(
-        relations: Sequence[_RelationSpec],
+        relations: Sequence[_Relation],
         unknowns: Mapping[Expression, Expression],
         references: Mapping[Expression, ReferenceSpec],
         label: str,
@@ -222,7 +240,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
     @staticmethod
     def _get_blocks(
-        relations: Sequence[_RelationSpec],
+        relations: Sequence[_Relation],
         unknowns: Mapping[Expression, Expression],
         matching: Mapping[int, int],
     ) -> list[list[int]]:
@@ -254,7 +272,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
     def _get_guesses_of(
         self,
-        specs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+        specs: Sequence[tuple[KernelSpec, list[BaseLaw | _Relation]]],
     ) -> dict[Expression, float]:
         """Return the initial value of every algebraic unknown.
 
@@ -512,7 +530,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
     def _solve_blocks(
         self,
-        relations: Sequence[_RelationSpec],
+        relations: Sequence[_Relation],
         blocks: Sequence[Sequence[int]],
         matching: Mapping[int, int],
     ) -> tuple[dict[Expression, Expression], list[_NumericBlockSpec]]:
@@ -535,7 +553,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         return solutions, numeric
 
     @staticmethod
-    def _get_member_groups(relations: Sequence[_RelationSpec]) -> tuple[str | None, tuple[str, ...]]:
+    def _get_member_groups(relations: Sequence[_Relation]) -> tuple[str | None, tuple[str, ...]]:
         """Return the group and the aligned groups that the solved laws run over.
 
         A constraint of an interaction on a group, such as `y == a x^2` for every point of a group, holds for every
@@ -547,7 +565,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             return None, ()
         return groups[0], tuple(dict.fromkeys([*groups[1:], *aligned]))
 
-    def _run(self, inputs: Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]] | None) -> None:
+    def _run(self, inputs: Sequence[tuple[KernelSpec, list[BaseLaw | _Relation]]] | None) -> None:
         """Set `lowered_`, the specs without their relations and a spec of unknowns.
 
         The last spec holds the laws of the unknowns.
@@ -581,7 +599,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             value = self._get_value_of(SR(solutions.get(item, item)), time)
             laws.append(AlgebraicLaw(state, value) if item.is_trivially_equal(state) else RateLaw(state, value))
         kept = [
-            self._get_kept_spec(spec, [law for law in items if not isinstance(law, _RelationSpec)], references, time)
+            self._get_kept_spec(spec, [law for law in items if not isinstance(law, _Relation)], references, time)
             for spec, items in specs
         ]
         self.lowered_ = [*kept, (merged, laws)]

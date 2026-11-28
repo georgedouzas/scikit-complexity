@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -14,10 +15,10 @@ from ...types import Array, Indices
 from ..enums import ReadKind
 from ..types import Drawn
 from ._base import BaseKernel
+from ._base_record_spec import BaseRecordSpec
 from ._draw_kernel import DrawKernel
 from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
-from ._renewal_record_spec import RenewalRecordSpec
 from ._run_state_spec import RunStateSpec
 
 READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
@@ -28,6 +29,58 @@ type MemberFunction = tuple[Callable[..., object], tuple[ReferenceSpec | str, ..
 
 type Sampler = tuple[DrawSpec, MemberFunction]
 """DrawSpec of a renewal law with the function of its arguments."""
+
+
+@dataclass(frozen=True)
+class _RenewalRecordSpec(BaseRecordSpec):
+    """A spec of the renewals of one renewal law that fired in one pass.
+
+    It holds the label of the law, the time and the member of each renewal, such as the walkers that jumped, and the
+    states before and after. It records the jumps of walkers in a glass, the spikes of neurons, and the repairs of
+    machines.
+
+    Read more in the user guide, under Analyse.
+
+    Args:
+        label:
+            The name of the renewal law.
+
+        times:
+            The time of every renewal.
+
+        members:
+            The member of every renewal.
+
+        before:
+            The states of every renewing member before its reset, one row per renewal and one column per state.
+
+        after:
+            The states of every renewing member after its reset.
+
+        states:
+            The dotted state name, with the component of a vector state, of every column.
+
+    See Also:
+        BaseRecordSpec: The base of every record.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ContinuousTimeRandomWalkSystem
+        >>> trajectory = ContinuousTimeRandomWalkSystem(n_walkers=3).prepare().simulate(until=10, random_state=0)
+        >>> type(trajectory.events[0]).__name__, trajectory.events[0].label
+        ('_RenewalRecordSpec', 'jumps')
+    """
+
+    label: str
+    times: Array
+    members: npt.NDArray[np.intp]
+    before: Array
+    after: Array
+    states: tuple[str, ...]
+
+    @property
+    def time(self) -> float:
+        """Time of the last renewal of the pass."""
+        return float(np.max(self.times))
 
 
 class RenewalKernel(BaseKernel):
@@ -227,7 +280,7 @@ class RenewalKernel(BaseKernel):
         x: Array,
         p: Array,
         rng: np.random.Generator,
-    ) -> tuple[Array, Array, RenewalRecordSpec]:
+    ) -> tuple[Array, Array, _RenewalRecordSpec]:
         """Renew members at their times.
 
         Renewing draws, resets their states, counts the renewal, and draws the next times.
@@ -270,7 +323,7 @@ class RenewalKernel(BaseKernel):
                 state[place[fired]] = value
         state[self.counts[fired]] += 1
         following = self._wait(times, state, p, fired, drawn=drawn, rng=rng)
-        record = RenewalRecordSpec(
+        record = _RenewalRecordSpec(
             self.label,
             times.copy(),
             fired.copy(),

@@ -17,7 +17,7 @@ from ...components.spaces import BaseSpace, NetworkSpace
 from ...errors import ValidationError
 from ..enums import ComplexComponentKind
 from ..problems import AgentSnapshotSpec, BaseProblemSpec, CompiledElementSpec, FrameSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._layout_spec import LayoutSpec
 
 UPWARD = np.array([1.0, -1.0])
@@ -155,7 +155,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)
         problem = context
-        items: list[CompiledElementSpec | _CompiledAgentsSpec] = [*problem.elements, *problem.agents]
+        items: list[CompiledElementSpec | _CompiledAgents] = [*problem.elements, *problem.agents]
         elements = {item.path: item for item in items}
         if self.path not in elements:
             error_msg = (
@@ -163,7 +163,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
                 f'{", ".join(elements)}.'
             )
             raise ValidationError(error_msg)
-        self.element_: CompiledElementSpec | _CompiledAgentsSpec = elements[self.path]
+        self.element_: CompiledElementSpec | _CompiledAgents = elements[self.path]
         self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
         self.space_: BaseSpace | None = problem.agent_space
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}
@@ -188,7 +188,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         if self.recording_ is None:
             error_msg = 'No Rerun recording is active. Pass `recording` or start one with `rerun.init`.'
             raise ValidationError(error_msg)
-        if isinstance(self.element_, _CompiledAgentsSpec):
+        if isinstance(self.element_, _CompiledAgents):
             snapshot = inputs.agents.get(self.element_.path)
             if snapshot is not None:
                 self._log_agents(self.recording_, self.element_.path, snapshot, self.space_)
@@ -231,7 +231,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the Rerun views that show what the visual logs for an element.

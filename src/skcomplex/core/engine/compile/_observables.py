@@ -28,23 +28,20 @@ from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
 from ..problems._composite_system import _CompositeSystem
-from ..problems._declarations_spec import ACTIVE
 from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._layout_spec import LayoutSpec
-from ..problems._neighbor_read_spec import _NeighborReadSpec
-from ..problems._node_spec import _NodeSpec
+from ..problems._neighborhood_kernel import _ReductionSchedule
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
 from ..problems._operator_problem_spec import OperatorProblemSpec
-from ..problems._read_spec import _ReadSpec
-from ..problems._recorded_spec import _RecordedSpec
-from ..problems._reduction_kernel import ReductionKernel
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._reduction_kernel import ReductionKernel, _Read
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
+from ..problems._transfer_network_spec import _Recorded
 from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
+from ._compilation import ACTIVE, _Node
 from ._flows import TransferLowering
 from ._member_reductions import _MemberReductions
 from ._members import MemberLowering
@@ -251,7 +248,7 @@ class ObservableEvaluator:
         return copied, held
 
     @staticmethod
-    def _get_held_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> set[str]:
+    def _get_held_observables(system: _CompositeSystem, nodes: list[_Node]) -> set[str]:
         """Return the paths of the observables read only at synchronisation points.
 
         They are the observables that roles bind to and laws read only at those points.
@@ -455,7 +452,7 @@ class ObservableEvaluator:
 
         return get
 
-    def _get_recorded_getter(self, recorded: _RecordedSpec) -> ObservableFunction:
+    def _get_recorded_getter(self, recorded: _Recorded) -> ObservableFunction:
         """Return the getter of a flow or an objective.
 
         It gives one value for a single component and one per group member. A flow along the edges of a group reads
@@ -479,7 +476,7 @@ class ObservableEvaluator:
 
     def _read_offsets(
         self,
-        recorded: _RecordedSpec,
+        recorded: _Recorded,
     ) -> tuple[object, dict[Expression, Callable[[Array, Array], Array]]]:
         """Return a recorded expression with member offset reads replaced by symbols.
 
@@ -731,19 +728,19 @@ class ObservableEvaluator:
                 error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
             return lambda t, x, p, done: float(self._get_active(group, x, p, size).sum())
-        members: dict[Expression, _ReadSpec] = {}
+        members: dict[Expression, _Read] = {}
         for name in names.values():
             entry = self._get_entry(name)
             is_state = self.problem.states.has(name)
             for column, item in enumerate(ProblemSpec._get_real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
-                members[item] = _ReadSpec(is_state, indices, entry, column, entry.columns)
+                members[item] = _Read(is_state, indices, entry, column, entry.columns)
         namespace = SimpleNamespace(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
         expression = self._read_derivatives(path, observable.expression, namespace)
-        scalars = {item: _ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
+        scalars = {item: _Read(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         parameters = len(self.problem.initial_parameters)
         lowering = _MemberReductions(
             path=path,
@@ -756,7 +753,7 @@ class ObservableEvaluator:
         expression = lowering.prepare().run(expression).expression_
         readers = {item: self._read_of(read) for item, read in lowering.reads_.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
-        reductions = ReductionScheduleSpec(tuple(lowering.found_.values()), parameters)
+        reductions = _ReductionSchedule(tuple(lowering.found_.values()), parameters)
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             values = np.broadcast_to(np.asarray(evaluate(t, x, reductions.extend(t, x, p), done)), (size,))
@@ -1030,7 +1027,7 @@ class ObservableEvaluator:
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: _ReadSpec) -> Callable[[Array, Array], Array]:
+    def _read_of(read: _Read) -> Callable[[Array, Array], Array]:
         """Return a reader of the values a reduction read stands for.
 
         It reads them from the state or the extended parameters.
@@ -1040,7 +1037,7 @@ class ObservableEvaluator:
     @staticmethod
     def _create_from_offset(
         column: Callable[[Array, Array], Array],
-        read: _NeighborReadSpec,
+        read: _NeighborRead,
     ) -> Callable[[Array, Array], Array]:
         """Return a reader of a member column at an offset from every member."""
         return lambda x, p: read.read(column(x, p), p)
@@ -1160,7 +1157,7 @@ class ObservableEvaluator:
         return f'{scope}/{path}' if scope else path
 
     @staticmethod
-    def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, _NodeSpec]) -> bool:
+    def _is_lowerable(scope: str, observable: Observable, nodes: dict[str, _Node]) -> bool:
         """Check whether laws can read an observable at the current state.
 
         They read it as an expression or a symbolic reduction.
@@ -1171,7 +1168,7 @@ class ObservableEvaluator:
         return node is not None and not node.is_agent and isinstance(observable.reduce, str)
 
     @staticmethod
-    def _get_lowerable_observables(system: _CompositeSystem, nodes: list[_NodeSpec]) -> Declared:
+    def _get_lowerable_observables(system: _CompositeSystem, nodes: list[_Node]) -> Declared:
         """Return every observable of a system tree that laws can read, by path.
 
         Laws read them at the current state. An expression of a system's symbols is lowerable when every observable

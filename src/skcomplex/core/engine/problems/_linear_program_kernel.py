@@ -3,17 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 
 import highspy
 import numpy as np
+import numpy.typing as npt
 from scipy import sparse
 
 from ...errors import InfeasibleError, SolverError
 from ...types import Array, Indices
 from ..enums import LinearProgramBound
 from ._base import BaseKernel
-from ._linear_program_spec import LinearProgramDualSpec, LinearProgramSpec
+from ._reference_spec import ReferenceSpec
 from ._run_state_spec import RunStateSpec
 
 INFINITY = highspy.kHighsInf
@@ -22,6 +24,206 @@ SOLVER_TOLERANCE = 1e-9
 ACTIVE_THRESHOLD = 0.0
 COLUMN_KINDS = (LinearProgramBound.COLUMN_LOWER, LinearProgramBound.COLUMN_UPPER)
 INFEASIBLE_STATUSES = (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelStatus.kUnboundedOrInfeasible)
+
+
+@dataclass(frozen=True)
+class _LinearProgramSide:
+    """A record of a bound of a linear program that a value computed during a run sets.
+
+    A bound of a variable or a constraint may depend on the states or parameters, such as the uptake limit of a nutrient
+    that falls as the medium runs out, so it is computed again before every solve. The spec says which bound the value
+    sets, where, and what it is divided by. It sets the uptake limits of a cell, the capacity of a pipe, and the budget
+    of a firm.
+
+    Read more in the user guide, under Solvers.
+
+    Args:
+        kind:
+            The bound it sets, one of `COLUMN_LOWER`, `COLUMN_UPPER`, `ROW_LOWER`, and `ROW_UPPER`.
+
+        position:
+            The column or the row.
+
+        value:
+            The position of the compiled value.
+
+        scale:
+            The number the value is divided by.
+
+    See Also:
+        LinearProgramBound: The four kinds of bound.
+        _LinearProgram: The program that holds the bounds.
+    """
+
+    kind: int
+    position: int
+    value: int
+    scale: float = 1.0
+
+
+@dataclass(frozen=True)
+class _LinearProgramDual:
+    """A record of where the dual value of a constraint of a linear program is kept.
+
+    The dual value of a constraint says how much the best objective would improve if the constraint were loosened by one
+    unit, such as the worth of one more unit of a nutrient to the growth of a cell. The spec says which row or bound
+    gives it and where it is written in the state of every member. It prices the nutrients of a cell, the capacity of a
+    pipe, and the budget of a firm.
+
+    Read more in the user guide, under Solvers.
+
+    Args:
+        indices:
+            The flat indices of the dual of every member.
+
+        constraint:
+            The text of the constraint.
+
+        row:
+            The row of the constraint, or `-1` for a bound.
+
+        column:
+            The column of a bound, or `-1` for a row.
+
+        kinds:
+            The bounds of the column that the relation gives, `COLUMN_LOWER`, `COLUMN_UPPER`, or both.
+
+        scale:
+            The coefficient of the variable of a bound, which turns its reduced cost into the dual of the relation.
+
+    See Also:
+        _LinearProgram: The program that records the duals.
+    """
+
+    indices: Indices = field(repr=False)
+    constraint: str
+    row: int = -1
+    column: int = -1
+    kinds: tuple[int, ...] = ()
+    scale: float = 1.0
+
+
+@dataclass(frozen=True)
+class _LinearProgram:
+    """A record of a linear program built from the laws that share its variables.
+
+    The objective and constraint laws of a system that share variables, such as the fluxes of a cell, form one linear
+    program: a matrix of constraints, bounds on the variables and constraints, the costs of the objectives, and the
+    coefficients and bounds that are computed again before every solve. The kernel of the program solves it for every
+    member. It holds the metabolism of a cell, the flows of a supply chain, and the dispatch of a power grid.
+
+    Read more in the user guide, under Solvers.
+
+    Args:
+        path:
+            The path of the element or group that holds its objectives, or of its first law.
+
+        names:
+            The dotted name of every variable.
+
+        variables:
+            The flat indices of every variable of every member, one array per variable.
+
+        constraints:
+            The text of every row of the matrix.
+
+        relations:
+            The text of every relation of the laws, with the rows of the matrix and the bounds of the variables.
+
+        matrix:
+            The coefficients of the rows, with `0` for the coefficients that `entries` gives.
+
+        lower:
+            The constant lower bound of every variable.
+
+        upper:
+            The constant upper bound of every variable.
+
+        row_lower:
+            The constant lower bound of every row.
+
+        row_upper:
+            The constant upper bound of every row.
+
+        sides:
+            The bounds that compiled values give.
+
+        entries:
+            The coefficients of the matrix that compiled values give, one row each of the row and column of the matrix
+            and the position of the compiled value.
+
+        function:
+            The compiled function `f(t, *arguments)` of the values, or `None` for a program without any.
+
+        arguments:
+            The references that the compiled function reads.
+
+        members:
+            The number of members that solve the program.
+
+        activity:
+            The positions of the compiled values that must be positive for a member to solve.
+
+        costs:
+            The cost of every variable and of the positive and negative parts of its absolute value, one row per
+            objective, in the minimising sense.
+
+        cost_entries:
+            The costs that compiled values give, in the sense of the objective, one row each of the position of the
+            objective, the column and the position of the compiled value.
+
+        signs:
+            `1` for an objective that is minimised and `-1` for one that is maximised.
+
+        offsets:
+            The constant term of every objective.
+
+        parts:
+            The variables whose absolute values the objectives read, in the order of their parts.
+
+        objectives:
+            The flat indices of the value of every objective of every member, one array per objective.
+
+        duals:
+            The places of the duals to record.
+
+        infeasible:
+            The infeasibility policy.
+
+    See Also:
+        LinearProgramKernel: Solves the program.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
+        >>> program = FluxBalanceSystem().prepare().simulate(until=0).problem.programs[0].program
+        >>> program.path, program.members
+        ('cell', 1)
+    """
+
+    path: str
+    names: tuple[str, ...]
+    variables: tuple[Indices, ...] = field(repr=False)
+    constraints: tuple[str, ...] = field(repr=False)
+    relations: tuple[str, ...] = field(repr=False)
+    matrix: sparse.csr_array = field(repr=False)
+    lower: Array = field(repr=False)
+    upper: Array = field(repr=False)
+    row_lower: Array = field(repr=False)
+    row_upper: Array = field(repr=False)
+    sides: tuple[_LinearProgramSide, ...] = field(default=(), repr=False)
+    entries: Indices = field(default_factory=lambda: np.zeros((0, 3), dtype=np.intp), repr=False)
+    function: Callable[..., list[npt.ArrayLike]] | None = field(default=None, repr=False)
+    arguments: tuple[ReferenceSpec, ...] = field(default=(), repr=False)
+    members: int = 1
+    activity: tuple[int, ...] = ()
+    costs: Array = field(default_factory=lambda: np.zeros((0, 0)), repr=False)
+    cost_entries: Indices = field(default_factory=lambda: np.zeros((0, 3), dtype=np.intp), repr=False)
+    signs: tuple[float, ...] = ()
+    offsets: tuple[float, ...] = ()
+    parts: tuple[int, ...] = ()
+    objectives: tuple[Indices, ...] = field(default=(), repr=False)
+    duals: tuple[_LinearProgramDual, ...] = field(default=(), repr=False)
+    infeasible: str = 'raise'
 
 
 class LinearProgramKernel(BaseKernel):
@@ -70,7 +272,7 @@ class LinearProgramKernel(BaseKernel):
             A program is unbounded, or HiGHS fails, raised by `run`.
 
     See Also:
-        LinearProgramSpec: The program the kernel solves.
+        _LinearProgram: The program the kernel solves.
 
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
@@ -81,7 +283,7 @@ class LinearProgramKernel(BaseKernel):
 
     values_: Array
 
-    def __init__(self, program: LinearProgramSpec) -> None:
+    def __init__(self, program: _LinearProgram) -> None:
         self.program = program
 
     def _prepare(self, context: object | None) -> None:
@@ -137,11 +339,11 @@ class LinearProgramKernel(BaseKernel):
     def _get_matrix_of(self, member: int, values: Sequence[Array]) -> sparse.csr_array:
         """Return the coefficients of the rows of a member."""
         program = self.program
-        if not program.entries:
+        if not len(program.entries):
             return program.matrix
         matrix = program.matrix.tolil()
-        for entry in program.entries:
-            matrix[entry.row, entry.column] = values[entry.value][member]
+        for row, column, value in program.entries.tolist():
+            matrix[row, column] = values[value][member]
         return matrix.tocsr()
 
     def _get_new_system(self) -> highspy.Highs:
@@ -214,11 +416,11 @@ class LinearProgramKernel(BaseKernel):
         Costs are in the minimising sense.
         """
         program = self.program
-        if not program.cost_entries:
+        if not len(program.cost_entries):
             return program.costs
         costs = program.costs.copy()
-        for entry in program.cost_entries:
-            costs[entry.row, entry.column] = program.signs[entry.row] * values[entry.value][member]
+        for row, column, value in program.cost_entries.tolist():
+            costs[row, column] = program.signs[row] * values[value][member]
         return costs
 
     def _set_coefficients(self, system: highspy.Highs, costs: Array, values: Sequence[Array], member: int) -> None:
@@ -227,12 +429,12 @@ class LinearProgramKernel(BaseKernel):
         They change in the matrix and in the rows that fix objectives.
         """
         program = self.program
-        for entry in program.entries:
-            system.changeCoeff(entry.row, entry.column, float(values[entry.value][member]))
+        for row, column, value in program.entries.tolist():
+            system.changeCoeff(row, column, float(values[value][member]))
         start = len(program.row_lower) + len(program.parts)
-        for entry in program.cost_entries:
-            if entry.row < costs.shape[0] - 1:
-                system.changeCoeff(start + entry.row, entry.column, float(costs[entry.row, entry.column]))
+        for row, column, _ in program.cost_entries.tolist():
+            if row < costs.shape[0] - 1:
+                system.changeCoeff(start + row, column, float(costs[row, column]))
 
     def _describe_subset(self, system: highspy.Highs) -> str:
         """Return the constraints and variables of an irreducible infeasible subset.
@@ -322,7 +524,7 @@ class LinearProgramKernel(BaseKernel):
 
     def _get_dual_of(
         self,
-        item: LinearProgramDualSpec,
+        item: _LinearProgramDual,
         member: int,
         solution: highspy.HighsSolution,
         sign: float,
@@ -355,7 +557,7 @@ class LinearProgramKernel(BaseKernel):
         system = self._get_system_of(member)
         self._set_bounds(system, member)
         costs = self._get_costs_of(member, values)
-        if program.entries or program.cost_entries:
+        if len(program.entries) or len(program.cost_entries):
             self._set_coefficients(system, costs, values, member)
         self.solves_ += 1
         objectives = self._get_objective_values(system, costs)

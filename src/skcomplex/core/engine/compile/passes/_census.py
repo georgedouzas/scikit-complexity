@@ -52,20 +52,17 @@ from ....types import ProcessKey
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
 from ...enums import ReadKind
 from ...problems._bilinear_law import BilinearLaw
-from ...problems._block_spec import BlockSpec
 from ...problems._composite_system import _CompositeSystem
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._field_element import _FieldElement
 from ...problems._group_element import _GroupElement
 from ...problems._kernel_spec import KernelSpec
-from ...problems._node_spec import _NodeSpec
 from ...problems._pair_search import PairSearch
 from ...problems._problem_spec import ProblemSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._array_update_law import ArrayUpdateLaw
 from .._base import BasePass
-from .._compilation import Compilation, _Census, _CensusRecord
+from .._compilation import Compilation, _Block, _Census, _CensusRecord, _Declarations, _Node
 from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
@@ -139,7 +136,7 @@ class CensusPass(BasePass):
     def _get_noise_census(
         spec: KernelSpec,
         law: object,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> tuple[tuple[ProcessKey | None, ...], tuple[tuple[str, int], ...], tuple[frozenset[tuple[str, int]], ...]]:
         """Return the processes, driven states, and read states of a noise law.
 
@@ -161,7 +158,7 @@ class CensusPass(BasePass):
         )
 
     @staticmethod
-    def _is_vector(entry: EntrySpec, elements: dict[str, BlockSpec]) -> bool:
+    def _is_vector(entry: EntrySpec, elements: dict[str, _Block]) -> bool:
         """Check whether the state of a layout entry is a vector of the space dimension."""
         path, _, name = entry.name.rpartition('.')
         block = elements.get(path)
@@ -181,7 +178,7 @@ class CensusPass(BasePass):
         return tuple(sorted(str(item) for item in symbols if item in handles))
 
     @staticmethod
-    def _get_component_kind(node: _NodeSpec) -> ElementKind:
+    def _get_component_kind(node: _Node) -> ElementKind:
         """Return the kind of the component of a node."""
         if isinstance(node.component, _GroupElement) and node.component.variable:
             return ElementKind.VARIABLE_GROUP
@@ -202,7 +199,7 @@ class CensusPass(BasePass):
         return (reference.entry,) if reference is not None and reference.is_state else ()
 
     @staticmethod
-    def _get_cell_degrees(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[str, int]:
+    def _get_cell_degrees(spec: KernelSpec, declarations: _Declarations) -> dict[str, int]:
         """Return the cell degree of every symbol of a spec reading a cell complex group.
 
         The spec reads the group by member. A law that runs once per edge reads both ends and the edge, so it holds no
@@ -220,10 +217,10 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _get_records_of(
-        block: BlockSpec,
-        elements: dict[str, BlockSpec],
+        block: _Block,
+        elements: dict[str, _Block],
         observer: Observer,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
         agents: set[str],
         *,
         solver: object = None,
@@ -291,7 +288,7 @@ class CensusPass(BasePass):
     @staticmethod
     def _get_census_of(
         system: _CompositeSystem,
-        nodes: list[_NodeSpec],
+        nodes: list[_Node],
         trained: frozenset[str] = frozenset(),
         solver: object = None,
     ) -> _Census:
@@ -318,7 +315,7 @@ class CensusPass(BasePass):
             census:
                 The census.
         """
-        declarations = DeclarationsSpec(time=symbol('t'))
+        declarations = _Declarations(time=symbol('t'))
         errors: list[tuple[str, SkcomplexError]] = []
         blocks = []
         groups = LayoutPass._get_group_sizes(nodes)
@@ -1302,7 +1299,7 @@ class CensusPass(BasePass):
         return [RateLaw(target, SR(change) * law.rate) for target, change in changes.items()]
 
     @staticmethod
-    def _get_component_of(node: _NodeSpec) -> BaseComponent:
+    def _get_component_of(node: _Node) -> BaseComponent:
         """Return the component whose laws describe a node, a member for a group."""
         if isinstance(node.component, _GroupElement):
             group = node.component

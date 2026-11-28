@@ -12,10 +12,9 @@ from ....components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws._linear_program import _LinearProgramLaw
 from ....components.spaces._discrete_time import _DiscreteTime
 from ..._utils import vector
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation, Laws, _Declarations
 from ._census import CensusPass
 from ._fractional_form import FractionalFormPass
 from ._kernels import KernelsPass
@@ -83,7 +82,7 @@ class OwnersPass(BasePass):
         return BasePass._get_replaced(law, value=SR(value) + SR(kept))
 
     @staticmethod
-    def _get_masked(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
+    def _get_masked(spec: KernelSpec, laws: list[BaseLaw], declarations: _Declarations) -> list[BaseLaw]:
         """Return laws that leave the free rows of a capacity layout unchanged.
 
         They fire no event for those rows.

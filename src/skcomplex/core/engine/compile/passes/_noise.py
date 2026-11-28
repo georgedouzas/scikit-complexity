@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
+from dataclasses import dataclass
 from numbers import Number
 
 import numpy as np
@@ -19,11 +20,21 @@ from ....components.laws._noise import NOISE_CONVENTIONS
 from ....errors import ValidationError
 from ....types import ProcessKey
 from ..._utils import components_of
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._noise_term_spec import _NoiseTermSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations
+
+
+@dataclass(frozen=True)
+class _NoiseTerm:
+    """Amplitude of a noise law on one state component, with the process it draws."""
+
+    spec: KernelSpec
+    law: NoiseLaw
+    target: Expression
+    state: tuple[str, int]
+    amplitude: object
+    process: object
 
 
 class NoisePass(BasePass):
@@ -62,7 +73,7 @@ class NoisePass(BasePass):
         )
 
     @staticmethod
-    def _reads_state(term: _NoiseTermSpec, state: tuple[str, int]) -> bool:
+    def _reads_state(term: _NoiseTerm, state: tuple[str, int]) -> bool:
         """Check whether the amplitude of a noise term depends on a state component."""
         amplitude = SR(term.amplitude)
         return any(
@@ -73,8 +84,8 @@ class NoisePass(BasePass):
 
     @staticmethod
     def _get_noise_correction(
-        term: _NoiseTermSpec,
-        terms: list[_NoiseTermSpec],
+        term: _NoiseTerm,
+        terms: list[_NoiseTerm],
         wieners: Mapping[str, WienerProcessSpec],
     ) -> BaseLaw | None:
         """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term.
@@ -126,14 +137,14 @@ class NoisePass(BasePass):
     @staticmethod
     def _copy_with_noise_corrections(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return laws with the drift correction of every noise law of a convention.
 
         The correction follows the law, in the Itô form.
         """
         terms = NoisePass._get_noise_terms(specs, declarations)
-        by_law: dict[int, list[_NoiseTermSpec]] = defaultdict(list)
+        by_law: dict[int, list[_NoiseTerm]] = defaultdict(list)
         for term in terms:
             by_law[id(term.law)].append(term)
         result = []
@@ -151,8 +162,8 @@ class NoisePass(BasePass):
     @staticmethod
     def _get_noise_terms(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
-        declarations: DeclarationsSpec,
-    ) -> list[_NoiseTermSpec]:
+        declarations: _Declarations,
+    ) -> list[_NoiseTerm]:
         """Return every component of every noise law.
 
         An independent process stands for itself alone.
@@ -173,12 +184,12 @@ class NoisePass(BasePass):
                     reference = spec.references[target]
                     process = key if key is not None else ('independent', id(law), index)
                     terms.append(
-                        _NoiseTermSpec(spec, law, target, (reference.entry.name, reference.column), value, process),
+                        _NoiseTerm(spec, law, target, (reference.entry.name, reference.column), value, process),
                     )
         return terms
 
     @staticmethod
-    def _get_process_key(spec: KernelSpec, item: object, declarations: DeclarationsSpec) -> ProcessKey:
+    def _get_process_key(spec: KernelSpec, item: object, declarations: _Declarations) -> ProcessKey:
         """Return the process a label or a handle of a noise law names.
 
         It is a local label or a Wiener process.
@@ -195,7 +206,7 @@ class NoisePass(BasePass):
         return ('wiener', *found)
 
     @staticmethod
-    def _get_process_keys(spec: KernelSpec, law: NoiseLaw, declarations: DeclarationsSpec) -> list[ProcessKey | None]:
+    def _get_process_keys(spec: KernelSpec, law: NoiseLaw, declarations: _Declarations) -> list[ProcessKey | None]:
         """Return the process of every component of the target of a noise law.
 
         It is `None` for an independent process.

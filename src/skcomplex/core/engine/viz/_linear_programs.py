@@ -13,7 +13,7 @@ import rerun.blueprint as rrb
 
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, ProblemSpec
-from ..problems._compiled_agents_spec import _CompiledAgentsSpec
+from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._linear_program_kernel import LinearProgramKernel
 from ._base import GRID_RADIUS, NODE_SPACING, SERIES_COLORS, BaseVisual
 
@@ -223,7 +223,7 @@ class LinearProgramVisual(BaseVisual):
 
     def _get_views(
         self,
-        element: CompiledElementSpec | _CompiledAgentsSpec,
+        element: CompiledElementSpec | _CompiledAgents,
         problem: BaseProblemSpec,
     ) -> list[rrb.View]:
         """Return the bar chart, the series of the objective values, and the graph views.

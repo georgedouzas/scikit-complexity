@@ -16,13 +16,11 @@ from ....components.laws._boundary import _BoundaryLaw
 from ....errors import PipelineError, ValidationError
 from ..._utils import symbol, vector
 from ...enums import ReadKind
-from ...problems._declarations_spec import DeclarationsSpec
-from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation
+from .._compilation import Compilation, _Declarations, _DelayedState
 from ._layout import LayoutPass
 
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
@@ -74,7 +72,7 @@ class DelaysPass(BasePass):
         spec: KernelSpec,
         tau: Expression,
         minimum: Expression | None,
-        declarations: DeclarationsSpec,
+        declarations: _Declarations,
     ) -> float:
         """Return the smallest value of a delay.
 
@@ -166,7 +164,7 @@ class DelaysPass(BasePass):
             placeholder = symbol(f'_delayed_{index}')
             references[placeholder] = ReferenceSpec(hidden, False, 0, reference.source)
             delays.append(
-                _DelayedStateSpec(
+                _DelayedState(
                     entry=hidden,
                     states=np.asarray(indices, dtype=np.intp),
                     tau=tau,

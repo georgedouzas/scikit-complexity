@@ -13,13 +13,11 @@ from ....components.spaces import LatticeSpace
 from ....errors import ValidationError
 from ....types import Indices
 from ...enums import ReadKind
-from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._field_element import _FieldElement
-from ...problems._noise_process_spec import _NoiseProcessSpec
-from ...problems._output_spec import OutputSpec
+from ...problems._law_kernel import _NoiseProcess, _Output
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation, Laws, _CensusRecord
+from .._compilation import Compilation, Laws, _CensusRecord, _Declarations
 from .._field_lowering import FieldLowering
 from .._issue_spec import IssueSpec
 
@@ -60,7 +58,7 @@ class ConservedNoisePass(BasePass):
         compilation.outputs = self._get_conserved_outputs(reduced, declarations)
 
     @staticmethod
-    def _get_conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[OutputSpec]]:
+    def _get_conserved_outputs(specs: Laws, declarations: _Declarations) -> dict[int, list[_Output]]:
         """Return the outputs of every conserved noise law, by law identity.
 
         There is one process per link of its field.
@@ -161,7 +159,7 @@ class ConservedNoisePass(BasePass):
         targets: list[ReferenceSpec],
         places: Mapping[str, _FieldElement],
         references: Mapping[Expression, ReferenceSpec],
-    ) -> list[OutputSpec]:
+    ) -> list[_Output]:
         """Return the outputs of a conserved noise law.
 
         They are the divergence of a random flux on the links of a lattice. Every target component gets one process per
@@ -205,14 +203,14 @@ class ConservedNoisePass(BasePass):
             for spacing, (following, preceding) in zip(space.spacings_, tables, strict=True):
                 scaled = amplitude / spacing
                 outputs.append(
-                    OutputSpec(
+                    _Output(
                         reference,
                         -scaled,
-                        process=_NoiseProcessSpec(key, dimension=dimension, links=following),
+                        process=_NoiseProcess(key, dimension=dimension, links=following),
                     ),
                 )
                 outputs.append(
-                    OutputSpec(reference, scaled, process=_NoiseProcessSpec(key, dimension=dimension, links=preceding)),
+                    _Output(reference, scaled, process=_NoiseProcess(key, dimension=dimension, links=preceding)),
                 )
         return outputs
 
