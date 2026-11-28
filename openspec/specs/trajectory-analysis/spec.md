@@ -149,3 +149,81 @@ read as a mapping from size to samples, and SHALL return the exponent with a boo
 #### Scenario: Known exponent
 - **WHEN** a quantity generated as `N^1.15` times lognormal noise across 50 sizes is fitted
 - **THEN** the 95% confidence interval contains 1.15
+
+### Requirement: Fixed points come in a fixed order
+`stability` SHALL return fixed points sorted by their values in the order of the state names, the same in every
+process, and exact solutions SHALL convert to floats without solver noise.
+
+#### Scenario: Logistic map
+- **WHEN** the fixed points of the logistic map are found in two fresh processes
+- **THEN** both return the same points in the same order, and the point at 0 is exactly 0.0
+
+### Requirement: Aperiodic orbits have period 0
+`orbit_diagram` SHALL report a period of 0 for a parameter value whose kept values never repeat within the rounding.
+
+#### Scenario: Chaotic logistic map
+- **WHEN** an orbit diagram of the logistic map keeps 64 values at r equal to 3.9
+- **THEN** its period is 0, while r equal to 3.2 gives 2
+
+### Requirement: Lattices coarse grain over blocks
+`coarse_grain` SHALL coarse grain a lattice configuration over blocks of a given side, by majority with a tie rule or
+by mean, for one snapshot or every frame of a trajectory.
+
+#### Scenario: Majority over 3 by 3 blocks
+- **WHEN** a 9 by 9 spin lattice coarse grains with `blocks=3` and `rule='majority'`
+- **THEN** the result is 3 by 3 and every cell holds the sign of the sum of its block
+
+#### Scenario: Mean over blocks
+- **WHEN** a lattice coarse grains with `rule='mean'`
+- **THEN** every cell holds the mean of its block
+
+#### Scenario: Blocks that do not divide the lattice
+- **WHEN** a 10 by 10 lattice coarse grains with `blocks=3`
+- **THEN** an error names the side and the block size
+
+### Requirement: Orbit diagrams scan many values quickly
+`orbit_diagram` SHALL scan the logistic map over 1200 parameter values with 1000 transient steps in a few seconds when
+it runs vectorized, and its docstring SHALL point large scans to the vectorized run.
+
+#### Scenario: Scan time
+- **WHEN** the vectorized scan runs on a laptop
+- **THEN** it finishes in under 10 seconds with the same orbits as separate runs
+
+### Requirement: Stable fits report the S0 location
+`fit_law(law='stable')` SHALL report the location in the S0 parametrisation, and SHALL report a skewness of 0 when the
+index is 2.
+
+#### Scenario: Index near 1
+- **WHEN** samples of stable laws of index 0.98 and 1.02 with S0 location 0 are fitted
+- **THEN** both fitted locations are close to 0
+
+#### Scenario: Gaussian data
+- **WHEN** normal samples are fitted
+- **THEN** the index is close to 2 and the skewness is 0
+
+### Requirement: Branching ratio estimates are quiet
+`events(kind='branching')` SHALL print nothing to standard output, and SHALL pass the messages of its estimator on as
+Python warnings.
+
+#### Scenario: Captured output
+- **WHEN** a branching ratio is estimated while standard output is captured
+- **THEN** nothing is captured
+
+### Requirement: Box counting checks grids and counts points
+`scaling(kind='box-counting')` SHALL raise an `AnalysisError` for a grid thinner than its largest box, and SHALL count
+an array of points at every box size.
+
+#### Scenario: Thin grid
+- **WHEN** a grid of shape `(1, 512)` is box counted with boxes larger than 1
+- **THEN** an `AnalysisError` names the side that is too short
+
+#### Scenario: Points of a Sierpinski triangle
+- **WHEN** 50000 chaos game points of the Sierpinski triangle are box counted as points
+- **THEN** the dimension is close to log 3 / log 2
+
+### Requirement: Detrended fluctuation windows are unique
+`scaling(kind='detrended-fluctuation')` SHALL use default window sizes without duplicates.
+
+#### Scenario: Default windows
+- **WHEN** the fluctuation of a short series is estimated with the default windows
+- **THEN** the reported window sizes are strictly increasing
