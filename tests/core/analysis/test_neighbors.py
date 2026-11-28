@@ -9,6 +9,7 @@ import pytest
 from skcomplex.core.analysis import NeighborsResult, neighbors
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.collective_behaviour import BoidsSystem
+from skcomplex.systems.physics.active_matter import VicsekSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, LennardJonesFluidSystem
 from skcomplex.systems.social.segregation import SchellingSystem
 
@@ -106,3 +107,28 @@ def test_neighbor_analysis_checks_its_settings():
         neighbors(np.zeros(10), kind='distances', bins=10)
     with pytest.raises(AnalysisError, match='needs a periodic box'):
         _neighbors('clark-evans', np.random.default_rng(0).random((10, 2)))
+
+
+def test_radius_pairs_cross_a_periodic_edge():
+    """Test that two agents at 0.1 and 9.9 of a periodic box of side 10 form one pair of degree 1 each."""
+    result = _neighbors('radius', [[0.1, 5.0], [9.9, 5.0], [5.0, 5.0]], box=[10.0, 10.0], r_max=0.5)
+    assert [pairs.tolist() for pairs in result.pairs] == [[[0, 1]]]
+    assert result.degrees.tolist() == [[1, 1, 0]]
+
+
+def test_radius_pairs_of_every_frame_of_a_flock():
+    """Test that the pairs of a Vicsek flock are the agents within the radius at every frame, as its network."""
+    trajectory = VicsekSystem(80, size=5.0).prepare().simulate(until=2, random_state=0)
+    result = _neighbors('radius', trajectory, r_max=1.0)
+    assert len(result.pairs) == trajectory.times.size
+    assert result.degrees.shape == (trajectory.times.size, 80)
+    for frame, pairs in enumerate(result.pairs):
+        network = trajectory.get_network(frame)
+        assert pairs.tolist() == np.column_stack([network.sources, network.targets]).tolist()
+        assert result.degrees[frame].sum() == 2 * len(pairs)
+
+
+def test_radius_pairs_need_a_positive_radius():
+    """Test that the radius kind raises an error without a positive radius."""
+    with pytest.raises(AnalysisError, match='Use a positive radius'):
+        _neighbors('radius', np.zeros((3, 2)))

@@ -509,11 +509,11 @@ def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
 def _read_particle_snapshots(trajectory: Trajectory, group: str) -> _SnapshotsSpec:
     """Return the snapshots of a particle group from the roles of its states.
 
-    They are unwrapped in a periodic box.
+    They are unwrapped in a periodic box, the space of the group or else of its system.
     """
     element = next(item for item in trajectory.problem.elements if item.path == group)
     system = trajectory.problem.system
-    space = system.space if system is not None else None
+    space = getattr(element.element, 'space', None) or (system.space if system is not None else None)
     periodic = isinstance(space, ContinuousSpace) and space.periodic_
     box = np.asarray(space.extent_, dtype=np.float64) if isinstance(space, ContinuousSpace) and periodic else None
     located = _get_role_states(element, 'position')

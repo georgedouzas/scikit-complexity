@@ -15,16 +15,17 @@ from scipy.spatial import cKDTree
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError
-from ..types import Array
+from ..types import Array, Indices
 from ._analysis_tags import AnalysisTags
 from ._base import SNAPSHOT_DIMENSIONS, _check_settings, _read_fields, _read_networks, _read_snapshots
 from .types import DataSource
 
-KINDS = ('distances', 'clark-evans', 'radial-distribution', 'like-share')
+KINDS = ('distances', 'clark-evans', 'radial-distribution', 'radius', 'like-share')
 SETTINGS = {
     'distances': {'group', 'box'},
     'clark-evans': {'group', 'box'},
     'radial-distribution': {'group', 'box', 'bins', 'r_max'},
+    'radius': {'group', 'box', 'r_max'},
     'like-share': {'variables', 'attribute', 'empty', 'diagonal'},
 }
 TAGS = AnalysisTags(DataKind.AGENTS)
@@ -68,6 +69,13 @@ class NeighborsResult:
         share:
             One like share per frame, for `'like-share'`.
 
+        pairs:
+            The pairs of agents within the radius, one array of rows `(i, j)` with `i < j` in increasing order per
+            frame, for `'radius'`.
+
+        degrees:
+            The number of agents within the radius of every agent, frames by agents, for `'radius'`.
+
     See Also:
         neighbors: Returns this result.
 
@@ -85,6 +93,8 @@ class NeighborsResult:
     radii: Array | None = None
     distribution: Array | None = None
     share: Array | None = None
+    pairs: list[Indices] | None = None
+    degrees: Indices | None = None
 
 
 def neighbors(
@@ -119,7 +129,9 @@ def neighbors(
             edges in a box. `'clark-evans'` gives the mean nearest neighbour distance over its value for uniform random
             points in a periodic box, 1 for random points, below 1 for clustered ones, and up to 2.15 for a triangular
             lattice in a plane. `'radial-distribution'` gives the radial distribution function `g(r)` in a periodic box,
-            averaged over frames, 1 for an ideal gas. `'like-share'` gives the mean share of the occupied neighbours of
+            averaged over frames, 1 for an ideal gas. `'radius'` gives the pairs of agents within `r_max` of each
+            other and the degree of every agent, across periodic edges in a box, which is the interaction graph of a
+            flock at every frame. `'like-share'` gives the mean share of the occupied neighbours of
             an agent that share its state, on a periodic grid or along the edges of a network, near 1 when segregated.
 
         group:
@@ -135,7 +147,8 @@ def neighbors(
             The number of distance bins of `g(r)`.
 
         r_max:
-            The largest distance of `g(r)`, or `None` for half the smallest side.
+            The largest distance of `g(r)`, or `None` for half the smallest side, or the radius of `'radius'`, which
+            needs one.
 
         attribute:
             The node attribute of the states of a graph.
@@ -153,7 +166,7 @@ def neighbors(
     Raises:
         AnalysisError:
             The kind is unknown, a setting the kind does not read is changed, the number of bins is below 1, the agents
-            have no positions, or a kind that needs a periodic box has none.
+            have no positions, a kind that needs a periodic box has none, or `'radius'` has no positive `r_max`.
 
     See Also:
         clusters: Finds the clusters of a grid, a graph, or points.
@@ -192,6 +205,13 @@ def neighbors(
     if kind == 'distances':
         distances = np.asarray([_nearest_neighbor_distances(frame, sides) for frame in positions])
         return NeighborsResult(positions=positions, box=sides, distances=distances)
+    if kind == 'radius':
+        if r_max is None or r_max <= 0:
+            error_msg = f'neighbors of kind {kind!r} has r_max={r_max!r}. Use a positive radius.'
+            raise AnalysisError(error_msg)
+        pairs = [_radius_pairs(frame, sides, r_max) for frame in positions]
+        degrees = np.asarray([_degrees(found, positions.shape[1]) for found in pairs])
+        return NeighborsResult(positions=positions, box=sides, pairs=pairs, degrees=degrees)
     if sides is None:
         error_msg = f'neighbors of kind {kind!r} needs a periodic box. Set `box` to its sides.'
         raise AnalysisError(error_msg)
@@ -287,6 +307,21 @@ def _nearest_neighbor_distances(positions: npt.ArrayLike, box: npt.ArrayLike | N
     """
     array, tree = _tree(positions, box)
     return tree.query(array, k=2)[0][:, 1]
+
+
+def _radius_pairs(positions: npt.ArrayLike, box: npt.ArrayLike | None, r_max: float) -> Indices:
+    """Return the pairs of agents of one snapshot within a radius of each other.
+
+    The distances go across periodic edges, and the pairs come in increasing order.
+    """
+    _, tree = _tree(positions, box)
+    pairs = np.asarray(tree.query_pairs(r_max, output_type='ndarray'), dtype=np.intp).reshape(-1, 2)
+    return np.unique(pairs, axis=0).reshape(-1, 2)
+
+
+def _degrees(pairs: Indices, size: int) -> Indices:
+    """Return the number of pairs every agent belongs to."""
+    return np.bincount(pairs.ravel(), minlength=size)
 
 
 def _clark_evans_ratio(positions: npt.ArrayLike, box: npt.ArrayLike) -> float:
