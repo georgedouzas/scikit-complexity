@@ -10,6 +10,9 @@ from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.experiments._replicate import _replicate_prepared
 from skcomplex.core.systems import System
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.computer_science.automata import GameOfLifeSystem
+from skcomplex.systems.physics.active_matter import VicsekSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 
 def test_trajectory_reads_values_by_name():
@@ -93,3 +96,42 @@ def test_get_values_reads_a_state_of_a_fixed_group_as_rows():
     trajectory = _herd(_age)
     assert trajectory.get_values('herd.age').tolist() == [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]
     assert 'herd.age' in trajectory.names
+
+
+def test_get_network_reads_the_von_neumann_pairs_of_an_ising_lattice():
+    """The network of an Ising lattice joins every site to its four von Neumann neighbours."""
+    network = IsingSystem(5).prepare().simulate(until=1, random_state=0).get_network(0)
+    graph = network.get_graph()
+    assert (graph.number_of_nodes(), graph.number_of_edges()) == (25, 50)
+    assert {degree for _, degree in graph.degree()} == {4}
+    assert set(graph.neighbors(0)) == {1, 4, 5, 20}
+
+
+def test_get_network_reads_the_moore_pairs_of_life():
+    """The network of Life joins every cell to its eight Moore neighbours."""
+    network = GameOfLifeSystem((6, 6)).prepare().simulate(until=1, random_state=0).get_network(0)
+    graph = network.get_graph()
+    assert (graph.number_of_nodes(), graph.number_of_edges()) == (36, 144)
+    assert graph.has_edge(0, 7)
+
+
+def test_get_network_reads_the_agents_within_the_radius_of_a_flock():
+    """The network of a Vicsek flock joins agents within the interaction radius, and changes with the frame."""
+    trajectory = VicsekSystem(100, size=5.0).prepare().simulate(until=3, random_state=0)
+    positions = trajectory.get_values('flock.x')
+    edges = []
+    for frame in (0, 3):
+        network = trajectory.get_network(frame)
+        difference = positions[frame][network.sources] - positions[frame][network.targets]
+        difference -= 5.0 * np.rint(difference / 5.0)
+        assert np.all(np.hypot(*difference.T) <= 1.0)
+        assert network.nodes.size == 100
+        edges.append(set(zip(network.sources.tolist(), network.targets.tolist(), strict=True)))
+    assert edges[0] != edges[1]
+
+
+def test_get_network_names_both_cases_without_a_network():
+    """A system with neither a changing network nor a fixed neighbourhood raises an error naming both."""
+    trajectory = LotkaVolterraSystem().prepare().simulate(until=1.0)
+    with pytest.raises(KeyError, match=r'variable=True.*within a radius'):
+        trajectory.get_network(0)

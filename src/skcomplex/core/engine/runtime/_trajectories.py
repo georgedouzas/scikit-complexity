@@ -3,15 +3,29 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 import numbers
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
+from scipy.spatial import cKDTree
 
-from ...types import AnyArray
-from ..problems import AgentSnapshotSpec, BaseProblemSpec, BaseRecordSpec, LayoutSpec, NetworkSnapshotSpec
+from ...components.spaces import LatticeSpace, RadiusNeighborhood
+from ...types import AnyArray, Indices
+from ..problems import (
+    AgentSnapshotSpec,
+    BaseProblemSpec,
+    BaseRecordSpec,
+    LayoutSpec,
+    NetworkSnapshotSpec,
+    ProblemSpec,
+)
 from ..problems._draw_log_spec import _DrawLogSpec
+from ..problems._metric_search import MetricSearch
+from ..problems._monte_carlo_kernel import MonteCarloKernel
+from ..problems._rule_kernel import RuleKernel
+from ..problems._static_search import StaticSearch
 
 
 class Trajectory:
@@ -318,20 +332,73 @@ class Trajectory:
             raise KeyError(error_msg)
         return groups[group]
 
-    def get_network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
-        """Return the nodes and edges of a changing network at a frame.
+    def _get_lattice_pairs(self, nodes: str | None) -> tuple[int, Indices, Indices] | None:
+        """Return the size and the neighbour pairs that the laws of a lattice group read.
 
-        The network is one whose topology changes.
+        They come from the neighbour tables of the lattice steps and the neighbourhood reductions, or `None` without
+        them.
+        """
+        if not isinstance(self.problem, ProblemSpec):
+            return None
+        for step in self.problem.lattice:
+            if isinstance(step, MonteCarloKernel):
+                state = step.target
+            elif isinstance(step, RuleKernel):
+                state = step.targets[0]
+            else:
+                continue
+            group = state.name.rpartition('.')[0]
+            if not isinstance(state.space, LatticeSpace) or state.part != 'sites' or nodes not in (None, group):
+                continue
+            size, width = step.table.shape
+            return size, np.repeat(np.arange(size), width), step.table.ravel()
+        spaces = {element.path: getattr(element.element, 'space', None) for element in self.problem.elements}
+        for kernel in self.problem.neighbourhoods:
+            search = kernel.search
+            if not isinstance(search, StaticSearch) or not isinstance(spaces.get(kernel.group), LatticeSpace):
+                continue
+            if nodes not in (None, kernel.group):
+                continue
+            return kernel.size, np.repeat(np.arange(kernel.size), np.diff(search.indptr)), search.indices
+        return None
+
+    def _get_radius_pairs(self, frame: int, nodes: str | None) -> tuple[int, Indices, Indices] | None:
+        """Return the size and the pairs of members within the radius at a frame.
+
+        The members live in a continuous space, whose periodic edges the distances cross. It is `None` without a
+        reduction over a radius.
+        """
+        if not isinstance(self.problem, ProblemSpec):
+            return None
+        for kernel in self.problem.neighbourhoods:
+            search = kernel.search
+            if not isinstance(search, MetricSearch) or not isinstance(search.neighbourhood, RadiusNeighborhood):
+                continue
+            if float(search.neighbourhood.angle) < math.pi or nodes not in (None, kernel.group):
+                continue
+            positions = search.get_wrapped(self.states[frame])
+            box = None if search.periods is None else np.asarray(search.periods)
+            pairs = cKDTree(positions, boxsize=box).query_pairs(search.neighbourhood.radius, output_type='ndarray')
+            return positions.shape[0], pairs[:, 0], pairs[:, 1]
+        return None
+
+    def get_network(self, frame: int, nodes: str | None = None, layer: str | None = None) -> NetworkSnapshotSpec:
+        """Return the nodes and edges of the network the interactions read at a frame.
+
+        It is the network whose topology changes, or else the neighbourhood the interactions of a fixed space read.
+        That is the neighbour pairs of a lattice, such as the four sites around a spin of an Ising lattice or the eight
+        cells around a cell of Life, or the pairs of agents within the interaction radius of a continuous space at that
+        frame, such as the birds of a Vicsek flock.
 
         Args:
             frame:
                 The index of the frame.
 
             nodes:
-                The path of a variable group on the nodes of the network, or `None` for the first such network.
+                The path of the group on the nodes of the network, or `None` for the first one.
 
             layer:
-                The layer, or `None` for the graph of the network.
+                The layer of a network whose topology changes, or `None` for its graph.
 
         Returns:
             snapshot:
@@ -339,13 +406,36 @@ class Trajectory:
 
         Raises:
             KeyError:
-                The system has no network whose topology changes.
+                The system has neither a network whose topology changes nor a fixed space whose neighbours its
+                interactions read.
+
+        Examples:
+            >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
+            >>> trajectory = IsingSystem(5).prepare().simulate(until=1, random_state=0)
+            >>> network = trajectory.get_network(0)
+            >>> network.nodes.size, network.sources.size
+            (25, 50)
         """
         topology = self.problem.topology
-        if topology is None:
-            error_msg = 'The system has no network whose topology changes. Give its groups `variable=True`.'
+        if topology is not None:
+            return topology.read_network(self.parameters[frame], nodes, layer)
+        found = self._get_lattice_pairs(nodes) or self._get_radius_pairs(frame, nodes)
+        if found is None:
+            error_msg = (
+                'The system has no network whose topology changes and no lattice or continuous space whose neighbours '
+                'its interactions read. Give its groups `variable=True`, or let its interactions read the neighbours '
+                'of a lattice or the agents within a radius.'
+            )
             raise KeyError(error_msg)
-        return topology.read_network(self.parameters[frame], nodes, layer)
+        size, readers, others = found
+        keep = (others < size) & (others != readers)
+        ends = np.unique(np.sort(np.column_stack([readers[keep], others[keep]]), axis=1), axis=0).reshape(-1, 2)
+        return NetworkSnapshotSpec(
+            nodes=np.arange(size, dtype=np.intp),
+            sources=ends[:, 0].astype(np.intp),
+            targets=ends[:, 1].astype(np.intp),
+            edges=np.arange(ends.shape[0], dtype=np.intp),
+        )
 
     def get_structure(self, path: str, frame: int) -> object:
         """Return the word or patch of a rewritten element at a frame.
