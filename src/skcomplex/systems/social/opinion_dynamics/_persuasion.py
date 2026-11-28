@@ -560,6 +560,10 @@ class GalamMajoritySystem(BaseSystem):
     def _get_discussions(self) -> Interaction:
         """Return the discussions of the groups the system forms.
 
+        Returns:
+            discussions:
+                The interaction that sets every agent to the majority of its group.
+
         Raises:
             ValidationError:
                 The groups are neither `'partition'` nor `'sample'`.

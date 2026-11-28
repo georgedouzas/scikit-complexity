@@ -629,6 +629,10 @@ class RandomWalkSystem(BaseSystem):
     def _get_steps(self) -> Interaction:
         """Return the steps of the walkers in the chosen time.
 
+        Returns:
+            steps:
+                The interaction that steps the walkers.
+
         Raises:
             ValidationError:
                 The time is unknown, or the absorbing ends or the floor come in continuous time.

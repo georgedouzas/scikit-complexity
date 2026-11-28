@@ -418,6 +418,10 @@ class LangtonsAntSystem(BaseSystem):
     def _get_colors(self) -> AnyArray:
         """Return an object array that holds the initial colours of the torus or plane.
 
+        Returns:
+            colors:
+                One array of colours on a torus, or one set of black cells on the plane.
+
         Raises:
             ValidationError:
                 The colours are not 0 or 1 with the shape of the torus, or the black cells are not pairs of integers.
@@ -440,6 +444,10 @@ class LangtonsAntSystem(BaseSystem):
     def _get_black_cells(self) -> frozenset[tuple[int, int]]:
         """Return the row and column of every initial black cell of the plane.
 
+        Returns:
+            cells:
+                The black cells, as pairs of a row and a column.
+
         Raises:
             ValidationError:
                 The black cells are not pairs of integers.
@@ -457,6 +465,10 @@ class LangtonsAntSystem(BaseSystem):
 
     def _get_start(self) -> tuple[int, int]:
         """Return the row and column of the initial cell of the ant.
+
+        Returns:
+            start:
+                The row and the column of the ant at the start.
 
         Raises:
             ValidationError:
