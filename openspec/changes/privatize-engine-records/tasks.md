@@ -14,7 +14,7 @@
 ## 3. Compile, solvers, backends and translators
 
 - [ ] 3.1 Make the records of `compile` private, move them to their users, and remove the trivial ones
-- [ ] 3.2 Do the same for `solvers`, `backends` and `translators`
+- [x] 3.2 Do the same for `solvers`, `backends` and `translators`
 
 ## 4. Records outside the engine
 
