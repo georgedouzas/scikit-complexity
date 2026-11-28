@@ -234,7 +234,10 @@ def _of_graph(graph: nx.Graph, kind: str) -> ClustersResult:
     """
     position = {node: index for index, node in enumerate(graph.nodes())}
     members = sorted(
-        (sorted(component, key=position.__getitem__) for component in nx.connected_components(graph.to_undirected())),
+        (
+            sorted(component, key=lambda node: position[node])
+            for component in nx.connected_components(graph.to_undirected())
+        ),
         key=lambda component: (-len(component), position[component[0]]),
     )
     sizes = np.asarray([len(component) for component in members], dtype=np.int64)

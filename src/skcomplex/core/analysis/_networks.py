@@ -172,8 +172,9 @@ class NetworkMeasuresResult:
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import network_measures
-        >>> network_measures(nx.star_graph(3), kind='degrees').moments.tolist()
-        [[1.5, 3.0]]
+        >>> spectrum = network_measures(nx.cycle_graph(4), kind='spectrum')
+        >>> spectrum.laplacian_spectrum[0].round(6).tolist() == [0, 2, 2, 4], spectrum.spectral_radius.round(6).tolist()
+        (True, [2.0])
     """
 
     graphs: list[nx.Graph]
@@ -323,17 +324,10 @@ def network_measures(
 
     Examples:
         >>> import networkx as nx
-        >>> import numpy as np
         >>> from skcomplex.core.analysis import network_measures
-        >>> summary = network_measures(nx.cycle_graph(10))
-        >>> summary.mean_degree.tolist(), summary.clustering.tolist(), summary.diameter.tolist()
-        ([2.0], [0.0], [5])
-        >>> spectrum = network_measures(nx.cycle_graph(4), kind='spectrum')
-        >>> bool(np.allclose(spectrum.laplacian_spectrum[0], [0, 2, 2, 4])), spectrum.spectral_radius.round(6).tolist()
-        (True, [2.0])
-        >>> path = nx.path_graph(4)
-        >>> round(float(network_measures(path, kind='modularity', partition=[0, 0, 1, 1]).modularity[0]), 3)
-        0.167
+        >>> halves = network_measures(nx.path_graph(4), kind='modularity', partition=[0, 0, 1, 1])
+        >>> halves.modularity.round(3).tolist()
+        [0.167]
     """
     _check_choice('network_measures', 'kind', kind, KINDS)
     _check_tags(network_measures, source, kind)
@@ -424,7 +418,7 @@ def _check_dependent_settings(
     n_communities: int | None,
     partition: Sequence[object] | str | None,
 ) -> None:
-    """Raise an error for a setting the centrality or the method does not read, or for a missing partition."""
+    """Raise an error for a setting the centrality or method ignores, or no partition."""
     if alpha is not None and measure != 'katz':
         error_msg = f'network_measures of measure {measure!r} does not read alpha. Only the measure katz reads it.'
         raise AnalysisError(error_msg)
@@ -469,7 +463,10 @@ def _measure_degrees(graphs: list[nx.Graph], orders: Sequence[int]) -> NetworkMe
 
 
 def _directed_degrees(graph: nx.Graph, direction: str) -> npt.NDArray[np.int64] | None:
-    """Return the in or out degree of every node of a directed graph, in node order, or `None` for an undirected one."""
+    """Return the in or out degree of every node of a directed graph, in node order.
+
+    An undirected graph gives `None`.
+    """
     if not graph.is_directed():
         return None
     view = graph.in_degree() if direction == 'in' else graph.out_degree()
@@ -526,7 +523,7 @@ def _summarize(
 
 
 def _column(rows: list[dict[str, float | int | list[int]]], name: str, dtype: type) -> npt.NDArray[Any] | None:
-    """Return the values of a summary measure of every frame, or `None` when the summary did not compute it."""
+    """Return the values of a summary measure of every frame, or `None` without it."""
     return np.asarray([row[name] for row in rows], dtype=dtype) if rows and name in rows[0] else None
 
 
@@ -536,7 +533,10 @@ def _summary(
     samples: int | None = None,
     random_state: int | None = None,
 ) -> dict[str, float | int | list[int]]:
-    """Return the chosen measures of the size, clustering, paths, components, and reciprocity of a network."""
+    """Return the chosen summary measures of a network.
+
+    They are among the size, clustering, transitivity, paths, components, and reciprocity.
+    """
     undirected = graph.to_undirected()
     empty = graph.number_of_nodes() == 0
     row: dict[str, float | int | list[int]] = {}
@@ -637,7 +637,7 @@ def _neighbor_degree(graph: nx.Graph) -> tuple[npt.NDArray[np.int64], npt.NDArra
 
 
 def _measure_spectra(graphs: list[nx.Graph], weight: str | None) -> NetworkMeasuresResult:
-    """Return the adjacency and Laplacian spectra, the connectivity, and the modularity matrix of every frame."""
+    """Return the spectra, the connectivity, and the modularity matrix of every frame."""
     adjacency = [_adjacency_spectrum(graph, weight) for graph in graphs]
     undirected = [graph.to_undirected() for graph in graphs]
     connectivity = [_algebraic_connectivity(graph, weight) for graph in undirected]
@@ -681,7 +681,10 @@ def _algebraic_connectivity(graph: nx.Graph, weight: str | None) -> tuple[float,
 
 
 def _modularity_matrix(graph: nx.Graph, weight: str | None) -> npt.NDArray[np.float64]:
-    """Return the modularity matrix of a graph, directed for a directed one, in node order."""
+    """Return the modularity matrix of a graph in node order.
+
+    A directed graph gives the directed modularity matrix.
+    """
     if graph.is_directed():
         return np.asarray(nx.directed_modularity_matrix(graph, weight=weight), dtype=float)
     return np.asarray(nx.modularity_matrix(graph, weight=weight), dtype=float)
@@ -692,7 +695,10 @@ def _score_partition(
     partition: Sequence[object] | str | None,
     weight: str | None,
 ) -> tuple[npt.NDArray[np.int64], float]:
-    """Return the labels of a given partition, recoded from 0 in order of first appearance, and its modularity."""
+    """Return the labels of a given partition and its modularity.
+
+    The labels are recoded from 0 in order of first appearance.
+    """
     given = [graph.nodes[node][partition] for node in graph.nodes()] if isinstance(partition, str) else partition
     codes: dict[object, int] = {}
     labels = np.asarray([codes.setdefault(label, len(codes)) for label in given or ()], dtype=np.int64)
@@ -700,7 +706,7 @@ def _score_partition(
 
 
 def _groups(graph: nx.Graph, labels: Sequence[int] | npt.NDArray[np.int64]) -> list[set[object]]:
-    """Return the nodes of every community from the community of every node in node order."""
+    """Return the nodes of every community from the labels in node order."""
     groups: dict[int, set[object]] = {}
     for node, label in zip(graph.nodes(), labels, strict=True):
         groups.setdefault(int(label), set()).add(node)
@@ -760,7 +766,10 @@ def _girvan_newman(graph: nx.Graph, weight: str | None, n_communities: int | Non
 
 
 def _leading_eigenvector(graph: nx.Graph, weight: str | None, n_communities: int | None) -> list[set[object]]:
-    """Return the communities of the leading eigenvector method of igraph on the undirected graph."""
+    """Return the communities of the leading eigenvector method of igraph.
+
+    It splits the undirected graph.
+    """
     undirected = graph.to_undirected()
     weights = None if weight is None else [float(data.get(weight, 1.0)) for _, _, data in undirected.edges(data=True)]
     converted = load_module('igraph').Graph.from_networkx(undirected)
