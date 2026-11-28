@@ -68,40 +68,6 @@ class _LinearProgramSide:
 
 
 @dataclass(frozen=True)
-class _LinearProgramEntry:
-    """A record of a coefficient of a linear program that a run computes again.
-
-    A coefficient of a constraint or of an objective may depend on the states or parameters, such as the yield of a
-    reaction that falls with temperature, so it is computed again before every solve. The spec says which row and column
-    it sets and where its value sits. It sets the yields of a cell, the losses of a pipe, and the prices of a firm.
-
-    Read more in the user guide, under Solvers.
-
-    Args:
-        row:
-            The row of the matrix, or the position of the objective.
-
-        column:
-            The column.
-
-        value:
-            The position of the compiled value.
-
-    See Also:
-        _LinearProgram: The program that holds the coefficients.
-
-    Examples:
-        >>> from skcomplex.core.engine.problems._linear_program_kernel import _LinearProgramEntry
-        >>> _LinearProgramEntry(row=0, column=2, value=1).column
-        2
-    """
-
-    row: int
-    column: int
-    value: int
-
-
-@dataclass(frozen=True)
 class _LinearProgramDual:
     """A record of where the dual value of a constraint of a linear program is kept.
 
@@ -195,7 +161,8 @@ class _LinearProgram:
             The bounds that compiled values give.
 
         entries:
-            The coefficients of the matrix that compiled values give.
+            The coefficients of the matrix that compiled values give, one row each of the row and column of the matrix
+            and the position of the compiled value.
 
         function:
             The compiled function `f(t, *arguments)` of the values, or `None` for a program without any.
@@ -214,7 +181,8 @@ class _LinearProgram:
             objective, in the minimising sense.
 
         cost_entries:
-            The costs that compiled values give, in the sense of the objective.
+            The costs that compiled values give, in the sense of the objective, one row each of the position of the
+            objective, the column and the position of the compiled value.
 
         signs:
             `1` for an objective that is minimised and `-1` for one that is maximised.
@@ -255,13 +223,13 @@ class _LinearProgram:
     row_lower: Array = field(repr=False)
     row_upper: Array = field(repr=False)
     sides: tuple[_LinearProgramSide, ...] = field(default=(), repr=False)
-    entries: tuple[_LinearProgramEntry, ...] = field(default=(), repr=False)
+    entries: Indices = field(default_factory=lambda: np.zeros((0, 3), dtype=np.intp), repr=False)
     function: Callable[..., list[npt.ArrayLike]] | None = field(default=None, repr=False)
     arguments: tuple[ReferenceSpec, ...] = field(default=(), repr=False)
     members: int = 1
     activity: tuple[int, ...] = ()
     costs: Array = field(default_factory=lambda: np.zeros((0, 0)), repr=False)
-    cost_entries: tuple[_LinearProgramEntry, ...] = field(default=(), repr=False)
+    cost_entries: Indices = field(default_factory=lambda: np.zeros((0, 3), dtype=np.intp), repr=False)
     signs: tuple[float, ...] = ()
     offsets: tuple[float, ...] = ()
     parts: tuple[int, ...] = ()
@@ -383,11 +351,11 @@ class LinearProgramKernel(BaseKernel):
     def _get_matrix_of(self, member: int, values: Sequence[Array]) -> sparse.csr_array:
         """Return the coefficients of the rows of a member."""
         program = self.program
-        if not program.entries:
+        if not len(program.entries):
             return program.matrix
         matrix = program.matrix.tolil()
-        for entry in program.entries:
-            matrix[entry.row, entry.column] = values[entry.value][member]
+        for row, column, value in program.entries.tolist():
+            matrix[row, column] = values[value][member]
         return matrix.tocsr()
 
     def _get_new_system(self) -> highspy.Highs:
@@ -460,11 +428,11 @@ class LinearProgramKernel(BaseKernel):
         Costs are in the minimising sense.
         """
         program = self.program
-        if not program.cost_entries:
+        if not len(program.cost_entries):
             return program.costs
         costs = program.costs.copy()
-        for entry in program.cost_entries:
-            costs[entry.row, entry.column] = program.signs[entry.row] * values[entry.value][member]
+        for row, column, value in program.cost_entries.tolist():
+            costs[row, column] = program.signs[row] * values[value][member]
         return costs
 
     def _set_coefficients(self, system: highspy.Highs, costs: Array, values: Sequence[Array], member: int) -> None:
@@ -473,12 +441,12 @@ class LinearProgramKernel(BaseKernel):
         They change in the matrix and in the rows that fix objectives.
         """
         program = self.program
-        for entry in program.entries:
-            system.changeCoeff(entry.row, entry.column, float(values[entry.value][member]))
+        for row, column, value in program.entries.tolist():
+            system.changeCoeff(row, column, float(values[value][member]))
         start = len(program.row_lower) + len(program.parts)
-        for entry in program.cost_entries:
-            if entry.row < costs.shape[0] - 1:
-                system.changeCoeff(start + entry.row, entry.column, float(costs[entry.row, entry.column]))
+        for row, column, _ in program.cost_entries.tolist():
+            if row < costs.shape[0] - 1:
+                system.changeCoeff(start + row, column, float(costs[row, column]))
 
     def _describe_subset(self, system: highspy.Highs) -> str:
         """Return the constraints and variables of an irreducible infeasible subset.
@@ -601,7 +569,7 @@ class LinearProgramKernel(BaseKernel):
         system = self._get_system_of(member)
         self._set_bounds(system, member)
         costs = self._get_costs_of(member, values)
-        if program.entries or program.cost_entries:
+        if len(program.entries) or len(program.cost_entries):
             self._set_coefficients(system, costs, values, member)
         self.solves_ += 1
         objectives = self._get_objective_values(system, costs)

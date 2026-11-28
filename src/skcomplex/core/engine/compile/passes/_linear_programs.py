@@ -26,7 +26,6 @@ from ...problems._linear_program_kernel import (
     LinearProgramKernel,
     _LinearProgram,
     _LinearProgramDual,
-    _LinearProgramEntry,
     _LinearProgramSide,
 )
 from ...problems._reference_spec import ReferenceSpec
@@ -498,7 +497,7 @@ class _Lowering:
             if coefficient.is_numeric():
                 self._triplets.append((row, column, float(coefficient)))
             else:
-                self._entries.append(_LinearProgramEntry(row, column, self._get_value(coefficient)))
+                self._entries.append((row, column, self._get_value(coefficient)))
         return row
 
     def _add_relation(self, bound: _BoundLawSpec, relation: Expression, position: int) -> None:
@@ -550,7 +549,7 @@ class _Lowering:
             if coefficient.is_numeric():
                 costs[column] = sign * float(coefficient)
             else:
-                self._cost_entries.append(_LinearProgramEntry(position, column, self._get_value(coefficient)))
+                self._cost_entries.append((position, column, self._get_value(coefficient)))
         rest = parts.rest
         for index, call in enumerate(BasePass._get_calls_of(expression, ABSOLUTE)):
             placeholder = symbol(f'_absolute_{index}')
@@ -582,8 +581,8 @@ class _Lowering:
         self._expressions: list[Expression] = []
         self._lower, self._upper = np.full(size, -np.inf), np.full(size, np.inf)
         self._sides: list[_LinearProgramSide] = []
-        self._entries: list[_LinearProgramEntry] = []
-        self._cost_entries: list[_LinearProgramEntry] = []
+        self._entries: list[tuple[int, int, int]] = []
+        self._cost_entries: list[tuple[int, int, int]] = []
         self._constraints: list[str] = []
         self._relations: list[str] = []
         self._row_lower: list[float] = []
@@ -631,13 +630,13 @@ class _Lowering:
             row_lower=np.asarray(self._row_lower, dtype=float),
             row_upper=np.asarray(self._row_upper, dtype=float),
             sides=tuple(self._sides),
-            entries=tuple(self._entries),
+            entries=np.array(self._entries, dtype=np.intp).reshape(-1, 3),
             function=function,
             arguments=arguments,
             members=max(bound.spec.rows for bound in group),
             activity=tuple(activity),
             costs=self._get_cost_matrix(),
-            cost_entries=tuple(self._cost_entries),
+            cost_entries=np.array(self._cost_entries, dtype=np.intp).reshape(-1, 3),
             signs=tuple(self._signs),
             offsets=tuple(self._offsets),
             parts=tuple(self._parts),
