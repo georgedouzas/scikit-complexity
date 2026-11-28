@@ -6,9 +6,9 @@ in each of six urns wanders at first and then freezes at its own random limit.
 """
 
 # %%
-# Six urns start with one red and one blue ball and make 200 draws. The system logs the numbers of red and blue
-# balls. After the run the share of red in every urn is logged as a time series, and the blueprint puts it first, as
-# the primary view.
+# Six urns start with one red and one blue ball and make 200 draws. The system logs the number of balls of every
+# colour, red first. After the run the share of red in every urn is logged as a time series, and the blueprint puts
+# it first, as the primary view.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,7 +30,8 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 trajectory = PolyaUrnSystem(n_urns=6).prepare().simulate(200, observers=[observer], random_state=0)
-share = trajectory.get_values('urns.red') / (trajectory.get_values('urns.red') + trajectory.get_values('urns.blue'))
+balls = trajectory.get_values('urns.balls')
+share = balls[..., 0] / balls.sum(axis=-1)
 for urn in range(6):
     observer.recording_.send_columns(
         f'share/urn_{urn}',
@@ -53,8 +54,9 @@ shares.set_ylabel('share of red balls')
 shares.set_title('Each urn freezes at its own share')
 grid = np.linspace(0, 1, 100)
 for red, color in ((1, 'C0'), (2, 'C1')):
-    urns = PolyaUrnSystem(n_urns=2000, red=red).prepare().simulate(200, random_state=1)
-    share = urns.get_values('urns.red')[-1] / (urns.get_values('urns.red')[-1] + urns.get_values('urns.blue')[-1])
+    urns = PolyaUrnSystem(n_urns=2000, balls=(red, 1)).prepare().simulate(200, random_state=1)
+    balls = urns.get_values('urns.balls')[-1]
+    share = balls[:, 0] / balls.sum(axis=1)
     limits.hist(share, bins=20, range=(0, 1), density=True, alpha=0.5, color=color, label=f'red = {red}, blue = 1')
     limits.plot(grid, stats.beta.pdf(grid, red, 1), color=color)
 limits.set_xlabel('share of red after 200 draws')

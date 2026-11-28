@@ -7,13 +7,15 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import NN
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import NN, vector
 
 from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, UpdateLaw
-from ....core.components.laws.utils import bernoulli
+from ....core.components.laws.utils import categorical, where
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
 from ....core.errors import ValidationError
@@ -21,48 +23,44 @@ from ....core.systems import BaseSystem, System
 from ....core.types import Role
 
 TIMES = ('continuous', 'discrete')
+MIN_COLOURS = 2
 
 
 class PolyaUrnElement(Element):
-    """Urns of red and blue balls, counted by color.
+    """Urns of balls of several colours, counted by colour.
 
     Args:
         label:
             The label of the urns.
 
-        red:
-            The initial number of red balls, one per urn or shared.
-
-        blue:
-            The initial number of blue balls, one per urn or shared.
+        balls:
+            The initial number of balls of every colour, one row per urn for a group of urns.
 
         size:
             The number of urns, or `None` for one.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaUrnElement
-        >>> PolyaUrnElement('urn', red=2.0).red
-        2.0
+        >>> PolyaUrnElement('urn', balls=(1.0, 1.0, 2.0)).balls
+        (1.0, 1.0, 2.0)
     """
 
     def __init__(
         self,
         label: str,
         *,
-        red: Annotated[float, NN] = 1.0,
-        blue: Annotated[float, NN] = 1.0,
+        balls: Annotated[object, NN] = (1.0, 1.0),
         size: int | None = None,
     ) -> None:
         super().__init__(label, size=size)
-        self.red = red
-        self.blue = blue
+        self.balls = balls
 
 
 class PolyaDrawInteraction(Interaction):
-    """The draws of Pólya's urn, where a drawn ball returns with `added` extra balls of its color.
+    """The draws of Pólya's urn, where a drawn ball returns with `added` extra balls of its colour.
 
     The draws of every urn happen at the times of a Poisson process of rate 1, so the number of draws by time `t` is a
-    Poisson number of mean `t`. A draw picks a color with probability proportional to its number of balls, so the
+    Poisson number of mean `t`. A draw picks a colour with probability proportional to its number of balls, so the
     sequence of draws is that of Pólya's urn in discrete time.
 
     Args:
@@ -73,7 +71,7 @@ class PolyaDrawInteraction(Interaction):
             The urns whose balls the draws add to.
 
         added:
-            The number of balls of the drawn color added after every draw.
+            The number of balls of the drawn colour added after every draw.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaDrawInteraction
@@ -89,24 +87,22 @@ class PolyaDrawInteraction(Interaction):
         self.added = added
 
     def _prepare(self, context: SimpleNamespace) -> None:
-        """Set the draws of a red and of a blue ball as the laws.
+        """Set the draw of a ball of every colour as the laws.
 
         Args:
             context:
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        red, blue = context.target.red, context.target.blue
-        self.laws_: list[BaseLaw] = [
-            JumpLaw(red / (red + blue), {red: self.added}),
-            JumpLaw(blue / (red + blue), {blue: self.added}),
-        ]
+        balls = context.target.balls
+        total = sum(balls)
+        self.laws_: list[BaseLaw] = [JumpLaw(count / total, {count: self.added}) for count in balls]
 
 
 class PolyaStepInteraction(Interaction):
     """The draws of Pólya's urn in discrete time, one draw in every urn per step.
 
-    A draw picks a color with probability proportional to its number of balls and adds `added` balls of that color.
+    A draw picks a colour with probability proportional to its number of balls and adds `added` balls of that colour.
 
     Args:
         label:
@@ -116,7 +112,7 @@ class PolyaStepInteraction(Interaction):
             The urns whose balls the draws add to.
 
         added:
-            The number of balls of the drawn color added after every draw.
+            The number of balls of the drawn colour added after every draw.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaStepInteraction
@@ -139,36 +135,32 @@ class PolyaStepInteraction(Interaction):
                 The namespace of the elements a binding of the roles names.
         """
         super()._prepare(context)
-        red, blue = context.target.red, context.target.blue
-        drawn = bernoulli('red_drawn', red / (red + blue))
-        self.laws_: list[BaseLaw] = [
-            UpdateLaw(red, red + self.added * drawn),
-            UpdateLaw(blue, blue + self.added * (1 - drawn)),
-        ]
+        balls = context.target.balls
+        drawn = categorical('colour', list(balls))
+        added = [count + self.added * where(drawn == colour, 1, 0) for colour, count in enumerate(balls)]
+        self.laws_: list[BaseLaw] = [UpdateLaw(balls, vector(added))]
 
 
 class PolyaUrnSystem(BaseSystem):
-    """Independent Pólya urns.
+    """Independent Pólya urns of balls of two or more colours.
 
-    The share of red balls converges to a random limit with a beta distribution.
+    The shares of the colours converge to a random limit with a Dirichlet law.
 
-    The limit follows `Beta(red / added, blue / added)`, uniform for one ball of each color and one added ball. In
-    continuous time the draws of every urn happen at the times of a Poisson process of rate 1, so a frame is not a
-    draw, and in discrete time every step draws one ball in every urn. The system has the states `urns.red` and
-    `urns.blue`.
+    The limit of the shares follows `Dirichlet(balls / added)`, so the share of one colour follows a beta law, uniform
+    for one ball of each of two colours and one added ball. In continuous time the draws of every urn happen at the
+    times of a Poisson process of rate 1, so a frame is not a draw, and in discrete time every step draws one ball in
+    every urn. The system has the state `urns.balls`, the number of balls of every colour, of shape
+    `(n_urns, n_colours)`.
 
     Args:
         n_urns:
             The number of independent urns.
 
-        red:
-            The initial number of red balls.
-
-        blue:
-            The initial number of blue balls.
+        balls:
+            The initial number of balls of every colour, at least two colours.
 
         added:
-            The number of balls of the drawn color added after every draw.
+            The number of balls of the drawn colour added after every draw.
 
         time:
             The time of the draws, `'continuous'` for draws at the times of a Poisson process of rate 1 or
@@ -185,15 +177,15 @@ class PolyaUrnSystem(BaseSystem):
 
     Raises:
         ValidationError:
-            The time is unknown.
+            The time is unknown, or there are fewer than two colours.
 
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import PolyaUrnSystem
         >>> PolyaUrnSystem(3).prepare().system_.elements[0].size
         3
-        >>> trajectory = PolyaUrnSystem(3, time='discrete').prepare().simulate(2, random_state=0)
-        >>> (trajectory.get_values('urns.red')[-1] + trajectory.get_values('urns.blue')[-1]).tolist()
-        [4.0, 4.0, 4.0]
+        >>> trajectory = PolyaUrnSystem(3, balls=(1, 1, 2), time='discrete').prepare().simulate(2, random_state=0)
+        >>> trajectory.get_values('urns.balls')[-1].sum(axis=1).tolist()
+        [6.0, 6.0, 6.0]
     """
 
     field = 'mathematics/stochastic_processes'
@@ -206,8 +198,7 @@ class PolyaUrnSystem(BaseSystem):
         self,
         n_urns: int = 10,
         *,
-        red: int = 1,
-        blue: int = 1,
+        balls: npt.ArrayLike = (1, 1),
         added: int = 1,
         time: str = 'continuous',
         label: str = 'system',
@@ -216,8 +207,7 @@ class PolyaUrnSystem(BaseSystem):
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.n_urns = n_urns
-        self.red = red
-        self.blue = blue
+        self.balls = balls
         self.added = added
         self.time = time
 
@@ -227,9 +217,13 @@ class PolyaUrnSystem(BaseSystem):
         if self.time not in TIMES:
             error_msg = f'Unknown time {self.time!r}. Use one of {", ".join(TIMES)}.'
             raise ValidationError(error_msg)
+        balls = np.asarray(self.balls, dtype=float)
+        if balls.ndim != 1 or balls.size < MIN_COLOURS:
+            error_msg = f'The urns of {self.label!r} hold balls={self.balls!r}. Give the counts of two or more colours.'
+            raise ValidationError(error_msg)
         draws = PolyaDrawInteraction if self.time == 'continuous' else PolyaStepInteraction
         self.system_ = System(
             self.label,
-            elements=[PolyaUrnElement('urns', red=float(self.red), blue=float(self.blue), size=self.n_urns)],
+            elements=[PolyaUrnElement('urns', balls=np.tile(balls, (self.n_urns, 1)), size=self.n_urns)],
             interactions=[draws('draws', target='urns', added=self.added)],
         )
