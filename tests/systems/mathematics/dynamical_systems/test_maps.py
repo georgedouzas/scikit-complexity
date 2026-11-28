@@ -15,6 +15,7 @@ from skcomplex.systems.mathematics.dynamical_systems import (
     FermiUlamMapSystem,
     HenonMapSystem,
     IntermittencyMapSystem,
+    LogisticMapSystem,
     LoziMapSystem,
     NewtonRaphsonMapSystem,
     StandardMapSystem,
@@ -139,3 +140,19 @@ def test_cdn_map_is_chaotic_inside_the_window_of_dilao_and_periodic_outside():
     periodic = lyapunov(CDNMapSystem(beta=-0.1), until=10000).exponents[0]
     assert chaotic > 0.3
     assert periodic < -0.5
+
+
+def test_logistic_ensemble_reaches_the_fixed_point():
+    """Test that five maps at `r = 2` all settle on the fixed point 1/2, with one state per map."""
+    trajectory = _run(LogisticMapSystem(x=np.linspace(0.01, 0.99, 5), r=2.0), 50)
+    values = trajectory.get_values('map.x')
+    assert values.shape == (51, 5)
+    assert values[-1] == pytest.approx(np.full(5, 0.5), abs=1e-6)
+
+
+def test_logistic_ensemble_matches_single_maps():
+    """Test that every member of an ensemble follows the orbit of the map started alone at its value."""
+    ensemble = _run(LogisticMapSystem(x=[0.2, 0.3], r=3.7), 20).get_values('map.x')
+    single = _run(LogisticMapSystem(x=0.3, r=3.7), 20).get_values('map.x')
+    assert single.shape == (21,)
+    assert ensemble[:, 1] == pytest.approx(single)
