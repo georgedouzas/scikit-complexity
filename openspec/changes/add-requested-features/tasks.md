@@ -17,11 +17,11 @@
 
 ## 3. Finite systems and Boolean networks (#56, #58)
 
-- [ ] 3.1 Hold the nodes of `RandomBooleanNetworkSystem` in one group with the state `nodes.x`, and add
+- [x] 3.1 Hold the nodes of `RandomBooleanNetworkSystem` in one group with the state `nodes.x`, and add
       `update='asynchronous'` and `annealed=True`, with tests
-- [ ] 3.2 Add `automaton(kind='attractors')` for finite automata and Boolean networks, tested in
+- [x] 3.2 Add `automaton(kind='attractors')` for finite automata and Boolean networks, tested in
       `tests/core/analysis/test_automata.py`
-- [ ] 3.3 Let `automaton(kind='difference')` read Boolean networks, tested in `tests/core/analysis/test_automata.py`
+- [x] 3.3 Let `automaton(kind='difference')` read Boolean networks, tested in `tests/core/analysis/test_automata.py`
 
 ## 4. Langton's ant (#57)
 
