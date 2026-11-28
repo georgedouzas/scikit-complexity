@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import time
 from types import SimpleNamespace
 
 import numpy as np
@@ -55,6 +56,12 @@ def _softmax_field(s):
     """Return the equation of one member, which reads the log-sum-exp of its group."""
     x = s.target.x
     return [ConstraintLaw(x == s.target.b - log_sum_exp(x), target=x)]
+
+
+def _scaled_fixed_point(s):
+    """Return the fixed point of a scaled cosine, one independent equation per member."""
+    x = s.target.x
+    return [ConstraintLaw(x == s.target.b * cos(x), target=x)]
 
 
 def _term(s):
@@ -187,6 +194,16 @@ def test_run_group_coupled_through_log_sum_exp() -> None:
     values = {'b': np.arange(1.0, 6.0), 'x': np.full(5, 10.0)}
     x = _simulated(_static(_softmax_field, values, size=5)).get_values('g.x')[0]
     assert x == pytest.approx(np.arange(1.0, 6.0) - logsumexp(x), abs=1e-8)
+
+
+def test_run_large_group_on_the_sparse_jacobian() -> None:
+    """Test that thousands of equations with a sparse Jacobian solve quickly."""
+    scales = np.linspace(0.1, 1.0, 3000)
+    system = _static(_scaled_fixed_point, {'x': np.zeros(3000), 'b': scales}, size=3000)
+    start = time.perf_counter()
+    x = _simulated(system).get_values('g.x')[0]
+    assert time.perf_counter() - start < 10
+    assert x == pytest.approx(scales * np.cos(x), abs=1e-8)
 
 
 def test_run_no_solution() -> None:

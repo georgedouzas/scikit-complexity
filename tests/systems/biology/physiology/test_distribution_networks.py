@@ -1,6 +1,7 @@
 """Test the `_distribution_networks` module of `skcomplex.systems.biology.physiology`."""
 
 import math
+import time
 
 import numpy as np
 import pytest
@@ -29,3 +30,16 @@ def test_metabolic_exponent_approaches_three_quarters_from_below():
     exponents = np.diff(np.log(totals[:, 1])) / np.diff(np.log(totals[:, 0]))
     assert np.all(np.diff(exponents) > 0)
     assert 0.65 < exponents[-1] < 0.75
+
+
+def test_run_time_grows_with_the_vessels():
+    """Test that one more level, twice the vessels, takes less than four times as long."""
+    durations = {}
+    for depth in (7, 8):
+        runs = []
+        for _ in range(2):
+            start = time.perf_counter()
+            WestBrownEnquistSystem(depth).prepare().simulate(until=1.0)
+            runs.append(time.perf_counter() - start)
+        durations[depth] = min(runs)
+    assert durations[8] < 4 * durations[7]
