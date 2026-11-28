@@ -355,14 +355,14 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
                 raise ValidationError(error_msg)
         for spec in [*self._get_specs().values(), *(item.spec for item in declared)]:
             if isinstance(spec, _StateSpec):
-                self._check_state(spec)
+                self._check_declared_state(spec)
             elif isinstance(spec, _ParameterSpec):
-                self._check_parameter(spec)
+                self._check_declared_parameter(spec)
             else:
                 spec._check()
 
     @staticmethod
-    def _check_state_group(spec: _StateSpec) -> None:
+    def _check_declared_group(spec: _StateSpec) -> None:
         """Raise an error for a matrix group state that is not a plain state.
 
         A matrix group state cannot also be a vector, a tensor, or of another order or with lags.
@@ -375,7 +375,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_state(spec: _StateSpec) -> None:
+    def _check_declared_state(spec: _StateSpec) -> None:
         """Raise an error for a state with bad order, lags, initial values, or reference.
 
         The reference of a state must be scalar.
@@ -391,7 +391,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
                 given together with a vector, or an algebraic state has an order other than 1 or lags, or a matrix
                 group state is also a vector, a tensor, or a state of another order or with lags.
         """
-        BaseComponent._check_state_group(spec)
+        BaseComponent._check_declared_group(spec)
         if spec.algebraic and (spec.order != 1 or spec.lags):
             error_msg = (
                 f'An algebraic state has order 1 and no lags, but got the order {spec.order!r} and {spec.lags!r} lags. '
@@ -426,7 +426,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_parameter(spec: _ParameterSpec) -> None:
+    def _check_declared_parameter(spec: _ParameterSpec) -> None:
         """Raise an error for an invalid parameter per role, bad bounds, or a bad shape.
 
         A parameter per role must not be a vector or adaptive.
