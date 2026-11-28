@@ -6,10 +6,10 @@
 
 ## 2. Problems package
 
-- [ ] 2.1 Keep one module per problem kind in `core/engine/problems` with its private records, and move every other
+- [x] 2.1 Keep one module per problem kind in `core/engine/problems` with its private records, and move every other
       record to the module that builds or reads it
-- [ ] 2.2 Turn lists of records of one kind that readers loop over into arrays or structured arrays
-- [ ] 2.3 Replace the trivial records of the package with arguments or tuples
+- [x] 2.2 Turn lists of records of one kind that readers loop over into arrays or structured arrays
+- [x] 2.3 Replace the trivial records of the package with arguments or tuples
 
 ## 3. Compile, solvers, backends and translators
 

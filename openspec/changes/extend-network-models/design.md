@@ -13,7 +13,7 @@ out-edges, and `NetworkSpace` reads successors on a `nx.DiGraph`.
 placed through the position value `node`, which the trajectory records as `walkers.node` when it is given, but an
 agent problem has no named states, so `PassCompiler._copy_with_initial_state` refuses every name. This is why both
 `initial_state={'voters.opinion': ...}` in #73 and a chosen start in #72 fail. The initial values of agents live in
-`_CompiledAgentsSpec.values`, which `MesaSolver._create_agent` reads.
+`_CompiledAgents.values`, which `MesaSolver._create_agent` reads.
 
 `SpreadingInteraction` of `biology/common/networks` already runs SIR and SIS jumps on the edges of a network, with an
 inactive, an active and an optional removed value, and `AdaptiveSISSystem` uses it on a drawn graph. `passage` of
@@ -115,7 +115,7 @@ Erdős-Rényi step check and the docstrings of run lengths and seeds. This chang
 ### Agent initial states (#72, #73)
 
 - `PassCompiler._copy_with_initial_state` accepts, for an agent problem, the dotted names `<group path>.<state>` of
-  `_CompiledAgentsSpec.states` and of its position states. It checks that a value is a scalar or has one entry per
+  `_CompiledAgents.states` and of its position states. It checks that a value is a scalar or has one entry per
   agent of the group, and returns the problem with that spec's `values` replaced. The Mesa solver then creates the
   agents from the new values, and places them by their position values as it already does.
 - The error names follow the ones of other problems, so the message of an unknown name lists the dotted names of the

@@ -8,7 +8,7 @@
 ## 2. Agent initial states (#72, #73)
 
 - [ ] 2.1 Let `PassCompiler._copy_with_initial_state` set the states and position states of agent groups by dotted
-  name in `_CompiledAgentsSpec.values`, with the length check and an error that lists the agent state names, and
+  name in `_CompiledAgents.values`, with the length check and an error that lists the agent state names, and
   verify with tests in `tests/core/engine/compile/test_pass_compiler.py`
 - [ ] 2.2 Check that the Mesa solver creates and places the agents from the replaced values, with a test of a group on
   a network and one on a grid in `tests/core/engine/solvers/test_mesa.py`
