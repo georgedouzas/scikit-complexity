@@ -1,8 +1,8 @@
 ## 1. Growing networks
 
-- [ ] 1.1 Let an `'add-node'` request add further edges in the same step whose weights read the new node's first
+- [x] 1.1 Let an `'add-node'` request add further edges in the same step whose weights read the new node's first
   contacts, and build Holme-Kim growth on it so every node holds all its edges when it joins (#61)
-- [ ] 1.2 Test the Holme-Kim transitivity at 1000 nodes against NetworkX at `triad` 0 and the paper's rule at
+- [x] 1.2 Test the Holme-Kim transitivity at 1000 nodes against NetworkX at `triad` 0 and the paper's rule at
   `triad` 1, and state the difference from NetworkX in the docstring (#62)
 - [x] 1.3 State the default run length and node count in the growing network docstrings (#59)
 

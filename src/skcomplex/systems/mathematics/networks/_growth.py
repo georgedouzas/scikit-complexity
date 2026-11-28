@@ -19,7 +19,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import TopologyRequestSpec, UpdateLaw
-from ....core.components.laws.utils import logistic, neighbors, total, where
+from ....core.components.laws.utils import logistic, neighbors, where
 from ....core.components.spaces import BaseSpace, NetworkSpace
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
@@ -27,7 +27,6 @@ from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ..common.networks import VertexElement
 
-SMALLEST_TOTAL = 1e-12
 SMALLEST_DEGREE = 1e-9
 JOINING_AGE = 0.5
 SMALLEST_ANGLE = 1e-12
@@ -162,9 +161,9 @@ class TriadVertexElement(VertexElement):
 
     When it joins, the node closes triangles with the neighbours of its first contact.
 
-    One step after a node joins with one edge by preferential attachment, the triad formation of the system adds
-    `extra` edges to it. Each new end is a neighbour of its first contact with probability `triad`, and a node drawn by
-    preferential attachment otherwise. The state `near` marks the nodes next to the newest node.
+    In the step a node joins with one edge by preferential attachment, the triad formation of the system adds `extra`
+    edges to it. Each new end is a neighbour of its first contact with probability `triad`, and a node drawn by
+    preferential attachment otherwise.
 
     Args:
         label:
@@ -175,9 +174,6 @@ class TriadVertexElement(VertexElement):
 
         degree:
             The number of edges of the node.
-
-        near:
-            The number of neighbours of the node that joined in the previous step.
 
         triad:
             The probability that a new edge closes a triangle.
@@ -200,13 +196,11 @@ class TriadVertexElement(VertexElement):
         *,
         age: float = 0.0,
         degree: float = 0.0,
-        near: Annotated[float, RealSet.closed_open(0, oo)] = 0.0,
         triad: Annotated[float, RealSet.closed_open(0, oo)] = 0.8,
         extra: Annotated[int, NN] = 1,
         space: BaseSpace | None = None,
     ) -> None:
         super().__init__(label, age=age, degree=degree, space=space)
-        self.near = near
         self.triad = triad
         self.extra = extra
 
@@ -361,10 +355,13 @@ class HolmeKimSystem(BaseSystem):
 
     The network is scale-free like Barabási-Albert growth but with clustering that stays high.
 
-    Every step a node joins with one edge by preferential attachment, and the next step it adds `edges - 1` edges, each
-    to a neighbour of its first contact with probability `triad`, closing a triangle, and by preferential attachment
-    otherwise. After `t` steps the network holds `seed_nodes + t` nodes, and by default `simulate` runs 300 steps, so
-    it ends with `seed_nodes + 300` nodes. The system has the groups `nodes` and `links` and the arrival `growth`.
+    Every step a node joins with one edge by preferential attachment and, in the same step, adds `edges - 1` more, each
+    to a neighbour of its first contact drawn uniformly with probability `triad`, closing a triangle, and by
+    preferential attachment otherwise, so every node holds its `edges` edges from the frame after it joins. The triad
+    formation follows Holme and Kim (2002). It differs from `nx.powerlaw_cluster_graph`, which closes triangles on the
+    most recent target in place of the first contact and gives a lower clustering. After `t` steps the network holds
+    `seed_nodes + t` nodes, and by default `simulate` runs 300 steps, so it ends with `seed_nodes + 300` nodes. The
+    system has the groups `nodes` and `links` and the arrival `growth`.
 
     Args:
         edges:
@@ -411,37 +408,20 @@ class HolmeKimSystem(BaseSystem):
         self.triad = triad
         self.seed_nodes = seed_nodes
 
-    @staticmethod
-    def _get_triad_weight(node: SimpleNamespace) -> object:
-        """Return the mix of triad formation and preferential attachment for a candidate.
-
-        The candidate is a node.
-        """
-        closing = neighbors(node.other.near)
-        attaching = neighbors(1)
-        return node.triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - node.triad) * attaching / total(
-            attaching,
-        )
-
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
         """Set `system_` to Holme-Kim growth, scale-free like Barabási-Albert growth with clustering that stays high."""
         super()._prepare(context)
         space = NetworkSpace(nx.complete_graph(self.seed_nodes))
         nodes = TriadVertexElement('nodes', age=1.0, triad=self.triad, extra=self.edges - 1, space=space)
-        near = Interaction(
-            'near',
-            roles={'target': 'nodes'},
-            laws=lambda s: [UpdateLaw(s.target.near, neighbors(where(s.target.other.age < JOINING_AGE, 1, 0)))],
+        attachment = TopologyRequestSpec(
+            'add-node',
+            values=(('age', 0.0),),
+            toward=BarabasiAlbertSystem._get_degree,
+            further=self.edges - 1,
+            closing=self.triad,
         )
-        triad = TopologyRequestSpec('add-edge', edges=self.edges - 1, toward=self._get_triad_weight)
-        closure = Interaction(
-            'closure',
-            roles={'target': 'nodes'},
-            laws=lambda s: [UpdateLaw(triad, where(s.target.age < JOINING_AGE, 1, 0))],
-        )
-        attachment = TopologyRequestSpec('add-node', values=(('age', 0.0),), toward=BarabasiAlbertSystem._get_degree)
         growth = Interaction('growth', laws=[UpdateLaw(attachment, 1)])
-        self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, [near, closure], label=self.label)
+        self.system_ = BarabasiAlbertSystem._get_grown(nodes, growth, label=self.label)
 
 
 class VertexCopyingSystem(BaseSystem):
