@@ -19,10 +19,8 @@ from ...problems._noise_process_spec import _NoiseProcessSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._census_record_spec import _CensusRecordSpec
-from .._compilation import Compilation, Laws
+from .._compilation import Compilation, Laws, _CensusRecord, _Issue
 from .._field_lowering import FieldLowering
-from .._issue_spec import IssueSpec
 
 
 class ConservedNoisePass(BasePass):
@@ -228,7 +226,7 @@ class ConservedNoisePass(BasePass):
         )
 
     @staticmethod
-    def _get_conserved_issue(record: _CensusRecordSpec, components: Mapping[str, object]) -> IssueSpec | None:
+    def _get_conserved_issue(record: _CensusRecord, components: Mapping[str, object]) -> _Issue | None:
         """Return the issue of a conserved noise law outside a lattice field.
 
         The law drives a state outside a finite-difference lattice field.
@@ -246,10 +244,10 @@ class ConservedNoisePass(BasePass):
             'link.'
         )
         fix = 'Declare the state on an element whose space is a `LatticeSpace`, or remove `conserved=True`.'
-        return IssueSpec('noise-unsupported', record.path, message, fix)
+        return _Issue('noise-unsupported', record.path, message, fix)
 
     @staticmethod
-    def _get_conserved_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_conserved_issues(compilation: Compilation) -> list[_Issue]:
         """Return the conserved noise laws that drive a state outside a lattice field.
 
         The field must be a finite-difference field on a lattice.

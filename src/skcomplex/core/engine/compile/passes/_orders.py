@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 
 import numpy as np
@@ -25,15 +26,26 @@ from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
-from .._compilation import Compilation
-from .._issue_spec import IssueSpec
+from .._compilation import Compilation, _Issue
 from .._laws import KERNEL_FREE_LAWS
-from .._orders_spec import _OrdersSpec
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
 from ._equation_blocks import EquationBlocksLowering
 
 EQUATION_UNKNOWNS = 6
+
+
+@dataclass(frozen=True)
+class _Orders:
+    """Orders and lags of the states of a system by entry name.
+
+    It also holds the entry names of its algebraic states and the orders of its states of a fractional order.
+    """
+
+    orders: dict[str, int]
+    lags: dict[str, int]
+    algebraic: frozenset[str] = frozenset()
+    fractional: dict[str, float] = field(default_factory=dict)
 
 
 class OrdersPass(BasePass):
@@ -83,7 +95,7 @@ class OrdersPass(BasePass):
     @staticmethod
     def _get_specs_of(
         compilation: Compilation,
-        orders: _OrdersSpec,
+        orders: _Orders,
     ) -> list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]:
         """Return the laws of every spec with orders and lags read.
 
@@ -112,7 +124,7 @@ class OrdersPass(BasePass):
         }
 
     @staticmethod
-    def _get_algebraic_symbols(blocks: list[BlockSpec], orders: _OrdersSpec) -> list[Expression]:
+    def _get_algebraic_symbols(blocks: list[BlockSpec], orders: _Orders) -> list[Expression]:
         """Return the symbols of every algebraic state that equations determine.
 
         The states are those of the blocks.
@@ -134,7 +146,7 @@ class OrdersPass(BasePass):
     def _get_unknowns_of(
         specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
         blocks: list[BlockSpec],
-        orders: _OrdersSpec,
+        orders: _Orders,
     ) -> tuple[list[_RelationSpec], dict[Expression, Expression]]:
         """Return the relations with those of one target added, and their unknowns.
 
@@ -149,7 +161,7 @@ class OrdersPass(BasePass):
         return relations, unknowns
 
     @staticmethod
-    def _get_structure_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _get_structure_issues(compilation: Compilation) -> list[_Issue]:
         """Return the issue of a system with unmatched algebraic equations.
 
         Its equations of algebraic states cannot be matched to their unknowns.
@@ -172,7 +184,7 @@ class OrdersPass(BasePass):
         return EquationBlocksLowering._get_structure_issues(relations, unknowns, references, compilation.system.label)
 
     @staticmethod
-    def _get_orders_of(blocks: list[BlockSpec], programmed: set[str]) -> _OrdersSpec:
+    def _get_orders_of(blocks: list[BlockSpec], programmed: set[str]) -> _Orders:
         """Return the orders above 1 and lags of every state, and the solved states.
 
         The states are those of the blocks, and the solved states are those equations determine.
@@ -192,7 +204,7 @@ class OrdersPass(BasePass):
                     lags[entry.name] = declaration.lags
                 if declaration is not None and declaration.algebraic and entry.name not in programmed:
                     algebraic.add(entry.name)
-        return _OrdersSpec(orders, lags, frozenset(algebraic), fractional)
+        return _Orders(orders, lags, frozenset(algebraic), fractional)
 
     @staticmethod
     def _get_companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
@@ -219,7 +231,7 @@ class OrdersPass(BasePass):
     def _substitute(
         value: object,
         spec: KernelSpec,
-        orders: _OrdersSpec,
+        orders: _Orders,
         owner: str,
         highest: dict[Expression, Expression] | None = None,
     ) -> object:
@@ -269,14 +281,14 @@ class OrdersPass(BasePass):
         return value.subs(replacements) if replacements else value
 
     @staticmethod
-    def _get_state_order(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> int:
+    def _get_state_order(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> int:
         """Return the declared order of the state of a rate or noise law."""
         references = [spec.references.get(item) for item in components_of(law._get_targets()[0])]
         declared = {orders.orders.get(reference.entry.name, 1) for reference in references if reference is not None}
         return max(declared, default=1)
 
     @staticmethod
-    def _check_order(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> None:
+    def _check_order(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> None:
         """Raise an error for a rate or noise law of another order than its state.
 
         Args:
@@ -311,7 +323,7 @@ class OrdersPass(BasePass):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _OrdersSpec) -> RateLaw | NoiseLaw:
+    def _retarget(law: RateLaw | NoiseLaw, spec: KernelSpec, orders: _Orders) -> RateLaw | NoiseLaw:
         """Return a rate or noise law that targets the highest derivative of its state."""
         items = components_of(law._get_targets()[0])
         order = OrdersPass._get_state_order(law, spec, orders)
@@ -322,7 +334,7 @@ class OrdersPass(BasePass):
         return BasePass._get_replaced(law, target=target)
 
     @staticmethod
-    def _get_intrinsic_laws(spec: KernelSpec, block: BlockSpec, orders: _OrdersSpec) -> list[BaseLaw]:
+    def _get_intrinsic_laws(spec: KernelSpec, block: BlockSpec, orders: _Orders) -> list[BaseLaw]:
         """Return the chains of higher-order states and the shifts of lagged states.
 
         The chain of every higher-order state is `x' = x_d1, ...`.
@@ -342,7 +354,7 @@ class OrdersPass(BasePass):
         return laws
 
     @staticmethod
-    def _get_relation(spec: KernelSpec, law: ConstraintLaw, orders: _OrdersSpec) -> _RelationSpec:
+    def _get_relation(spec: KernelSpec, law: ConstraintLaw, orders: _Orders) -> _RelationSpec:
         """Return an equation law as a relation in highest derivative placeholders.
 
         The placeholders stand for the highest derivatives it contains.
@@ -403,7 +415,7 @@ class OrdersPass(BasePass):
         return summed
 
     @staticmethod
-    def _get_ordered_law(spec: KernelSpec, law: BaseLaw, orders: _OrdersSpec) -> BaseLaw:
+    def _get_ordered_law(spec: KernelSpec, law: BaseLaw, orders: _Orders) -> BaseLaw:
         """Return a jump, event, renewal, or assignment law with orders lowered.
 
         Derivatives and lags are replaced and rates retargeted.
@@ -458,7 +470,7 @@ class OrdersPass(BasePass):
         spec: KernelSpec,
         laws: list[BaseLaw],
         block: BlockSpec,
-        orders: _OrdersSpec,
+        orders: _Orders,
     ) -> list[BaseLaw | _RelationSpec]:
         """Return laws with derivatives and lags replaced and rates retargeted.
 

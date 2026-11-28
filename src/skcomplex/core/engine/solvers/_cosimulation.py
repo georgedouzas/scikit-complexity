@@ -24,8 +24,7 @@ from ...enums import FormKind, NoiseKind, OrderKind
 from ...errors import ContextError, SolverError, ValidationError
 from ...types import Array
 from ..backends import NumbaBackend, NumpyBackend, SupportSpec
-from ..compile._held_reduction_spec import _HeldReductionSpec
-from ..compile._observables import ObservableEvaluator
+from ..compile._observables import ObservableEvaluator, _HeldReduction
 from ..compile._pass_compiler import PassCompiler
 from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
@@ -206,7 +205,7 @@ class CoSimulationSolver(Solver):
 
     @staticmethod
     def _get_reducer(
-        reduction: _HeldReductionSpec,
+        reduction: _HeldReduction,
         time: Expression,
     ) -> Callable[[float, Sequence[Array], Sequence[object] | Array], float]:
         """Return the function that computes a held reduction.

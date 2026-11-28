@@ -15,9 +15,8 @@ from ...problems._kernel_spec import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation
-from .._weight_spec import _WeightSpec
 from ._specs import SpecsPass
-from ._topology_functions import TopologyFunctionsPass
+from ._topology_functions import TopologyFunctionsPass, _Weight
 
 
 class TowardsPass(BasePass):
@@ -87,7 +86,7 @@ class TowardsPass(BasePass):
                 references = dict(node_spec.references)
                 namespace = SpecsPass._copy_with_source(nodes, node_spec.namespace, references)
                 weights: list[BaseLaw] = [
-                    UpdateLaw(_WeightSpec(request, score=part == 'score'), SR(function(namespace)))
+                    UpdateLaw(_Weight(request, score=part == 'score'), SR(function(namespace)))
                     for part, function in (('toward', request.toward), ('score', request.score))
                     if function is not None
                 ]

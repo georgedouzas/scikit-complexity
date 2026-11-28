@@ -4,22 +4,63 @@
 # License: MIT
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 
 from ....components.laws import BaseLaw
 from ....enums import FormKind
 from ....errors import IncompatibleLawsError, UnregisteredLawError
 from ...problems._composite_system import _CompositeSystem
 from .._base import BaseCompiler, BasePass
-from .._census_spec import _CensusSpec
-from .._compilation import Compilation
+from .._compilation import Compilation, _Census, _Issue, _PlannedPartition
 from .._forms import FORMS
-from .._issue_spec import IssueSpec
 from .._laws import FORMLESS_LAWS
-from .._owners_spec import _OwnersSpec
-from .._plan_spec import _PlanSpec
-from .._planned_partition_spec import _PlannedPartitionSpec
 from ._form import FormPass
 from ._kernels import KernelsPass
+
+
+@dataclass(frozen=True)
+class _Owners:
+    """Law kinds and classes of the owners of a system, with the solvers to run them.
+
+    The kinds are as declared and the classes as lowered.
+    """
+
+    declared: dict[str, set[type[BaseLaw]]]
+    lowered: dict[str, set[type[BaseLaw]]]
+    solvers: list[type]
+
+    def get_under(
+        self,
+        scope: str,
+        *,
+        nested: bool,
+    ) -> tuple[dict[str, set[type[BaseLaw]]], dict[str, set[type[BaseLaw]]]]:
+        """Return the declared kinds and lowered classes of the owners of a scope.
+
+        With its own components alone, it returns those of the scope's own components.
+
+        Args:
+            scope:
+                The path prefix of the scope.
+
+            nested:
+                Whether the owners of nested systems count.
+
+        Returns:
+            declared:
+                The declared kinds of the owners of the scope.
+
+            lowered:
+                The lowered classes of the owners of the scope.
+        """
+
+        def holds(owner: str) -> bool:
+            return owner.startswith(scope) and (nested or '/' not in owner[len(scope) :])
+
+        return (
+            {owner: kinds for owner, kinds in self.declared.items() if holds(owner)},
+            {owner: kinds for owner, kinds in self.lowered.items() if holds(owner)},
+        )
 
 
 class PlanPass(BasePass):
@@ -39,7 +80,7 @@ class PlanPass(BasePass):
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
         >>> from skcomplex.systems.biology.ecology import LotkaVolterraSystem
         >>> compilation = PassCompiler().prepare(LotkaVolterraSystem()).compilation_
-        >>> [partition.name for partition in compilation.plan.partitions]
+        >>> [partition.name for partition in compilation.plan[0]]
         ['system']
     """
 
@@ -75,7 +116,7 @@ class PlanPass(BasePass):
         declared: Mapping[str, set[type[BaseLaw]]],
         lowered: Mapping[str, set[type[BaseLaw]]],
         solvers: list[type],
-    ) -> IssueSpec:
+    ) -> _Issue:
         """Return the issue of a system whose own laws fit no solver or form.
 
         No solver runs them or no form takes them, by law kind or class.
@@ -85,10 +126,10 @@ class PlanPass(BasePass):
             message = f'No solver runs the laws of this system together ({PlanPass._get_listed(declared)}).'
         else:
             message = f'No form takes the laws of this system together ({PlanPass._get_listed(lowered)}).'
-        return IssueSpec('laws-mixed', path, message, fix, error=IncompatibleLawsError)
+        return _Issue('laws-mixed', path, message, fix, error=IncompatibleLawsError)
 
     @staticmethod
-    def _get_unregistered_issues(kinds: Mapping[str, set[type[BaseLaw]]]) -> list[IssueSpec]:
+    def _get_unregistered_issues(kinds: Mapping[str, set[type[BaseLaw]]]) -> list[_Issue]:
         """Return the issues of the law classes that no form takes and that need one.
 
         Args:
@@ -102,7 +143,7 @@ class PlanPass(BasePass):
         registered = set().union(*FORMS)
         fix = 'Write the law with a class the core provides, such as `RateLaw` or `UpdateLaw`.'
         return [
-            IssueSpec(
+            _Issue(
                 'law-unregistered',
                 owner,
                 f'The law class {kind._get_name()} has no form the engine knows.',
@@ -116,7 +157,7 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _fits(
-        owners: _OwnersSpec,
+        owners: _Owners,
         declared: dict[str, set[type[BaseLaw]]],
         lowered: dict[str, set[type[BaseLaw]]],
     ) -> bool:
@@ -151,9 +192,9 @@ class PlanPass(BasePass):
     @staticmethod
     def _get_planned(
         system: _CompositeSystem,
-        owners: _OwnersSpec,
+        owners: _Owners,
         scope: str = '',
-    ) -> tuple[list['_PlannedPartitionSpec'], list[IssueSpec]]:
+    ) -> tuple[list[_PlannedPartition], list[_Issue]]:
         """Return the partitions of a system tree and the issues of unfit subsystems.
 
         A subsystem is unfit when its own laws fit no form.
@@ -161,13 +202,13 @@ class PlanPass(BasePass):
         name = scope.rstrip('/') or system.label
         declared, lowered = owners.get_under(scope, nested=True)
         if PlanPass._fits(owners, declared, lowered):
-            return ([_PlannedPartitionSpec(name, scope, nested=True)] if declared or lowered else []), []
+            return ([_PlannedPartition(name, scope, nested=True)] if declared or lowered else []), []
         own_declared, own_lowered = owners.get_under(scope, nested=False)
         if not system.systems or not PlanPass._fits(owners, own_declared, own_lowered):
             mixed = (own_declared, own_lowered) if system.systems else (declared, lowered)
             return [], [PlanPass._get_mixed_issue(name, *mixed, owners.solvers)]
-        partitions = [_PlannedPartitionSpec(name, scope, nested=False)] if own_declared or own_lowered else []
-        issues: list[IssueSpec] = []
+        partitions = [_PlannedPartition(name, scope, nested=False)] if own_declared or own_lowered else []
+        issues: list[_Issue] = []
         for child in system.systems:
             found, mixed_issues = PlanPass._get_planned(child, owners, f'{scope}{child.label}/')
             partitions += found
@@ -176,20 +217,21 @@ class PlanPass(BasePass):
 
     @staticmethod
     def _plan_partitions(
-        census: _CensusSpec,
+        census: _Census,
         kinds: Mapping[str, set[type[BaseLaw]]],
         solvers: Iterable[type] | None = None,
-    ) -> '_PlanSpec':
+    ) -> tuple[tuple[_PlannedPartition, ...], tuple[_Issue, ...]]:
         """Return the partitions of a system.
 
-        They are the subsystems whose laws compile to one form that one solver runs.
+        They are the subsystems whose laws compile to one form that one solver runs, with the issues of the law mixes
+        that no form or solver takes.
         """
         declared: dict[str, set[type[BaseLaw]]] = {}
         for record in census.records:
             declared.setdefault(record.owner, set()).add(KernelsPass._get_kind_of(record.law))
         unregistered = PlanPass._get_unregistered_issues(kinds)
         if unregistered:
-            return _PlanSpec((), tuple(unregistered))
+            return (), tuple(unregistered)
         found = list(solvers or ())
-        partitions, issues = PlanPass._get_planned(census.system, _OwnersSpec(declared, dict(kinds), found))
-        return _PlanSpec(tuple(partitions), tuple(issues))
+        partitions, issues = PlanPass._get_planned(census.system, _Owners(declared, dict(kinds), found))
+        return tuple(partitions), tuple(issues)

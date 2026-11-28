@@ -57,7 +57,9 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import BasePass, IssueSpec, ValidationReportSpec
+from skcomplex.core.engine.compile import BasePass
+from skcomplex.core.engine.compile._base import _ValidationReport
+from skcomplex.core.engine.compile._compilation import _Issue
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._flatten import FlattenPass
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
@@ -344,7 +346,7 @@ class TankElement(Element):
         self.level = level
 
 
-def _role_issues(system: System) -> list[IssueSpec]:
+def _role_issues(system: System) -> list[_Issue]:
     """Return the `role-element` issues of a system."""
     return [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'role-element']
 
@@ -352,7 +354,7 @@ def _role_issues(system: System) -> list[IssueSpec]:
 def test_compiler_prepares_its_report_and_runs_to_the_problem():
     """Test that `prepare` sets the report of a system and `run` sets its problem."""
     compiler = PassCompiler().prepare(_growth())
-    assert isinstance(compiler.report_, ValidationReportSpec)
+    assert isinstance(compiler.report_, _ValidationReport)
     assert compiler.report_.ok
     problem = compiler.run({'rabbits.x': 20}).problem_
     assert isinstance(problem, ProblemSpec)
@@ -1652,7 +1654,7 @@ def test_validation_keeps_the_planned_compilation():
     system = System(elements=[StockElement('rabbits')], interactions=[GrowthInteraction('growth', target='rabbits')])
     compilation = PassCompiler().prepare(system).compilation_
     assert [node.path for node in compilation.nodes] == ['rabbits', 'growth']
-    assert [partition.name for partition in compilation.plan.partitions] == [system.label]
+    assert [partition.name for partition in compilation.plan[0]] == [system.label]
 
 
 def test_validate_reports_mixed_conventions():

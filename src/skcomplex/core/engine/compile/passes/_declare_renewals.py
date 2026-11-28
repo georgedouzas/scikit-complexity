@@ -14,8 +14,7 @@ from ..._utils import symbol
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
 from .._base import BasePass
-from .._bound_renewal_spec import BoundRenewalSpec
-from .._compilation import Compilation
+from .._compilation import Compilation, _BoundRenewal
 from .._renewal_law import RenewalLaw
 from ._census import CensusPass
 from ._layout import LayoutPass
@@ -30,7 +29,7 @@ class DeclareRenewalsPass(BasePass):
     Read more in the user guide, under Extend the library.
 
     See Also:
-        BoundRenewalSpec: Binds a renewal law to its count.
+        RenewalLaw: Renews states after random waiting times.
 
     Examples:
         >>> from skcomplex.core.engine.compile._pass_compiler import PassCompiler
@@ -52,7 +51,7 @@ class DeclareRenewalsPass(BasePass):
         """Declare the counts of the renewal laws."""
         compilation = self.compilation_
         declarations = Compilation._get_required(compilation.layout, 'layout')
-        renewals: list[BoundRenewalSpec] = []
+        renewals: list[_BoundRenewal] = []
         for spec, laws in Compilation._get_required(compilation.delayed, 'delayed'):
             declarations, declared = self._get_declared_renewals(spec, laws, declarations)
             renewals += declared
@@ -64,7 +63,7 @@ class DeclareRenewalsPass(BasePass):
         law: RenewalLaw,
         declarations: DeclarationsSpec,
         label: str,
-    ) -> tuple[DeclarationsSpec, BoundRenewalSpec]:
+    ) -> tuple[DeclarationsSpec, _BoundRenewal]:
         """Return the declarations with the hidden state that counts renewals.
 
         The state counts the renewals of every member of a renewal law. Returns the declarations and the renewal law
@@ -76,7 +75,7 @@ class DeclareRenewalsPass(BasePass):
         shape, members = ((rows,), rows) if rows > 1 else ((), None)
         entry = EntrySpec(f'{group}.{sanitized}~renewals', declarations.ends[True], shape, NN, members)
         declarations = LayoutPass._copy_with_entry(declarations, entry, np.zeros(rows), is_state=True)
-        return declarations, BoundRenewalSpec(
+        return declarations, _BoundRenewal(
             spec,
             law,
             label,
@@ -90,7 +89,7 @@ class DeclareRenewalsPass(BasePass):
         spec: KernelSpec,
         laws: list[BaseLaw],
         declarations: DeclarationsSpec,
-    ) -> tuple[DeclarationsSpec, list[BoundRenewalSpec]]:
+    ) -> tuple[DeclarationsSpec, list[_BoundRenewal]]:
         """Return the declarations with the hidden states that count renewals.
 
         They count the renewals of a spec, and its renewal laws are also returned.

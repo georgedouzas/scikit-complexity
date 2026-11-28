@@ -12,9 +12,11 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine import compile as package
 from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompiler
+from skcomplex.core.engine.compile._base import _ValidationReport
+from skcomplex.core.engine.compile._compilation import _Issue
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.enums import FormKind
-from skcomplex.core.errors import RoleElementError
+from skcomplex.core.errors import RoleElementError, ValidationError, ValidationWarning
 from skcomplex.core.systems import System
 from skcomplex.core.types import Role
 from skcomplex.systems.engineering.control import PidInvertedPendulumSystem
@@ -57,6 +59,23 @@ def test_base_compiler_prepares_on_a_system():
     pendulum = PidInvertedPendulumSystem(label='pendulum')
     for system in (pendulum, System(systems=[pendulum])):
         assert PassCompiler().prepare(system).run().problem_.form == FormKind.ODE
+
+
+def test_compiler_run_raises_every_error_of_its_report():
+    """Test that running a compiler raises every error of its report with its path and code, and emits its warnings."""
+    compiler = PassCompiler().prepare(PidInvertedPendulumSystem(label='pendulum'))
+    compiler.report_ = _ValidationReport(
+        (
+            _Issue('role', 'growth', 'The role is unbound.', 'Bind it.'),
+            _Issue('law-domain', 'drift', 'The law targets a categorical state.', 'Use a jump law.'),
+            _Issue('note', 'system', 'Something to know.', 'Nothing to do.', severity='warning'),
+        ),
+    )
+    with pytest.warns(ValidationWarning, match='Something to know'), pytest.raises(ValidationError) as error:
+        compiler.run()
+    assert '2 error(s)' in str(error.value)
+    assert 'growth: The role is unbound. Bind it. [role]' in str(error.value)
+    assert '[law-domain]' in str(error.value)
 
 
 class CountingInteraction(Interaction):

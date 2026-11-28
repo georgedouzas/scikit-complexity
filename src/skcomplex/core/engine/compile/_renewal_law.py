@@ -35,7 +35,6 @@ class RenewalLaw(BaseLaw):
 
     See Also:
         JumpLaw: Changes states at random times.
-        BoundRenewalSpec: Binds a renewal law to the group it renews.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var

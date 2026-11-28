@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import numpy.typing as npt
@@ -12,12 +12,15 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.symbolic.function import SymbolicFunction
 from sage.symbolic.operators import FDerivativeOperator
 
+from ...components import EntrySpec
 from ...components.laws import BaseLaw, ConstraintLaw, EventLaw, ObjectiveLaw, TopologyRequestSpec
 from ...components.laws._linear_program import _LinearProgramLaw
 from ...components.laws._rule import _RuleLaw
+from ...components.spaces import BaseSpace
 from ...components.spaces._static_time import _StaticTime
-from ...enums import FormKind, VariableKind
-from ...errors import PipelineError
+from ...enums import ElementKind, FormKind, SeverityKind, VariableKind
+from ...errors import PipelineError, SkcomplexError, ValidationError
+from ...types import ProcessKey
 from .._utils import declarations_of
 from ..backends import BaseBackend
 from ..enums import ReadKind
@@ -42,14 +45,199 @@ from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
-from ._bound_renewal_spec import BoundRenewalSpec
-from ._census_spec import _CensusSpec
-from ._plan_spec import _PlanSpec
+from ._renewal_law import RenewalLaw
 
 TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
+
+
+@dataclass(frozen=True)
+class _Issue:
+    """One problem found in a system, with where it is and how to fix it.
+
+    Args:
+        code:
+            The stable code of the problem, such as `'law-domain'`.
+
+        path:
+            The slash path of the component or system the problem is in.
+
+        message:
+            What is wrong and why.
+
+        fix:
+            The change that makes the system valid.
+
+        severity:
+            `'error'` for problems that stop compilation, `'warning'` otherwise.
+
+        error:
+            The class of the error raised for the problem: `ValidationError` or one of its subclasses for the problems
+            validation finds, and the class of the original error for a component that fails to declare.
+    """
+
+    code: str
+    path: str
+    message: str
+    fix: str
+    severity: str = SeverityKind.ERROR
+    error: type[SkcomplexError] = field(default=ValidationError, repr=False, compare=False)
+
+    @property
+    def text(self) -> str:
+        """Issue as one line with its path, code, message, and fix."""
+        return f'{self.path}: {self.message} {self.fix} [{self.code}]'
+
+
+@dataclass(frozen=True)
+class _PlannedPartition:
+    """Subsystem that runs as one partition, by the scope of the laws it holds."""
+
+    name: str
+    scope: str
+    nested: bool
+
+    def holds(self, owner: str) -> bool:
+        """Check whether the partition holds the laws of an element or group.
+
+        Args:
+            owner:
+                The path of the element or group.
+
+        Returns:
+            holds:
+                Whether the owner lies in the partition's subsystem, or in a system nested in it for a nested partition.
+        """
+        return owner.startswith(self.scope) and (self.nested or '/' not in owner[len(self.scope) :])
+
+
+@dataclass(frozen=True)
+class _CensusRecord:
+    """One law of a component, with the element and the states it changes.
+
+    Args:
+        path:
+            The path of the component that returns the law.
+
+        owner:
+            The path of the element or group whose state the law changes, or that a rule acts for.
+
+        law:
+            The law.
+
+        targets:
+            The layout entries of the states the law targets.
+
+        vectors:
+            The names of the targets declared as vector states.
+
+        component:
+            The kind of the owner: an element, a fixed or variable group, or a group on the sites of a space.
+
+        space:
+            The nearest space enclosing the component.
+
+        processes:
+            For a noise law, the Wiener process of every target component: `None` for an independent process,
+            `('local', path, label)` for a local label, or `('wiener', path, index)` for a process of a
+            `WienerProcessSpec`.
+
+        driven:
+            For a noise law, the state entry name and column of every target component.
+
+        reads:
+            For a noise law, the state components that the amplitude of every target component depends on.
+
+        members:
+            The number of members the law is evaluated for.
+
+        handles:
+            The handles of Wiener processes that the law uses outside the process of a noise law.
+
+        degrees:
+            The degree of the cells of every symbol the law reads of a group on a cell complex, by the name of the
+            symbol.
+
+        differentiated:
+            For an equation, the paths of the elements and groups whose states it reads a derivative of, such as the
+            cart of `(M + m) x'' + m l theta'' cos(theta) == F`.
+    """
+
+    path: str
+    owner: str
+    law: BaseLaw
+    targets: tuple[EntrySpec, ...]
+    vectors: frozenset[str]
+    component: ElementKind
+    space: BaseSpace | None
+    processes: tuple[ProcessKey | None, ...] = ()
+    driven: tuple[tuple[str, int], ...] = ()
+    reads: tuple[frozenset[tuple[str, int]], ...] = ()
+    members: int = 1
+    handles: tuple[str, ...] = ()
+    degrees: Mapping[str, int] = field(default_factory=dict, compare=False)
+    differentiated: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class _Census:
+    """Laws and errors of every component of a system.
+
+    A component fails when it cannot declare or collect its laws, and the census keeps its error instead of its laws.
+
+    Args:
+        system:
+            The system.
+
+        records:
+            The laws of the components that declare and collect without error.
+
+        errors:
+            The path of every failing component with its error.
+
+        agents:
+            The path of the agent group and the variable of every symbol that reduces agents, an empty variable for
+            the symbol of the members.
+    """
+
+    system: _CompositeSystem
+    records: list[_CensusRecord]
+    errors: list[tuple[str, SkcomplexError]]
+    agents: Mapping[Expression, tuple[str, str]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _BoundRenewal:
+    """Renewal law with the group it renews and the hidden state that counts it.
+
+    Args:
+        spec:
+            The kernel spec of the component.
+
+        law:
+            The renewal law.
+
+        label:
+            The label of the renewal.
+
+        group:
+            The path of the element or group the renewal resets.
+
+        entry:
+            The hidden state that counts the renewals of every member.
+
+        symbol:
+            The symbol of the count.
+    """
+
+    spec: KernelSpec
+    law: RenewalLaw
+    label: str
+    group: str
+    entry: EntrySpec
+    symbol: Expression
 
 
 class Compilation:
@@ -91,7 +279,7 @@ class Compilation:
             The laws every component declares, with their owners.
 
         plan:
-            The partitions of the system.
+            The partitions of the system and the issues of the law mixes that no form or solver takes.
 
         layout:
             The states and parameters of every component, with the blocks of their symbols.
@@ -230,8 +418,8 @@ class Compilation:
     """
 
     nodes: list[_NodeSpec] | None = None
-    census: _CensusSpec | None = None
-    plan: _PlanSpec | None = None
+    census: _Census | None = None
+    plan: tuple[tuple[_PlannedPartition, ...], tuple[_Issue, ...]] | None = None
     layout: DeclarationsSpec | None = None
     specs: list[tuple[KernelSpec, BlockSpec]] | None = None
     collected: BlockLaws | None = None
@@ -257,7 +445,7 @@ class Compilation:
     delays: list[_DelayedStateSpec] | None = None
     placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
     events: list[tuple[KernelSpec, EventLaw]] | None = None
-    renewals: list[BoundRenewalSpec] | None = None
+    renewals: list[_BoundRenewal] | None = None
     outputs: dict[int, list[OutputSpec]] | None = None
     written: dict[tuple[str, int], list[tuple[Expression, Expression]]] | None = None
     limits: list[float] | None = None
