@@ -15,8 +15,9 @@ from ...backends import BaseBackend
 from ...problems._composite_system import _CompositeSystem
 from ...problems._node_spec import _NodeSpec
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation, _CensusRecord, _Issue
+from .._compilation import Compilation, _CensusRecord
 from .._forms import FORMS
+from .._issue_spec import IssueSpec
 
 
 @dataclass(frozen=True)
@@ -144,7 +145,7 @@ class FractionalFormPass(BasePass):
         states: list[_FractionalState],
         solver: object,
         backend: BaseBackend | None,
-    ) -> list[_Issue]:
+    ) -> list[IssueSpec]:
         """Return the fractional states the solver or backend passed does not integrate."""
         issues = []
         for item in states:
@@ -153,17 +154,17 @@ class FractionalFormPass(BasePass):
                     f'The solver {type(solver).__name__} does not integrate {item.name}, a state of order {item.order}.'
                 )
                 fix = 'Pass a solver that integrates fractional orders, such as `FractionalABMSolver`.'
-                issues.append(_Issue('order-unsupported', item.path, message, fix, error=SolverError))
+                issues.append(IssueSpec('order-unsupported', item.path, message, fix, error=SolverError))
             if backend is not None and OrderKind.FRACTIONAL not in type(backend)._get_support().orders:
                 message = (
                     f'The backend {type(backend).__name__} does not run {item.name}, a state of order {item.order}.'
                 )
                 fix = 'Pass a backend that runs fractional orders.'
-                issues.append(_Issue('order-unsupported', item.path, message, fix, error=BackendError))
+                issues.append(IssueSpec('order-unsupported', item.path, message, fix, error=BackendError))
         return issues
 
     @staticmethod
-    def _get_law_issues(states: list[_FractionalState], records: list[_CensusRecord]) -> list[_Issue]:
+    def _get_law_issues(states: list[_FractionalState], records: list[_CensusRecord]) -> list[IssueSpec]:
         """Return the laws on fractional states that take the problem off its forms.
 
         The class of the law takes the problem off the ODE and fractional forms.
@@ -182,11 +183,11 @@ class FractionalFormPass(BasePass):
                 f'fractional solver runs {name}.'
             )
             fix = 'Declare an integer order, or change the state with rate laws alone.'
-            issues.append(_Issue('solver-unsupported', record.path, message, fix, error=SolverError))
+            issues.append(IssueSpec('solver-unsupported', record.path, message, fix, error=SolverError))
         return issues
 
     @staticmethod
-    def _get_order_issues(compilation: Compilation) -> list[_Issue]:
+    def _get_order_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the fractional states with a bad order, time, or support.
 
         The order is outside `(0, 1)`, the time is not continuous, or there is no support.
@@ -210,14 +211,14 @@ class FractionalFormPass(BasePass):
                     f'The state {item.name} declares the order {item.order}, which is neither an integer nor in (0, 1).'
                 )
                 fix = 'Declare a fractional order in the interval (0, 1), or an integer order of at least 1.'
-                issues.append(_Issue('fractional-order', item.path, message, fix))
+                issues.append(IssueSpec('fractional-order', item.path, message, fix))
             time = times.get(item.path.rpartition('/')[0])
             if time is not None and time is not _ContinuousTime:
                 message = (
                     f'The state {item.name} has the fractional order {item.order}, but the system declares {time} time.'
                 )
                 fix = 'Declare continuous time, the only time in which fractional derivatives are defined.'
-                issues.append(_Issue('fractional-time', item.path, message, fix))
+                issues.append(IssueSpec('fractional-time', item.path, message, fix))
         issues += FractionalFormPass._get_law_issues(
             states,
             Compilation._get_required(compilation.census, 'census').records,

@@ -35,7 +35,8 @@ from ..problems import BaseProblemSpec
 from ..problems._composite_system import _CompositeSystem
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
-from ._compilation import Compilation, _Issue
+from ._compilation import Compilation
+from ._issue_spec import IssueSpec
 
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
@@ -67,15 +68,15 @@ class _ValidationReport:
             The issues, in the order they were found.
     """
 
-    issues: tuple[_Issue, ...] = ()
+    issues: tuple[IssueSpec, ...] = ()
 
     @property
-    def errors(self) -> list[_Issue]:
+    def errors(self) -> list[IssueSpec]:
         """Return the issues that stop compilation."""
         return [issue for issue in self.issues if issue.severity == SeverityKind.ERROR]
 
     @property
-    def warnings(self) -> list[_Issue]:
+    def warnings(self) -> list[IssueSpec]:
         """Return the issues that do not stop compilation."""
         return [issue for issue in self.issues if issue.severity == SeverityKind.WARNING]
 
@@ -182,14 +183,14 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         except ValidationError as error:
             self.system_ = self._get_declared_system(system)
             self.report_ = _ValidationReport(
-                (_Issue('observable-path', system.label, str(error), 'Label observables by their path.'),),
+                (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return
         self.system_ = self._get_declared_system(system)
         roles = self._get_domain_issues(self.system_)
         self.report_ = _ValidationReport(tuple(roles or self._get_issues(self.system_)))
 
-    def _get_domain_issues(self, system: _CompositeSystem, scope: str = '') -> list[_Issue]:
+    def _get_domain_issues(self, system: _CompositeSystem, scope: str = '') -> list[IssueSpec]:
         """Return the issue of a role bound to a value of a domain it does not accept.
 
         The values of plain elements have their domains only once the laws show which are states, so a role such as
@@ -209,7 +210,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         """Return the system with declarations for its plain elements."""
         return system
 
-    def _get_issues(self, system: _Composite) -> list[_Issue]:
+    def _get_issues(self, system: _Composite) -> list[IssueSpec]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
@@ -476,7 +477,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         return BaseCompiler._get_attached(system, by_scope, '')
 
     @staticmethod
-    def _get_issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> _Issue:
+    def _get_issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> IssueSpec:
         """Return the issue of an error.
 
         The issue holds the code and fix of the error class, or the ones given.
@@ -499,7 +500,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
                 The issue.
         """
         code, fix = FIXES.get(type(error), (code, fix))
-        return _Issue(code, path, str(error), fix, error=type(error))
+        return IssueSpec(code, path, str(error), fix, error=type(error))
 
 
 class BasePass(BaseConfig[Compilation, None]):

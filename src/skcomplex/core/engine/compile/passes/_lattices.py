@@ -53,7 +53,8 @@ from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
 from .._array_update_law import ArrayUpdateLaw
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation, _Issue
+from .._compilation import Compilation
+from .._issue_spec import IssueSpec
 from .._laws import LATTICE_LAWS
 from .._relaxation_law import RelaxationLaw
 from ._cells import DEGREES
@@ -1055,7 +1056,7 @@ class LatticeProblemPass(BasePass):
         return None
 
     @staticmethod
-    def _schedule_issues(compilation: Compilation) -> list[_Issue]:
+    def _schedule_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the lattice laws whose checkerboard schedule needs a square lattice.
 
         Their space is not a square lattice.
@@ -1073,5 +1074,5 @@ class LatticeProblemPass(BasePass):
                     "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
                     "'random-sequential' or the 'colored' schedule of a sampler."
                 )
-                issues.append(_Issue('schedule-unsupported', record.path, message, fix))
+                issues.append(IssueSpec('schedule-unsupported', record.path, message, fix))
         return issues

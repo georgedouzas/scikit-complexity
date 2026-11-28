@@ -11,9 +11,8 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.engine import compile as package
-from skcomplex.core.engine.compile import BaseCompiler, BasePass, OperatorCompiler
+from skcomplex.core.engine.compile import BaseCompiler, BasePass, IssueSpec, OperatorCompiler
 from skcomplex.core.engine.compile._base import _ValidationReport
-from skcomplex.core.engine.compile._compilation import _Issue
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.enums import FormKind
 from skcomplex.core.errors import RoleElementError, ValidationError, ValidationWarning
@@ -66,9 +65,9 @@ def test_compiler_run_raises_every_error_of_its_report():
     compiler = PassCompiler().prepare(PidInvertedPendulumSystem(label='pendulum'))
     compiler.report_ = _ValidationReport(
         (
-            _Issue('role', 'growth', 'The role is unbound.', 'Bind it.'),
-            _Issue('law-domain', 'drift', 'The law targets a categorical state.', 'Use a jump law.'),
-            _Issue('note', 'system', 'Something to know.', 'Nothing to do.', severity='warning'),
+            IssueSpec('role', 'growth', 'The role is unbound.', 'Bind it.'),
+            IssueSpec('law-domain', 'drift', 'The law targets a categorical state.', 'Use a jump law.'),
+            IssueSpec('note', 'system', 'Something to know.', 'Nothing to do.', severity='warning'),
         ),
     )
     with pytest.warns(ValidationWarning, match='Something to know'), pytest.raises(ValidationError) as error:

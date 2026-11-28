@@ -15,7 +15,7 @@ from ....core.components import EntrySpec
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import BaseInteraction
 from ....core.components.spaces import BaseSpace
-from ....core.engine.compile import BaseCompiler, FlattenPass, _Composite, _Issue
+from ....core.engine.compile import BaseCompiler, FlattenPass, IssueSpec, _Composite
 from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, LayoutSpec
 from ....core.enums import FormKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
@@ -55,7 +55,7 @@ class RewritingCompiler(BaseCompiler):
         False
     """
 
-    def _get_issues(self, system: _Composite) -> list[_Issue]:
+    def _get_issues(self, system: _Composite) -> list[IssueSpec]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -71,7 +71,7 @@ class RewritingCompiler(BaseCompiler):
         if not self._is_rewriting(system):
             message = f'The system {system.label} holds no word or patch, so RewritingCompiler does not compile it.'
             fix = 'Prepare the system, which compiles it with PassCompiler.'
-            return [_Issue('compiler', system.label, message, fix)]
+            return [IssueSpec('compiler', system.label, message, fix)]
         try:
             FlattenPass._flatten_system(system)
         except SkcomplexError as error:

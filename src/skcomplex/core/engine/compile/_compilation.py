@@ -18,8 +18,8 @@ from ...components.laws._linear_program import _LinearProgramLaw
 from ...components.laws._rule import _RuleLaw
 from ...components.spaces import BaseSpace
 from ...components.spaces._static_time import _StaticTime
-from ...enums import ElementKind, FormKind, SeverityKind, VariableKind
-from ...errors import PipelineError, SkcomplexError, ValidationError
+from ...enums import ElementKind, FormKind, VariableKind
+from ...errors import PipelineError, SkcomplexError
 from ...types import ProcessKey
 from .._utils import declarations_of
 from ..backends import BaseBackend
@@ -45,50 +45,13 @@ from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec
 from ..problems._transfer_state_spec import TransferStateSpec
+from ._issue_spec import IssueSpec
 from ._renewal_law import RenewalLaw
 
 TIME_FUNCTIONS = ('derivative', 'lag', 'delayed')
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
 type BlockLaws = list[tuple[KernelSpec, list[BaseLaw], BlockSpec]]
-
-
-@dataclass(frozen=True)
-class _Issue:
-    """One problem found in a system, with where it is and how to fix it.
-
-    Args:
-        code:
-            The stable code of the problem, such as `'law-domain'`.
-
-        path:
-            The slash path of the component or system the problem is in.
-
-        message:
-            What is wrong and why.
-
-        fix:
-            The change that makes the system valid.
-
-        severity:
-            `'error'` for problems that stop compilation, `'warning'` otherwise.
-
-        error:
-            The class of the error raised for the problem: `ValidationError` or one of its subclasses for the problems
-            validation finds, and the class of the original error for a component that fails to declare.
-    """
-
-    code: str
-    path: str
-    message: str
-    fix: str
-    severity: str = SeverityKind.ERROR
-    error: type[SkcomplexError] = field(default=ValidationError, repr=False, compare=False)
-
-    @property
-    def text(self) -> str:
-        """Issue as one line with its path, code, message, and fix."""
-        return f'{self.path}: {self.message} {self.fix} [{self.code}]'
 
 
 @dataclass(frozen=True)
@@ -419,7 +382,7 @@ class Compilation:
 
     nodes: list[_NodeSpec] | None = None
     census: _Census | None = None
-    plan: tuple[tuple[_PlannedPartition, ...], tuple[_Issue, ...]] | None = None
+    plan: tuple[tuple[_PlannedPartition, ...], tuple[IssueSpec, ...]] | None = None
     layout: DeclarationsSpec | None = None
     specs: list[tuple[KernelSpec, BlockSpec]] | None = None
     collected: BlockLaws | None = None

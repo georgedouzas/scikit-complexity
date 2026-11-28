@@ -28,7 +28,8 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray, TracedFunction
 from ._base import BaseCompiler
-from ._compilation import Compilation, _Issue
+from ._compilation import Compilation
+from ._issue_spec import IssueSpec
 from ._observables import ObservableEvaluator
 from .passes._functions import FunctionsPass
 
@@ -110,21 +111,21 @@ class _LearningCompiler(BaseCompiler):
             found = next((item for item in found.systems if item.label == label), None) if found is not None else None
         return found
 
-    def _get_setting_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[_Issue]:
+    def _get_setting_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the issues of the time and the solver of a system that trains."""
         issues = []
         if system.time is not None and not isinstance(system.time, _DiscreteTime):
             given = f'{system.time.time_tag} time'
             message = f'The training {training.label} needs discrete time, one step per epoch, not {given}.'
             fix = 'Train the system on laws that step, such as update laws.'
-            issues.append(_Issue('law-time', training.label, message, fix))
+            issues.append(IssueSpec('law-time', training.label, message, fix))
         if self.solver is not None and self._get_form_of(type(self.solver)) != FormKind.LEARNING:
             message = f'The solver {type(self.solver).__name__} does not train. Use GradientDescentSolver.'
             fix = 'Pass `solver=GradientDescentSolver()`, or no solver.'
-            issues.append(_Issue('solver-unsupported', system.label, message, fix, error=SolverError))
+            issues.append(IssueSpec('solver-unsupported', system.label, message, fix, error=SolverError))
         return issues
 
-    def _get_differentiable_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[_Issue]:
+    def _get_differentiable_issues(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the laws of the nested system that the JAX backend cannot differentiate."""
         compiler = clone(self.inner).set_params(trained=tuple(training.trained)).prepare(system)
         compilation = getattr(compiler, 'compilation_', None)
@@ -142,10 +143,10 @@ class _LearningCompiler(BaseCompiler):
                 'laws.'
             )
             fix = 'Write the nested system with rate, update, or equation laws of symbolic expressions.'
-            issues.append(_Issue('learning-not-differentiable', training.label, message, fix))
+            issues.append(IssueSpec('learning-not-differentiable', training.label, message, fix))
         return issues
 
-    def _compile_inner(self, system: _CompositeSystem, training: TrainingInteraction) -> list[_Issue]:
+    def _compile_inner(self, system: _CompositeSystem, training: TrainingInteraction) -> list[IssueSpec]:
         """Compile the nested system into `inner_`, and return the issues that stop it."""
         self.inner_, self.backend_ = None, JaxBackend()
         compiler = clone(self.inner).set_params(backend=self.backend_, trained=tuple(training.trained)).prepare(system)
@@ -158,7 +159,7 @@ class _LearningCompiler(BaseCompiler):
         if not isinstance(problem, ProblemSpec) or problem.form not in INNER_FORMS:
             message = f'The nested system {training.system} compiles to a {problem.form}, which learning cannot unroll.'
             fix = 'Train a discrete map or ordinary differential equations.'
-            return [_Issue('learning-not-differentiable', training.label, message, fix)]
+            return [IssueSpec('learning-not-differentiable', training.label, message, fix)]
         self.inner_, self.step_ = problem, self._get_phased_step(compiler)
         return []
 
@@ -208,7 +209,7 @@ class _LearningCompiler(BaseCompiler):
         """
         return set(problem.adaptive_parameters) | (set(training.trained) & set(problem.states.names))
 
-    def _get_trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[_Issue]:
+    def _get_trained_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the trained paths that are not adaptive parameters of the nested system.
 
         This includes the paths that are not parameters at all.
@@ -224,17 +225,17 @@ class _LearningCompiler(BaseCompiler):
                 f'{", ".join(parameters)}.'
             )
             fix = 'Name a parameter of the nested system by its dotted path.'
-            issues.append(_Issue('learning-trained-path', training.label, message, fix))
+            issues.append(IssueSpec('learning-trained-path', training.label, message, fix))
         return issues
 
     @staticmethod
-    def _get_shape_issue(training: TrainingInteraction, path: str, expected: object, given: object) -> _Issue:
+    def _get_shape_issue(training: TrainingInteraction, path: str, expected: object, given: object) -> IssueSpec:
         """Return the issue of a dataset array whose shape does not fit."""
         message = f'The dataset of {training.label} gives {path} the shape {given}, but it needs {expected}.'
         fix = 'Give every array the shape (sequences, steps) followed by the shape of its parameter.'
-        return _Issue('learning-data-shape', training.label, message, fix)
+        return IssueSpec('learning-data-shape', training.label, message, fix)
 
-    def _get_data_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[_Issue]:
+    def _get_data_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the dataset arrays that do not fit.
 
         An array does not fit by its path, number of sequences and steps, or trailing shape.
@@ -246,7 +247,7 @@ class _LearningCompiler(BaseCompiler):
             if not problem.parameters.has(path):
                 message = f'The dataset of {training.label} sets {path}, which is no parameter of {training.system}.'
                 fix = f'Set parameters of the nested system, such as {", ".join(problem.parameters.names[:3])}.'
-                issues.append(_Issue('learning-data-shape', training.label, message, fix))
+                issues.append(IssueSpec('learning-data-shape', training.label, message, fix))
                 continue
             expected = (sequences, steps, *problem.parameters.get_entry(path).shape)
             if np.shape(values) != expected:
@@ -256,7 +257,7 @@ class _LearningCompiler(BaseCompiler):
         for label, array in weights.items():
             if label not in labels:
                 message = f'The dataset of {training.label} weights {label}, which is neither the loss nor a metric.'
-                issues.append(_Issue('learning-data-shape', training.label, message, 'Weight the loss or a metric.'))
+                issues.append(IssueSpec('learning-data-shape', training.label, message, 'Weight the loss or a metric.'))
             elif array is not None and np.shape(array) != (sequences, steps):
                 issues.append(
                     self._get_shape_issue(training, f'the weights of {label}', (sequences, steps), np.shape(array)),
@@ -374,7 +375,7 @@ class _LearningCompiler(BaseCompiler):
 
         return reduced
 
-    def _measure_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[_Issue]:
+    def _measure_issues(self, problem: ProblemSpec, training: TrainingInteraction) -> list[IssueSpec]:
         """Lower the loss and metrics into `measures_` and return the failing observables.
 
         They are the observables that read missing variables.
@@ -386,10 +387,10 @@ class _LearningCompiler(BaseCompiler):
                 self.measures_[label] = self._measure_of(problem, observable)
             except ValidationError as error:
                 fix = 'Read states and parameters of the nested system in the loss and the metrics.'
-                issues.append(_Issue('learning-unknown-observable', training.label, str(error), fix))
+                issues.append(IssueSpec('learning-unknown-observable', training.label, str(error), fix))
         return issues
 
-    def _get_issues(self, system: _CompositeSystem) -> list[_Issue]:
+    def _get_issues(self, system: _CompositeSystem) -> list[IssueSpec]:
         """Return the issues of a system that trains.
 
         It compiles the nested system as far as it can.
@@ -406,7 +407,7 @@ class _LearningCompiler(BaseCompiler):
         training = self.training_
         if training is None:
             message = f'The system {system.label} holds no training interaction.'
-            return [_Issue('compiler', system.label, message, 'Compile it with PassCompiler.')]
+            return [IssueSpec('compiler', system.label, message, 'Compile it with PassCompiler.')]
         try:
             training.prepare()
         except ValidationError as error:
@@ -416,7 +417,7 @@ class _LearningCompiler(BaseCompiler):
         if trained is None:
             message = f'{training.label} trains {training.system}, which is not a nested system of {system.label}.'
             fix = f'Bind `system` to one of {", ".join(item.label for item in system.systems) or "no nested system"}.'
-            return [*issues, _Issue('learning-system', training.label, message, fix)]
+            return [*issues, IssueSpec('learning-system', training.label, message, fix)]
         stops = self._get_differentiable_issues(trained, training) or self._compile_inner(trained, training)
         if stops or self.inner_ is None:
             return [*issues, *stops]

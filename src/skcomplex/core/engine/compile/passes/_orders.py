@@ -26,7 +26,8 @@ from ...problems._block_spec import BlockSpec
 from ...problems._kernel_spec import KernelSpec
 from ...problems._relation_spec import _RelationSpec
 from .._base import BasePass
-from .._compilation import Compilation, _Issue
+from .._compilation import Compilation
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
@@ -161,7 +162,7 @@ class OrdersPass(BasePass):
         return relations, unknowns
 
     @staticmethod
-    def _get_structure_issues(compilation: Compilation) -> list[_Issue]:
+    def _get_structure_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issue of a system with unmatched algebraic equations.
 
         Its equations of algebraic states cannot be matched to their unknowns.

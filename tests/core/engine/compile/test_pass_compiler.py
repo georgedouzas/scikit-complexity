@@ -57,9 +57,8 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.engine._utils import domain_of, symbol
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import BasePass
+from skcomplex.core.engine.compile import BasePass, IssueSpec
 from skcomplex.core.engine.compile._base import _ValidationReport
-from skcomplex.core.engine.compile._compilation import _Issue
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.compile.passes._flatten import FlattenPass
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
@@ -346,7 +345,7 @@ class TankElement(Element):
         self.level = level
 
 
-def _role_issues(system: System) -> list[_Issue]:
+def _role_issues(system: System) -> list[IssueSpec]:
     """Return the `role-element` issues of a system."""
     return [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'role-element']
 

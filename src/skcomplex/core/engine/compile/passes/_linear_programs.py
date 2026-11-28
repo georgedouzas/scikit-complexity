@@ -31,7 +31,8 @@ from ...problems._linear_program_spec import (
 )
 from ...problems._reference_spec import ReferenceSpec
 from .._base import BasePass
-from .._compilation import Compilation, Laws, _Issue
+from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from ._census import CensusPass
 
 ABSOLUTE = 'abs'
@@ -225,7 +226,7 @@ class LinearProgramsPass(BasePass):
         return None
 
     @staticmethod
-    def _get_variable_issues(bound: _BoundLawSpec, algebraic: set[str]) -> list[_Issue]:
+    def _get_variable_issues(bound: _BoundLawSpec, algebraic: set[str]) -> list[IssueSpec]:
         """Return the variables of a law that are not algebraic states."""
         issues = []
         for item in bound.law._get_targets():
@@ -234,11 +235,11 @@ class LinearProgramsPass(BasePass):
             if reference is None or name not in algebraic:
                 message = f'The linear program law of {bound.spec.owner} sets {name}, which is not an algebraic state.'
                 fix = f'Set {name} by an algebraic equation of the linear program, not by a rate or an update.'
-                issues.append(_Issue('linear-program-variable', bound.spec.owner, message, fix))
+                issues.append(IssueSpec('linear-program-variable', bound.spec.owner, message, fix))
         return issues
 
     @staticmethod
-    def _get_form_issues(group: Sequence[_BoundLawSpec]) -> list[_Issue]:
+    def _get_form_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
         """Return the relations and objectives of a program not linear in its variables."""
         columns = LinearProgramsPass._get_columns_of(group)
         fix = 'Move the term to the right side or to a bound, and keep every coefficient of a variable free of states.'
@@ -249,7 +250,7 @@ class LinearProgramsPass(BasePass):
                 problem = LinearProgramsPass._get_form_problem(spec, constraint.lhs() - constraint.rhs(), columns)
                 if problem is not None:
                     message = f'The relation {constraint} of {spec.owner} cannot enter a linear program: {problem}.'
-                    issues.append(_Issue('linear-program-form', spec.owner, message, fix))
+                    issues.append(IssueSpec('linear-program-form', spec.owner, message, fix))
             for objective in bound.law.objectives:
                 linear = LinearProgramsPass._copy_without_absolutes(objective)
                 problem = LinearProgramsPass._get_form_problem(spec, linear, columns)
@@ -257,11 +258,11 @@ class LinearProgramsPass(BasePass):
                     problem = LinearProgramsPass._get_absolute_problem(spec, objective, columns)
                 if problem is not None:
                     message = f'The objective {objective.expression} of {spec.owner} is not usable: {problem}.'
-                    issues.append(_Issue('linear-program-form', spec.owner, message, fix))
+                    issues.append(IssueSpec('linear-program-form', spec.owner, message, fix))
         return issues
 
     @staticmethod
-    def _get_unbounded_issues(group: Sequence[_BoundLawSpec]) -> list[_Issue]:
+    def _get_unbounded_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
         """Return the variables of a program that no constraint bounds."""
         columns = LinearProgramsPass._get_columns_of(group)
         bounded = {
@@ -280,21 +281,21 @@ class LinearProgramsPass(BasePass):
             if column not in bounded:
                 message = f'The linear program of {owner} sets {name}, which no constraint bounds.'
                 fix = f'Add a `ConstraintLaw` that bounds {name}, such as `ConstraintLaw(v >= 0, target=v)`.'
-                issues.append(_Issue('linear-program-variable', owner, message, fix))
+                issues.append(IssueSpec('linear-program-variable', owner, message, fix))
         return issues
 
     @staticmethod
-    def _get_objective_issues(group: Sequence[_BoundLawSpec]) -> list[_Issue]:
+    def _get_objective_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
         """Return the issue of a program with two laws that hold objectives."""
         holders = [bound.spec.owner for bound in group if bound.law.objectives]
         if len(holders) <= 1:
             return []
         message = f'The merged linear program laws of {" and ".join(holders)} both hold objectives.'
         fix = 'Keep the objectives of one program in one law.'
-        return [_Issue('linear-program-objectives', holders[0], message, fix)]
+        return [IssueSpec('linear-program-objectives', holders[0], message, fix)]
 
     @staticmethod
-    def _get_issues_of(compilation: Compilation, algebraic: set[str]) -> list[_Issue]:
+    def _get_issues_of(compilation: Compilation, algebraic: set[str]) -> list[IssueSpec]:
         """Return the issues of the linear program laws of a system.
 
         Args:

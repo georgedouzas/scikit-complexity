@@ -7,7 +7,7 @@ of its own writes its compiler on `BaseCompiler`, with passes on `BasePass` and 
 
 from ._base import BaseCompiler, BaseLowering, BasePass
 from ._base import _Composite as _Composite
-from ._compilation import _Issue as _Issue
+from ._issue_spec import IssueSpec
 from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import PhasesScheduleSpec
 from .passes._flatten import FlattenPass
@@ -20,6 +20,7 @@ __all__: list[str] = [
     'BasePass',
     'FlattenPass',
     'HilbertSpaceError',
+    'IssueSpec',
     'OperatorCompiler',
     'PhaseSpec',
     'PhasesScheduleSpec',

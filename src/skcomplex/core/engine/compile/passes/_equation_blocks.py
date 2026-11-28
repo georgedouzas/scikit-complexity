@@ -27,7 +27,8 @@ from ...problems._reference_spec import ReferenceSpec
 from ...problems._relation_spec import _RelationSpec
 from .._algebraic_law import AlgebraicLaw
 from .._base import BaseLowering, BasePass
-from .._compilation import Compilation, Laws, _Issue
+from .._compilation import Compilation, Laws
+from .._issue_spec import IssueSpec
 from .._laws import KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 
@@ -168,7 +169,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         unknowns: Mapping[Expression, Expression],
         references: Mapping[Expression, ReferenceSpec],
         label: str,
-    ) -> list[_Issue]:
+    ) -> list[IssueSpec]:
         """Return the issue of relations and unknowns that no matching pairs.
 
         The issue names the states they constrain.
@@ -217,7 +218,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
             'equation.'
         )
         path = constraining[0].spec.owner if constraining else label
-        return [_Issue('structural-singularity', path, message, fix)]
+        return [IssueSpec('structural-singularity', path, message, fix)]
 
     @staticmethod
     def _get_blocks(

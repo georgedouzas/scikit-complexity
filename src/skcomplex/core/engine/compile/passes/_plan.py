@@ -11,8 +11,9 @@ from ....enums import FormKind
 from ....errors import IncompatibleLawsError, UnregisteredLawError
 from ...problems._composite_system import _CompositeSystem
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation, _Census, _Issue, _PlannedPartition
+from .._compilation import Compilation, _Census, _PlannedPartition
 from .._forms import FORMS
+from .._issue_spec import IssueSpec
 from .._laws import FORMLESS_LAWS
 from ._form import FormPass
 from ._kernels import KernelsPass
@@ -116,7 +117,7 @@ class PlanPass(BasePass):
         declared: Mapping[str, set[type[BaseLaw]]],
         lowered: Mapping[str, set[type[BaseLaw]]],
         solvers: list[type],
-    ) -> _Issue:
+    ) -> IssueSpec:
         """Return the issue of a system whose own laws fit no solver or form.
 
         No solver runs them or no form takes them, by law kind or class.
@@ -126,10 +127,10 @@ class PlanPass(BasePass):
             message = f'No solver runs the laws of this system together ({PlanPass._get_listed(declared)}).'
         else:
             message = f'No form takes the laws of this system together ({PlanPass._get_listed(lowered)}).'
-        return _Issue('laws-mixed', path, message, fix, error=IncompatibleLawsError)
+        return IssueSpec('laws-mixed', path, message, fix, error=IncompatibleLawsError)
 
     @staticmethod
-    def _get_unregistered_issues(kinds: Mapping[str, set[type[BaseLaw]]]) -> list[_Issue]:
+    def _get_unregistered_issues(kinds: Mapping[str, set[type[BaseLaw]]]) -> list[IssueSpec]:
         """Return the issues of the law classes that no form takes and that need one.
 
         Args:
@@ -143,7 +144,7 @@ class PlanPass(BasePass):
         registered = set().union(*FORMS)
         fix = 'Write the law with a class the core provides, such as `RateLaw` or `UpdateLaw`.'
         return [
-            _Issue(
+            IssueSpec(
                 'law-unregistered',
                 owner,
                 f'The law class {kind._get_name()} has no form the engine knows.',
@@ -194,7 +195,7 @@ class PlanPass(BasePass):
         system: _CompositeSystem,
         owners: _Owners,
         scope: str = '',
-    ) -> tuple[list[_PlannedPartition], list[_Issue]]:
+    ) -> tuple[list[_PlannedPartition], list[IssueSpec]]:
         """Return the partitions of a system tree and the issues of unfit subsystems.
 
         A subsystem is unfit when its own laws fit no form.
@@ -208,7 +209,7 @@ class PlanPass(BasePass):
             mixed = (own_declared, own_lowered) if system.systems else (declared, lowered)
             return [], [PlanPass._get_mixed_issue(name, *mixed, owners.solvers)]
         partitions = [_PlannedPartition(name, scope, nested=False)] if own_declared or own_lowered else []
-        issues: list[_Issue] = []
+        issues: list[IssueSpec] = []
         for child in system.systems:
             found, mixed_issues = PlanPass._get_planned(child, owners, f'{scope}{child.label}/')
             partitions += found
@@ -220,7 +221,7 @@ class PlanPass(BasePass):
         census: _Census,
         kinds: Mapping[str, set[type[BaseLaw]]],
         solvers: Iterable[type] | None = None,
-    ) -> tuple[tuple[_PlannedPartition, ...], tuple[_Issue, ...]]:
+    ) -> tuple[tuple[_PlannedPartition, ...], tuple[IssueSpec, ...]]:
         """Return the partitions of a system.
 
         They are the subsystems whose laws compile to one form that one solver runs, with the issues of the law mixes
