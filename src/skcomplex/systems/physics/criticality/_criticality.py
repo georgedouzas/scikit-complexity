@@ -43,6 +43,7 @@ SITE_NEIGHBORHOODS: dict[str, RadiusNeighborhood | AdjacencyNeighborhood] = {
 }
 MANNA_THRESHOLD = 2
 FOREST_BOUNDARIES = ('periodic', 'fixed', 'reflecting')
+SANDPILE_NEIGHBORS = ('fixed', 'random')
 
 
 class ForestElement(Element):
@@ -116,6 +117,12 @@ class AvalancheInteraction(TopplingInteraction):
         mode:
             `'redistribute'` or `'random'`.
 
+        neighbors:
+            `'fixed'` for the neighbours of the lattice, or `'random'` for sites drawn afresh at every toppling.
+
+        conservation:
+            The probability that a grain sent to a random site stays in the pile, unused with fixed neighbours.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import AvalancheInteraction
         >>> AvalancheInteraction('avalanche', target='pile', threshold=2, mode='random').share
@@ -130,6 +137,8 @@ class AvalancheInteraction(TopplingInteraction):
         state: str = 'height',
         threshold: int = 4,
         mode: str = 'redistribute',
+        neighbors: str = 'fixed',
+        conservation: float = 1.0,
     ) -> None:
         super().__init__(
             label,
@@ -139,6 +148,8 @@ class AvalancheInteraction(TopplingInteraction):
             share=1,
             mode=mode,
             drive=self._drop_grain,
+            neighbors=neighbors,
+            conservation=conservation,
         )
 
     @staticmethod
@@ -224,12 +235,23 @@ class SandpileSystem(BaseSystem):
 
     The pile starts from random stable heights.
 
-    Its avalanches are recorded as `avalanche` events with their sizes, the number of topplings, their durations, and
-    their areas. The system has the heights `pile.height`.
+    Its avalanches are recorded as `avalanche` events with their sizes, the number of topplings, their durations, their
+    areas, and their profiles, the toppling sites of every round. With `neighbors='random'` a toppling site sends each
+    of its four grains to a site drawn uniformly among all sites at every toppling, and the grain stays in the pile
+    with the probability `conservation` and leaves it otherwise, the mean-field sandpile R2-MF of Jensen. Without the
+    loss a pile with random neighbours has no edge to lose grains through, so it never stabilises. The system has the
+    heights `pile.height`.
 
     Args:
         shape:
             The number of rows and columns.
+
+        neighbors:
+            `'fixed'` for the four neighbours of the lattice, or `'random'` for sites drawn afresh at every toppling.
+
+        conservation:
+            The probability that a grain sent to a random site stays in the pile, in `(0, 1)`, unused with fixed
+            neighbours.
 
         random_state:
             The seed or generator of the initial heights.
@@ -243,11 +265,18 @@ class SandpileSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The neighbours are unknown, or random neighbours have a conservation outside `(0, 1)`.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import SandpileSystem
         >>> trajectory = SandpileSystem((10, 10)).prepare().simulate(until=2, dt=1, random_state=0)
         >>> trajectory.get_values('pile.height').shape
         (3, 100)
+        >>> mean_field = SandpileSystem((10, 10), neighbors='random').prepare()
+        >>> bool((mean_field.simulate(until=200, dt=200, random_state=0).get_lattice('pile.height') < 4).all())
+        True
     """
 
     field = 'physics/criticality'
@@ -260,6 +289,8 @@ class SandpileSystem(BaseSystem):
         self,
         shape: Sequence[int] = (50, 50),
         *,
+        neighbors: str = 'fixed',
+        conservation: float = 0.99,
         random_state: int | np.random.Generator | None = 0,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
@@ -267,6 +298,8 @@ class SandpileSystem(BaseSystem):
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
+        self.neighbors = neighbors
+        self.conservation = conservation
         self.random_state = random_state
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
@@ -275,14 +308,34 @@ class SandpileSystem(BaseSystem):
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The neighbours are unknown, or random neighbours have a conservation outside `(0, 1)`.
         """
         super()._prepare(context)
+        if self.neighbors not in SANDPILE_NEIGHBORS:
+            error_msg = f'SandpileSystem has the neighbours {self.neighbors!r}. Use one of {", ".join(SANDPILE_NEIGHBORS)}.'
+            raise ValidationError(error_msg)
+        if self.neighbors == 'random' and not 0 < self.conservation < 1:
+            error_msg = (
+                f'SandpileSystem keeps grains sent to random neighbours with the probability {self.conservation}. A '
+                'pile with no loss never stabilises, so give a conservation in (0, 1), such as 0.99.'
+            )
+            raise ValidationError(error_msg)
         heights = np.random.default_rng(self.random_state).integers(0, 4, size=tuple(self.shape)).astype(float)
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         self.system_ = System(
             self.label,
             elements=[Element('pile', values={'height': heights.ravel()}, space=space)],
-            interactions=[AvalancheInteraction('avalanche', target='pile')],
+            interactions=[
+                AvalancheInteraction(
+                    'avalanche',
+                    target='pile',
+                    neighbors=self.neighbors,
+                    conservation=self.conservation if self.neighbors == 'random' else 1.0,
+                ),
+            ],
         )
 
 

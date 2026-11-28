@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import distribution
+from skcomplex.core.analysis import distribution, fit_law
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.physics.criticality import (
     ForestFireSystem,
@@ -101,3 +101,22 @@ def test_forest_fire_events_of_a_driven_forest():
     burning = trajectory.get_values('forest.cover') == 2
     assert trajectory.events
     assert sorted(event.size for event in trajectory.events) == sorted(_space_time_fires(burning, 32))
+
+
+@pytest.mark.slow
+def test_sandpile_with_random_neighbors_has_mean_field_avalanches():
+    """Test that a sandpile with random neighbours stays stable and has the mean-field size exponent 3/2."""
+    system = SandpileSystem((32, 32), neighbors='random', conservation=0.999).prepare()
+    trajectory = system.simulate(until=110_000, dt=1000, random_state=0)
+    sizes = np.asarray([event.size for event in trajectory.events if event.time > 10_000])
+    fitted = fit_law(sizes, law='power', minimum=1, maximum=300, discrete=True, bootstrap=0)
+    assert trajectory.get_lattice('pile.height').max() < 4
+    assert fitted.exponent == pytest.approx(1.5, abs=0.15)
+
+
+def test_sandpile_with_random_neighbors_needs_a_loss():
+    """Test that a sandpile with random neighbours and no loss of grains is refused, since it never stabilises."""
+    with pytest.raises(ValidationError, match='never stabilises'):
+        SandpileSystem(neighbors='random', conservation=1.0).prepare()
+    with pytest.raises(ValidationError, match='neighbours'):
+        SandpileSystem(neighbors='ring').prepare()

@@ -55,7 +55,7 @@
 
 ## 6. Random neighbours (#79)
 
-- [ ] 6.1 Add `neighbors='random'` and `conservation` to `TopplingInteraction`, tested in
+- [x] 6.1 Add `neighbors='random'` and `conservation` to `TopplingInteraction`, tested in
   `tests/systems/physics/common/avalanches/test_toppling.py`
 - [ ] 6.2 Add `neighbors` and `conservation` to `SandpileSystem`, with the error for `conservation=1`, test the
   mean-field avalanches in `tests/systems/physics/criticality/test_criticality.py`, and test that `abelian_sandpile`
