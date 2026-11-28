@@ -27,7 +27,7 @@
 
 - [x] 4.1 Add `colors=` and `start=`, record the position and heading, and update only the ant's cell per step,
       with tests
-- [ ] 4.2 Add the unbounded plane for `shape=None`, with a test that it matches a large torus
+- [x] 4.2 Add the unbounded plane for `shape=None`, with a test that it matches a large torus
 
 ## 5. Close
 
