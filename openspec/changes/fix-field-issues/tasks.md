@@ -11,7 +11,7 @@
 
 ## 3. Reaction diffusion (#48)
 
-- [ ] 3.1 Profile a 40 by 40 Schnakenberg run and remove the dominant cost, with a timing check kept out of the quick
+- [x] 3.1 Profile a 40 by 40 Schnakenberg run and remove the dominant cost, with a timing check kept out of the quick
       tests
 
 ## 4. Close

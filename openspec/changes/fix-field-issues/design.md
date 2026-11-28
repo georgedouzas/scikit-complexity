@@ -25,15 +25,15 @@ Non-goals: new solvers beyond what the profile of #48 needs, and new analysis ki
 3. **Antisymmetric wrapped differences.** For every edge the difference is wrapped once, `w(theta_j - theta_i)` in
    `[-pi, pi)`, and the reverse orientation takes its negative. The total charge is then exactly 0 on a periodic
    lattice.
-4. **Profile first for #48.** Find where the time goes, the step count, the per step cost in Python, or the solver
-   choice. The fix may be a compiled kernel for the stepper, or an automatic choice of the existing `ETDRK4Solver` or an
-   IMEX step for systems whose stiff part is linear diffusion. The target is a 40 by 40 Schnakenberg run to time 40 in
-   under 30 s on a laptop.
+4. **Serial kernels for small fields (#48).** The profile showed the time inside the compiled RK4 loop: groups of
+   1000 members or more printed every member kernel as a parallel Numba loop, so one step of a 40 by 40 field started
+   24 parallel regions of a few operations per site each. Member kernels now run in parallel only from 200000 members,
+   where threads win on an 8 core laptop, and pair kernels keep the threshold of 1000. No solver changes.
 
 ## Risks / Trade-offs
 
 - A finite difference Jacobian is slower and less exact than a symbolic one. It applies only above the symbolic limit.
-- A new default solver for reaction diffusion changes recorded frames within the tolerance.
+- Sums over every member of a group of 1000 to 200000 members may change in the last digits, from the summation order.
 
 ## Open Questions
 
