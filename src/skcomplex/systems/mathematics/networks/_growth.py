@@ -217,7 +217,8 @@ class BarabasiAlbertSystem(BaseSystem):
     By preferential attachment the degrees follow a power law `P(k) ~ k^-3`.
 
     The network starts complete on `seed_nodes` nodes, and every step one node joins with `edges` edges to nodes
-    drawn with probability proportional to their degree, so after `t` steps it holds `seed_nodes + t` nodes.
+    drawn with probability proportional to their degree, so after `t` steps it holds `seed_nodes + t` nodes. By default
+    `simulate` runs 300 steps, so the network ends with `seed_nodes + 300` nodes.
 
     With `fitness`, every node draws a fitness `eta` uniformly in `[0, 1]` and new edges join nodes with probability
     proportional to `eta k`, the model of Bianconi and Barabási (2001) that Raman (2021, section 3.2.4) describes. The
@@ -362,7 +363,8 @@ class HolmeKimSystem(BaseSystem):
 
     Every step a node joins with one edge by preferential attachment, and the next step it adds `edges - 1` edges, each
     to a neighbour of its first contact with probability `triad`, closing a triangle, and by preferential attachment
-    otherwise. The system has the groups `nodes` and `links` and the arrival `growth`.
+    otherwise. After `t` steps the network holds `seed_nodes + t` nodes, and by default `simulate` runs 300 steps, so
+    it ends with `seed_nodes + 300` nodes. The system has the groups `nodes` and `links` and the arrival `growth`.
 
     Args:
         edges:
@@ -448,8 +450,9 @@ class VertexCopyingSystem(BaseSystem):
     New nodes copy the edges of existing nodes and make a heavy-tailed degree.
 
     Every step a node joins with `edges` edges, each to a random node with probability `randomness` and otherwise to a
-    random neighbour of a random prototype, which favours nodes of high degree without reading degrees. The system has
-    the groups `nodes` and `links` and the arrival `growth`.
+    random neighbour of a random prototype, which favours nodes of high degree without reading degrees. After `t` steps
+    the network holds `seed_nodes + t` nodes, and by default `simulate` runs 300 steps, so it ends with
+    `seed_nodes + 300` nodes. The system has the groups `nodes` and `links` and the arrival `growth`.
 
     Args:
         edges:
@@ -524,8 +527,9 @@ class PopularitySimilarityNetworkSystem(BaseSystem):
     radius `b 2 ln s + (1 - b) 2 ln t` with `b = 1 / (exponent - 1)`, and the new node joins `edges` nodes drawn in
     proportion to the Fermi-Dirac probability of their hyperbolic distance `x = r_s + r_t + 2 ln(theta / 2)`, at the
     temperature `temperature`. The degrees follow a power law of the given exponent, and the clustering falls as the
-    temperature rises (Papadopoulos et al. 2012). The system has the groups `nodes` and `links`, the arrival `growth`,
-    and the states `nodes.angle`, `nodes.age`, and `nodes.degree`.
+    temperature rises (Papadopoulos et al. 2012). The network starts complete on `edges + 1` nodes and gains one node
+    per step, and by default `simulate` runs 297 steps, so with two edges it ends with 300 nodes. The system has the
+    groups `nodes` and `links`, the arrival `growth`, and the states `nodes.angle`, `nodes.age`, and `nodes.degree`.
 
     Args:
         edges:
@@ -664,7 +668,8 @@ class GraphletArrivalSystem(BaseSystem):
     peripheral node with probability `alpha`, so the existing node gains the central node, which carries the other
     peripheral node, and the central node otherwise, so the existing node gains both peripheral nodes (Filkov et al.
     2009, as Raman 2021, section 3.2.4.2, describes). Every step adds two nodes and two edges, and the shares of nodes
-    of degree 1 and 2 are `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`. The system has the groups `nodes` and
+    of degree 1 and 2 are `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`. After `t` steps the tree holds `2 + 2 t`
+    nodes, and by default `simulate` runs 300 steps, so it ends with 602 nodes. The system has the groups `nodes` and
     `links` and the arrivals `growth` and `graphlet`.
 
     Args:
