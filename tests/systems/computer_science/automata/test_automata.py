@@ -1,5 +1,7 @@
 """Test the `_automata` module of `skcomplex.systems.computer_science.automata`."""
 
+import time
+
 import numpy as np
 import pytest
 
@@ -61,3 +63,42 @@ def test_langtons_ant_rejects_bad_colors_and_starts(arguments):
     """Test that colours of another shape or of other values and a start outside the torus raise an error."""
     with pytest.raises(ValidationError):
         LangtonsAntSystem((5, 5), **arguments).prepare()
+
+
+def test_langtons_ant_on_the_plane_follows_a_large_torus():
+    """Test that the ant on the plane and on a torus too large to wrap visit the same cells over 5000 steps."""
+    until, middle = 5000, 100
+    plane = LangtonsAntSystem(None).prepare().simulate(until=until, dt=1)
+    torus = LangtonsAntSystem((200, 200), start=(middle, middle)).prepare().simulate(until=until, dt=1)
+    for state in ('ant.row', 'ant.column'):
+        assert np.array_equal(plane.get_values(state).ravel(), torus.get_values(state).ravel() - middle)
+    black = sorted(
+        (row - middle, column - middle) for row, column in np.argwhere(torus.get_values('ant.colors')[-1, 0])
+    )
+    assert sorted(plane.get_values('ant.colors')[-1, 0]) == black
+
+
+def test_langtons_ant_builds_the_highway_on_the_plane():
+    """Test that 12064 steps on the plane run in seconds and end on the highway."""
+    start = time.perf_counter()
+    trajectory = LangtonsAntSystem(None).prepare().simulate(until=116 * PERIOD, dt=PERIOD)
+    elapsed = time.perf_counter() - start
+    rows = trajectory.get_values('ant.row').ravel()
+    columns = trajectory.get_values('ant.column').ravel()
+    steps = np.column_stack([np.diff(rows[-4:]), np.diff(columns[-4:])])
+    assert elapsed < 10
+    assert np.all(np.abs(steps) == 2)
+    assert np.all(steps == steps[0])
+
+
+def test_langtons_ant_starts_on_black_cells_of_the_plane():
+    """Test that the ant turns left on a black cell of the plane and leaves it white."""
+    trajectory = LangtonsAntSystem(None, colors=[(0, 0), (5, -3)]).prepare().simulate(until=1, dt=1)
+    assert trajectory.get_values('ant.heading').ravel().tolist() == [0, 3]
+    assert trajectory.get_values('ant.colors')[-1, 0] == frozenset({(5, -3)})
+
+
+def test_langtons_ant_rejects_an_array_of_colors_on_the_plane():
+    """Test that an array of colours with the plane raises an error."""
+    with pytest.raises(ValidationError):
+        LangtonsAntSystem(None, colors=np.zeros((5, 5))).prepare()

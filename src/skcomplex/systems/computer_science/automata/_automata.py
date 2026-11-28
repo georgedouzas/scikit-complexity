@@ -36,7 +36,7 @@ class AntView(AgentViewProtocol, Protocol):
     row: int
     column: int
     heading: int
-    colors: npt.NDArray[np.uint8]
+    colors: npt.NDArray[np.uint8] | frozenset[tuple[int, int]]
 
 
 class AntElement(Element):
@@ -59,8 +59,9 @@ class AntElement(Element):
             The heading of the ant, 0 to 3 for north, east, south, and west.
 
         colors:
-            An object array that holds one integer array of the colours of the cells, 0 for white and 1 for black, or
-            `None` for none.
+            An object array that holds the colours of the cells, either one integer array with 0 for white and 1 for
+            black on a torus or one frozenset of the row and column of every black cell on the plane, or `None` for
+            none.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import AntElement
@@ -127,10 +128,11 @@ class ElementaryRuleInteraction(Interaction):
 
 
 class LangtonsAntInteraction(Interaction):
-    """Move of Langton's ant over the coloured cells of a torus.
+    """Move of Langton's ant over the coloured cells of a torus or of the plane.
 
     The ant turns right on a white cell and left on a black one, flips the colour of that cell, and moves one cell
-    forward, across the edges of the torus. A step reads and changes the cell of the ant alone.
+    forward. On a torus, whose colours are an array, it crosses the edges. On the plane, whose colours are the set of
+    black cells, it never wraps. A step reads and changes the cell of the ant alone.
 
     Args:
         label:
@@ -149,15 +151,31 @@ class LangtonsAntInteraction(Interaction):
         super().__init__(label)
         self.target = target
 
-    @staticmethod
-    def _move(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+    def _move(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
         """Turn the ant on its cell, flip the colour of the cell, and step forward.
 
         The colours are copied before the flip, so the colours a run recorded at earlier frames stay as they were.
         """
         del system
         ant = cast('AntView', agent)
-        colors = ant.colors.copy()
+        if isinstance(ant.colors, frozenset):
+            self._move_on_plane(ant, ant.colors)
+        else:
+            self._move_on_torus(ant, ant.colors.copy())
+
+    @staticmethod
+    def _move_on_plane(ant: AntView, black: frozenset[tuple[int, int]]) -> None:
+        """Turn the ant on its cell of the plane, flip the cell, and step forward."""
+        cell = (ant.row, ant.column)
+        heading = (ant.heading + (3 if cell in black else 1)) % 4
+        ant.row += MOVES[heading][0]
+        ant.column += MOVES[heading][1]
+        ant.heading = heading
+        ant.colors = black ^ {cell}
+
+    @staticmethod
+    def _move_on_torus(ant: AntView, colors: npt.NDArray[np.uint8]) -> None:
+        """Turn the ant on its cell of the torus, flip the cell, and step across edges."""
         cell = (ant.row, ant.column)
         heading = (ant.heading + (3 if colors[cell] else 1)) % 4
         colors[cell] = 1 - colors[cell]
@@ -327,21 +345,25 @@ class GameOfLifeSystem(BaseSystem):
 class LangtonsAntSystem(BaseSystem):
     """Langton's ant, which builds a periodic highway after a chaotic transient.
 
-    From a blank torus it wanders chaotically for about 10,000 steps before it builds the highway, a cycle of 104 steps
+    From a blank start it wanders chaotically for about 10,000 steps before it builds the highway, a cycle of 104 steps
     that moves it two cells along a diagonal. The system has the ant `ant`, with its cell `ant.row` and `ant.column`,
-    its heading `ant.heading`, and the colours `ant.colors` of the torus, which a run records at every frame. A step
-    changes the cell of the ant alone, so long runs on large tori stay fast.
+    its heading `ant.heading`, and the colours `ant.colors`, which a run records at every frame. On a torus the frames
+    hold arrays of the colours. On the unbounded plane, which `shape=None` gives, the ant never wraps and the frames
+    hold frozensets of the row and column of every black cell, so memory grows with the black cells and not with a
+    lattice. A step changes the cell of the ant alone, so long runs stay fast.
 
     Args:
         shape:
-            The number of rows and columns of the torus.
+            The number of rows and columns of the torus, or `None` for the unbounded plane.
 
         colors:
-            The initial colours of the cells, an array of the shape with 0 for white and 1 for black, or `None` for a
-            blank torus.
+            The initial colours of the cells, or `None` for a blank start. On a torus they are an array of the shape
+            with 0 for white and 1 for black. On the plane they are a sequence of the row and column of every black
+            cell.
 
         start:
-            The row and column of the initial cell of the ant, or `None` for the middle of the torus.
+            The row and column of the initial cell of the ant, or `None` for the middle of the torus or the cell
+            `(0, 0)` of the plane.
 
         heading:
             The initial heading of the ant, 0 to 3 for north, east, south, and west.
@@ -357,13 +379,17 @@ class LangtonsAntSystem(BaseSystem):
 
     Raises:
         ValidationError:
-            The colours are not 0 or 1 with the shape of the torus, or the start lies outside the torus.
+            The colours are not 0 or 1 with the shape of the torus, the black cells of the plane are not pairs of
+            integers, or the start lies outside the torus.
 
     Examples:
         >>> from skcomplex.systems.computer_science.automata import LangtonsAntSystem
         >>> trajectory = LangtonsAntSystem((9, 9)).prepare().simulate(until=2, dt=1)
         >>> trajectory.get_values('ant.column').ravel().tolist()
         [4, 5, 5]
+        >>> plane = LangtonsAntSystem(None).prepare().simulate(until=2, dt=1)
+        >>> sorted(plane.get_values('ant.colors')[-1, 0])
+        [(0, 0), (0, 1)]
     """
 
     field = 'computer_science/automata'
@@ -374,7 +400,7 @@ class LangtonsAntSystem(BaseSystem):
 
     def __init__(
         self,
-        shape: Sequence[int] = (80, 80),
+        shape: Sequence[int] | None = (80, 80),
         *,
         colors: npt.ArrayLike | None = None,
         start: Sequence[int] | None = None,
@@ -390,12 +416,16 @@ class LangtonsAntSystem(BaseSystem):
         self.heading = heading
 
     def _get_colors(self) -> AnyArray:
-        """Return an object array that holds the initial colours of the torus.
+        """Return an object array that holds the initial colours of the torus or plane.
 
         Raises:
             ValidationError:
-                The colours are not 0 or 1 with the shape of the torus.
+                The colours are not 0 or 1 with the shape of the torus, or the black cells are not pairs of integers.
         """
+        holder = np.empty(1, dtype=object)
+        if self.shape is None:
+            holder[0] = self._get_black_cells()
+            return holder
         shape = tuple(self.shape)
         colors = np.zeros(shape) if self.colors is None else np.asarray(self.colors)
         if colors.shape != shape or not np.isin(colors, (0, 1)).all():
@@ -404,9 +434,26 @@ class LangtonsAntSystem(BaseSystem):
                 f'{colors.shape} and the values {np.unique(colors).tolist()}.'
             )
             raise ValidationError(error_msg)
-        holder = np.empty(1, dtype=object)
         holder[0] = colors.astype(np.uint8)
         return holder
+
+    def _get_black_cells(self) -> frozenset[tuple[int, int]]:
+        """Return the row and column of every initial black cell of the plane.
+
+        Raises:
+            ValidationError:
+                The black cells are not pairs of integers.
+        """
+        cells = np.empty((0, 2), dtype=int) if self.colors is None else np.asarray(self.colors)
+        if cells.size == 0:
+            return frozenset()
+        if cells.shape != (len(cells), 2) or not np.issubdtype(cells.dtype, np.integer):
+            error_msg = (
+                'On the plane the colors must be the row and column of every black cell, pairs of integers, but they '
+                f'have the shape {cells.shape} and the type {cells.dtype}.'
+            )
+            raise ValidationError(error_msg)
+        return frozenset((row, column) for row, column in cells.tolist())
 
     def _get_start(self) -> tuple[int, int]:
         """Return the row and column of the initial cell of the ant.
@@ -415,6 +462,9 @@ class LangtonsAntSystem(BaseSystem):
             ValidationError:
                 The start lies outside the torus.
         """
+        if self.shape is None:
+            row, column = (0, 0) if self.start is None else self.start
+            return int(row), int(column)
         rows, columns = self.shape
         row, column = (rows // 2, columns // 2) if self.start is None else self.start
         if not (0 <= row < rows and 0 <= column < columns):
@@ -423,7 +473,7 @@ class LangtonsAntSystem(BaseSystem):
         return int(row), int(column)
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the ant on the coloured cells of a torus."""
+        """Set the system of the ant on the coloured cells of a torus or of the plane."""
         super()._prepare(context)
         row, column = self._get_start()
         ant = AntElement('ant', row=row, column=column, heading=int(self.heading), colors=self._get_colors())
