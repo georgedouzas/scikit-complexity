@@ -6,7 +6,7 @@ import pytest
 
 from skcomplex.core.analysis import NetworkMeasuresResult, network_measures
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
+from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem, NetworkDiffusionSystem
 from skcomplex.systems.social.segregation import SchellingSystem
 
 
@@ -169,3 +169,13 @@ def test_network_analysis_of_every_frame_of_a_trajectory():
     assert summary.nodes.tolist() == [34] * len(trajectory.times)
     with pytest.raises(AnalysisError, match='does not read measure'):
         network_measures(np.zeros(10), kind='summary', measure='pagerank')
+
+
+def test_network_analysis_of_a_growing_network_reads_every_frame():
+    """Test that the summary of a Barabási-Albert trajectory follows its growth and measures its last frame."""
+    trajectory = BarabasiAlbertSystem().prepare().simulate(until=50, dt=10, random_state=1)
+    summary = _network('summary', trajectory)
+    last = trajectory.get_network(-1).get_graph()
+    assert summary.nodes.tolist() == [3, 13, 23, 33, 43, 53]
+    assert summary.edges[-1] == last.number_of_edges() == 103
+    assert summary.clustering[-1] == pytest.approx(nx.average_clustering(last))

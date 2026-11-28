@@ -863,8 +863,8 @@ def _read_velocities(source: DataSource, group: str | None = None) -> Array:
 def _read_networks(source: DataSource) -> list[nx.Graph]:
     """Return the network of every frame of a trajectory.
 
-    A graph or a network snapshot is the only frame. A trajectory gives the graphs it records as observables, or the
-    network space of its problem at every frame.
+    A graph or a network snapshot is the only frame. A trajectory gives the graphs it records as observables, the
+    network of every frame when its topology changes, or else the network space of its problem at every frame.
 
     Args:
         source:
@@ -889,6 +889,8 @@ def _read_networks(source: DataSource) -> list[nx.Graph]:
     recorded = _get_graph_observables(trajectory)
     if recorded:
         return [frame[recorded[0]] for frame in trajectory.observables]
+    if trajectory.problem.topology is not None:
+        return [trajectory.get_network(frame).get_graph() for frame in range(len(trajectory.times))]
     space = _get_network_space(trajectory.problem)
     if space is None:
         raise _get_missing_error(trajectory, 'network')
