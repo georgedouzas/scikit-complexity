@@ -17,13 +17,16 @@ from ....core.components import Observable
 from ....core.components.elements import Element, VisualSpec
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.components.laws.utils import bernoulli, normal
+from ....core.components.laws.utils import bernoulli, both, normal, where
 from ....core.components.spaces import BaseSpace, ContinuousSpace
 from ....core.components.types import AgentViewProtocol
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver, SystemView
+from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Role
+
+TIMES = ('continuous', 'discrete')
 
 
 class MemoryWalkerElement(Element):
@@ -277,6 +280,71 @@ class RandomStepInteraction(Interaction):
         ]
 
 
+class DiscreteStepInteraction(Interaction):
+    """Steps of a walker on the integers once per step, each up with the probability `bias`.
+
+    Every step moves the walker by `+1` with probability `bias` and by `-1` otherwise. With a floor `f`, the walker
+    moves to `max(f, x + step)`, so it reflects at the floor. With absorbing ends `(a, b)`, a walker at `a` or `b`
+    stays there.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The walkers whose positions `x` the steps change.
+
+        bias:
+            The probability that a step goes up.
+
+        absorbing:
+            The ends `(a, b)` where a walker stops, or `None` for none.
+
+        floor:
+            The lowest position, where a walker reflects, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import DiscreteStepInteraction
+        >>> DiscreteStepInteraction('steps', absorbing=(0, 10)).absorbing
+        (0, 10)
+    """
+
+    law_classes = (UpdateLaw,)
+    draws = True
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Role = 'walkers',
+        bias: float = 0.5,
+        absorbing: tuple[float, float] | None = None,
+        floor: float | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.bias = bias
+        self.absorbing = absorbing
+        self.floor = floor
+
+    def _prepare(self, context: SimpleNamespace) -> None:
+        """Set the next position of every walker as the rule.
+
+        Args:
+            context:
+                The namespace of the elements a binding of the roles names.
+        """
+        super()._prepare(context)
+        x = context.target.x
+        moved = x + 2 * bernoulli('up', self.bias) - 1
+        if self.floor is not None:
+            moved = where(moved < self.floor, self.floor, moved)
+        if self.absorbing is not None:
+            low, high = self.absorbing
+            moved = where(both(x > low, x < high), moved, x)
+        self.laws_: list[BaseLaw] = [UpdateLaw(x, moved)]
+
+
 class WeakeningParticleElement(Element):
     """Particles on the real line, each with its position `x`.
 
@@ -463,22 +531,38 @@ class AgeingStepInteraction(Interaction):
 
 
 class RandomWalkSystem(BaseSystem):
-    """Independent walkers on the integers that step at random times.
+    """Independent walkers on the integers that step at random times or once per step.
 
-    This is a continuous-time random walk.
+    The walk runs in continuous time by default.
 
-    Every walker steps up at rate `rate * bias` and down at rate `rate * (1 - bias)`, so its mean moves with velocity
-    `rate (2 bias - 1)` and its variance grows as `4 rate bias (1 - bias) t`. The system has the positions `walkers.x`.
+    In continuous time every walker steps up at rate `rate * bias` and down at rate `rate * (1 - bias)`, so its mean
+    moves with velocity `rate (2 bias - 1)` and its variance grows as `4 rate bias (1 - bias) t`. In discrete time every
+    walker steps by `+1` with probability `bias` or `-1` otherwise once per unit of time, and it may stop at absorbing
+    ends, as in the gambler's ruin, or reflect at a floor. The system has the positions `walkers.x`.
 
     Args:
         n_walkers:
             The number of walkers.
 
         rate:
-            The rate of steps of a walker.
+            The rate of steps of a walker in continuous time.
 
         bias:
             The probability that a step goes up.
+
+        time:
+            The time of the steps, `'continuous'` for steps at the times of a Poisson process of rate `rate` or
+            `'discrete'` for one step per unit of time.
+
+        start:
+            The initial position of every walker.
+
+        absorbing:
+            The ends `(a, b)` where a walker stops for good, or `None` for none. It needs `time='discrete'`.
+
+        floor:
+            The lowest position, so a walker moves to `max(floor, x + step)`, or `None` for none. It needs
+            `time='discrete'`.
 
         label:
             The label of the system, which names it when it is nested in another one.
@@ -489,10 +573,17 @@ class RandomWalkSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The time is unknown, or the absorbing ends or the floor come in continuous time.
+
     Examples:
         >>> from skcomplex.systems.mathematics.stochastic_processes import RandomWalkSystem
         >>> RandomWalkSystem(20).prepare().system_.elements[0].size
         20
+        >>> walk = RandomWalkSystem(4, time='discrete', start=3, absorbing=(0, 10)).prepare()
+        >>> walk.simulate(1, random_state=0).get_values('walkers.x')[-1].tolist()
+        [2.0, 4.0, 2.0, 4.0]
     """
 
     field = 'mathematics/stochastic_processes'
@@ -507,6 +598,10 @@ class RandomWalkSystem(BaseSystem):
         *,
         rate: float = 1.0,
         bias: float = 0.5,
+        time: str = 'continuous',
+        start: float = 0.0,
+        absorbing: tuple[float, float] | None = None,
+        floor: float | None = None,
         label: str = 'system',
         solver: BaseSolver | str = 'auto',
         backend: BaseBackend | str = 'auto',
@@ -515,13 +610,47 @@ class RandomWalkSystem(BaseSystem):
         self.n_walkers = n_walkers
         self.rate = rate
         self.bias = bias
+        self.time = time
+        self.start = start
+        self.absorbing = absorbing
+        self.floor = floor
 
     def _prepare(self, context: Sequence[Observable] | None = None) -> None:
-        """Set the system of the walkers on a line and their steps."""
+        """Set the system of the walkers on a line and their steps in the chosen time."""
         super()._prepare(context)
-        walkers = RandomWalkerElement('walkers', size=self.n_walkers, space=ContinuousSpace(n_dim=1))
-        steps = RandomStepInteraction('steps', target='walkers', rate=self.rate, bias=self.bias)
-        self.system_ = System(self.label, elements=[walkers], interactions=[steps])
+        walkers = RandomWalkerElement(
+            'walkers',
+            x=float(self.start),
+            size=self.n_walkers,
+            space=ContinuousSpace(n_dim=1),
+        )
+        self.system_ = System(self.label, elements=[walkers], interactions=[self._get_steps()])
+
+    def _get_steps(self) -> Interaction:
+        """Return the steps of the walkers in the chosen time.
+
+        Raises:
+            ValidationError:
+                The time is unknown, or the absorbing ends or the floor come in continuous time.
+        """
+        if self.time not in TIMES:
+            error_msg = f'Unknown time {self.time!r}. Use one of {", ".join(TIMES)}.'
+            raise ValidationError(error_msg)
+        if self.time == 'discrete':
+            return DiscreteStepInteraction(
+                'steps',
+                target='walkers',
+                bias=self.bias,
+                absorbing=self.absorbing,
+                floor=self.floor,
+            )
+        if self.absorbing is not None or self.floor is not None:
+            error_msg = (
+                f"The absorbing ends and the floor of {self.label!r} need steps once per unit of time. "
+                "Give time='discrete'."
+            )
+            raise ValidationError(error_msg)
+        return RandomStepInteraction('steps', target='walkers', rate=self.rate, bias=self.bias)
 
 
 class WeakeningOrnsteinUhlenbeckSystem(BaseSystem):
