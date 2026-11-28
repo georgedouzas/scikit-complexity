@@ -3,25 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import RR
 
-from ..base import BaseSpec
-from ..enums import SymmetryKind
-from ..errors import ValidationError
 from ._entry_spec import EntrySpec
 from ._matrix_group_spec import MatrixGroupSpec
 from ._power_series_spec import PowerSeriesSpec
 
-ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
-
 
 @dataclass(frozen=True)
-class _StateSpec(BaseSpec):
-    """A spec of a state of an element, its domain, order, and lags.
+class _StateSpec:
+    """A state of an element, its domain, order, and lags.
 
     It is given in the annotation of an argument of the constructor of an element, and the default of the argument is
     the initial value of the state. A state of order `k` has its `k`th time derivative given by its rate laws, such as a
@@ -113,64 +107,6 @@ class _StateSpec(BaseSpec):
     algebraic: bool = False
     group: MatrixGroupSpec | None = None
     n_dim: int | None = None
-
-    def _check_group(self) -> None:
-        """Raise an error for a matrix group state that is not a plain state.
-
-        A matrix group state cannot also be a vector, a tensor, or of another order or with lags.
-        """
-        if self.group is not None and (self.vector or self.tensor is not None or self.order != 1 or self.lags):
-            error_msg = (
-                f'A state of the group {self.group.name}({self.group.degree}) holds its matrices alone. Remove '
-                '`vector`, `tensor`, `order`, and `lags`.'
-            )
-            raise ValidationError(error_msg)
-
-    def _check(self) -> None:
-        """Raise an error for invalid order, lags, or initial values, or a bad reference.
-
-        The reference of a state must be scalar.
-
-        Raises:
-            ValidationError:
-                The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
-                naming a member of a group is not a scalar of order 1 without lags, or the tensor symmetry is unknown or
-                given together with a vector, or an algebraic state has an order other than 1 or lags, or a matrix
-                group state is also a vector, a tensor, or a state of another order or with lags.
-        """
-        self._check_group()
-        if self.algebraic and (self.order != 1 or self.lags):
-            error_msg = (
-                f'An algebraic state has order 1 and no lags, but got the order {self.order!r} and {self.lags!r} lags. '
-                'Its equations determine its value, so remove `order` and `lags`.'
-            )
-            raise ValidationError(error_msg)
-        if self.tensor is not None and self.vector:
-            error_msg = f'A state takes either vector=True or tensor={self.tensor!r}, not both.'
-            raise ValidationError(error_msg)
-        if self.tensor is not None and self.tensor not in SymmetryKind:
-            error_msg = f'The tensor symmetry is {self.tensor!r}. Use one of {", ".join(SymmetryKind)}.'
-            raise ValidationError(error_msg)
-        if self.role not in ROLES:
-            error_msg = f'The role of a state is one of {", ".join(map(repr, ROLES))}, but got {self.role!r}.'
-            raise ValidationError(error_msg)
-        if self.reference is not None and (self.vector or self.tensor or self.group or self.order != 1 or self.lags):
-            error_msg = f'The state naming a member of {self.reference!r} is not a scalar of order 1 without lags.'
-            raise ValidationError(error_msg)
-        integral = float(self.order).is_integer()
-        if not (math.isfinite(self.order) and self.order > 0 and (integral or self.order < 1)):
-            error_msg = f'The order {self.order!r} is neither an integer of at least 1 nor a real number in (0, 1).'
-            raise ValidationError(error_msg)
-        if not (isinstance(self.lags, int) and self.lags >= 0):
-            error_msg = f'The lags {self.lags!r} are not a nonnegative integer.'
-            raise ValidationError(error_msg)
-        if self.order != 1 and self.lags:
-            error_msg = 'A state takes either an order other than 1 or lags, not both.'
-            raise ValidationError(error_msg)
-        companions = max(int(self.order) - 1 if integral else 0, self.lags)
-        if len(self.initial) > companions:
-            error_msg = f'{len(self.initial)} initial values were given for {companions} derivatives or lags.'
-            raise ValidationError(error_msg)
 
     def _get_domain_tag(self) -> str | None:
         """Return the domain tag of the state.
