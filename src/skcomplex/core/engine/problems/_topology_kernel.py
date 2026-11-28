@@ -698,7 +698,7 @@ class TopologyKernel(BaseKernel):
 
     def _join_further(
         self,
-        item: CompiledRequestSpec,
+        item: _CompiledRequest,
         node: int,
         t: float,
         x: Array,
