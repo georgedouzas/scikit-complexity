@@ -1,5 +1,7 @@
 """Test the `LatticeSolver` class."""
 
+import time
+
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
@@ -14,7 +16,7 @@ from skcomplex.core.components.laws import (
     TotalisticSpec,
     UpdateLaw,
 )
-from skcomplex.core.components.laws.utils import neighbors, relax
+from skcomplex.core.components.laws.utils import neighbors, relax, where
 from skcomplex.core.components.spaces import (
     LatticeNeighborhood,
     LatticeSpace,
@@ -28,6 +30,7 @@ from skcomplex.systems.computer_science.automata import ElementaryAutomatonSyste
 from skcomplex.systems.physics.criticality import ForestFireSystem, SandpileSystem
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
 
+NEAREST = RadiusNeighborhood(1, metric='manhattan', center=True)
 
 def _cells(space, laws, label='cells', **values):
     """Return cells at the sites of a lattice whose laws are a function of the namespace of the role `target`."""
@@ -291,6 +294,49 @@ def test_relaxation_profiles_of_a_sandpile():
         assert len(event.profile) == event.duration
         assert min(event.profile) > 0
         assert sum(event.profile) == event.size
+
+
+def test_activity_of_two_fires_that_never_touch_gives_two_events():
+    """Test that fires on the two sides of an empty column are two events whose sizes add up to the trees."""
+    cover = np.ones((5, 9))
+    cover[:, 4] = 0.0
+    cover[2, 0] = cover[2, 8] = 2.0
+    forest = ForestFireSystem((5, 9), boundary='fixed', growth=0.0, lightning=0.0).prepare()
+    trajectory = forest.simulate(until=20, dt=1, initial_state={'forest.cover': cover.ravel()})
+    assert [event.label for event in trajectory.events] == ['fire', 'fire']
+    assert sum(event.size for event in trajectory.events) == 40
+    assert [event.area for event in trajectory.events] == [20, 20]
+
+
+def _burn(cover, *around, random, **kwargs):
+    """Return the covers of a forest after fires spread, burn out, and trees grow on a few empty sites."""
+    burning = np.any(np.stack(around) == 2, axis=0) | (random < 1e-4)
+    return np.where(cover == 2, 0.0, np.where(cover == 1, np.where(burning, 2.0, 1.0), 1.0 * (random < 0.05)))
+
+
+def _forest(activity):
+    """Return a forest of 100 x 100 sites whose rule of fires has an activity or none."""
+
+    def laws(s):
+        """Return the rule of the fires."""
+        cover = s.target.cover
+        value = where(cover == 2, 1, 0) if activity else None
+        return [UpdateLaw(cover, _burn, neighborhood=NEAREST, stochastic=True, activity=value, label='fire')]
+
+    cover = (np.random.default_rng(0).random(10_000) < 0.5).astype(float)
+    return _cells(LatticeSpace((100, 100)), laws, label='forest', cover=cover)
+
+
+@pytest.mark.benchmark
+def test_activity_of_a_forest_costs_less_than_its_rule():
+    """Test that recording the fires of a forest of 100 x 100 sites for 500 steps takes less than its rule."""
+    timings = {}
+    for activity in (False, True):
+        system = _forest(activity).prepare()
+        start = time.perf_counter()
+        system.simulate(until=500, dt=500, random_state=0)
+        timings[activity] = time.perf_counter() - start
+    assert timings[True] < 2 * timings[False]
 
 
 def test_relaxation_without_end_raises():

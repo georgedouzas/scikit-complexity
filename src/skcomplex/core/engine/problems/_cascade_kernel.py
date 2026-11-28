@@ -30,7 +30,7 @@ class _CascadeRecordSpec(BaseRecordSpec):
             The time of the step.
 
         size:
-            The number of site updates.
+            The number of site updates, or the total activity of an event of activity.
 
         duration:
             The number of iterations of the cascade.
@@ -39,15 +39,16 @@ class _CascadeRecordSpec(BaseRecordSpec):
             The number of distinct sites that changed.
 
         profile:
-            The number of active sites of every iteration, in order, which sums to the size.
+            The number of active sites of every iteration, or the activity of every step of an event of activity, in
+            order, which sums to the size.
     """
 
     label: str
     time: float
-    size: int
+    size: float
     duration: int
     area: int
-    profile: tuple[int, ...]
+    profile: tuple[float, ...]
 
 
 class CascadeKernel(BaseKernel):

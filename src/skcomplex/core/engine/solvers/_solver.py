@@ -10,7 +10,7 @@ import numpy as np
 
 from ...errors import SolverError
 from ...types import Array, VectorFunction
-from ..problems import ProblemSpec
+from ..problems import ProblemSpec, RunStateSpec
 from ..problems._problem_spec import _Accelerated
 from ._base import BaseSolver
 from ._event_locator import EventLocator
@@ -117,6 +117,16 @@ class Solver(BaseSolver[ProblemSpec]):
             time = bound
         return state
 
+    def _record_activity(self, t: float, x: Array, p: Array, *, first: bool = False) -> None:
+        """Read the activities of the update laws at a state and add the events they close to the records.
+
+        The first state is read once per run, at the start of the first advance.
+        """
+        for recorder in self.problem_.activities:
+            if first and recorder.steps_:
+                continue
+            self.locator_.records.extend(recorder.run(RunStateSpec(t, x, p, self.rng_)).values_)
+
     @staticmethod
     def _warm_loops(accelerated: _Accelerated, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
         """Call every compiled stepper loop of a problem once.
@@ -171,6 +181,8 @@ class Solver(BaseSolver[ProblemSpec]):
         problem = self.problem_
         self._check_capabilities(problem)
         self.locator_ = EventLocator(problem)
+        for recorder in problem.activities:
+            recorder.prepare()
         self.renewals_ = RenewalClock(problem, self.rng_, self.locator_) if problem.renewals else None
         self.history_: History | None = None
         step = getattr(self, 'dt', None)

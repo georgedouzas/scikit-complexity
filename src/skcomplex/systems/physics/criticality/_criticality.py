@@ -19,6 +19,7 @@ from ....core.components import Observable
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import where
 from ....core.components.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -29,6 +30,7 @@ from ....core.components.spaces import (
 )
 from ....core.engine.backends import BaseBackend
 from ....core.engine.solvers import BaseSolver
+from ....core.errors import ValidationError
 from ....core.systems import BaseSystem, System
 from ....core.types import Array, Role
 from ..common.avalanches import TopplingInteraction
@@ -40,6 +42,7 @@ SITE_NEIGHBORHOODS: dict[str, RadiusNeighborhood | AdjacencyNeighborhood] = {
     'graph': AdjacencyNeighborhood(center=True),
 }
 MANNA_THRESHOLD = 2
+FOREST_BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 
 
 class ForestElement(Element):
@@ -202,7 +205,17 @@ class FireInteraction(Interaction):
                 The namespace of the target and the time `t`.
         """
         super()._prepare(context)
-        self.laws_ = [UpdateLaw(context.target.cover, self._burn, neighborhood=self.neighborhood, stochastic=True)]
+        cover = context.target.cover
+        self.laws_ = [
+            UpdateLaw(
+                cover,
+                self._burn,
+                neighborhood=self.neighborhood,
+                stochastic=True,
+                activity=where(cover == BURNING, 1, 0),
+                label='fire',
+            ),
+        ]
 
 
 class SandpileSystem(BaseSystem):
@@ -346,11 +359,19 @@ class ForestFireSystem(BaseSystem):
 
     Slow growth and rare lightning give fires of every size.
 
-    The system has the covers `forest.cover`.
+    Every fire is recorded as a `fire` event, the burning sites connected in space and time, with its size, the number
+    of trees that burn, its duration, its area, and its profile, the burning sites of every step. Two fires that touch
+    are one fire, the usual cluster of burning sites of a forest fire model, and a fire still burning when the run ends
+    is left out. The system has the covers `forest.cover`.
 
     Args:
         shape:
             The number of rows and columns.
+
+        boundary:
+            The edges of the forest. `'periodic'` joins opposite edges, so a fire at one edge reaches the opposite edge
+            in one step. `'fixed'` holds no trees beyond the edges, so no fire crosses them, and `'reflecting'` reads
+            the mirror image of the forest beyond them.
 
         growth:
             The probability that a tree grows on an empty site per step.
@@ -373,10 +394,17 @@ class ForestFireSystem(BaseSystem):
         backend:
             The backend that evaluates the compiled functions, or `'auto'` for the one the system chooses.
 
+    Raises:
+        ValidationError:
+            The boundary is none of `'periodic'`, `'fixed'`, and `'reflecting'`.
+
     Examples:
         >>> from skcomplex.systems.physics.criticality import ForestFireSystem
         >>> ForestFireSystem((10, 10)).prepare().system_.elements[0].growth
         0.05
+        >>> trajectory = ForestFireSystem((32, 32), lightning=1e-3).prepare().simulate(until=100, random_state=0)
+        >>> {event.label for event in trajectory.events}
+        {'fire'}
     """
 
     field = 'physics/criticality'
@@ -389,6 +417,7 @@ class ForestFireSystem(BaseSystem):
         self,
         shape: Sequence[int] = (100, 100),
         *,
+        boundary: str = 'periodic',
         growth: float = 0.05,
         lightning: float = 1e-4,
         density: float = 0.5,
@@ -399,6 +428,7 @@ class ForestFireSystem(BaseSystem):
     ) -> None:
         super().__init__(label, solver=solver, backend=backend)
         self.shape = shape
+        self.boundary = boundary
         self.growth = growth
         self.lightning = lightning
         self.density = density
@@ -410,15 +440,22 @@ class ForestFireSystem(BaseSystem):
         Args:
             context:
                 The observables to compile with the problem, or `None` for none.
+
+        Raises:
+            ValidationError:
+                The boundary is none of `'periodic'`, `'fixed'`, and `'reflecting'`.
         """
         super()._prepare(context)
+        if self.boundary not in FOREST_BOUNDARIES:
+            error_msg = f'ForestFireSystem has the boundary {self.boundary!r}. Use one of {", ".join(FOREST_BOUNDARIES)}.'
+            raise ValidationError(error_msg)
         cover = (np.random.default_rng(self.random_state).random(tuple(self.shape)) < self.density).astype(float)
         forest = ForestElement(
             'forest',
             cover=cover.ravel(),
             growth=self.growth,
             lightning=self.lightning,
-            space=LatticeSpace(tuple(self.shape)),
+            space=LatticeSpace(tuple(self.shape), boundary=self.boundary),
         )
         self.system_ = System(self.label, elements=[forest], interactions=[FireInteraction('fire', target='forest')])
 

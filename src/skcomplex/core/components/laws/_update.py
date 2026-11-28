@@ -33,8 +33,9 @@ class UpdateLaw(BaseLaw):
     `increment` or by `source`. With `neighborhood`, the law is a local rule that reads the neighbours of every cell of
     a lattice or node of a network, such as the Game of Life, and with `arrays`, a function of the whole array changes
     every member at once. Its target may also be a group, whose members each run a rule `rule(agent, system)` that may
-    add and remove members, or a `TopologyRequestSpec`, whose value is the chance that the network changes. A
-    population breeds from year to year, a cellular automaton steps its cells, an account earns interest every month,
+    add and remove members, or a `TopologyRequestSpec`, whose value is the chance that the network changes. With
+    `activity`, a run records every burst of activity connected in space and time as an event under the label of the
+    law, such as a fire of a forest or a jam of cars. A population breeds from year to year, a cellular automaton steps its cells, an account earns interest every month,
     and a player revises a strategy every round.
 
     Read more in the user guide, under Laws.
@@ -105,6 +106,16 @@ class UpdateLaw(BaseLaw):
             uniform number per cell of a local rule, or the random generator of the run for a whole array, and `None`
             otherwise.
 
+        activity:
+            A symbolic expression of the values of the member the law runs for, such as `where(cover == 2, 1, 0)` for
+            a burning site, or `None`. A run reads it at the start and at the end of every step. A positive value marks
+            the member as active and adds itself to the size of its event. Active members that are nearest neighbours
+            of the space at one step, or the same member or nearest neighbours at consecutive steps, belong to one
+            event, so two fires that touch are one fire. A member of no lattice or network connects only to itself. An
+            event is recorded under the label of the law once none of its members is active, with its start time, its
+            size, its duration in steps, its area, the number of distinct members, and its profile, the activity of
+            every step. An event still active when the run ends is left out.
+
     Raises:
         ValidationError:
             The value is a NumPy array, an increment law has a source, a local rule has a neighbourhood that is no
@@ -142,6 +153,7 @@ class UpdateLaw(BaseLaw):
     score: Callable[..., object] | None = None
     arrays: bool = False
     stochastic: bool = False
+    activity: object = None
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the update sets, or the states a local rule sets together."""
@@ -178,6 +190,7 @@ class UpdateLaw(BaseLaw):
             schedule=self.schedule or 'synchronous',
             stochastic=self.stochastic,
             label=self.label,
+            activity=self.activity,
         )
 
     def _check_local_rule(self) -> None:
@@ -229,6 +242,24 @@ class UpdateLaw(BaseLaw):
             raise ValidationError(error_msg)
         self._check_local_rule()
         self._check_arrays()
+        self._check_activity()
+
+    def _check_activity(self) -> None:
+        """Raise an error for an activity that is no expression or a law with an activity but no label."""
+        if self.activity is None:
+            return
+        if not isinstance(self.activity, Expression | int | float):
+            error_msg = (
+                f'The update law {self.label!r} has the activity {self.activity!r}, which is no symbolic expression. '
+                'Give an expression of the values of its member, such as where(cover == 2, 1, 0).'
+            )
+            raise ValidationError(error_msg)
+        if not self.label:
+            error_msg = (
+                'An update law with an activity has no label, which its events take. Give one, such as '
+                "UpdateLaw(s.target.cover, burn, neighborhood=NEAREST, activity=where(cover == 2, 1, 0), label='fire')."
+            )
+            raise ValidationError(error_msg)
 
     def _check_arrays(self) -> None:
         """Raise an error for a score, `arrays`, or `stochastic` on a law of one value."""

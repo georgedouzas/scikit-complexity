@@ -402,3 +402,13 @@ def test_update_increments_move_units_once_per_step_with_one_draw_per_edge():
     assert set(np.unique(levels)) == {0.0, 1.0}
     assert set(levels.sum(axis=1)) == {25.0}
     assert (levels[1:] != levels[:-1]).any()
+
+
+def test_update_activity_needs_a_label_and_an_expression():
+    """Test that a law with an activity needs a label, which its events take, and a symbolic activity."""
+    x = var('x')
+    with pytest.raises(ValidationError, match='no label'):
+        UpdateLaw(x, x + 1, activity=where(x > 0, x, 0))._check()
+    with pytest.raises(ValidationError, match='no symbolic expression'):
+        UpdateLaw(x, x + 1, activity=lambda x: x, label='burst')._check()
+    UpdateLaw(x, x + 1, activity=where(x > 0, x, 0), label='burst')._check()

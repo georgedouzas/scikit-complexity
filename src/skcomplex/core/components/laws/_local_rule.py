@@ -76,6 +76,10 @@ class _LocalRuleLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
+        activity:
+            The symbolic expression of the values of a cell whose positive values mark it active, which a run records
+            as events under the label of the law, or `None`.
+
     Raises:
         ValidationError:
             The schedule or the rule spec is invalid, or a run lacks the space or a read state.
@@ -91,6 +95,7 @@ class _LocalRuleLaw(BaseLaw):
     schedule: str = 'synchronous'
     stochastic: bool = False
     label: str = ''
+    activity: object = None
 
     @classmethod
     def _get_name(cls) -> str:

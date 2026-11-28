@@ -5,7 +5,7 @@
 - [x] 1.1 Add `profile` to `_CascadeRecordSpec` and fill it in `CascadeKernel._relax`, and test the single toppling and
   the profiles of a sandpile in `tests/core/components/laws/utils/test_relaxations.py` and
   `tests/core/engine/solvers/test_lattice.py`
-- [ ] 1.2 Return the profiles as shapes in `events(kind='excursions')` and add `events(kind='activity')`, tested in
+- [x] 1.2 Return the profiles as shapes in `events(kind='excursions')` and add `events(kind='activity')`, tested in
   `tests/core/analysis/test_events.py` with the two avalanche example
 - [x] 1.3 Test that `crackling_noise` collapses the shapes of sandpile avalanches in
   `tests/systems/physics/criticality/test_crackling_noise.py`
@@ -19,13 +19,13 @@
 
 ## 3. Events of activity (#77)
 
-- [ ] 3.1 Add `activity` to `UpdateLaw`, with the check that a law with an activity has a label, tested in
+- [x] 3.1 Add `activity` to `UpdateLaw`, with the check that a law with an activity has a label, tested in
   `tests/core/components/laws/test_update.py`
-- [ ] 3.2 Add the private `_ActivityRecorder` in `core/engine/problems/_activity_recorder.py`, which joins active members
+- [x] 3.2 Add the private `_ActivityRecorder` in `core/engine/problems/_activity_recorder.py`, which joins active members
   by the nearest neighbours of the space with `scipy.sparse.csgraph`, tested through the public run in
   `tests/core/engine/solvers/test_lattice.py` and `tests/core/engine/solvers/test_maps.py` with the runs of one member
   and the two fires
-- [ ] 3.3 Lower the activity in the compiler and call the recorder from the `LatticeSolver` and the `IterationSolver`
+- [x] 3.3 Lower the activity in the compiler and call the recorder from the `LatticeSolver` and the `IterationSolver`
   after every step and on the initial state, and verify that the events reach `trajectory.events` in the same tests
 - [ ] 3.4 Document the activity in the docstring of `UpdateLaw` and in
   `docs/overview/user_guide/build_a_custom_system/lattice_systems.md`, and verify that the examples run

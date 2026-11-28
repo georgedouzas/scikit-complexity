@@ -4,6 +4,7 @@
 # License: MIT
 
 from .._base import BasePass
+from ._activities import ActivitiesPass
 from ._agents import AgentsPass
 from ._agents_problem import AgentsProblemPass
 from ._census import CensusPass
@@ -93,6 +94,7 @@ PASSES: tuple[type[BasePass], ...] = (
     SetRulesApartPass,
     AgentsProblemPass,
     LatticeProblemPass,
+    ActivitiesPass,
     LowerFieldsPass,
     ConservedNoisePass,
     FieldFunctionsPass,
