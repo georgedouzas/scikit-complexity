@@ -1,10 +1,10 @@
 ## 1. Energies and interaction graphs (#49, #52)
 
-- [ ] 1.1 Record the observable `energy` in `IsingSystem`, `PottsSystem` and `XYSystem`, tested in
+- [x] 1.1 Record the observable `energy` in `IsingSystem`, `PottsSystem` and `XYSystem`, tested in
       `tests/systems/physics/statistical_mechanics/test_spins.py`
-- [ ] 1.2 Return the interaction graph of fixed lattice and continuous spaces from `Trajectory.get_network`, tested in
+- [x] 1.2 Return the interaction graph of fixed lattice and continuous spaces from `Trajectory.get_network`, tested in
       `tests/core/engine/runtime/test_trajectories.py`
-- [ ] 1.3 Add `neighbors(kind='radius', r_max=)` with pairs and degrees across periodic edges, tested in
+- [x] 1.3 Add `neighbors(kind='radius', r_max=)` with pairs and degrees across periodic edges, tested in
       `tests/core/analysis/test_neighbors.py`
 
 ## 2. Options of existing systems (#50, #51, #53, #54, #55)
