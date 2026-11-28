@@ -95,7 +95,8 @@ class NumbaBackend(BaseBackend):
             The directory of the generated kernel sources and Numba's cache, or `None` for `~/.cache/skcomplex`.
 
         parallel:
-            Whether member and pair loops over groups of at least 1000 members run in parallel threads. Kernels that
+            Whether pair loops over groups of at least 1000 members and member loops over groups of at least 200000
+            members run in parallel threads. Kernels that
             the compiled loops of jump processes and discrete maps call once per event always run serially.
 
     See Also:

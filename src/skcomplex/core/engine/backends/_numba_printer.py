@@ -35,6 +35,7 @@ from ._base import AUTO_MEMBERS
 from ._numba_components import GIANT, LABEL, LARGEST, SIZE
 
 INDENT = '    '
+PARALLEL_MEMBERS = 200_000
 COMPONENT_KINDS = {
     'component-label': LABEL,
     'component-size': SIZE,
@@ -56,8 +57,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     Args:
         parallel:
-            Whether member and pair loops over groups of at least 1000 members, and the fused reductions, run in
-            parallel threads.
+            Whether pair loops over groups of at least 1000 members, member loops over groups of at least 200000
+            members, and the fused reductions run in parallel threads.
 
     Attributes:
         code_:
@@ -125,17 +126,19 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
                 if isinstance(kernel.pairs, EdgeSearch):
                     self._get_edge_kernel(kernel, name, mode)
                 elif kernel.pairs is not None:
-                    self._add_pair_kernel(kernel, name, self._is_parallel(kernel))
+                    self._add_pair_kernel(kernel, name, self._is_parallel(kernel, AUTO_MEMBERS))
                 else:
-                    self._get_member_kernel(kernel, name, mode, self._is_parallel(kernel))
+                    self._get_member_kernel(kernel, name, mode, self._is_parallel(kernel, PARALLEL_MEMBERS))
                 names.append(name)
             size = ' + '.join(self._get_output_count(kernel) for kernel in kernels) or '0'
             self._add_entry_function(label, names, mode, size, reduced=reduced)
 
-    def _is_parallel(self, kernel: LawKernel) -> bool:
+    def _is_parallel(self, kernel: LawKernel, members: int) -> bool:
         """Check whether a kernel runs in parallel threads.
 
-        It does over groups of at least 1000 members.
+        It does over groups of at least `members` members. A pair kernel searches neighbours for every member and pays
+        for threads from 1000 members. A member kernel does a few operations per member, so starting the threads costs
+        more than they save below 200000 members, as in the Laplacian of a reaction diffusion field.
         """
         if not self.parallel:
             return False
@@ -144,7 +147,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             for reference in kernel.references.values()
             if reference.source in {ReadKind.MEMBER, ReadKind.FIRST, ReadKind.SECOND}
         ]
-        return max(rows, default=0) >= AUTO_MEMBERS
+        return max(rows, default=0) >= members
 
     def _get_slot(self, entry: EntrySpec) -> int:
         """Return the layout slot of an entry.
