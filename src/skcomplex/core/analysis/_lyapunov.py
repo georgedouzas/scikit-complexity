@@ -3,34 +3,40 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+import jax
+import jax.numpy as jnp
 import nolds
 import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, dirac_delta, sgn
 
+from ..engine.backends import JaxBackend
+from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._expression_printer import ExpressionPrinter
 from ..engine.problems._source_loader import SourceLoader
 from ..engine.runtime import Trajectory
-from ..enums import DataKind
-from ..errors import AnalysisError
+from ..engine.types import TracedArray, TracedFunction
+from ..enums import DataKind, FormKind
+from ..errors import AnalysisError, SkcomplexError
 from ..types import Array, VectorFunction
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
 from ._stability import StabilityResult
-from .types import DataSource
+from .types import DataSource, TangentFunction
 
 KINDS = ('spectrum', 'largest')
 SETTINGS = {
     'spectrum': {'n_exponents', 'until', 'dt', 'transient', 'parameters'},
     'largest': {'variables', 'dt', 'dimension', 'delay', 'min_separation', 'trajectory_length', 'skip'},
 }
-FUNCTIONS: dict[str, VectorFunction] = {}
+FUNCTIONS: dict[str, Callable[..., Array]] = {}
+DIFFERENCE_STEP = 1e-6
 TAGS = AnalysisTags(DataKind.SYSTEM, randomness='deterministic')
 KIND_TAGS = {
     'largest': AnalysisTags(DataKind.SERIES, randomness='deterministic'),
@@ -40,7 +46,7 @@ KIND_TAGS = {
 @numba.njit
 def _flow_spectrum(
     f: VectorFunction,
-    jac: VectorFunction,
+    tangent: TangentFunction,
     x: Array,
     p: Array,
     n: int,
@@ -50,20 +56,20 @@ def _flow_spectrum(
 ) -> Array:
     """Integrate a flow and its tangent vectors with RK4, and average the growth.
 
-    The tangent vectors are re-orthonormalised every step.
+    The tangent vectors are re-orthonormalised every step, and `tangent(t, x, p, q)` gives the Jacobian times `q`.
     """
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
     t = 0.0
     for step in range(skip + steps):
         k1 = f(t, x, p)
-        l1 = jac(t, x, p) @ q
+        l1 = tangent(t, x, p, q)
         k2 = f(t + dt / 2, x + dt / 2 * k1, p)
-        l2 = jac(t + dt / 2, x + dt / 2 * k1, p) @ (q + dt / 2 * l1)
+        l2 = tangent(t + dt / 2, x + dt / 2 * k1, p, q + dt / 2 * l1)
         k3 = f(t + dt / 2, x + dt / 2 * k2, p)
-        l3 = jac(t + dt / 2, x + dt / 2 * k2, p) @ (q + dt / 2 * l2)
+        l3 = tangent(t + dt / 2, x + dt / 2 * k2, p, q + dt / 2 * l2)
         k4 = f(t + dt, x + dt * k3, p)
-        l4 = jac(t + dt, x + dt * k3, p) @ (q + dt * l3)
+        l4 = tangent(t + dt, x + dt * k3, p, q + dt * l3)
         x = x + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
         q = q + dt / 6 * (l1 + 2 * l2 + 2 * l3 + l4)
         q, r = np.linalg.qr(q)
@@ -75,15 +81,23 @@ def _flow_spectrum(
 
 
 @numba.njit
-def _map_spectrum(f: VectorFunction, jac: VectorFunction, x: Array, p: Array, n: int, steps: int, skip: int) -> Array:
+def _map_spectrum(
+    f: VectorFunction,
+    tangent: TangentFunction,
+    x: Array,
+    p: Array,
+    n: int,
+    steps: int,
+    skip: int,
+) -> Array:
     """Iterate a map and its tangent vectors, and average the growth.
 
-    The tangent vectors are re-orthonormalised every step.
+    The tangent vectors are re-orthonormalised every step, and `tangent(t, x, p, q)` gives the Jacobian times `q`.
     """
     q = np.eye(x.size)[:, :n].copy()
     sums = np.zeros(n)
     for step in range(skip + steps):
-        q = jac(float(step), x, p) @ q
+        q = tangent(float(step), x, p, q)
         x = f(float(step), x, p)
         q, r = np.linalg.qr(q)
         q = np.ascontiguousarray(q)
@@ -179,7 +193,10 @@ def lyapunov(
             What to return. `'spectrum'` gives the largest `n_exponents` exponents of a flow or a map from the initial
             state of the system. The tangent dynamics use the symbolic Jacobian, in which `abs(u)` has the derivative
             `sign(u)`, and the compiled functions take the parameters as an argument, so a sweep over parameter values
-            compiles them once. Tangent vectors are made orthonormal again by QR after every step, as in the algorithm
+            compiles them once. A group of more than 64 members and a field whose laws apply operators, such as a
+            spectral Laplacian, have no written out Jacobian, and their tangent vectors follow the forward derivatives
+            of JAX when the system has a JAX form, or else central differences of the compiled drift or update, run
+            in Python. Tangent vectors are made orthonormal again by QR after every step, as in the algorithm
             of Benettin, and the exponents are the average logarithmic growth of the diagonal of `R`. The Kaplan-Yorke
             dimension and the Kolmogorov-Sinai entropy, by the identity of Pesin the sum of the positive exponents,
             follow from the spectrum, and an array of exponents passes through as the spectrum. `'largest'` gives the
@@ -287,9 +304,15 @@ def lyapunov(
         return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
     problem = None
     if isinstance(source, _CompositeSystem | BaseProblemSpec | Trajectory):
-        dynamics = StabilityResult._get_dynamics_of(_read_system(source), parameters)
-        problem = dynamics.problem
-        exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)
+        problem, values = StabilityResult._get_problem_of(_read_system(source), parameters)
+        settings = (n_exponents, until, dt, transient)
+        if StabilityResult._is_expandable(problem):
+            dynamics = StabilityResult._get_dynamics_of(problem, parameters)
+            f, tangent, start, values = _get_symbolic_functions(dynamics)
+            exponents = _compute_spectrum(problem, f, tangent, start, values, settings, compiled=True)
+        else:
+            f, tangent = _get_numeric_functions(problem)
+            exponents = _compute_spectrum(problem, f, tangent, problem.initial_state, values, settings, compiled=False)
     else:
         exponents = np.sort(np.asarray(source, dtype=float).ravel())[::-1]
     return LyapunovResult(
@@ -301,36 +324,117 @@ def lyapunov(
 
 
 def _compute_spectrum(
-    dynamics: _DynamicsSpec,
-    n_exponents: int | None,
-    until: float | None,
-    dt: float | None,
-    transient: float | None,
+    problem: ProblemSpec,
+    f: VectorFunction,
+    tangent: TangentFunction,
+    start: Array,
+    values: Array,
+    settings: tuple[int | None, float | None, float | None, float | None],
+    *,
+    compiled: bool,
 ) -> Array:
-    """Return the exponents of the system from its tangent dynamics."""
-    size = len(dynamics.symbols)
-    count = size if n_exponents is None else n_exponents
-    problem = dynamics.problem
-    indices = {
-        name: entry.start + column
-        for entry in problem.states.entries
-        for column, name in enumerate(entry.generic_names)
-    }
-    start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
-    f = _function('field', dynamics, dynamics.rates, (size,))
-    jac = _function('jacobian', dynamics, _jacobian(dynamics), (size, size))
-    values = np.asarray([float(value) for value in dynamics.parameters.values()], dtype=float)
-    if dynamics.discrete:
+    """Return the exponents of a system from its tangent dynamics.
+
+    The settings are the number of exponents, the time averaged over, the step, and the transient. The loops run
+    compiled by Numba for compiled functions and in Python otherwise.
+    """
+    n_exponents, until, dt, transient = settings
+    count = start.size if n_exponents is None else n_exponents
+    x = np.asarray(start, dtype=float)
+    if problem.form == FormKind.DISCRETE:
         steps = int(until if until is not None else 10_000)
         skip = int(transient if transient is not None else steps // 10)
-        exponents = _map_spectrum(f, jac, start, values, count, steps, skip)
+        iterate = _map_spectrum if compiled else _map_spectrum.py_func
+        exponents = iterate(f, tangent, x, values, count, steps, skip)
     else:
         step = dt if dt is not None else 0.01
         total = until if until is not None else 1000.0
         steps = round(total / step)
         skip = round((transient if transient is not None else total / 10) / step)
-        exponents = _flow_spectrum(f, jac, start, values, count, step, steps, skip)
+        integrate = _flow_spectrum if compiled else _flow_spectrum.py_func
+        exponents = integrate(f, tangent, x, values, count, step, steps, skip)
     return np.sort(np.asarray(exponents))[::-1]
+
+
+def _get_symbolic_functions(dynamics: _DynamicsSpec) -> tuple[VectorFunction, TangentFunction, Array, Array]:
+    """Return the compiled rates and tangent dynamics of written out equations.
+
+    It also returns their start and their parameters. The start is the initial state in the order of the equations,
+    read from the state vector by component position, and the parameters are the values the compiled functions read,
+    in the order of `dynamics.parameters`.
+    """
+    size = len(dynamics.symbols)
+    problem = dynamics.problem
+    indices = {
+        name: entry.start + index
+        for entry in problem.states.entries
+        for index, name in enumerate(entry.component_names)
+    }
+    start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
+    f = _function('field', dynamics, dynamics.rates, (size,))
+    tangent = _function('tangent', dynamics, _jacobian(dynamics), (size, size))
+    values = np.asarray([float(value) for value in dynamics.parameters.values()], dtype=float)
+    return f, tangent, start, values
+
+
+def _get_numeric_functions(problem: ProblemSpec) -> tuple[VectorFunction, TangentFunction]:
+    """Return the compiled drift or update of a problem and its tangent dynamics.
+
+    The tangent is the derivative along each tangent vector that JAX gives when the system has a JAX form, and else
+    the central difference of the compiled function along each tangent vector.
+    """
+    f = problem.update if problem.form == FormKind.DISCRETE else problem.drift
+    if f is None:
+        error_msg = 'The problem has no compiled drift or update to differentiate.'
+        raise AnalysisError(error_msg)
+    traced = _get_traced(problem)
+    if traced is not None:
+        return f, _get_jax_tangent(traced)
+
+    def tangent(t: float, x: Array, p: Array, q: Array) -> Array:
+        step = DIFFERENCE_STEP * max(1.0, float(np.abs(x).max()))
+        columns = [(f(t, x + step * column, p) - f(t, x - step * column, p)) / (2 * step) for column in q.T]
+        return np.ascontiguousarray(np.column_stack(columns))
+
+    return f, tangent
+
+
+def _get_traced(problem: ProblemSpec) -> TracedFunction | None:
+    """Return the pure JAX function of the drift or the update of a problem.
+
+    It is `None` when the system has no JAX form.
+    """
+    if problem.system is None:
+        return None
+    backend = JaxBackend()
+    try:
+        compiler = PassCompiler(backend=backend).prepare(problem.system)
+        compiler.run()
+    except SkcomplexError:
+        return None
+    if any(issue.code == 'not-differentiable' for issue in compiler.report_.issues):
+        return None
+    return backend.traced_
+
+
+def _get_jax_tangent(traced: TracedFunction) -> TangentFunction:
+    """Return the tangent dynamics from the forward derivatives of a pure JAX function.
+
+    They run in double precision.
+    """
+
+    def push(t: TracedArray, x: TracedArray, p: TracedArray, q: TracedArray) -> TracedArray:
+        along = jax.vmap(lambda vector: jax.jvp(lambda y: traced(t, y, p), (x,), (vector,))[1], in_axes=1, out_axes=1)
+        return along(q)
+
+    compiled = jax.jit(push)
+
+    def tangent(t: float, x: Array, p: Array, q: Array) -> Array:
+        with jax.enable_x64(True):
+            pushed = compiled(jnp.asarray(t), jnp.asarray(x), jnp.asarray(p), jnp.asarray(q))
+            return np.ascontiguousarray(np.asarray(pushed, dtype=float))
+
+    return tangent
 
 
 def _without_kinks(expression: Expression) -> Expression:
@@ -357,10 +461,11 @@ def _function(
     dynamics: _DynamicsSpec,
     expressions: list[Expression],
     shape: tuple[int, ...],
-) -> VectorFunction:
+) -> Callable[..., Array]:
     """Return a Numba function `f(t, x, p)` that fills an array of a shape.
 
-    It is compiled once per printed source. The parameters are read from `p` in the order of `dynamics.parameters`, so
+    A square array is the Jacobian, and its function `f(t, x, p, q)` returns the Jacobian times `q`. It is compiled
+    once per printed source. The parameters are read from `p` in the order of `dynamics.parameters`, so
     systems of one structure share the compiled function whatever their parameter values.
     """
     names = (
@@ -375,13 +480,14 @@ def _function(
         raise AnalysisError(error_msg)
     assignments, codes = printed
     lines = ['import math', 'import numpy as np', '', '']
-    lines += [f'def {name}(t, x, p):', f'    out = np.zeros({shape})']
+    arguments = 't, x, p, q' if len(shape) > 1 else 't, x, p'
+    lines += [f'def {name}({arguments}):', f'    out = np.zeros({shape})']
     lines += [f'    {bound} = {code}' for bound, code in assignments]
     lines += [
         f'    out[{np.unravel_index(index, shape) if len(shape) > 1 else index}] = {code}'
         for index, code in enumerate(codes)
     ]
-    lines.append('    return out')
+    lines.append('    return out @ q' if len(shape) > 1 else '    return out')
     source = '\n'.join(lines) + '\n'
     if source not in FUNCTIONS:
         module = SourceLoader('skcomplex_lyapunov').prepare().run(source).module_

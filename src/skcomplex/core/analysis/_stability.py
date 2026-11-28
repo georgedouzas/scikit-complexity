@@ -27,7 +27,7 @@ from ..engine.problems._field_element import _FieldElement
 from ..enums import DataKind, FormKind, VariableKind
 from ..errors import AnalysisError
 from ..systems import System
-from ..types import Array
+from ..types import Array, ComplexArray
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _composite, _get_system, _read_system
 from ._groups import _Expansion
@@ -42,6 +42,7 @@ SETTINGS = {
 }
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz', 'convolve', 'shifted')
 EIGENVALUE = symbol('_eigenvalue_')
+DERIVATIVE = '_derivative_{}_'
 ZERO = 1e-9
 MEMBER_LIMIT = 64
 TAGS = AnalysisTags(DataKind.SYSTEM)
@@ -210,6 +211,59 @@ class StabilityResult:
         return names, symbols, rates, expansion.values_
 
     @staticmethod
+    def _get_problem_of(
+        system: _CompositeSystem | BaseProblemSpec,
+        parameters: Mapping[str, float] | None = None,
+    ) -> tuple[ProblemSpec, npt.NDArray[np.float64]]:
+        """Return the compiled problem of an ODE system or a map, and its parameters.
+
+        Args:
+            system:
+                The system, or the problem compiled from one.
+
+            parameters:
+                The values of parameters by name that replace their initial values, or `None` for none.
+
+        Returns:
+            problem:
+                The compiled problem, and its parameter vector with the given values.
+
+        Raises:
+            AnalysisError:
+                The system is not an ODE or a discrete map, reads delayed states, or a parameter is unknown.
+        """
+        problem = compile_problem(system, 'Linear stability')
+        if problem.form not in {FormKind.ODE, FormKind.DISCRETE}:
+            error_msg = f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form}.'
+            raise AnalysisError(error_msg)
+        if problem.delays:
+            error_msg = (
+                'The system reads delayed states, so its state space is infinite-dimensional and it has no vector '
+                'field of finitely many states. Analyse its trajectories instead.'
+            )
+            raise AnalysisError(error_msg)
+        values = problem.initial_parameters.copy()
+        for name, value in (parameters or {}).items():
+            if not problem.parameters.has(name):
+                error_msg = (
+                    f'{name} is not a parameter. Available parameters are: {", ".join(problem.parameters.names)}.'
+                )
+                raise AnalysisError(error_msg)
+            values[problem.parameters.get_entry(name).indices] = value
+        return problem, values
+
+    @staticmethod
+    def _is_expandable(problem: ProblemSpec) -> bool:
+        """Check whether symbolic analysis can write out every equation of a problem.
+
+        It cannot for a group above the member limit, or for laws that apply the operators of fields.
+        """
+        names = '|'.join(OPERATOR_NAMES)
+        operators = any(re.search(rf'\b({names})\(', str(item)) for item in problem.equations.values())
+        large = any(element.members is not None and element.members > MEMBER_LIMIT for element in problem.elements)
+        return not operators and not large
+
+    @staticmethod
     def _get_dynamics_of(
         system: _CompositeSystem | BaseProblemSpec,
         parameters: Mapping[str, float] | None = None,
@@ -234,30 +288,13 @@ class StabilityResult:
                 The system is not an ODE or a discrete map, has callable laws or sums over members into single elements,
                 or has a group of more than 64 members.
         """
-        problem = compile_problem(system, 'Linear stability')
-        if problem.form not in {FormKind.ODE, FormKind.DISCRETE}:
-            error_msg = f'Only ODE systems and maps have a vector field to analyse, but the system is a {problem.form}.'
-            raise AnalysisError(error_msg)
+        problem, values = StabilityResult._get_problem_of(system, parameters)
         if problem.has_callables or problem.has_group_sums:
             error_msg = (
                 'The system has callable laws or sums over group members into single elements, which have no symbolic '
                 'vector field. Write the sums as reductions, or analyse one member.'
             )
             raise AnalysisError(error_msg)
-        if problem.delays:
-            error_msg = (
-                'The system reads delayed states, so its state space is infinite-dimensional and it has no vector '
-                'field of finitely many states. Analyse its trajectories instead.'
-            )
-            raise AnalysisError(error_msg)
-        values = problem.initial_parameters.copy()
-        for name, value in (parameters or {}).items():
-            if not problem.parameters.has(name):
-                error_msg = (
-                    f'{name} is not a parameter. Available parameters are: {", ".join(problem.parameters.names)}.'
-                )
-                raise AnalysisError(error_msg)
-            values[problem.parameters.get_entry(name).indices] = value
         current = {}
         for entry in problem.parameters.entries:
             for column, item in enumerate(components_of(problem.symbols[entry.name])):
@@ -302,8 +339,10 @@ def stability(
             `'dispersion'` gives the growth rate of every Fourier mode of a system of one field, a site group on a
             periodic lattice whose laws are rate laws. The laws are linearised symbolically around a uniform state,
             and every Laplacian, nested ones included, becomes its eigenvalue on a Fourier mode of the lattice,
-            `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. Without `at`, the
-            uniform state is the fixed point of the laws nearest the mean initial values.
+            `Σ (2 cos(k h) - 2) / h²` for finite differences and `-|k|²` for a spectral field. A `partial` along an
+            axis becomes `i sin(k h) / h` for central differences and `i k` for a spectral field, so a derivative of
+            order `n` is `(i k)^n`. Without `at`, the uniform state is the fixed point of the laws nearest the mean
+            initial values.
 
         parameters:
             Values of parameters by dotted path that replace the system's values. They are substituted before solving,
@@ -504,20 +543,23 @@ def _classify(eigenvalues: npt.NDArray[np.complex128], *, discrete: bool) -> str
 
 
 def _with_eigenvalue(expression: Expression, eigenvalue: Expression) -> Expression:
-    """Return an expression with every Laplacian as a multiplication by its eigenvalue.
+    """Return an expression with every Laplacian and derivative as a multiplication.
 
-    Nested Laplacians are included.
+    A Laplacian becomes its eigenvalue, and `partial` along an axis the symbol of that axis, nested ones included.
     """
     operator = expression.operator()
     if operator is None:
         return expression
     name = getattr(operator, 'name', lambda: '')()
+    operands = expression.operands()
     if name == 'laplacian':
-        return eigenvalue * _with_eigenvalue(expression.operands()[0], eigenvalue)
+        return eigenvalue * _with_eigenvalue(operands[0], eigenvalue)
+    if name == 'partial':
+        return symbol(DERIVATIVE.format(int(operands[1]))) * _with_eigenvalue(operands[0], eigenvalue)
     if name in OPERATOR_NAMES:
-        error_msg = f'The dispersion relation linearises laplacian only, but a law applies {name}.'
+        error_msg = f'The dispersion relation linearises laplacian and partial only, but a law applies {name}.'
         raise AnalysisError(error_msg)
-    return operator(*[_with_eigenvalue(item, eigenvalue) for item in expression.operands()])
+    return operator(*[_with_eigenvalue(item, eigenvalue) for item in operands])
 
 
 def _laplacian_eigenvalues(field: _FieldElement, lattice: LatticeSpace, waves: Array) -> Array:
@@ -529,6 +571,17 @@ def _laplacian_eigenvalues(field: _FieldElement, lattice: LatticeSpace, waves: A
     if field.discretization == 'spectral':
         return -np.sum(waves**2, axis=1)
     return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
+
+
+def _derivative_eigenvalues(field: _FieldElement, lattice: LatticeSpace, waves: Array) -> ComplexArray:
+    """Return the eigenvalue of the field's derivative along every axis.
+
+    It is `i k` for a spectral field and `i sin(k h) / h` for central differences, one row per wave vector and one
+    column per axis.
+    """
+    spacings = np.asarray(lattice.spacings_, dtype=float)
+    values = waves if field.discretization == 'spectral' else np.sin(waves * spacings) / spacings
+    return np.asarray(1j * values, dtype=np.complex128)
 
 
 def _bound_interactions(system: _CompositeSystem, field: _FieldElement) -> list[BaseInteraction]:
@@ -614,12 +667,13 @@ def _linearised_rates(
 def _uniform_point(
     rates: dict[str, Expression],
     variables: list[Expression],
+    operators: list[Expression],
 ) -> Callable[[list[float]], list[float]]:
     """Return the function that finds the uniform fixed point of the rates.
 
-    It finds the one nearest a starting point.
+    It finds the one nearest a starting point, where every operator is 0.
     """
-    local = [rate.subs({EIGENVALUE: 0}) for rate in rates.values()]
+    local = [rate.subs(dict.fromkeys(operators, 0)) for rate in rates.values()]
 
     def residual(point: Array) -> list[float]:
         substitution = dict(zip(variables, map(float, point), strict=True))
@@ -628,16 +682,27 @@ def _uniform_point(
     return lambda start: [float(item) for item in optimize.fsolve(residual, start)]
 
 
-def _eigenvalue_terms(entry: Expression, name: str) -> list[tuple[float, int]]:
-    """Return the coefficients and powers of the Laplacian eigenvalue in an entry.
+def _eigenvalue_terms(entry: Expression, name: str, variables: list[Expression]) -> list[tuple[float, list[int]]]:
+    """Return the coefficients and powers of the operator eigenvalues in an entry.
 
-    The entry is one of the linearisation.
+    The entry is one of the linearisation, and the powers follow the order of the variables.
     """
+    if not variables:
+        try:
+            return [(float(entry), [])]
+        except (TypeError, ValueError) as error:
+            error_msg = f'The linearisation of {name} is not a polynomial in its operators: {entry}.'
+            raise AnalysisError(error_msg) from error
     try:
-        return [(float(coefficient), int(power)) for coefficient, power in entry.coefficients(EIGENVALUE)]
+        pairs = [(SR(coefficient), int(power)) for coefficient, power in entry.coefficients(variables[0])]
     except (TypeError, ValueError) as error:
-        error_msg = f'The linearisation of {name} is not a polynomial in its Laplacians: {entry}.'
+        error_msg = f'The linearisation of {name} is not a polynomial in its operators: {entry}.'
         raise AnalysisError(error_msg) from error
+    return [
+        (value, [power, *powers])
+        for coefficient, power in pairs
+        for value, powers in _eigenvalue_terms(coefficient, name, variables[1:])
+    ]
 
 
 def _dispersion_relation(
@@ -654,17 +719,20 @@ def _dispersion_relation(
     variables = [names[name] for name in order]
     given: dict[str, object] = {**values, **(at or {})}
     start = [float(np.mean(np.asarray(given.get(name, 0.0), dtype=np.float64))) for name in order]
-    uniform = start if at is not None else _uniform_point(rates, variables)(start)
+    operators = [EIGENVALUE, *(symbol(DERIVATIVE.format(axis)) for axis in range(len(lattice.shape_)))]
+    uniform = start if at is not None else _uniform_point(rates, variables, operators)(start)
     substitution = dict(zip(variables, uniform, strict=True))
     axes = [2 * np.pi * np.fft.fftfreq(n, d=h) for n, h in zip(lattice.shape_, lattice.spacings_, strict=True)]
     waves = np.stack([grid.ravel() for grid in np.meshgrid(*axes, indexing='ij')], axis=1)
-    eigenvalues = _laplacian_eigenvalues(field, lattice, waves)
-    matrices = np.zeros((len(waves), len(order), len(order)))
+    eigenvalues = np.column_stack(
+        [_laplacian_eigenvalues(field, lattice, waves), _derivative_eigenvalues(field, lattice, waves)],
+    )
+    matrices = np.zeros((len(waves), len(order), len(order)), dtype=complex)
     for row, a in enumerate(order):
         for column, b in enumerate(order):
             entry = SR(rates[a].diff(names[b]).subs(substitution)).expand()
-            for coefficient, power in _eigenvalue_terms(entry, f'{field.label}.{a}'):
-                matrices[:, row, column] += coefficient * eigenvalues**power
+            for coefficient, powers in _eigenvalue_terms(entry, f'{field.label}.{a}', operators):
+                matrices[:, row, column] += coefficient * np.prod(eigenvalues**powers, axis=1)
     spectra = np.linalg.eigvals(matrices)
     leading = spectra[np.arange(len(waves)), np.argmax(spectra.real, axis=1)]
     magnitudes = np.linalg.norm(waves, axis=1)

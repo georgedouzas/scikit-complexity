@@ -10,7 +10,7 @@ from skcomplex.core.analysis import stability
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
-from skcomplex.core.components.laws.utils import laplacian, total
+from skcomplex.core.components.laws.utils import divergence, laplacian, total
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.systems import System
@@ -21,6 +21,7 @@ from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisIntera
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
 from skcomplex.systems.general.dynamics import DynamicalSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
+from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
 
@@ -186,6 +187,24 @@ def test_dispersion_relation_rejects_non_periodic_fields_and_data():
         _stability(_brusselator(1.9, boundary='fixed'), kind='dispersion')
     with pytest.raises(AnalysisError, match='from a system'):
         _stability(np.zeros(4), kind='dispersion')
+
+
+def test_dispersion_relation_of_kuramoto_sivashinsky():
+    """Test that the spectral derivatives of Kuramoto Sivashinsky give the growth rate `q^2 - q^4`."""
+    relation = _stability(KuramotoSivashinskySystem(), kind='dispersion')
+    q = relation.magnitudes
+    assert relation.growth_rates == pytest.approx(q**2 - q**4, abs=1e-9)
+    assert relation.band.max() < 1
+
+
+def test_dispersion_relation_of_a_central_difference():
+    """Test that the flux `u^2 / 2` around `u = 2` carries a mode at the frequency `-2 sin(k h) / h`."""
+    space = LatticeSpace(32, spacing=0.5, discretization='finite-difference')
+    line = Element('line', values={'u': np.full(32, 2.0)}, space=space)
+    transport = _rate('transport', 'u', lambda s: -divergence([s.target.u**2 / 2]), 'line')
+    relation = stability(System(elements=[line], interactions=[transport]), kind='dispersion', at={'u': 2.0})
+    assert relation.growth_rates == pytest.approx(0.0, abs=1e-12)
+    assert relation.frequencies == pytest.approx(-2 * np.sin(relation.wavenumbers[:, 0] * 0.5) / 0.5)
 
 
 def test_stability_checks_its_kind_and_settings():

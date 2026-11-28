@@ -8,13 +8,18 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import lyapunov
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.errors import AnalysisError
+from skcomplex.core.systems import System
 from skcomplex.systems.mathematics.dynamical_systems import (
     HenonMapSystem,
     LogisticMapSystem,
     LorenzSystem,
     SprottJerkSystem,
 )
+from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
 from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolSystem
 
 
@@ -33,6 +38,20 @@ def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
     times = np.arange(100, 100 + duration, step)
     solution = solve_ivp(drift, (0, times[-1]), [1, 1, 1], t_eval=times, rtol=1e-9, atol=1e-9)
     return solution.y.T
+
+
+def _decay(size: int) -> System:
+    """Return a group of members that each decay at the rate `x + x^3`."""
+    return System(
+        elements=[Element('group', values={'x': np.linspace(1.0, 2.0, size)}, size=size)],
+        interactions=[
+            Interaction(
+                'decay',
+                roles={'target': 'group'},
+                laws=lambda s: [RateLaw(s.target.x.diff(s.t), -s.target.x - s.target.x**3)],
+            ),
+        ],
+    )
 
 
 def _logistic(r: float, size: int) -> np.ndarray:
@@ -121,6 +140,29 @@ def test_largest_lyapunov_exponent_from_data():
         skip=10,
     )
     assert flow.largest_exponent[0] == pytest.approx(0.906, abs=0.15)
+
+
+@pytest.mark.parametrize('size', [3, 100])
+def test_spectrum_of_a_group_below_and_above_the_member_limit(size):
+    """Test that a group of decaying members has exponents of -1, written out or from the backend Jacobian."""
+    exponents = _spectrum(_decay(size), n_exponents=3, until=20)
+    assert exponents == pytest.approx([-1.0, -1.0, -1.0], abs=0.01)
+
+
+def test_spectrum_of_a_spectral_field_with_the_default_modes():
+    """Test that Kuramoto Sivashinsky with its 128 modes gives finite exponents in decreasing order."""
+    exponents = _spectrum(KuramotoSivashinskySystem(), n_exponents=2, until=1, transient=0)
+    assert exponents.shape == (2,)
+    assert np.all(np.isfinite(exponents))
+    assert exponents[0] >= exponents[1]
+
+
+@pytest.mark.slow
+def test_largest_exponent_of_kuramoto_sivashinsky_at_length_22():
+    """Test that Kuramoto Sivashinsky on a line of length 22 has a largest exponent near 0.04."""
+    system = KuramotoSivashinskySystem(modes=24, length=22.0)
+    exponents = _spectrum(system, n_exponents=1, until=200, dt=0.02, transient=50)
+    assert exponents[0] == pytest.approx(0.04, abs=0.02)
 
 
 def test_settings_the_kind_ignores_are_rejected():
