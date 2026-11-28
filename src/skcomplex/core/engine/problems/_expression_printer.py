@@ -6,7 +6,8 @@
 import operator
 import re
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
 
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
@@ -14,11 +15,9 @@ from sage.rings.integer import Integer
 from sage.rings.rational import Rational
 from sage.structure.element import RingElement
 
-from ...errors import ValidationError
+from ...errors import BackendError, ValidationError
 from ..types import Number, PrintedKey
 from ._base import BasePrinter
-from ._dialect_spec import DIALECTS
-from ._printed_spec import PrintedSpec
 from ._source_loader import SourceLoader
 
 ATOM, POWER, NEGATION, PRODUCT, SUM = 5, 4, 3, 2, 1
@@ -37,6 +36,203 @@ IMPORTS = {
     'numpy': 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n',
     'jax': 'import jax\nimport jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
 }
+
+
+@dataclass(frozen=True)
+class _Dialect:
+    """A record of the syntax of a target language for printed expressions.
+
+    Templates take their arguments as `{0}`, `{1}`, and so on, receive every argument that is not an atom in
+    parentheses, and must give an atom, a name, a call, or a parenthesized expression.
+
+    Args:
+        name:
+            The name of the language, used in error messages.
+
+        functions:
+            A mapping from Sage function names to templates.
+
+        relations:
+            A mapping from `lt`, `le`, `gt`, `ge`, `eq`, and `ne` to templates.
+
+        power:
+            The power operator.
+
+        error:
+            The error raised for an expression the language cannot express.
+
+        exact_rationals:
+            Whether rationals print as divisions of integers instead of floating point literals.
+
+        complex_numbers:
+            Whether complex numbers print as Python complex literals instead of raising an error.
+    """
+
+    name: str
+    functions: Mapping[str, str]
+    relations: Mapping[str, str]
+    power: str = '**'
+    error: type[Exception] = ValidationError
+    exact_rationals: bool = False
+    complex_numbers: bool = False
+    folds: frozenset[str] = field(default_factory=lambda: frozenset({'min', 'max', 'either', 'both'}))
+
+    def get_unknown(self, name: str) -> Exception:
+        """Return the error of an expression the language cannot express.
+
+        Args:
+            name:
+                The name of the function or expression.
+
+        Returns:
+            error:
+                The error.
+        """
+        error_msg = f'The function {name} has no {self.name} equivalent. Write the law with the functions it supports.'
+        return self.error(error_msg)
+
+
+PYTHON_RELATIONS = {
+    'lt': '({0} < {1})',
+    'le': '({0} <= {1})',
+    'gt': '({0} > {1})',
+    'ge': '({0} >= {1})',
+    'eq': '({0} == {1})',
+    'ne': '({0} != {1})',
+}
+
+NUMPY_DIALECT = _Dialect(
+    'NumPy',
+    {
+        'exp': 'np.exp({0})',
+        'log': 'np.log({0})',
+        'sqrt': 'np.sqrt({0})',
+        'sin': 'np.sin({0})',
+        'cos': 'np.cos({0})',
+        'tan': 'np.tan({0})',
+        'arcsin': 'np.arcsin({0})',
+        'arccos': 'np.arccos({0})',
+        'arctan': 'np.arctan({0})',
+        'arctan2': 'np.arctan2({0}, {1})',
+        'sinh': 'np.sinh({0})',
+        'cosh': 'np.cosh({0})',
+        'tanh': 'np.tanh({0})',
+        'arcsinh': 'np.arcsinh({0})',
+        'arccosh': 'np.arccosh({0})',
+        'arctanh': 'np.arctanh({0})',
+        'abs': 'np.abs({0})',
+        'floor': 'np.floor({0})',
+        'ceil': 'np.ceil({0})',
+        'sgn': 'np.sign({0})',
+        'heaviside': 'np.heaviside({0}, 0.5)',
+        'erf': 'erf({0})',
+        'erfc': 'erfc({0})',
+        'gamma': 'gamma({0})',
+        'min': 'np.minimum({0}, {1})',
+        'max': 'np.maximum({0}, {1})',
+        'where': 'np.where({0}, {1}, {2})',
+        'either': 'np.logical_or({0}, {1})',
+        'both': 'np.logical_and({0}, {1})',
+        'mod': 'np.mod({0}, {1})',
+        'stop_gradient': '({0})',
+    },
+    PYTHON_RELATIONS,
+    complex_numbers=True,
+)
+
+SCALAR_DIALECT = _Dialect(
+    'Numba',
+    {
+        'exp': 'math.exp({0})',
+        'log': 'math.log({0})',
+        'sqrt': 'math.sqrt({0})',
+        'sin': 'math.sin({0})',
+        'cos': 'math.cos({0})',
+        'tan': 'math.tan({0})',
+        'arcsin': 'math.asin({0})',
+        'arccos': 'math.acos({0})',
+        'arctan': 'math.atan({0})',
+        'arctan2': 'math.atan2({0}, {1})',
+        'sinh': 'math.sinh({0})',
+        'cosh': 'math.cosh({0})',
+        'tanh': 'math.tanh({0})',
+        'arcsinh': 'math.asinh({0})',
+        'arccosh': 'math.acosh({0})',
+        'arctanh': 'math.atanh({0})',
+        'abs': 'abs({0})',
+        'floor': 'math.floor({0})',
+        'ceil': 'math.ceil({0})',
+        'sgn': 'np.sign({0})',
+        'heaviside': 'np.heaviside({0}, 0.5)',
+        'erf': 'math.erf({0})',
+        'erfc': 'math.erfc({0})',
+        'gamma': 'math.gamma({0})',
+        'min': 'min({0}, {1})',
+        'max': 'max({0}, {1})',
+        'where': '({1} if {0} else {2})',
+        'either': '({0} or {1})',
+        'both': '({0} and {1})',
+        'mod': '({0} % {1})',
+        'stop_gradient': '({0})',
+    },
+    PYTHON_RELATIONS,
+)
+
+LEPTON_DIALECT = _Dialect(
+    'Lepton',
+    {
+        'exp': 'exp({0})',
+        'log': 'log({0})',
+        'sqrt': 'sqrt({0})',
+        'sin': 'sin({0})',
+        'cos': 'cos({0})',
+        'tan': 'tan({0})',
+        'arcsin': 'asin({0})',
+        'arccos': 'acos({0})',
+        'arctan': 'atan({0})',
+        'sinh': 'sinh({0})',
+        'cosh': 'cosh({0})',
+        'tanh': 'tanh({0})',
+        'erf': 'erf({0})',
+        'erfc': 'erfc({0})',
+        'abs': 'abs({0})',
+        'floor': 'floor({0})',
+        'ceil': 'ceil({0})',
+        'min': 'min({0}, {1})',
+        'max': 'max({0}, {1})',
+        'where': 'select({0}, {1}, {2})',
+        'either': 'max({0}, {1})',
+        'both': '({0}*{1})',
+        'mod': '({0} - {1}*floor({0}/{1}))',
+        'stop_gradient': '({0})',
+    },
+    {
+        'lt': '(1 - step({0} - {1}))',
+        'le': 'step({1} - {0})',
+        'gt': '(1 - step({1} - {0}))',
+        'ge': 'step({0} - {1})',
+        'eq': 'delta({0} - {1})',
+        'ne': '(1 - delta({0} - {1}))',
+    },
+    power='^',
+    error=BackendError,
+    exact_rationals=True,
+)
+
+JAX_DIALECT = _Dialect(
+    'JAX',
+    {
+        **{name: template.replace('np.', 'jnp.') for name, template in NUMPY_DIALECT.functions.items()},
+        'erf': 'jsp.erf({0})',
+        'erfc': 'jsp.erfc({0})',
+        'gamma': 'jsp.gamma({0})',
+        'stop_gradient': 'jax.lax.stop_gradient({0})',
+    },
+    PYTHON_RELATIONS,
+    error=BackendError,
+)
+
+DIALECTS = {'numpy': NUMPY_DIALECT, 'scalar': SCALAR_DIALECT, 'lepton': LEPTON_DIALECT, 'jax': JAX_DIALECT}
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
@@ -166,12 +362,12 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
                 bind(operand)
             if counts[key] > 1:
                 name = f'{self.prefix}{len(assignments)}'
-                assignments.append((name, self._print(item).code))
+                assignments.append((name, self._print(item)[0]))
                 self.bound_[key] = name
 
         for expression in expressions if self.shared else ():
             bind(expression)
-        codes = [self._print(expression).code for expression in expressions]
+        codes = [self._print(expression)[0] for expression in expressions]
         self.code_ = self._get_function(assignments, codes) if self.compiled else (assignments, codes)
 
     @staticmethod
@@ -234,42 +430,43 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         function: Callable[..., list[npt.ArrayLike]] = loader.run(source).module_._function
         return function
 
-    def _wrap(self, printed: PrintedSpec, precedence: int) -> str:
+    def _wrap(self, printed: tuple[str, int], precedence: int) -> str:
         """Return code, in parentheses when it binds less tightly than a precedence."""
-        return printed.code if printed.precedence >= precedence else f'({printed.code})'
+        code, own = printed
+        return code if own >= precedence else f'({code})'
 
-    def _get_number(self, value: Number) -> PrintedSpec:
+    def _get_number(self, value: Number) -> tuple[str, int]:
         """Return the code of a number."""
         if isinstance(value, Integer | int):
-            return PrintedSpec(str(int(value)), ATOM if value >= 0 else NEGATION)
+            return (str(int(value)), ATOM if value >= 0 else NEGATION)
         if isinstance(value, Rational) and self.dialect_.exact_rationals:
             code = f'{abs(int(value.numerator()))}/{int(value.denominator())}'
-            return PrintedSpec(f'-{code}', NEGATION) if value < 0 else PrintedSpec(code, PRODUCT)
+            return (f'-{code}', NEGATION) if value < 0 else (code, PRODUCT)
         number = None if isinstance(value, complex) else self._get_real(value)
         if number is None:
             if not self.dialect_.complex_numbers:
                 name = f'complex number {value}'
                 raise self.dialect_.get_unknown(name)
-            return PrintedSpec(repr(complex(value)), ATOM)
-        return PrintedSpec(repr(number), ATOM if number >= 0 else NEGATION)
+            return (repr(complex(value)), ATOM)
+        return (repr(number), ATOM if number >= 0 else NEGATION)
 
-    def _get_template(self, name: str, arguments: Sequence[Expression]) -> PrintedSpec:
+    def _get_template(self, name: str, arguments: Sequence[Expression]) -> tuple[str, int]:
         """Return the code of a function or relation from its template."""
         templates = {**self.dialect_.functions, **self.dialect_.relations}
         if name not in templates:
             raise self.dialect_.get_unknown(name)
         call = CALL.fullmatch(templates[name]) is not None
         codes = [
-            self._print(argument).code if call else self._wrap(self._print(argument), ATOM) for argument in arguments
+            self._print(argument)[0] if call else self._wrap(self._print(argument), ATOM) for argument in arguments
         ]
         if name in self.dialect_.folds:
             code = codes[0]
             for other in codes[1:]:
                 code = templates[name].format(code, other)
-            return PrintedSpec(code, ATOM)
-        return PrintedSpec(templates[name].format(*codes), ATOM)
+            return (code, ATOM)
+        return (templates[name].format(*codes), ATOM)
 
-    def _get_product(self, item: Expression) -> PrintedSpec:
+    def _get_product(self, item: Expression) -> tuple[str, int]:
         """Return the code of a product.
 
         Factors of negative powers go in its denominator.
@@ -294,51 +491,51 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
                 numerator.insert(0, str(int(coefficient.numerator())))
             denominator.insert(0, str(int(coefficient.denominator())))
         elif coefficient != 1:
-            numerator.insert(0, self._get_number(coefficient).code)
+            numerator.insert(0, self._get_number(coefficient)[0])
         code = '*'.join(numerator) or '1'
         if denominator:
             divisor = denominator[0] if len(denominator) == 1 else f'({"*".join(denominator)})'
             code = f'{code}/{divisor}'
         if negative:
-            return PrintedSpec(f'-{code}', NEGATION)
-        return PrintedSpec(code, PRODUCT)
+            return (f'-{code}', NEGATION)
+        return (code, PRODUCT)
 
-    def _get_power(self, base: Expression, exponent: Expression) -> PrintedSpec:
+    def _get_power(self, base: Expression, exponent: Expression) -> tuple[str, int]:
         """Return the code of a power, with square roots for exponents of a half."""
         if exponent.is_numeric() and self._get_numeric(exponent) == Rational((1, 2)):
             return self._get_template('sqrt', [base])
         if exponent.is_numeric() and self._get_numeric(exponent) == Rational((-1, 2)):
-            return PrintedSpec(f'1/{self._get_template("sqrt", [base]).code}', PRODUCT)
+            return (f'1/{self._get_template("sqrt", [base])[0]}', PRODUCT)
         if exponent.is_numeric() and self._get_numeric(exponent) == 1:
             return self._print(base)
         code = f'{self._wrap(self._print(base), ATOM)}{self.dialect_.power}{self._wrap(self._print(exponent), ATOM)}'
-        return PrintedSpec(code, POWER)
+        return (code, POWER)
 
-    def _get_total(self, item: Expression) -> PrintedSpec:
+    def _get_total(self, item: Expression) -> tuple[str, int]:
         """Return the code of a sum.
 
         Its terms come in canonical order, with the negated ones last.
         """
         terms = [self._print(term) for term in self._get_operands(item)]
-        terms.sort(key=lambda term: term.precedence == NEGATION and term.code.startswith('-'))
+        terms.sort(key=lambda term: term[1] == NEGATION and term[0].startswith('-'))
         code = self._wrap(terms[0], SUM)
         for term in terms[1:]:
-            if term.precedence == NEGATION and term.code.startswith('-'):
-                code += f' - {term.code[1:]}'
+            if term[1] == NEGATION and term[0].startswith('-'):
+                code += f' - {term[0][1:]}'
             else:
                 code += f' + {self._wrap(term, SUM + 1)}'
-        return PrintedSpec(code, SUM)
+        return (code, SUM)
 
-    def _get_leaf(self, item: Expression) -> PrintedSpec:
+    def _get_leaf(self, item: Expression) -> tuple[str, int]:
         """Return the code of a bound subexpression, a symbol, a number, or a constant."""
         name = self.bound_.get(self._get_key(item)) if self.bound_ else None
         if name is not None:
-            return PrintedSpec(name, ATOM)
+            return (name, ATOM)
         if item.is_symbol():
-            return PrintedSpec(self.names_(item), ATOM)
+            return (self.names_(item), ATOM)
         return self._get_number(self._get_numeric(item) if item.is_numeric() else float(item))
 
-    def _print(self, item: Expression) -> PrintedSpec:
+    def _print(self, item: Expression) -> tuple[str, int]:
         """Return the code of an expression and how tightly it binds."""
         if (
             item.is_symbol()

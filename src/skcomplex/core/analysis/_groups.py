@@ -14,8 +14,7 @@ from ..components import EntrySpec
 from ..components.laws.utils import where
 from ..engine._utils import components_of, domain_of, symbol
 from ..engine.problems import ProblemSpec
-from ..engine.problems._read_spec import _ReadSpec
-from ..engine.problems._reduction_kernel import ReductionKernel
+from ..engine.problems._reduction_kernel import ReductionKernel, _Read
 from ..errors import ValidationError
 
 
@@ -158,7 +157,7 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         They come from a matrix or a shaped parameter.
         """
         weights, position = reduction.weights, reader if reader is not None else 0
-        if not isinstance(weights, _ReadSpec) or weights.entry is None:
+        if not isinstance(weights, _Read) or weights.entry is None:
             return np.asarray(scipy.sparse.csr_array(weights).toarray()[position], dtype=np.float64)
         values = self.parameters_ if self.parameters_.size else self.problem_.initial_parameters
         source = values if not weights.is_state else self.problem_.initial_state

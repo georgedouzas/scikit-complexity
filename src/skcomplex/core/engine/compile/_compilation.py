@@ -34,15 +34,14 @@ from ..problems._diffusive_limit_spec import DiffusiveLimitSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._encounter_kernel import EncounterKernel
 from ..problems._finite_volume_kernel import FiniteVolumeKernel
-from ..problems._jacobian_kernel import JacobianKernel
+from ..problems._jacobian_kernel import JacobianKernel, _Symmetry
 from ..problems._kernel_spec import KernelSpec
+from ..problems._law_kernel import _Output
 from ..problems._linear_term_spec import LinearTermSpec
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
+from ..problems._neighborhood_kernel import _ReductionSchedule
 from ..problems._node_spec import _NodeSpec
-from ..problems._output_spec import OutputSpec
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
-from ..problems._symmetry_spec import SymmetrySpec
 from ..problems._topology_kernel import TopologyKernel
 from ..problems._transfer_network_spec import TransferNetworkSpec, _CompiledDelay, _CompiledFlow
 from ._issue_spec import IssueSpec
@@ -526,7 +525,7 @@ class Compilation:
     form: FormKind | None = None
     reduced: Laws | None = None
     reduced_apart: Laws | None = None
-    reductions: ReductionScheduleSpec | None = None
+    reductions: _ReductionSchedule | None = None
     kernels: LoweredKernelsSpec | None = None
     functions: _ProblemFunctionsSpec | None = None
     jacobian: JacobianKernel | None = None
@@ -535,13 +534,13 @@ class Compilation:
     placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
     events: list[tuple[KernelSpec, EventLaw]] | None = None
     renewals: list[_BoundRenewal] | None = None
-    outputs: dict[int, list[OutputSpec]] | None = None
+    outputs: dict[int, list[_Output]] | None = None
     written: dict[tuple[str, int], list[tuple[Expression, Expression]]] | None = None
     limits: list[float] | None = None
     volume_limits: list[DiffusiveLimitSpec] | None = None
     linear: list[LinearTermSpec] | None = None
     volumes: tuple[FiniteVolumeKernel, ...] | None = None
-    symmetries: tuple[SymmetrySpec, ...] | None = None
+    symmetries: tuple[_Symmetry, ...] | None = None
     constrained: tuple[npt.NDArray[np.intp], npt.NDArray[np.float64]] | None = None
     encounters: tuple[EncounterKernel, ...] | None = None
     transfer: _TransferState | None = None

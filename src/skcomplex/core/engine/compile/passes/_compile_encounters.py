@@ -20,10 +20,9 @@ from ...backends import BaseBackend
 from ...enums import ReadKind
 from ...problems._bilinear_law import BilinearLaw
 from ...problems._declarations_spec import DeclarationsSpec
-from ...problems._encounter_kernel import EncounterKernel
+from ...problems._encounter_kernel import EncounterKernel, _TableValues
 from ...problems._field_element import _FieldElement
 from ...problems._reference_spec import ReferenceSpec
-from ...problems._table_values_spec import _TableValuesSpec
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 
@@ -254,7 +253,7 @@ class CompileEncountersPass(BasePass):
         rates = CompileEncountersPass._get_checked_rate(law, sizes, owner, space)
         table = CompileEncountersPass._get_outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
-        rate = _TableValuesSpec(
+        rate = _TableValues(
             rates,
             grid,
             CompileEncountersPass._get_parameter_indices(rates, references, owner),
@@ -262,7 +261,7 @@ class CompileEncountersPass(BasePass):
         )
         nonzero = CompileEncountersPass._get_nonzero(table)
         entries = (nonzero[0], nonzero[1], nonzero[2])
-        probabilities = _TableValuesSpec(
+        probabilities = _TableValues(
             table,
             nonzero,
             CompileEncountersPass._get_parameter_indices(table, references, owner),

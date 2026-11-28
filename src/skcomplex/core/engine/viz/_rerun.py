@@ -21,11 +21,12 @@ from sage.all__sagemath_symbolics import SR
 from ...components.elements import VisualSpec
 from ...components.spaces import NetworkSpace
 from ...errors import ValidationError
-from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec, RenewalRecordSpec
+from ..problems import BaseProblemSpec, CompiledElementSpec, FrameSpec
 from ..problems._base_problem_spec import _CompiledAgents
 from ..problems._declared_element import _DeclaredElement
 from ..problems._group_element import _GroupElement
 from ..problems._learning_problem_spec import LearningProblemSpec
+from ..problems._renewal_kernel import _RenewalRecordSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._axes import AxisVisual
@@ -472,7 +473,7 @@ class RerunObserver(BaseObserver):
             if np.ndim(parameter) <= MATRIX_RANK:
                 BaseVisual._log_scalars(self.recording_, f'parameters/{name}', parameter)
         for record in frame.events:
-            if isinstance(record, RenewalRecordSpec):
+            if isinstance(record, _RenewalRecordSpec):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._get_renewal_text(record)))
         self.logged_frames_ += 1
 
@@ -540,7 +541,7 @@ class RerunObserver(BaseObserver):
         return RerunObserver._get_sanitised(f'{owner}/{leaf}' if owner in owners else name)
 
     @staticmethod
-    def _get_renewal_text(record: RenewalRecordSpec) -> str:
+    def _get_renewal_text(record: _RenewalRecordSpec) -> str:
         """Return the text log entry of the renewals of one pass.
 
         It names the members that renewed.

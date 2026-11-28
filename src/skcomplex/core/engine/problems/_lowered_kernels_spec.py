@@ -14,8 +14,8 @@ from ...enums import FormKind
 from ._draw_kernel import DrawKernel
 from ._kernel_spec import KernelSpec
 from ._law_kernel import LawKernel
+from ._neighborhood_kernel import _ReductionSchedule
 from ._random_stream import RandomStream
-from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
 
 
@@ -71,6 +71,6 @@ class LoweredKernelsSpec(BaseSpec):
     laws: dict[int, tuple[KernelSpec, BaseLaw]]
     form: FormKind | None = None
     size: int = 0
-    reductions: ReductionScheduleSpec | None = None
+    reductions: _ReductionSchedule | None = None
     draws: DrawKernel | None = None
     stream: RandomStream | None = None

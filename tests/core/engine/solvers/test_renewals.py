@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import JumpLaw, RateLaw
 from skcomplex.core.components.laws.utils import bernoulli, draw, mean, normal
-from skcomplex.core.engine.problems import RenewalRecordSpec
+from skcomplex.core.engine.problems._renewal_kernel import _RenewalRecordSpec
 from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver, StepSpec
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.engine.viz import RerunObserver
@@ -216,7 +216,7 @@ def test_rk4_moves_ballistically_between_renewals():
 def test_renewal_records_name_their_states():
     """Test that a renewal record holds the time, the member, and the member's states before and after it."""
     record = _trajectory(_system('flier', 3, 'f', RK4Solver(dt=0.5)), 5, 5).events[0]
-    assert isinstance(record, RenewalRecordSpec)
+    assert isinstance(record, _RenewalRecordSpec)
     assert record.states == ('f.x', 'f.v')
     assert record.before.shape == record.after.shape == (record.members.size, 2)
 

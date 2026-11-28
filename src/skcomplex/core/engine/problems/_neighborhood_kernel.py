@@ -7,6 +7,7 @@ import functools
 import itertools
 import math
 from collections.abc import Callable, Collection, Mapping
+from dataclasses import dataclass, field
 
 import networkx as nx
 import numpy as np
@@ -34,11 +35,10 @@ from ...types import Array, Indices
 from ..types import Pairs
 from ._base import BaseKernel
 from ._compiled_element_spec import _Variable
-from ._direction_spec import _DirectionSpec
 from ._edge_row_search import EdgeRowSearch
 from ._expression_printer import ExpressionPrinter
-from ._metric_search import MetricSearch
-from ._pair_read_spec import _PairReadSpec
+from ._metric_search import MetricSearch, _Direction
+from ._reduction_kernel import ReductionKernel, _Read
 from ._run_state_spec import RunStateSpec
 from ._static_search import StaticSearch
 
@@ -53,6 +53,53 @@ PLANE = 2
 
 
 type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
+
+
+@dataclass(frozen=True)
+class _PairRead:
+    """A record of how a reduction over neighbours reads a symbol for each pair.
+
+    Args:
+        read:
+            The values of the symbol, one per member or one shared value.
+
+        side:
+            `'shared'` for one value, `'reader'` for the value of the member that reads the reduction, `'other'`
+            for the value of the neighbour, `'edge'` for the value of the member of a group on the edges of a
+            network layer that joins them, or `'pair'` for the value of the pair itself, the entry of a shaped
+            parameter at the position of the pair among the pairs of every member and every other member.
+
+        image:
+            Whether the symbol is a position component of the neighbour, read by its minimum image from the reader.
+
+        table:
+            The member that every neighbour stands for, for an `'other'` read whose neighbours are rows of a table,
+            such as one other member of the hyperedges around the reader, or `None` for the neighbour itself.
+
+        position:
+            The place among the other members of a set of current neighbours of the reader, for an `'other'` read of
+            a reduction over neighbour hyperedges, or `None` for a reduction over single neighbours.
+
+        axis:
+            The axis of the space a scalar position read by its minimum image runs along, such as 1 for `y` in a
+            plane, or `None` for a component of a vector position.
+
+        sites:
+            The member every pair reads, or the number of members for a site beyond fixed edges, for an `'other'` read
+            of a lattice state with edges of its own, such as `{'u': ('fixed', 0.5)}`, or `None` for the neighbour.
+
+        fill:
+            The value of the state beyond fixed edges.
+    """
+
+    read: _Read
+    side: str
+    image: bool = False
+    table: Indices | None = field(default=None, compare=False)
+    position: int | None = None
+    axis: int | None = None
+    sites: Indices | None = field(default=None, compare=False)
+    fill: float = 0.0
 
 
 class NeighborhoodKernel(BaseKernel):
@@ -133,7 +180,7 @@ class NeighborhoodKernel(BaseKernel):
         *,
         group: str,
         search: NeighborSearch,
-        reads: dict[Expression, _PairReadSpec],
+        reads: dict[Expression, _PairRead],
         time: Expression,
         coefficients: Array | None = None,
         hyperedge: int | None = None,
@@ -201,7 +248,7 @@ class NeighborhoodKernel(BaseKernel):
 
     def _gather_other(
         self,
-        pair: _PairReadSpec,
+        pair: _PairRead,
         column: Array,
         x: Array,
         readers: Indices,
@@ -728,7 +775,7 @@ class NeighborhoodKernel(BaseKernel):
         if isinstance(over, RadiusNeighborhood) and float(over.angle) < math.pi:
             name = NeighborhoodKernel._get_cone_direction(over, states, continuous.n_dim_, set(entries) - set(states))
             angle = not states[name].vector if name in states else name in entries and entries[name].columns == 1
-            direction = _DirectionSpec(entries[name], angle, name in states) if name in entries else None
+            direction = _Direction(entries[name], angle, name in states) if name in entries else None
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
@@ -753,3 +800,101 @@ class NeighborhoodKernel(BaseKernel):
         if named:
             return named
         return next(spaces for neighborhoods, spaces in SPACES_OF if isinstance(neighborhood, neighborhoods))
+
+
+@dataclass(frozen=True)
+class _ReductionSchedule:
+    """A record of the reductions of a problem, in the order they must run.
+
+    A reduction may read another, such as a variance that reads a mean, so the spec lists every reduction over a group
+    or over neighbours after those it reads, and says where their values start after the parameters. The engine runs
+    them in that order before the laws at every evaluation. It orders the mean field of oscillators, the totals of a
+    market, and the counts of an epidemic.
+
+    Read more in the user guide, under Extend the library.
+
+    Args:
+        reductions:
+            The compiled reductions over groups, every one after the reductions it reads.
+
+        parameters:
+            The size of the parameter vector, where the reductions start.
+
+        neighbourhoods:
+            The compiled reductions over the neighbours of every member.
+
+        sequence:
+            Every reduction of both kinds in dependency order, or empty for the reductions over groups in their order.
+
+    See Also:
+        ReductionKernel: One reduction over a group.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
+        >>> schedule = KuramotoSystem().prepare().simulate(until=0).problem.jacobian.reductions
+        >>> [kernel.kind for kernel in schedule.reductions]
+        ['count', 'sum', 'sum']
+    """
+
+    reductions: tuple[ReductionKernel, ...] = ()
+    parameters: int = 0
+    neighbourhoods: tuple[NeighborhoodKernel, ...] = ()
+    sequence: tuple[ReductionKernel | NeighborhoodKernel, ...] = ()
+
+    @property
+    def steps(self) -> tuple[ReductionKernel | NeighborhoodKernel, ...]:
+        """Every reduction in the order it is evaluated."""
+        return self.sequence or (*self.reductions, *self.neighbourhoods)
+
+    @property
+    def extent(self) -> int:
+        """Size of the extended parameter vector."""
+        return max((item.entry.start + item.entry.size for item in self.steps), default=self.parameters)
+
+    def extend(self, t: float, x: Array, p: Array) -> Array:
+        """Return the parameter vector followed by the value of every reduction at a state.
+
+        Args:
+            t:
+                The time.
+
+            x:
+                The state vector.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            extended:
+                The extended parameter vector.
+        """
+        q = np.zeros(self.extent)
+        given = min(p.size, self.parameters)
+        q[:given] = p[:given]
+        for reduction in self.steps:
+            reduction.run(RunStateSpec(t, x, q))
+        return q
+
+    def wrap[R](
+        self,
+        function: Callable[[float, Array, Array], R] | None,
+    ) -> Callable[[float, Array, Array], R] | None:
+        """Return a function of the state and the parameters.
+
+        The function reads the reductions at the state it receives.
+
+        Args:
+            function:
+                A function `f(t, x, q)` of the extended parameter vector, or `None`.
+
+        Returns:
+            wrapped:
+                The function `f(t, x, p)`, or the function itself without reductions.
+        """
+        if function is None or not self.steps:
+            return function
+
+        def reduced(t: float, x: Array, p: Array) -> R:
+            return function(t, x, self.extend(t, x, p))
+
+        return reduced

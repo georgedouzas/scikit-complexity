@@ -17,7 +17,6 @@ from ._network_snapshot_spec import NetworkSnapshotSpec
 from ._operator_kernel import OperatorKernel
 from ._operator_problem_spec import OperatorProblemSpec
 from ._problem_spec import ProblemSpec
-from ._renewal_record_spec import RenewalRecordSpec
 from ._run_state_spec import RunStateSpec
 
 __all__: list[str] = [
@@ -35,6 +34,5 @@ __all__: list[str] = [
     'OperatorKernel',
     'OperatorProblemSpec',
     'ProblemSpec',
-    'RenewalRecordSpec',
     'RunStateSpec',
 ]

@@ -20,10 +20,9 @@ from ...problems._block_spec import BlockSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
-from ...problems._law_kernel import LawKernel
+from ...problems._law_kernel import LawKernel, _Output
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
-from ...problems._output_spec import OutputSpec
-from ...problems._reduction_schedule_spec import ReductionScheduleSpec
+from ...problems._neighborhood_kernel import _ReductionSchedule
 from ...problems._topology_kernel import TopologyKernel, _CapacityRows, _CompiledRequest, _NetworkRows
 from .._base import BasePass
 from .._compilation import Compilation, Laws
@@ -103,7 +102,7 @@ class TopologyFunctionsPass(BasePass):
             states,
             layout_parameters=parameters,
             pairs=spec.pairs,
-            outputs=[OutputSpec(None, expression)],
+            outputs=[_Output(None, expression)],
         ).prepare()
 
     @staticmethod
@@ -217,7 +216,7 @@ class TopologyFunctionsPass(BasePass):
         lowered: LoweredKernelsSpec,
         apart: Laws,
         declarations: DeclarationsSpec,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         jumps: dict[int, tuple[KernelSpec, TopologyRequestSpec]],
     ) -> TopologyKernel | None:
         """Return the topology pass of the network groups and law requests, or `None`.

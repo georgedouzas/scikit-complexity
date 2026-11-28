@@ -16,11 +16,11 @@ from ...types import Array, Indices, Pair
 from ._base import BaseKernel
 from ._edge_row_search import ACTIVE_THRESHOLD
 from ._law_kernel import LawKernel
+from ._neighborhood_kernel import _ReductionSchedule
 from ._network_snapshot_spec import NetworkSnapshotSpec
-from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._run_state_spec import RunStateSpec
 
-NO_REDUCTIONS = ReductionScheduleSpec()
+NO_REDUCTIONS = _ReductionSchedule()
 MIN_EDGE_HYPEREDGE = 2
 
 
@@ -343,7 +343,7 @@ class TopologyKernel(BaseKernel):
         networks: tuple[_NetworkRows, ...],
         requests: tuple[_CompiledRequest, ...] = (),
         channels: Mapping[int, _CompiledRequest] | None = None,
-        reductions: ReductionScheduleSpec = NO_REDUCTIONS,
+        reductions: _ReductionSchedule = NO_REDUCTIONS,
     ) -> None:
         self.networks = networks
         self.requests = requests

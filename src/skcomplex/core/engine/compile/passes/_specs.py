@@ -38,13 +38,11 @@ from ...problems._declared_element import _DeclaredElement
 from ...problems._edge_search import EdgeSearch
 from ...problems._field_element import _FieldElement
 from ...problems._group_element import _GroupElement
-from ...problems._kernel_spec import KernelSpec
-from ...problems._neighbor_read_spec import _NeighborReadSpec
+from ...problems._kernel_spec import KernelSpec, _SetSymbol
 from ...problems._node_spec import _NodeSpec
 from ...problems._observed_spec import ObservedSpec
 from ...problems._pair_search import PairSearch
-from ...problems._reference_spec import ReferenceSpec
-from ...problems._set_symbol_spec import EDGE_NAMES, MEMBER_REFERENCE, SetSymbolSpec
+from ...problems._reference_spec import ReferenceSpec, _NeighborRead
 from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator
@@ -53,6 +51,8 @@ from ._hyperedges import MEMBER_LAWS, HyperedgeTables, Tables
 from ._layout import LayoutPass
 
 END_SUFFIXES = ('__source', '__target')
+MEMBER_REFERENCE = re.compile(r'^(?P<path>.+)\[(?P<index>-?\d+)\]$')
+EDGE_NAMES = ('source', 'target', 'edge')
 HYPEREDGE_NAMES = ('member', 'others', 'members', 'hyperedge', 'edge', 't')
 MAX_HYPEREDGE_ROLES = 2
 SECOND_PARTS = ('edges', 'hyperedges')
@@ -216,7 +216,7 @@ class SpecsPass(BasePass):
         return space.extent_[0]
 
     @staticmethod
-    def _set_symbols(members: list[BlockSpec], index: int) -> dict[Expression, SetSymbolSpec]:
+    def _set_symbols(members: list[BlockSpec], index: int) -> dict[Expression, _SetSymbol]:
         """Return the symbols of one element of a set, the same for every element."""
         label = ', '.join(member.node.path for member in members)
         symbols = {}
@@ -226,7 +226,7 @@ class SpecsPass(BasePass):
                     member.references[ProblemSpec._get_real_components_of(member.symbols[variable])[column]]
                     for member in members
                 )
-                symbols[item] = SetSymbolSpec(
+                symbols[item] = _SetSymbol(
                     ProblemSpec._get_real_components_of(members[0].symbols[variable])[column],
                     references,
                     label,
@@ -440,7 +440,7 @@ class SpecsPass(BasePass):
             )
             raise ValidationError(error_msg)
         table = np.repeat(np.arange(block.rows), target.size_ // target.position_size_)
-        read = _NeighborReadSpec(table, None, None, None, 0)
+        read = _NeighborRead(table, None, None, None, 0)
         namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias='__broadcast')
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
@@ -1060,7 +1060,7 @@ class SpecsPass(BasePass):
         namespace, references = SpecsPass._get_namespace(block, ReadKind.NEIGHBOR, alias=alias)
         if table is None:
             return namespace, {}
-        read = _NeighborReadSpec(table, None, None, None, 0, entry, order)
+        read = _NeighborRead(table, None, None, None, 0, entry, order)
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
@@ -1104,7 +1104,7 @@ class SpecsPass(BasePass):
             paths[part] = second.node.path
         if growing is not None:
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", block.node.path)}_{mode}_hyperedges', RR)
-            read_activity = _NeighborReadSpec(hyperedges, None, None, None, 0)
+            read_activity = _NeighborRead(hyperedges, None, None, None, 0)
             references[activity] = ReferenceSpec(growing.entries[ACTIVE], False, 0, ReadKind.NEIGHBOR, read_activity)
         return KernelSpec(
             block.node.path,
@@ -1343,7 +1343,7 @@ class SpecsPass(BasePass):
         for index in range(next(iter(sizes), 1)):
             parameters, references = SpecsPass._get_namespace(block, ReadKind.SINGLE)
             namespaces: dict[str, SimpleNamespace | tuple[SimpleNamespace, ...]] = {}
-            set_symbols: dict[Expression, SetSymbolSpec] = {}
+            set_symbols: dict[Expression, _SetSymbol] = {}
             for role, members in sets.items():
                 namespaces[role], role_references = SpecsPass._get_namespace(members[index], ReadKind.SINGLE)
                 references.update(role_references)

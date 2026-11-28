@@ -9,7 +9,7 @@ from ....components.laws import EventLaw
 from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._reduction_schedule_spec import ReductionScheduleSpec
+from ...problems._neighborhood_kernel import _ReductionSchedule
 from .._base import BasePass
 from .._compilation import Compilation
 from ._reduction_lowering import ReductionLowering
@@ -62,7 +62,7 @@ class ReductionsPass(BasePass):
                 for spec, _ in [*compilation.reduced, *compilation.reduced_apart]
             },
         )
-        compilation.reductions = ReductionScheduleSpec(
+        compilation.reductions = _ReductionSchedule(
             tuple(reductions.found_.values()),
             reductions.parameters_,
             tuple(reductions.neighbourhoods_.values()),

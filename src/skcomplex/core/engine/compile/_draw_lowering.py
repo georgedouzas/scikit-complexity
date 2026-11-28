@@ -27,8 +27,7 @@ from ..enums import ReadKind
 from ..problems._draw_kernel import DrawKernel, _NamedDraw
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._kernel_spec import KernelSpec
-from ..problems._neighbor_read_spec import _NeighborReadSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._members import MemberLowering
@@ -283,7 +282,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tup
         for spec in specs:
             for reference in spec.references.values():
                 read = reference.neighbor
-                if isinstance(read, _NeighborReadSpec) and read.order is not None:
+                if isinstance(read, _NeighborRead) and read.order is not None:
                     orders.setdefault(id(read.order), read.order)
         return tuple(orders.values())
 

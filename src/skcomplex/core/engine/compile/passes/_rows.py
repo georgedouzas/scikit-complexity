@@ -23,7 +23,7 @@ from ..._utils import components_of
 from ...enums import ReadKind
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._kernel_spec import KernelSpec
-from ...problems._neighbor_read_spec import _NeighborReadSpec
+from ...problems._reference_spec import _NeighborRead
 from .._base import BasePass
 from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
@@ -139,7 +139,7 @@ class RowsPass(BasePass):
             ):
                 continue
             table = np.repeat(np.arange(block.rows), phase.size_ // phase.position_size_)
-            read = _NeighborReadSpec(table, None, None, None, 0)
+            read = _NeighborRead(table, None, None, None, 0)
             references[item] = replace(reference, source=ReadKind.NEIGHBOR, neighbor=read)
         return replace(spec, references=references) if references != spec.references else spec
 

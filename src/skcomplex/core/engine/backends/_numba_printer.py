@@ -21,14 +21,11 @@ from ..problems import BasePrinter
 from ..problems._edge_row_search import EdgeRowSearch
 from ..problems._edge_search import EdgeSearch
 from ..problems._expression_printer import ExpressionPrinter
-from ..problems._law_kernel import LawKernel
+from ..problems._law_kernel import LawKernel, _Output
 from ..problems._metric_search import MetricSearch
-from ..problems._neighborhood_kernel import NeighborhoodKernel
-from ..problems._output_spec import OutputSpec
+from ..problems._neighborhood_kernel import NeighborhoodKernel, _ReductionSchedule
 from ..problems._pair_search import PairSearch
-from ..problems._read_spec import _ReadSpec
-from ..problems._reduction_kernel import ReductionKernel
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
+from ..problems._reduction_kernel import ReductionKernel, _Read
 from ..problems._reference_spec import ReferenceSpec
 from ..problems._static_search import StaticSearch
 from ._base import AUTO_MEMBERS
@@ -44,7 +41,7 @@ COMPONENT_KINDS = {
 }
 
 
-class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
+class NumbaPrinter(BasePrinter[_ReductionSchedule, Sequence[tuple[str, str, list[LawKernel], bool]]]):
     """A printer that writes the kernels and sums of a problem as Numba source.
 
     It turns the compiled laws of a problem into lines of Python that Numba compiles, which `NumbaBackend` then runs.
@@ -90,7 +87,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def __init__(self, parallel: bool = False) -> None:
         self.parallel = parallel
 
-    def _prepare(self, context: ReductionScheduleSpec | None) -> None:
+    def _prepare(self, context: _ReductionSchedule | None) -> None:
         """Start an empty source and print the function that fuses the reductions.
 
         Without reductions it prints no function.
@@ -291,7 +288,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return assignments, codes
 
     @staticmethod
-    def _get_target_of(output: OutputSpec) -> ReferenceSpec:
+    def _get_target_of(output: _Output) -> ReferenceSpec:
         """Return the target of an output a kernel writes.
 
         Args:
@@ -334,8 +331,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     @staticmethod
     def _get_by_end(
-        outputs: Sequence[tuple[int, OutputSpec]],
-    ) -> tuple[list[tuple[int, OutputSpec]], list[tuple[int, OutputSpec]]]:
+        outputs: Sequence[tuple[int, _Output]],
+    ) -> tuple[list[tuple[int, _Output]], list[tuple[int, _Output]]]:
         """Return the outputs that target the first members of pairs and the second ones.
 
         Args:
@@ -352,7 +349,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
     def _emit_values(
         self,
-        outputs: Sequence[OutputSpec],
+        outputs: Sequence[_Output],
         read: Callable[[Expression], str],
         depth: int,
     ) -> tuple[list[str], list[str]]:
@@ -384,7 +381,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             values.append(calls[key] if output.components == 1 else f'{calls[key]}[{output.component}]')
         return lines, values
 
-    def _get_single_reads(self, kernel: LawKernel, outputs: Sequence[OutputSpec]) -> list[str]:
+    def _get_single_reads(self, kernel: LawKernel, outputs: Sequence[_Output]) -> list[str]:
         """Return the lines that read every single-element symbol of outputs once.
 
         They come before the member loops.
@@ -465,7 +462,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _get_pair_block(
         self,
         kernel: LawKernel,
-        selected: list[tuple[int, OutputSpec]],
+        selected: list[tuple[int, _Output]],
         *,
         first: str,
         second: str,
@@ -505,7 +502,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _get_pair_loop(
         self,
         kernel: LawKernel,
-        outputs: list[tuple[int, OutputSpec]],
+        outputs: list[tuple[int, _Output]],
         loop: str,
         same: bool,
     ) -> list[str]:
@@ -580,7 +577,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         return lines
 
     @staticmethod
-    def _get_written(output: OutputSpec, index: str, value: str, mode: str) -> str:
+    def _get_written(output: _Output, index: str, value: str, mode: str) -> str:
         """Return the line that writes the value of an output.
 
         It adds or assigns the value, or adds the change of a combined output.
@@ -591,7 +588,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             return f'{INDENT * 2}out[{index}] += ({value}) - x[{index}]'
         return f'{INDENT * 2}out[{index}] = {value}'
 
-    def _get_reduced(self, output: OutputSpec, index: str, value: str) -> str:
+    def _get_reduced(self, output: _Output, index: str, value: str) -> str:
         """Return the line that adds the share of the row `_m_` of an output to its member.
 
         The output is one that reduces over rows.
@@ -603,7 +600,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             return f'{INDENT * 2}out[{index}] += ({value}) - x[{index}] / {count}'
         return f'{INDENT * 2}out[{index}] += (({value}) - x[{index}]) / {count}'
 
-    def _get_member_written(self, output: OutputSpec, value: str, mode: str) -> str:
+    def _get_member_written(self, output: _Output, value: str, mode: str) -> str:
         """Return the line that writes an output value of a member kernel.
 
         It writes it for the row `_m_`.
@@ -789,7 +786,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines.append(f'{INDENT}return out')
         self.code_ += ['', '', *lines]
 
-    def _get_reduction_read(self, name: str, read: _ReadSpec, index: int) -> str:
+    def _get_reduction_read(self, name: str, read: _Read, index: int) -> str:
         """Return the line that reads one symbol of a reduction.
 
         It reads it for the member `_m_`, or once for a shared value.
@@ -840,7 +837,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _get_shaped_weights_lines(
         self,
         reduction: ReductionKernel,
-        weights: _ReadSpec,
+        weights: _Read,
         index: int,
         count: str,
     ) -> list[str]:
@@ -898,7 +895,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines += [f'{INDENT}{acc} = 0.0', f'{INDENT}{cnt} = 0.0']
         sums = [f'{acc} += _a_ if _c_ else 0.0', f'{cnt} += 1.0 if _c_ else 0.0']
         mean = f'({acc} / {cnt} if {cnt} > 0.0 else 0.0)'
-        if isinstance(reduction.weights, _ReadSpec):
+        if isinstance(reduction.weights, _Read):
             return lines + self._get_shaped_weights_lines(reduction, reduction.weights, index, sums[1])
         if reduction.weights is not None:
             weights = scipy.sparse.csr_array(reduction.weights)
@@ -1184,7 +1181,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             start = f'_e{position}_ + 1'
         return lines
 
-    def _reduce_function(self, reductions: ReductionScheduleSpec, parallel: bool) -> None:
+    def _reduce_function(self, reductions: _ReductionSchedule, parallel: bool) -> None:
         """Add the function that returns the parameter vector extended with reductions.
 
         It is extended with every reduction. The reductions are evaluated in dependency order.

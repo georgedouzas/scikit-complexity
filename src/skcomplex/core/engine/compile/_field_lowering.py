@@ -47,8 +47,7 @@ from ..problems._field_element import _FieldElement
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
-from ..problems._neighbor_read_spec import _NeighborReadSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 from ._flux_law import _FluxLaw
@@ -348,7 +347,7 @@ class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
                 table, ghost, mode = self._get_table(base, place, total)
                 space = place.space
                 lattice = space if isinstance(space, LatticeSpace) and mode is not None else None
-                read = _NeighborReadSpec(
+                read = _NeighborRead(
                     table,
                     ghost,
                     None if lattice is None else lattice.shape_,

@@ -7,8 +7,11 @@ from scipy import sparse
 from skcomplex.core.components import EntrySpec
 from skcomplex.core.engine.enums import LinearProgramBound
 from skcomplex.core.engine.problems import RunStateSpec
-from skcomplex.core.engine.problems._linear_program_kernel import LinearProgramKernel
-from skcomplex.core.engine.problems._linear_program_spec import LinearProgramSideSpec, LinearProgramSpec
+from skcomplex.core.engine.problems._linear_program_kernel import (
+    LinearProgramKernel,
+    _LinearProgram,
+    _LinearProgramSide,
+)
 from skcomplex.core.engine.problems._reference_spec import ReferenceSpec
 from skcomplex.core.errors import SolverError
 
@@ -31,7 +34,7 @@ def _program(**settings):
         'offsets': (0.0,),
         'objectives': (np.array([1]),),
     }
-    return LinearProgramSpec(**{**values, **settings})
+    return _LinearProgram(**{**values, **settings})
 
 
 def _state(t=0.0):
@@ -61,7 +64,7 @@ def test_prepare_evaluates_the_bounds_at_a_state_without_solving():
     entry = EntrySpec('flows.limit', 0, (), None, None)
     reference = ReferenceSpec(entry, False, 0)
     program = _program(
-        sides=(LinearProgramSideSpec(LinearProgramBound.COLUMN_UPPER, 0, 0),),
+        sides=(_LinearProgramSide(LinearProgramBound.COLUMN_UPPER, 0, 0),),
         function=lambda t, limit: [limit],
         arguments=(reference,),
     )

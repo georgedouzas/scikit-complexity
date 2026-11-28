@@ -12,8 +12,7 @@ from ....errors import PipelineError
 from ...problems import LayoutSpec
 from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
-from ...problems._law_kernel import LawKernel
-from ...problems._output_spec import OutputSpec
+from ...problems._law_kernel import LawKernel, _Output
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._field_lowering import FieldLowering
@@ -117,5 +116,5 @@ class FieldProblemPass(BasePass):
             spec.rows,
             LayoutSpec(tuple(declarations.states)),
             layout_parameters=LayoutSpec(tuple(declarations.parameters)),
-            outputs=[OutputSpec(None, SR(lowered))],
+            outputs=[_Output(None, SR(lowered))],
         ).prepare()

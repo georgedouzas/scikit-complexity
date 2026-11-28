@@ -49,10 +49,8 @@ from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LATTICE_BOUNDARIES
 from ...problems._metric_search import MetricSearch
-from ...problems._neighborhood_kernel import NeighborhoodKernel
-from ...problems._pair_read_spec import _PairReadSpec
-from ...problems._read_spec import _ReadSpec
-from ...problems._reduction_kernel import ReductionKernel
+from ...problems._neighborhood_kernel import NeighborhoodKernel, _PairRead
+from ...problems._reduction_kernel import ReductionKernel, _Read
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._static_search import StaticSearch
 from ...problems._topology_kernel import ACTIVE_THRESHOLD
@@ -269,23 +267,23 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return spec.group
         return next((item.label for item in spec.sets.values()), None)
 
-    def _read(self, item: Expression, spec: KernelSpec, group: str | None) -> _ReadSpec:
+    def _read(self, item: Expression, spec: KernelSpec, group: str | None) -> _Read:
         """Return how the reduction pass reads one symbol of a reduction."""
         if item in spec.sets:
             references = spec.sets[item].references
             indices = np.asarray([reference.entry.start + reference.column for reference in references], dtype=np.intp)
-            return _ReadSpec(references[0].is_state, indices)
+            return _Read(references[0].is_state, indices)
         if item in self.by_symbol_:
             nested = self.by_symbol_[item]
             if nested.weights is None:
-                return _ReadSpec(False, nested.entry.start, nested.entry)
+                return _Read(False, nested.entry.start, nested.entry)
             if self.readers_[item] != group:
                 error_msg = (
                     f'A reduction of {spec.owner} over {group} reads the weighted reduction {nested.symbol} of the '
                     f'members of {self.readers_[item]}. Read a weighted reduction inside reductions over its readers.'
                 )
                 raise ValidationError(error_msg)
-            return _ReadSpec(False, (nested.entry.start + np.arange(nested.entry.size)).astype(np.intp), nested.entry)
+            return _Read(False, (nested.entry.start + np.arange(nested.entry.size)).astype(np.intp), nested.entry)
         if item in self.local_:
             local = self.local_[item]
             if local.group != group:
@@ -294,7 +292,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
                     f'members of {local.group}. Read a neighbourhood reduction inside reductions over its members.'
                 )
                 raise ValidationError(error_msg)
-            return _ReadSpec(False, (local.entry.start + np.arange(local.entry.size)).astype(np.intp), local.entry)
+            return _Read(False, (local.entry.start + np.arange(local.entry.size)).astype(np.intp), local.entry)
         reference = self._get_reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
@@ -305,8 +303,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         entry = reference.entry
         if reference.source in {ReadKind.MEMBER, ReadKind.OTHER} and entry.members is not None:
             indices = entry.start + np.arange(entry.rows) * entry.columns + reference.column
-            return _ReadSpec(reference.is_state, indices.astype(np.intp), entry, reference.column, entry.columns)
-        return _ReadSpec(reference.is_state, entry.start + reference.column, entry, reference.column)
+            return _Read(reference.is_state, indices.astype(np.intp), entry, reference.column, entry.columns)
+        return _Read(reference.is_state, entry.start + reference.column, entry, reference.column)
 
     def _get_members(self, group: str | None, spec: KernelSpec) -> tuple[int, EntrySpec | None]:
         """Return the size of a group and an entry that gives its size.
@@ -328,7 +326,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         spec: KernelSpec,
         group: str | None,
         size: int,
-    ) -> scipy.sparse.csr_array | _ReadSpec | None:
+    ) -> scipy.sparse.csr_array | _Read | None:
         """Return the weights of a reduction as a CSR array or a shaped parameter read.
 
         The shape is checked.
@@ -359,7 +357,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         spec: KernelSpec,
         weights: Expression,
         shape: tuple[int, int],
-    ) -> _ReadSpec:
+    ) -> _Read:
         """Return the read of the shaped parameter a reduction takes as weights.
 
         It first checks its shape.
@@ -375,7 +373,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         indices = (entry.start + np.arange(entry.size)).astype(np.intp)
-        return _ReadSpec(reference.is_state if reference is not None else False, indices, entry)
+        return _Read(reference.is_state if reference is not None else False, indices, entry)
 
     @staticmethod
     def _get_held_reduction(
@@ -528,19 +526,19 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         reference = self._get_reference_of(item, spec)
         return reference is not None and reference.source is ReadKind.MEMBER
 
-    def _get_pairwise_read(self, item: Expression, spec: KernelSpec, readers: str | None) -> _PairReadSpec:
+    def _get_pairwise_read(self, item: Expression, spec: KernelSpec, readers: str | None) -> _PairRead:
         """Return how a reduction that reads `other` reads one symbol.
 
         It reads it shared, of the reader, or of the other member.
         """
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
-            return _PairReadSpec(self._read(item, spec, readers), 'reader')
+            return _PairRead(self._read(item, spec, readers), 'reader')
         if item in self.by_symbol_:
-            return _PairReadSpec(self._read(item, spec, None), 'shared')
+            return _PairRead(self._read(item, spec, None), 'shared')
         reference = self._get_reference_of(item, spec)
         if reference is not None and reference.source is ReadKind.SINGLE:
-            return _PairReadSpec(
-                _ReadSpec(reference.is_state, reference.index, reference.entry, reference.column),
+            return _PairRead(
+                _Read(reference.is_state, reference.index, reference.entry, reference.column),
                 'shared',
             )
         owner = self._get_owner_of(item, spec)
@@ -555,7 +553,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         entry = reference.entry
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
-        return _PairReadSpec(_ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
+        return _PairRead(_Read(reference.is_state, indices, entry, reference.column, entry.columns), side)
 
     def _get_weighted_pairwise_form(
         self,
@@ -588,7 +586,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         reduction: _ReductionSpec,
         spec: KernelSpec,
         group: str,
-    ) -> dict[Expression, _PairReadSpec]:
+    ) -> dict[Expression, _PairRead]:
         """Return the read of the shaped parameter that weights the pairs of a reduction.
 
         It is no read without one.
@@ -598,7 +596,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             return {}
         readers = self.declarations_.blocks[spec.group].rows if spec.group is not None else 1
         read = self._get_weights_read(reduction, spec, weights, (readers, self.declarations_.blocks[group].rows))
-        return {weights: _PairReadSpec(read, 'pair')}
+        return {weights: _PairRead(read, 'pair')}
 
     def _get_pairwise_form(
         self,
@@ -814,7 +812,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         axis: int,
         sizes: tuple[int, ...],
         spec: KernelSpec,
-    ) -> tuple[Expression, dict[Expression, _ReadSpec]]:
+    ) -> tuple[Expression, dict[Expression, _Read]]:
         """Return the expression of one index of a contraction, with its reads.
 
         The contraction runs over the product of its indices. Every symbol of one member reads its value at the member
@@ -829,7 +827,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         renamed: dict[Expression, Expression] = {}
-        reads: dict[Expression, _ReadSpec] = {}
+        reads: dict[Expression, _Read] = {}
         for item in symbols:
             read = self._read(item, spec, group)
             if read.per_member and len(cast(Indices, read.index)) != sizes[axis]:
@@ -846,7 +844,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             shape = [1] * len(sizes)
             shape[axis] = sizes[axis]
             index = np.broadcast_to(np.asarray(read.index, dtype=np.intp).reshape(shape), sizes).ravel()
-            reads[name] = _ReadSpec(read.is_state, np.ascontiguousarray(index))
+            reads[name] = _Read(read.is_state, np.ascontiguousarray(index))
         return SR(factor).subs(renamed), reads
 
     def _get_contraction(self, call: Expression, spec: KernelSpec) -> Expression:
@@ -859,13 +857,13 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if key not in self.found_:
             factors = [SR(self._lower(item, spec)) for item in call.operands()[1:]]
             rows, sizes = entry.shape[0], tuple(entry.shape[1:])
-            argument, reads = SR(1), dict[Expression, _ReadSpec]()
+            argument, reads = SR(1), dict[Expression, _Read]()
             for axis, factor in enumerate(factors):
                 expression, axis_reads = self._get_axis_reads(factor, axis, sizes, spec)
                 argument, reads = argument * expression, reads | axis_reads
             size = math.prod(sizes)
             matrix = replace(entry, shape=(rows, size))
-            weights = _ReadSpec(reference.is_state, (entry.start + np.arange(entry.size)).astype(np.intp), matrix)
+            weights = _Read(reference.is_state, (entry.start + np.arange(entry.size)).astype(np.intp), matrix)
             index = len(self.found_)
             placeholder = symbol(f'_reduced_{index}')
             compiled = ReductionKernel(
@@ -923,7 +921,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         """Check whether a group lives on the edges of a network."""
         return getattr(self.declarations_.blocks[group].node.component, 'on', None) == 'edges'
 
-    def _get_edge_read(self, reference: ReferenceSpec, spec: KernelSpec, group: str, over: object) -> _PairReadSpec:
+    def _get_edge_read(self, reference: ReferenceSpec, spec: KernelSpec, group: str, over: object) -> _PairRead:
         """Return how a neighbourhood reduction reads a state of its edge group.
 
         The edge group is that of its layer, and it reads it per pair of neighbours.
@@ -944,7 +942,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise RoleError(error_msg)
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
-        return _PairReadSpec(_ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), 'edge')
+        return _PairRead(_Read(reference.is_state, indices, entry, reference.column, entry.columns), 'edge')
 
     def _get_pair_read(
         self,
@@ -953,16 +951,16 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         group: str,
         search: object,
         over: object = None,
-    ) -> _PairReadSpec:
+    ) -> _PairRead:
         """Return how a neighbourhood reduction reads one symbol.
 
         It reads it shared, of the reading member, or of the neighbour.
         """
         reference = self._get_reference_of(item, spec)
         if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
-            return _PairReadSpec(self._read(item, spec, group), 'reader')
+            return _PairRead(self._read(item, spec, group), 'reader')
         if item in self.by_symbol_:
-            return _PairReadSpec(self._read(item, spec, None), 'shared')
+            return _PairRead(self._read(item, spec, None), 'shared')
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A neighbourhood reduction of {spec.owner} reads {item}, which is not a state or parameter of a '
@@ -971,8 +969,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         if reference.source is ReadKind.SINGLE:
-            read = _ReadSpec(reference.is_state, reference.index, reference.entry, reference.column)
-            return _PairReadSpec(read, 'shared')
+            read = _Read(reference.is_state, reference.index, reference.entry, reference.column)
+            return _PairRead(read, 'shared')
         entry = reference.entry
         owner = entry.name.rpartition('.')[0]
         if owner != group and owner in self.declarations_.blocks and self._get_on_edges(owner):
@@ -984,12 +982,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise RoleError(error_msg)
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
-        read = _ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns)
+        read = _Read(reference.is_state, indices, entry, reference.column, entry.columns)
         if reference.source is ReadKind.MEMBER:
-            return _PairReadSpec(read, 'reader')
+            return _PairRead(read, 'reader')
         image, axis = self._get_image(search, entry)
         sites, fill = self._get_own_edges(reference, group, over)
-        return _PairReadSpec(read, 'other', image, axis=axis, sites=sites, fill=fill)
+        return _PairRead(read, 'other', image, axis=axis, sites=sites, fill=fill)
 
     def _get_own_edges(self, reference: ReferenceSpec, group: str, over: object) -> tuple[Indices | None, float]:
         """Return the site every pair reads and the value beyond fixed edges.
@@ -1054,7 +1052,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             raise ValidationError(error_msg)
         return next(iter(places))
 
-    def _get_cell_read(self, item: Expression, spec: KernelSpec, reader: str | None = None) -> _PairReadSpec:
+    def _get_cell_read(self, item: Expression, spec: KernelSpec, reader: str | None = None) -> _PairRead:
         """Return how a kernel over the cells of a matrix reads one symbol.
 
         It reads it shared, of the cell, or of the reader.
@@ -1062,9 +1060,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         if item in self.local_:
             local = self.local_[item]
             indices = (local.entry.start + np.arange(local.entry.size)).astype(np.intp)
-            return _PairReadSpec(_ReadSpec(False, indices, local.entry), 'reader' if local.group == reader else 'other')
+            return _PairRead(_Read(False, indices, local.entry), 'reader' if local.group == reader else 'other')
         if item in self.by_symbol_:
-            return _PairReadSpec(self._read(item, spec, None), 'shared')
+            return _PairRead(self._read(item, spec, None), 'shared')
         reference = self._get_reference_of(item, spec)
         if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
@@ -1073,12 +1071,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         if reference.source is ReadKind.SINGLE:
-            read = _ReadSpec(reference.is_state, reference.index, reference.entry, reference.column)
-            return _PairReadSpec(read, 'shared')
+            read = _Read(reference.is_state, reference.index, reference.entry, reference.column)
+            return _PairRead(read, 'shared')
         entry = reference.entry
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
         side = 'reader' if entry.name.rpartition('.')[0] == reader else 'other'
-        return _PairReadSpec(_ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
+        return _PairRead(_Read(reference.is_state, indices, entry, reference.column, entry.columns), side)
 
     def _get_cell_kernel(
         self,
@@ -1495,7 +1493,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         group: str,
         search: StaticSearch | MetricSearch,
         slots: tuple[dict[Expression, Expression], dict[Expression, int], list[Indices] | None],
-    ) -> _PairReadSpec:
+    ) -> _PairRead:
         """Return how a reduction over hyperedges reads one symbol.
 
         It reads it of the member, of another member, or shared. Another member of a set of neighbours is read at its
@@ -1539,10 +1537,10 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         reference = spec.references[sources.get(item, item)]
         entry = reference.entry
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
-        read = _ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns)
+        read = _Read(reference.is_state, indices, entry, reference.column, entry.columns)
         if item in sources:
-            return _PairReadSpec(read, 'reader')
+            return _PairRead(read, 'reader')
         if tables is None:
             image, axis = self._get_image(search, entry)
-            return _PairReadSpec(read, 'other', image, position=positions[item], axis=axis)
-        return _PairReadSpec(read, 'other', table=tables[positions[item]])
+            return _PairRead(read, 'other', image, position=positions[item], axis=axis)
+        return _PairRead(read, 'other', table=tables[positions[item]])

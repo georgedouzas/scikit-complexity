@@ -14,9 +14,8 @@ from ...errors import ValidationError
 from ...types import Array, Indices, VectorFunction
 from ..enums import ReadKind
 from ..problems import RunStateSpec
-from ..problems._law_kernel import LawKernel, _JumpChannels, _WienerBlock
+from ..problems._law_kernel import LawKernel, _JumpChannels, _Output, _WienerBlock
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
-from ..problems._output_spec import OutputSpec
 from ..problems._problem_spec import _Accelerated
 from ..problems._reference_spec import ReferenceSpec
 from ..types import OptionalPairs
@@ -398,7 +397,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         output[target.members] += values - x[target.members]
 
     @staticmethod
-    def _reduce_into(output: Array, x: Array, item: OutputSpec, values: Array, p: Array) -> None:
+    def _reduce_into(output: Array, x: Array, item: _Output, values: Array, p: Array) -> None:
         """Add the share of every row of an output that reduces over rows to its member.
 
         A member written by `m` rows over every kernel takes `x + sum_r (v_r - x / m)`, the sum of its rows, or

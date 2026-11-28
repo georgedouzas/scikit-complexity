@@ -38,10 +38,9 @@ from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._lowered_kernels_spec import LoweredKernelsSpec
 from ..problems._metric_search import MetricSearch
-from ..problems._neighbor_read_spec import _NeighborReadSpec
+from ..problems._neighborhood_kernel import _ReductionSchedule
 from ..problems._problem_spec import _Accelerated
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ..problems._source_loader import SourceLoader
 from ..problems._steps import step_count
 from . import _numba_components, _numba_neighbours, _numba_stencils
@@ -170,7 +169,7 @@ class NumbaBackend(BaseBackend):
             JumpLaw: kernels.get(JumpLaw, []) if form == FormKind.JUMP else [],
             UpdateLaw: kernels.get(UpdateLaw, []) if form in (FormKind.DISCRETE, FormKind.STATIC) else [],
         }
-        reductions = inputs.reductions or ReductionScheduleSpec()
+        reductions = inputs.reductions or _ReductionSchedule()
         reduced = bool(reductions.steps)
         fused = self._get_reductions_compile(reductions)
         compiled: dict[type[BaseLaw], bool] = {
@@ -246,7 +245,7 @@ class NumbaBackend(BaseBackend):
         size: int,
         module: ModuleType,
         layout: tuple[np.ndarray, list[tuple[int, np.ndarray]]],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> _LoweredFunctions:
         """Return the lowering that binds the compiled functions to the layout.
 
@@ -386,7 +385,7 @@ class NumbaBackend(BaseBackend):
     @staticmethod
     def _get_layout_entries(
         used: Mapping[type[BaseLaw], list[LawKernel]],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> dict[str, EntrySpec]:
         """Return every entry the kernels and the reductions of a problem read, by name."""
         entries = {
@@ -403,7 +402,7 @@ class NumbaBackend(BaseBackend):
                     entries[search.target.name] = search.target
                 for reference in kernel.references.values():
                     read = reference.neighbor
-                    if isinstance(read, _NeighborReadSpec) and read.entry is not None:
+                    if isinstance(read, _NeighborRead) and read.entry is not None:
                         entries[read.entry.name] = read.entry
         for item in reductions.reductions:
             entries[item.entry.name] = item.entry
@@ -444,7 +443,7 @@ class NumbaBackend(BaseBackend):
         )
 
     @staticmethod
-    def _get_reductions_compile(reductions: ReductionScheduleSpec) -> bool:
+    def _get_reductions_compile(reductions: _ReductionSchedule) -> bool:
         """Check whether every reduction compiles with Numba.
 
         Every reduction must print in Numba's dialect, and no reduction may run shortest paths in NetworkX.
@@ -501,7 +500,7 @@ class NumbaBackend(BaseBackend):
         return targets, increments
 
     @staticmethod
-    def _get_unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
+    def _get_unprinted_reduction(reductions: _ReductionSchedule) -> str | None:
         """Return the first reduction that does not print in the scalar dialect.
 
         It returns `None` when every one prints.
@@ -528,7 +527,7 @@ class NumbaBackend(BaseBackend):
         name: str,
         used: Mapping[type[BaseLaw], list[LawKernel]],
         compiled: Mapping[type[BaseLaw], bool],
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> dict[str, str]:
         """Warn once about the kinds run in Python, and return the runners.
 

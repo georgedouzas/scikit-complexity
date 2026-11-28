@@ -26,11 +26,11 @@ from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._field_element import _FieldElement
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._jacobian_kernel import _Symmetry
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._reference_spec import ReferenceSpec
-from ...problems._symmetry_spec import SymmetrySpec
 from .._base import BasePass
 from .._compilation import Compilation
 from .._flux_law import _FluxLaw
@@ -186,7 +186,7 @@ class FieldFunctionsPass(BasePass):
     @staticmethod
     def _get_symmetries(
         blocks: list[BlockSpec],
-    ) -> list[SymmetrySpec]:
+    ) -> list[_Symmetry]:
         """Return the mirror symmetries of the field states."""
         found = []
         for block in blocks:
@@ -212,13 +212,13 @@ class FieldFunctionsPass(BasePass):
                     if parity is not None:
                         signs.append((axis, -1 if parity == 'odd' else 1))
                 indices = entry.start + column + np.arange(place.size_) * entry.columns
-                found.append(SymmetrySpec(indices, space.shape_, tuple(signs)))
+                found.append(_Symmetry(indices, space.shape_, tuple(signs)))
         return found
 
     @staticmethod
     def _copy_with_symmetries(
         drift: VectorFunction | None,
-        symmetries: list[SymmetrySpec],
+        symmetries: list[_Symmetry],
     ) -> VectorFunction | None:
         """Return the drift with the rates of symmetric states projected.
 

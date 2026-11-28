@@ -27,10 +27,10 @@ from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
 from ...problems._expression_printer import ExpressionPrinter
 from ...problems._kernel_spec import KernelSpec
+from ...problems._neighborhood_kernel import _ReductionSchedule
 from ...problems._node_spec import _NodeSpec
 from ...problems._problem_spec import _Breakpoints, _Delay
 from ...problems._random_stream import RandomStream
-from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...types import ScalarsFunction
 from .._base import BasePass
@@ -322,7 +322,7 @@ class ProblemPass(BasePass):
     @staticmethod
     def _get_reduced_guard(
         function: ScalarsFunction,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> Callable[[float, Array, Array], float]:
         """Return a function that gives the single value of a scalar function.
 
@@ -423,7 +423,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         event: EventLaw,
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         *,
         members: bool = False,
     ) -> Callable[..., Array] | None:
@@ -487,7 +487,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         guard: Expression,
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> Callable[[float, Array, Array], Array]:
         """Return a function that gives the value of a guard for every member of a group."""
         arguments = sorted(symbols_of([guard]) - {time}, key=str)
@@ -663,7 +663,7 @@ class ProblemPass(BasePass):
     def _get_symbolic_value(
         spec: KernelSpec,
         value: object,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         time: Expression,
     ) -> Callable[[float, Array, Array], object]:
         """Return the function of time and both vectors of a symbolic guard or reset.
@@ -694,7 +694,7 @@ class ProblemPass(BasePass):
     def _get_value_function(
         spec: KernelSpec,
         value: object,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         declarations: DeclarationsSpec,
     ) -> Callable[[float, Array, Array], object]:
         """Return the function of time and both vectors of one guard or reset value.
@@ -728,7 +728,7 @@ class ProblemPass(BasePass):
         spec: KernelSpec,
         event: EventLaw,
         label: str,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         declarations: DeclarationsSpec,
     ) -> EventKernel:
         """Return an event whose guard or reset is a function.
@@ -769,7 +769,7 @@ class ProblemPass(BasePass):
     def _compile_events(
         events: list[tuple[KernelSpec, EventLaw]],
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
         declarations: DeclarationsSpec,
     ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions.
@@ -832,7 +832,7 @@ class ProblemPass(BasePass):
     def _get_hidden_events(
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         time: Expression,
-        reductions: ReductionScheduleSpec,
+        reductions: _ReductionSchedule,
     ) -> tuple[EventKernel, ...]:
         """Return one hidden event per single component condition that switches a flow.
 

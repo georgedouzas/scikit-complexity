@@ -5,6 +5,7 @@
 
 import functools
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -14,10 +15,9 @@ from scipy.special import logsumexp
 
 from ...components import EntrySpec
 from ...errors import ValidationError
-from ...types import AnyArray, Array
+from ...types import AnyArray, Array, Indices
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
-from ._read_spec import _ReadSpec
 from ._run_state_spec import RunStateSpec
 
 REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
@@ -29,6 +29,46 @@ REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
     'var': lambda array: array.var(axis=0),
     'logsumexp': lambda array: logsumexp(array, axis=0),
 }
+
+
+@dataclass(frozen=True)
+class _Read:
+    """A record of the values that a symbol of a reduction stands for.
+
+    They are one per reduced member or one shared value.
+
+    Args:
+        is_state:
+            Whether the values come from the state vector, as opposed to the extended parameter vector.
+
+        index:
+            The flat index of a shared value, or the flat index of the value of every reduced member.
+
+        entry:
+            The layout entry the values belong to, or `None` for an element set.
+
+        column:
+            The component of the entry's member that the symbol stands for.
+
+        stride:
+            The distance between the values of two consecutive members in the vector.
+    """
+
+    is_state: bool
+    index: int | Indices
+    entry: EntrySpec | None = None
+    column: int = 0
+    stride: int = 1
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """The shape of the entry the values belong to, or `()` for an element set."""
+        return self.entry.shape if self.entry is not None else ()
+
+    @property
+    def per_member(self) -> bool:
+        """Whether the symbol has one value per reduced member."""
+        return np.ndim(self.index) > 0
 
 
 class ReductionKernel(BaseKernel):
@@ -81,7 +121,7 @@ class ReductionKernel(BaseKernel):
 
     See Also:
         NeighborhoodKernel: A reduction over the neighbours of every member.
-        ReductionScheduleSpec: The order the reductions run in.
+        _ReductionSchedule: The order the reductions run in.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import KuramotoSystem
@@ -98,12 +138,12 @@ class ReductionKernel(BaseKernel):
         kind: str,
         argument: Expression,
         condition: Expression | None,
-        weights: scipy.sparse.csr_array | _ReadSpec | None,
+        weights: scipy.sparse.csr_array | _Read | None,
         *,
         entry: EntrySpec,
         size: int,
         group: str | None,
-        reads: dict[Expression, _ReadSpec],
+        reads: dict[Expression, _Read],
         time: Expression,
         members: EntrySpec | None = None,
         function: Callable[[AnyArray], object] | None = None,
@@ -170,7 +210,7 @@ class ReductionKernel(BaseKernel):
         if weights is None:
             error_msg = f'The reduction {self.symbol} has no weights.'
             raise ValidationError(error_msg)
-        if isinstance(weights, _ReadSpec) and weights.entry is not None:
+        if isinstance(weights, _Read) and weights.entry is not None:
             return (x if weights.is_state else q)[weights.index].reshape(weights.entry.shape)
         return weights
 

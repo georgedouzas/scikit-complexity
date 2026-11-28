@@ -33,15 +33,13 @@ from ..problems._drive_kernel import DriveKernel
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._law_kernel import LawKernel
 from ..problems._layout_spec import LayoutSpec
-from ..problems._neighbor_read_spec import _NeighborReadSpec
+from ..problems._neighborhood_kernel import _ReductionSchedule
 from ..problems._node_spec import _NodeSpec
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
 from ..problems._operator_problem_spec import OperatorProblemSpec
-from ..problems._read_spec import _ReadSpec
-from ..problems._reduction_kernel import ReductionKernel
-from ..problems._reduction_schedule_spec import ReductionScheduleSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._reduction_kernel import ReductionKernel, _Read
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ..problems._transfer_network_spec import _Recorded
 from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
@@ -731,19 +729,19 @@ class ObservableEvaluator:
                 error_msg = f'Observable {path} reduces {group} with {observable.reduce!r} but names no variable.'
                 raise ValidationError(error_msg)
             return lambda t, x, p, done: float(self._get_active(group, x, p, size).sum())
-        members: dict[Expression, _ReadSpec] = {}
+        members: dict[Expression, _Read] = {}
         for name in names.values():
             entry = self._get_entry(name)
             is_state = self.problem.states.has(name)
             for column, item in enumerate(ProblemSpec._get_real_components_of(self.problem.symbols[name])):
                 indices = (entry.start + np.arange(size) * entry.columns + column).astype(np.intp)
-                members[item] = _ReadSpec(is_state, indices, entry, column, entry.columns)
+                members[item] = _Read(is_state, indices, entry, column, entry.columns)
         namespace = SimpleNamespace(
             **{variable: self.problem.symbols[name] for variable, name in names.items()},
             t=self.problem.time,
         )
         expression = self._read_derivatives(path, observable.expression, namespace)
-        scalars = {item: _ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
+        scalars = {item: _Read(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         parameters = len(self.problem.initial_parameters)
         lowering = _MemberReductions(
             path=path,
@@ -756,7 +754,7 @@ class ObservableEvaluator:
         expression = lowering.prepare().run(expression).expression_
         readers = {item: self._read_of(read) for item, read in lowering.reads_.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
-        reductions = ReductionScheduleSpec(tuple(lowering.found_.values()), parameters)
+        reductions = _ReductionSchedule(tuple(lowering.found_.values()), parameters)
 
         def read_expression(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             values = np.broadcast_to(np.asarray(evaluate(t, x, reductions.extend(t, x, p), done)), (size,))
@@ -1030,7 +1028,7 @@ class ObservableEvaluator:
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: _ReadSpec) -> Callable[[Array, Array], Array]:
+    def _read_of(read: _Read) -> Callable[[Array, Array], Array]:
         """Return a reader of the values a reduction read stands for.
 
         It reads them from the state or the extended parameters.
@@ -1040,7 +1038,7 @@ class ObservableEvaluator:
     @staticmethod
     def _create_from_offset(
         column: Callable[[Array, Array], Array],
-        read: _NeighborReadSpec,
+        read: _NeighborRead,
     ) -> Callable[[Array, Array], Array]:
         """Return a reader of a member column at an offset from every member."""
         return lambda x, p: read.read(column(x, p), p)

@@ -19,8 +19,7 @@ from .._utils import domain_of, symbol, vector
 from ..enums import ReadKind
 from ..problems._kernel_spec import KernelSpec
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
-from ..problems._neighbor_read_spec import _NeighborReadSpec
-from ..problems._reference_spec import ReferenceSpec
+from ..problems._reference_spec import ReferenceSpec, _NeighborRead
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
@@ -251,7 +250,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         return self._shift(SR(self._lower(expression)), offset, boundary, fill)
 
     @staticmethod
-    def _get_neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> _NeighborReadSpec:
+    def _get_neighbor_read(rows: int, offset: int, boundary: str, fill: float) -> _NeighborRead:
         """Return the read of the member at an offset of every member of a group.
 
         The group has `rows` members.
@@ -260,7 +259,7 @@ class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
         table = lattice._get_index_table(LatticeNeighborhood(((offset,),)))[:, 0]
         ghost = fill if boundary == 'fixed' else None
         kind = next(kind for kind, name in LATTICE_BOUNDARIES.items() if name == boundary)
-        return _NeighborReadSpec(table, ghost, (rows,), (offset,), MODES[kind])
+        return _NeighborRead(table, ghost, (rows,), (offset,), MODES[kind])
 
     @staticmethod
     def _shift_arguments(call: Expression) -> tuple[Expression, int, str, float]:
