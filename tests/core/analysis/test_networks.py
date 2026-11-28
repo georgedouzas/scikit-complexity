@@ -1,4 +1,6 @@
-"""Test degrees, mixing, centralities, communities, neighbour degrees, and summaries of networks."""
+"""Test degrees, mixing, centralities, communities, spectra, neighbour degrees, and summaries of networks."""
+
+import math
 
 import networkx as nx
 import numpy as np
@@ -6,7 +8,11 @@ import pytest
 
 from skcomplex.core.analysis import NetworkMeasuresResult, network_measures
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems.mathematics.networks import BarabasiAlbertSystem, NetworkDiffusionSystem
+from skcomplex.systems.mathematics.networks import (
+    BarabasiAlbertSystem,
+    ConfigurationModelSystem,
+    NetworkDiffusionSystem,
+)
 from skcomplex.systems.social.segregation import SchellingSystem
 
 
@@ -31,6 +37,18 @@ def _schelling_contacts() -> nx.Graph:
         if (x + dx, y + dy) in cells
     )
     return graph
+
+
+def _bridged_cliques() -> nx.Graph:
+    """Return two complete graphs of 5 nodes joined by the edge from node 4 to node 5."""
+    graph = nx.disjoint_union(nx.complete_graph(5), nx.complete_graph(5))
+    graph.add_edge(4, 5)
+    return graph
+
+
+def _small_digraph() -> nx.DiGraph:
+    """Return the directed graph with edges 0 to 1, 1 to 0, 1 to 2, and 2 to 0."""
+    return nx.DiGraph([(0, 1), (1, 0), (1, 2), (2, 0)])
 
 
 def _planted_partition(blocks: int, size: int, inside: float, outside: float, seed: int) -> nx.Graph:
@@ -179,3 +197,129 @@ def test_network_analysis_of_a_growing_network_reads_every_frame():
     assert summary.nodes.tolist() == [3, 13, 23, 33, 43, 53]
     assert summary.edges[-1] == last.number_of_edges() == 103
     assert summary.clustering[-1] == pytest.approx(nx.average_clustering(last))
+
+
+def test_summary_of_chosen_measures():
+    """Test that the summary computes only the chosen measures and rejects an unknown one."""
+    found = _network('summary', nx.karate_club_graph(), measures=['clustering', 'transitivity'])
+    assert found.clustering is not None
+    assert found.transitivity is not None
+    assert found.path_length is None
+    assert found.diameter is None
+    assert found.components is None
+    with pytest.raises(AnalysisError, match='Use one of size, clustering, transitivity, paths'):
+        _network('summary', nx.karate_club_graph(), measures=['radius'])
+
+
+def test_transitivity_against_average_clustering():
+    """Test the average clustering and the transitivity of a triangle with 10 leaves on one corner."""
+    graph = nx.Graph([(0, 1), (1, 2), (0, 2)] + [(0, leaf) for leaf in range(3, 13)])
+    found = _network('summary', graph)
+    assert found.clustering[0] == pytest.approx(0.155, abs=1e-3)
+    assert found.transitivity[0] == pytest.approx(0.044, abs=1e-3)
+    assert np.isnan(found.reciprocity[0])
+
+
+def test_sampled_paths_of_a_large_graph():
+    """Test that sampled sources estimate the mean path length within 2 percent and bound the diameter from below."""
+    graph = ConfigurationModelSystem(n_nodes=1000, exponent=2.5).prepare().system_.space.graph
+    exact = _network('summary', graph, measures=['paths'])
+    sampled = _network('summary', graph, measures=['paths'], samples=200, random_state=0)
+    assert sampled.path_length[0] == pytest.approx(exact.path_length[0], rel=0.02)
+    assert sampled.diameter[0] <= exact.diameter[0]
+    again = _network('summary', graph, measures=['paths'], samples=50, random_state=3)
+    repeated = _network('summary', graph, measures=['paths'], samples=50, random_state=3)
+    assert again.path_length[0] == repeated.path_length[0]
+    assert again.diameter[0] == repeated.diameter[0]
+
+
+def test_degrees_and_reciprocity_of_a_directed_graph():
+    """Test the in and out degrees, their equal first moments, and the reciprocity of a small directed graph."""
+    graph = _small_digraph()
+    found = _network('degrees', graph)
+    assert found.in_degrees[0].tolist() == [2, 1, 1]
+    assert found.out_degrees[0].tolist() == [1, 2, 1]
+    assert _network('summary', graph).reciprocity[0] == pytest.approx(0.5)
+    random = nx.gnp_random_graph(60, 0.1, seed=0, directed=True)
+    moments = _network('degrees', random)
+    expected = random.number_of_edges() / random.number_of_nodes()
+    assert moments.in_moments[0][0] == pytest.approx(expected)
+    assert moments.out_moments[0][0] == pytest.approx(expected)
+    assert _network('degrees', nx.path_graph(3)).in_degrees is None
+
+
+def test_spectra_of_small_graphs():
+    """Test the Laplacian of a cycle, the connectivity of a path, the radius of a complete graph, and a split graph."""
+    cycle = _network('spectrum', nx.cycle_graph(4))
+    np.testing.assert_allclose(cycle.laplacian_spectrum[0], [0, 2, 2, 4], atol=1e-12)
+    path = _network('spectrum', nx.path_graph(4))
+    assert path.algebraic_connectivity[0] == pytest.approx(2 - 2 * math.cos(math.pi / 4), abs=1e-12)
+    assert np.count_nonzero(np.diff(np.sign(path.fiedler_vector[0]))) == 1
+    complete = _network('spectrum', nx.complete_graph(5))
+    assert complete.spectral_radius[0] == pytest.approx(4, abs=1e-12)
+    assert 1 / complete.spectral_radius[0] == pytest.approx(0.25)
+    split = _network('spectrum', nx.Graph([(0, 1), (2, 3)]))
+    assert split.algebraic_connectivity[0] == 0
+    assert np.isnan(split.fiedler_vector[0]).all()
+    matrix = _network('spectrum', nx.karate_club_graph()).modularity_matrix[0]
+    np.testing.assert_allclose(matrix.sum(axis=1), 0, atol=1e-12)
+
+
+def test_weighted_and_unweighted_louvain():
+    """Test that Louvain reads the edge weights of the karate club by default and ignores them with weight None."""
+    club = nx.karate_club_graph()
+    weighted = _network('communities', club, random_state=0)
+    unweighted = _network('communities', club, random_state=0, weight=None)
+    assert weighted.modularity[0] == pytest.approx(0.4439, abs=1e-4)
+    assert unweighted.modularity[0] == pytest.approx(0.4198, abs=1e-4)
+
+
+def test_modularity_of_a_given_partition():
+    """Test the modularity of the two factions of the karate club and the error without a partition."""
+    found = _network('modularity', nx.karate_club_graph(), partition='club', weight=None)
+    assert found.modularity[0] == pytest.approx(0.3582, abs=1e-4)
+    assert set(found.labels[0].tolist()) == {0, 1}
+    with pytest.raises(AnalysisError, match='Give partition'):
+        _network('modularity', nx.karate_club_graph())
+
+
+def test_girvan_newman_communities():
+    """Test that Girvan-Newman cuts a bridge and picks the split of highest modularity of the karate club."""
+    bridge = _network('communities', _bridged_cliques(), method='girvan_newman', n_communities=2)
+    assert bridge.labels[0].tolist() == [0] * 5 + [1] * 5
+    club = _network('communities', nx.karate_club_graph(), method='girvan_newman', weight=None)
+    assert len(set(club.labels[0].tolist())) == 5
+    assert club.modularity[0] == pytest.approx(0.401, abs=1e-3)
+
+
+def test_leading_eigenvector_communities():
+    """Test that the leading eigenvector method splits the karate club above modularity 0.39 and repeats itself."""
+    club = nx.karate_club_graph()
+    first = _network('communities', club, method='leading_eigenvector', weight=None)
+    second = _network('communities', club, method='leading_eigenvector', weight=None)
+    assert first.modularity[0] > 0.39
+    assert first.labels[0].tolist() == second.labels[0].tolist()
+    with pytest.raises(AnalysisError, match=r'does not read n_communities\. The methods girvan_newman'):
+        _network('communities', club, method='louvain', n_communities=2)
+
+
+def test_katz_centrality():
+    """Test the Katz centrality of a star against NetworkX, its default attenuation, and a divergent one."""
+    star = nx.star_graph(4)
+    found = _network('centrality', star, measure='katz', alpha=0.1).centrality[0]
+    expected = nx.katz_centrality_numpy(star, alpha=0.1, beta=1.0)
+    assert all(found[node] == pytest.approx(expected[node], abs=1e-12) for node in star)
+    assert max(found, key=found.get) == 0
+    default = _network('centrality', star, measure='katz').centrality[0]
+    reference = nx.katz_centrality_numpy(star, alpha=0.9 / 2, beta=1.0)
+    assert all(default[node] == pytest.approx(reference[node], abs=1e-12) for node in star)
+    with pytest.raises(AnalysisError, match='inverse spectral radius'):
+        _network('centrality', star, measure='katz', alpha=0.5)
+    with pytest.raises(AnalysisError, match='does not read alpha'):
+        _network('centrality', star, alpha=0.1)
+
+
+def test_edge_betweenness_of_a_bridge():
+    """Test that the edge joining two complete graphs has the largest edge betweenness."""
+    found = _network('centrality', _bridged_cliques(), measure='edge_betweenness').centrality[0]
+    assert max(found, key=found.get) == (4, 5)
