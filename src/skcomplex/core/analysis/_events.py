@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ..engine.problems._cascade_record_spec import _CascadeRecordSpec
+from ..engine.problems._cascade_kernel import _CascadeRecordSpec
 from ..engine.runtime import Trajectory
 from ..enums import DataKind
 from ..errors import AnalysisError

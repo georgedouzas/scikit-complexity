@@ -17,17 +17,14 @@ from ....types import Array
 from ..._utils import declarations_of, declared_variables, default_of
 from ...problems import LayoutSpec
 from ...problems._block_spec import BlockSpec
-from ...problems._capacity_rows_spec import _CapacityRowsSpec
-from ...problems._compiled_request_spec import CompiledRequestSpec
 from ...problems._declarations_spec import ACTIVE, ENDS, MEMBERS, DeclarationsSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._kernel_spec import KernelSpec
 from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
-from ...problems._network_rows_spec import _NetworkRowsSpec
 from ...problems._output_spec import OutputSpec
 from ...problems._reduction_schedule_spec import ReductionScheduleSpec
-from ...problems._topology_kernel import TopologyKernel
+from ...problems._topology_kernel import TopologyKernel, _CapacityRows, _CompiledRequest, _NetworkRows
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from ._layout import LayoutPass
@@ -113,10 +110,10 @@ class TopologyFunctionsPass(BasePass):
     def _get_compiled_request(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        networks: dict[int, _NetworkRowsSpec],
+        networks: dict[int, _NetworkRows],
         weights: dict[tuple[int, bool], LawKernel],
         declarations: DeclarationsSpec,
-    ) -> CompiledRequestSpec:
+    ) -> _CompiledRequest:
         """Return a request of a spec with its network, rows, and kernels.
 
         The kernels are those of its weights and its score.
@@ -159,7 +156,7 @@ class TopologyFunctionsPass(BasePass):
         if request.kind == 'remove-hyperedge' and network.hyperedges is None:
             error_msg = f'{spec.owner} removes hyperedges of a network without a variable group on its hyperedges.'
             raise ValidationError(error_msg)
-        return CompiledRequestSpec(
+        return _CompiledRequest(
             request,
             spec.owner,
             network,
@@ -172,7 +169,7 @@ class TopologyFunctionsPass(BasePass):
     def _check_hyperedge_size(
         spec: KernelSpec,
         request: TopologyRequestSpec,
-        hyperedges: _CapacityRowsSpec,
+        hyperedges: _CapacityRows,
         declarations: DeclarationsSpec,
     ) -> None:
         """Raise an error for a request that forms hyperedges of the wrong size.
@@ -274,7 +271,7 @@ class TopologyFunctionsPass(BasePass):
         return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).prepare()
 
     @staticmethod
-    def _get_capacity_rows(block: BlockSpec) -> _CapacityRowsSpec:
+    def _get_capacity_rows(block: BlockSpec) -> _CapacityRows:
         """Return the rows of a variable group with the values of one new member.
 
         Args:
@@ -298,10 +295,10 @@ class TopologyFunctionsPass(BasePass):
             default = 0.0 if default is dataclasses.MISSING else default
             defaults[name] = LayoutPass._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
         source, target, members = (block.entries.get(name) for name in (*ENDS, MEMBERS))
-        return _CapacityRowsSpec(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
+        return _CapacityRows(node.path, variables, defaults, block.entries[ACTIVE], source, target, members)
 
     @staticmethod
-    def _get_networks(declarations: DeclarationsSpec) -> dict[int, _NetworkRowsSpec]:
+    def _get_networks(declarations: DeclarationsSpec) -> dict[int, _NetworkRows]:
         """Return the variable groups of every network whose groups are variable.
 
         They are keyed by the identity of the space.
@@ -339,7 +336,7 @@ class TopologyFunctionsPass(BasePass):
                 ),
                 None,
             )
-            networks[key] = _NetworkRowsSpec(nodes, edges, directed, hyperedges)
+            networks[key] = _NetworkRows(nodes, edges, directed, hyperedges)
         return networks
 
     @staticmethod

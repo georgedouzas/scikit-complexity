@@ -11,10 +11,9 @@ import scipy.sparse
 from ...components.laws import MoveSpec, SamplerSpec
 from ...errors import SolverError
 from ...types import Array, Indices
-from ._arguments_spec import _ArgumentsSpec
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
-from ._lattice_state_spec import _LatticeStateSpec
+from ._rule_kernel import _Arguments, _LatticeState
 from ._run_state_spec import RunStateSpec
 
 
@@ -84,10 +83,10 @@ class MonteCarloKernel(BaseKernel):
     def __init__(
         self,
         owner: str,
-        target: _LatticeStateSpec,
+        target: _LatticeState,
         table: Indices,
         delta: Callable[..., object],
-        arguments: _ArgumentsSpec,
+        arguments: _Arguments,
         *,
         intensity: Callable[..., object],
         move: MoveSpec,
@@ -240,7 +239,7 @@ class MonteCarloKernel(BaseKernel):
         x[self.target.start + sites[accepted]] = proposal[accepted]
 
     @property
-    def targets(self) -> tuple[_LatticeStateSpec, ...]:
+    def targets(self) -> tuple[_LatticeState, ...]:
         """Lattice state the move changes, as the one target of the step."""
         return (self.target,)
 

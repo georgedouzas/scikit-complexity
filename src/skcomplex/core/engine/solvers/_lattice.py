@@ -14,7 +14,7 @@ from ...enums import FormKind, OrderKind
 from ...types import Array
 from ..backends import SupportSpec
 from ..problems import RunStateSpec
-from ..problems._cascade_record_spec import _CascadeRecordSpec
+from ..problems._cascade_kernel import _CascadeRecordSpec
 from ._solver import Solver
 
 

@@ -8,8 +8,9 @@ import numpy as np
 from ...components import EntrySpec
 from ..types import EdgesFound
 from ._base import BaseSearch
-from ._capacity_rows_spec import ACTIVE_THRESHOLD
 from ._run_state_spec import RunStateSpec
+
+ACTIVE_THRESHOLD = 0.5
 
 
 class EdgeRowSearch(BaseSearch):

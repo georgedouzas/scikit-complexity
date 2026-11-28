@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -11,11 +12,38 @@ import numpy.typing as npt
 from ...errors import SolverError
 from ...types import Array
 from ._base import BaseKernel
-from ._cascade_record_spec import _CascadeRecordSpec
+from ._base_record_spec import BaseRecordSpec
 from ._drive_kernel import DriveKernel
-from ._lattice_state_spec import _LatticeStateSpec
-from ._rule_kernel import RuleKernel
+from ._rule_kernel import RuleKernel, _LatticeState
 from ._run_state_spec import RunStateSpec
+
+
+@dataclass(frozen=True)
+class _CascadeRecordSpec(BaseRecordSpec):
+    """A spec of the record of a cascade of a lattice within one step.
+
+    Args:
+        label:
+            The label of the cascade.
+
+        time:
+            The time of the step.
+
+        size:
+            The number of site updates.
+
+        duration:
+            The number of iterations of the cascade.
+
+        area:
+            The number of distinct sites that changed.
+    """
+
+    label: str
+    time: float
+    size: int
+    duration: int
+    area: int
 
 
 class CascadeKernel(BaseKernel):
@@ -72,7 +100,7 @@ class CascadeKernel(BaseKernel):
         label: str,
         drive: tuple[RuleKernel | DriveKernel, ...],
         relax: tuple[RuleKernel | DriveKernel, ...],
-        targets: tuple[_LatticeStateSpec, ...],
+        targets: tuple[_LatticeState, ...],
         stable: Callable[..., bool],
         *,
         max_iterations: int,

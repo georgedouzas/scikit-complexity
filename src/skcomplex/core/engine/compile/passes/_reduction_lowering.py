@@ -44,7 +44,6 @@ from ....types import Indices
 from ..._utils import declarations_of, domain_of, symbol, symbols_of, vector
 from ...enums import ReadKind
 from ...problems._block_spec import BlockSpec
-from ...problems._capacity_rows_spec import ACTIVE_THRESHOLD
 from ...problems._declarations_spec import DeclarationsSpec
 from ...problems._field_element import _FieldElement
 from ...problems._kernel_spec import KernelSpec
@@ -56,6 +55,7 @@ from ...problems._read_spec import _ReadSpec
 from ...problems._reduction_kernel import ReductionKernel
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._static_search import StaticSearch
+from ...problems._topology_kernel import ACTIVE_THRESHOLD
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
 from .._observables import _HeldElement, _HeldReduction

@@ -5,6 +5,7 @@
 
 import functools
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 
 import numba
 import numpy as np
@@ -14,14 +15,137 @@ import scipy.sparse
 from ...components.spaces import BaseSpace
 from ...errors import SolverError, ValidationError
 from ...types import Array, Indices
-from ._arguments_spec import _ArgumentsSpec
 from ._base import BaseKernel
-from ._lattice_state_spec import _LatticeStateSpec
-from ._lookup_spec import _LookupSpec
 from ._run_state_spec import RunStateSpec
 
 LOOKUP_KINDS = {'table': 0, 'totalistic': 1, 'outer': 2}
-NO_ARGUMENTS = _ArgumentsSpec()
+
+
+@dataclass(frozen=True)
+class _Arguments:
+    """A record of the parameters and states a lattice law reads besides neighbours.
+
+    They are given by name.
+
+    Args:
+        names:
+            The keyword or symbol names.
+
+        vectors:
+            Whether every argument is read from the state vector rather than the parameter vector.
+
+        starts:
+            The index of the first component of every argument.
+
+        sizes:
+            The number of components of every argument, the number of sites for per-site values or 1 for shared ones.
+    """
+
+    names: tuple[str, ...] = ()
+    vectors: tuple[bool, ...] = ()
+    starts: tuple[int, ...] = ()
+    sizes: tuple[int, ...] = ()
+
+    def get_values(self, x: Array, p: Array, sites: Indices | None = None) -> dict[str, Array | float]:
+        """Return the values of the arguments, per-site values restricted to some sites.
+
+        Args:
+            x:
+                The state vector.
+
+            p:
+                The parameter vector.
+
+            sites:
+                The sites to keep, or `None` for all.
+
+        Returns:
+            values:
+                The value of every argument by name.
+        """
+        found: dict[str, Array | float] = {}
+        for name, is_state, start, size in zip(self.names, self.vectors, self.starts, self.sizes, strict=True):
+            source = x if is_state else p
+            if size == 1:
+                found[name] = float(source[start])
+                continue
+            values = source[start : start + size]
+            found[name] = values if sites is None else values[sites]
+        return found
+
+
+@dataclass(frozen=True)
+class _LatticeState:
+    """A record of the place of a state of a lattice group in the state vector.
+
+    Args:
+        name:
+            The dotted name of the state.
+
+        start:
+            The index of its first component.
+
+        space:
+            The lattice of the group, or the network whose nodes are its sites.
+
+        part:
+            The part of the space with one member each, `'sites'`, `'edges'`, or `'hyperedges'`.
+
+        rows:
+            The number of members on a part other than the sites, or `None` for one member per site.
+
+        components:
+            The number of components of the state of one member, such as the real components of a matrix.
+    """
+
+    name: str
+    start: int
+    space: BaseSpace
+    part: str = 'sites'
+    rows: int | None = None
+    components: int = 1
+
+    @functools.cached_property
+    def shape(self) -> tuple[int, ...]:
+        """Shape of the sites of the group.
+
+        On a part other than the sites, it is the number of its members.
+        """
+        return self.space.shape_ if self.rows is None else (self.rows,)
+
+    @functools.cached_property
+    def size(self) -> int:
+        """Number of sites of the group."""
+        return int(np.prod(self.shape)) if self.rows is None else self.rows
+
+    @functools.cached_property
+    def sites(self) -> slice:
+        """Slice of the group's components in the state vector, member after member."""
+        return slice(self.start, self.start + self.size * self.components)
+
+
+@dataclass(frozen=True)
+class _Lookup:
+    """A record of the lookup array of a table or totalistic rule.
+
+    Args:
+        kind:
+            `'table'`, `'totalistic'`, or `'outer'`.
+
+        base:
+            The number of state values.
+
+        values:
+            The next value by pattern code, by sum, or by cell value and sum in row-major order.
+
+        columns:
+            The number of sums of an outer totalistic rule.
+    """
+
+    kind: str
+    base: int
+    values: Array
+    columns: int = 1
 
 
 @numba.njit(cache=True)
@@ -54,6 +178,9 @@ def _fused_lookup(
         else:
             following[site] = lookup[int(centers[site]) * columns + int(total)]
     return following
+
+
+NO_ARGUMENTS = _Arguments()
 
 
 class RuleKernel(BaseKernel):
@@ -127,15 +254,15 @@ class RuleKernel(BaseKernel):
     def __init__(
         self,
         owner: str,
-        targets: tuple[_LatticeStateSpec, ...],
-        reads: tuple[_LatticeStateSpec, ...],
+        targets: tuple[_LatticeState, ...],
+        reads: tuple[_LatticeState, ...],
         table: Indices,
         rule: Callable[..., object] | None,
         *,
-        lookup: _LookupSpec | None,
+        lookup: _Lookup | None,
         schedule: str,
         stochastic: bool,
-        arguments: _ArgumentsSpec = NO_ARGUMENTS,
+        arguments: _Arguments = NO_ARGUMENTS,
         fused: bool = False,
         degrees: Array | None = None,
         classes: tuple[Indices, ...] = (),
@@ -186,7 +313,7 @@ class RuleKernel(BaseKernel):
         table = self.translations[rows, np.where(named, values, 0).astype(np.intp)]
         return np.where(named[:, None], table, size)
 
-    def _gather(self, x: Array, state: _LatticeStateSpec, table: Indices) -> list[Array]:
+    def _gather(self, x: Array, state: _LatticeState, table: Indices) -> list[Array]:
         """Return the values of a state at every neighbour.
 
         The components of every member lie on a last axis.
