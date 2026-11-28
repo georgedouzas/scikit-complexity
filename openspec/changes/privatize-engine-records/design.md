@@ -67,14 +67,25 @@ and are left to `simplify-user-specs`. The component values the forms hold, such
   value for `simplify-user-specs`.
 - `_EventRecordSpec` keeps its `BaseRecordSpec` base: its events reach users in `Trajectory.events`.
 - The records that the engine reads from `components`, `_StateSpec`, `_ParameterSpec`, `_DeclaredVariableSpec` and the
-  three reduction records, keep their names and modules but lose their base. Their checks moved to
+  three reduction records, lose their base. Their checks moved to
   `BaseComponent._check_declared_state`, `_check_declared_group` and `_check_declared_parameter`, still raised at
   prepare.
+- A private class that subclasses a public contract base other than `BaseSpec` implements that contract and keeps its
+  name and base, such as `_BoundaryLaw(BaseLaw)`, `_OrderedRateLaw(RateLaw)`, `_CascadeRecordSpec(BaseRecordSpec)`,
+  `_RenewalRecordSpec` and `_EventRecordSpec`. Every other private dataclass derives from nothing, has no `_check`, and
+  has no `Spec` suffix, which `check_private_records_are_plain` of the convention checks enforces. So `_StateSpec`,
+  `_ParameterSpec`, `_DeclaredVariableSpec`, `_ReductionSpec`, `_NeighborReductionSpec` and `_HyperedgeReductionSpec`
+  became `_State`, `_Parameter`, `_DeclaredVariable`, `_Reduction`, `_NeighborReduction` and `_HyperedgeReduction`, in
+  modules renamed to match, such as `_state.py`. `_NumericBlockSpec`, `_BoundLawSpec` and `_LinearPartsSpec` of the
+  compile passes lost their `BaseSpec` base and became `_NumericBlock`, `_BoundLaw` and `_LinearSplit`, the last since the word part names only components.
+- `core.engine.problems` exports every record of the public contract above, adding `KernelSpec`,
+  `KineticProblemSpec`, `LearningProblemSpec`, `LoweredKernelsSpec` and the field records it lacked, and the tests of
+  every engine package check that its public records are exactly the contract.
 - `_InteractionRequirementSpec` is what the public `get_requirements()` returns, so it is left to
   `simplify-user-specs`.
 - The empty package `skcomplex.core.experiments.specs` was deleted, with the user's approval.
 - Known gap: some modules import private records across packages, such as `core/experiments/_replicate.py` importing
-  `components._state_spec`. This change does not fix that, which needs its own decision.
+  `components._state`. This change does not fix that, which needs its own decision.
 
 ## Order of the work
 

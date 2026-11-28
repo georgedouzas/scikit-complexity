@@ -1,5 +1,6 @@
 """Test the NumPy and Numba backends, compiled callables, kernel caching, and compiled stepper loops."""
 
+import dataclasses
 import inspect
 from collections import defaultdict
 from types import SimpleNamespace
@@ -543,6 +544,11 @@ def test_public_names_are_classes_under_the_bases():
         item = getattr(package, name)
         assert inspect.isclass(item), name
         assert issubclass(item, BaseBackend | BaseSpec), name
+
+
+def test_public_records_are_the_backend_contract():
+    """The only public record is the support a backend declares."""
+    assert {name for name in package.__all__ if dataclasses.is_dataclass(getattr(package, name))} == {'SupportSpec'}
 
 
 def test_backends_name_themselves_and_their_support():

@@ -14,9 +14,9 @@ from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ..components import EntrySpec, RoleSpec
-from ..components._declared_variable_spec import _DeclaredVariableSpec
-from ..components._parameter_spec import _ParameterSpec
-from ..components._state_spec import _StateSpec
+from ..components._declared_variable import _DeclaredVariable
+from ..components._parameter import _Parameter
+from ..components._state import _State
 from ..components.base import BaseComponent
 from ..components.elements import BaseElement
 from ..components.interactions import BaseInteraction
@@ -26,7 +26,7 @@ from .problems._compiled_element_spec import _Variable
 
 INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
     BaseComponent,
-    tuple[Mapping[str, _DeclaredVariableSpec], dict[str, tuple[_Variable, object]]],
+    tuple[Mapping[str, _DeclaredVariable], dict[str, tuple[_Variable, object]]],
 ] = weakref.WeakKeyDictionary()
 
 
@@ -252,11 +252,11 @@ def binding_of(component: object, role: str) -> object:
     return getattr(component, role, None)
 
 
-def _variable_of(spec: _StateSpec | _ParameterSpec | RoleSpec) -> _Variable:
+def _variable_of(spec: _State | _Parameter | RoleSpec) -> _Variable:
     """Return the declaration of a spec."""
     if isinstance(spec, RoleSpec):
         return _Variable(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise, optional=spec.optional)
-    if isinstance(spec, _ParameterSpec):
+    if isinstance(spec, _Parameter):
         return _Variable(
             VariableKind.STATE if spec.adaptive else VariableKind.PARAMETER,
             spec.domain,

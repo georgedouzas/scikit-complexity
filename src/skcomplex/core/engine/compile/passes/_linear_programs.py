@@ -13,7 +13,6 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from scipy import sparse
 
-from ....base import BaseSpec
 from ....components.laws import LinearObjectiveSpec
 from ....components.laws._linear_program import _LinearProgramLaw
 from ....types import Array, Indices
@@ -41,7 +40,7 @@ type _Key = tuple[str, int]
 
 
 @dataclass(frozen=True)
-class _BoundLawSpec(BaseSpec):
+class _BoundLaw:
     """Linear program law with its owner and the kernel spec that returns it.
 
     The kernel spec is that of the component that returns the law.
@@ -53,7 +52,7 @@ class _BoundLawSpec(BaseSpec):
 
 
 @dataclass(frozen=True)
-class _LinearPartsSpec(BaseSpec):
+class _LinearSplit:
     """Relation or objective split into the coefficient of every column and the rest."""
 
     coefficients: dict[int, Expression]
@@ -104,7 +103,7 @@ class LinearProgramsPass(BasePass):
         compilation.problem = self._get_solving_problem(problem, kernels)
 
     @staticmethod
-    def _count_values(bound: _BoundLawSpec, counts: dict[tuple[str, str], int]) -> None:
+    def _count_values(bound: _BoundLaw, counts: dict[tuple[str, str], int]) -> None:
         """Count the hidden states of the values a law records."""
         law = bound.law
         counts[bound.owner, 'objective'] = counts.get((bound.owner, 'objective'), 0) + len(law.objectives)
@@ -124,14 +123,14 @@ class LinearProgramsPass(BasePass):
         return offsets
 
     @staticmethod
-    def _get_bound_laws(compilation: Compilation, *, owned: bool = True) -> list[_BoundLawSpec]:
+    def _get_bound_laws(compilation: Compilation, *, owned: bool = True) -> list[_BoundLaw]:
         """Return the linear program laws with their owners.
 
         They are the laws of the owners of a compilation, or of the whole system.
         """
         laws: Laws = Compilation._get_required(compilation.programs, 'programs')
         found = [
-            _BoundLawSpec(spec, law, CensusPass._get_law_owner(spec, law, set()))
+            _BoundLaw(spec, law, CensusPass._get_law_owner(spec, law, set()))
             for spec, items in laws
             for law in items
             if isinstance(law, _LinearProgramLaw)
@@ -149,13 +148,13 @@ class LinearProgramsPass(BasePass):
         return None if reference is None or not reference.is_state else (reference.entry.name, reference.column)
 
     @staticmethod
-    def _get_variable_keys(bound: _BoundLawSpec) -> list[_Key]:
+    def _get_variable_keys(bound: _BoundLaw) -> list[_Key]:
         """Return the states a law sets."""
         keys = [LinearProgramsPass._get_key_of(bound.spec, item) for item in bound.law._get_targets()]
         return [item for item in keys if item is not None]
 
     @staticmethod
-    def _get_merged(bounds: Sequence[_BoundLawSpec]) -> list[list[_BoundLawSpec]]:
+    def _get_merged(bounds: Sequence[_BoundLaw]) -> list[list[_BoundLaw]]:
         """Return the laws of every program.
 
         A program holds the laws whose variables overlap, directly or through another law.
@@ -170,7 +169,7 @@ class LinearProgramsPass(BasePass):
         return [[bounds[position] for position in part] for part in sorted(components)]
 
     @staticmethod
-    def _get_columns_of(group: Sequence[_BoundLawSpec]) -> dict[_Key, int]:
+    def _get_columns_of(group: Sequence[_BoundLaw]) -> dict[_Key, int]:
         """Return the column of every variable of a program.
 
         The columns follow the order the laws declare them.
@@ -192,7 +191,7 @@ class LinearProgramsPass(BasePass):
         return found
 
     @staticmethod
-    def _get_linear_parts(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> _LinearPartsSpec:
+    def _get_linear_parts(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> _LinearSplit:
         """Return the coefficients of an expression and what is left at zero variables.
 
         There is a coefficient for every column. The coefficients come from substitutions, since a condition in a bound
@@ -202,7 +201,7 @@ class LinearProgramsPass(BasePass):
         zero = dict.fromkeys(symbols, 0)
         rest = expression.subs(zero)
         coefficients = {column: expression.subs({**zero, item: 1}) - rest for item, column in symbols.items()}
-        return _LinearPartsSpec(coefficients, rest)
+        return _LinearSplit(coefficients, rest)
 
     @staticmethod
     def _get_form_problem(spec: KernelSpec, expression: Expression, columns: Mapping[_Key, int]) -> str | None:
@@ -225,7 +224,7 @@ class LinearProgramsPass(BasePass):
         return None
 
     @staticmethod
-    def _get_variable_issues(bound: _BoundLawSpec, algebraic: set[str]) -> list[IssueSpec]:
+    def _get_variable_issues(bound: _BoundLaw, algebraic: set[str]) -> list[IssueSpec]:
         """Return the variables of a law that are not algebraic states."""
         issues = []
         for item in bound.law._get_targets():
@@ -238,7 +237,7 @@ class LinearProgramsPass(BasePass):
         return issues
 
     @staticmethod
-    def _get_form_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+    def _get_form_issues(group: Sequence[_BoundLaw]) -> list[IssueSpec]:
         """Return the relations and objectives of a program not linear in its variables."""
         columns = LinearProgramsPass._get_columns_of(group)
         fix = 'Move the term to the right side or to a bound, and keep every coefficient of a variable free of states.'
@@ -261,7 +260,7 @@ class LinearProgramsPass(BasePass):
         return issues
 
     @staticmethod
-    def _get_unbounded_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+    def _get_unbounded_issues(group: Sequence[_BoundLaw]) -> list[IssueSpec]:
         """Return the variables of a program that no constraint bounds."""
         columns = LinearProgramsPass._get_columns_of(group)
         bounded = {
@@ -284,7 +283,7 @@ class LinearProgramsPass(BasePass):
         return issues
 
     @staticmethod
-    def _get_objective_issues(group: Sequence[_BoundLawSpec]) -> list[IssueSpec]:
+    def _get_objective_issues(group: Sequence[_BoundLaw]) -> list[IssueSpec]:
         """Return the issue of a program with two laws that hold objectives."""
         holders = [bound.spec.owner for bound in group if bound.law.objectives]
         if len(holders) <= 1:
@@ -374,7 +373,7 @@ class LinearProgramsPass(BasePass):
 
     @staticmethod
     def _get_lowered(
-        group: Sequence[_BoundLawSpec],
+        group: Sequence[_BoundLaw],
         states: LayoutSpec,
         time: Expression,
         offsets: Mapping[int, tuple[int, int]],
@@ -433,7 +432,7 @@ class _Lowering:
 
     def __init__(
         self,
-        group: Sequence[_BoundLawSpec],
+        group: Sequence[_BoundLaw],
         states: LayoutSpec,
         time: Expression,
         offsets: Mapping[int, tuple[int, int]],
@@ -500,7 +499,7 @@ class _Lowering:
                 self._entries.append((row, column, self._get_value(coefficient)))
         return row
 
-    def _add_relation(self, bound: _BoundLawSpec, relation: Expression, position: int) -> None:
+    def _add_relation(self, bound: _BoundLaw, relation: Expression, position: int) -> None:
         """Add a relation of a law as a bound or a row, and the place of its dual.
 
         The dual has a place when the law records it.
@@ -534,7 +533,7 @@ class _Lowering:
                 ),
             )
 
-    def _add_objective_row(self, bound: _BoundLawSpec, objective: LinearObjectiveSpec, position: int) -> None:
+    def _add_objective_row(self, bound: _BoundLaw, objective: LinearObjectiveSpec, position: int) -> None:
         """Add the costs of an objective.
 
         The absolute values of its variables get parts.

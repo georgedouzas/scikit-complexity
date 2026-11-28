@@ -18,9 +18,9 @@ from sklearn.base import clone
 
 from ...base import BaseSpec
 from ...components import EntrySpec, MatrixGroupSpec
-from ...components._declared_variable_spec import _DeclaredVariableSpec
-from ...components._parameter_spec import _ParameterSpec
-from ...components._state_spec import _StateSpec
+from ...components._declared_variable import _DeclaredVariable
+from ...components._parameter import _Parameter
+from ...components._state import _State
 from ...components.base import BaseComponent
 from ...components.elements import BaseElement, Element, Member, Period, Quantity, Tensor, VisualSpec
 from ...components.laws import (
@@ -325,9 +325,9 @@ class _StateInference:
     def _get_new_member_default(
         element: Element,
         name: str,
-        declared: _DeclaredVariableSpec,
+        declared: _DeclaredVariable,
         member: object,
-    ) -> _DeclaredVariableSpec:
+    ) -> _DeclaredVariable:
         """Return the declaration of a value per member, defaulting to the class default.
 
         A member that the laws add to a group, such as a new species or a new edge, takes the default of the argument
@@ -340,7 +340,7 @@ class _StateInference:
         default = parameter.default
         if np.ndim(np.asarray(default, dtype=object)) != np.ndim(np.asarray(member, dtype=object)):
             return declared
-        return _DeclaredVariableSpec(default, declared.spec)
+        return _DeclaredVariable(default, declared.spec)
 
     @staticmethod
     def _get_class_defaults(element: Element, names: Collection[str]) -> dict[str, object]:
@@ -372,7 +372,7 @@ class _StateInference:
         if valueless and not isinstance(component.space, NetworkSpace):
             return False
         specs = type(component)._get_specs()
-        return not any(isinstance(spec, _StateSpec | _ParameterSpec) for spec in specs.values())
+        return not any(isinstance(spec, _State | _Parameter) for spec in specs.values())
 
     @staticmethod
     def _get_quantity(annotation: object) -> str | None:
@@ -450,7 +450,7 @@ class _StateInference:
         control: bool = False,
         objects: bool = False,
         probing: bool = False,
-    ) -> _DeclaredVariableSpec:
+    ) -> _DeclaredVariable:
         """Return the declaration of a value as a state or a parameter.
 
         A control of an objective law is an adaptive parameter, bounded by the interval of its allowed values, such as
@@ -538,13 +538,13 @@ class _StateInference:
             )
             raise ValidationError(error_msg)
         if order is None:
-            declared = _ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
-            return _DeclaredVariableSpec(value, declared)
+            declared = _Parameter(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
+            return _DeclaredVariable(value, declared)
         if control:
             bounds = (float(domain.inf()), float(domain.sup())) if isinstance(domain, RealSet) else None
-            return _DeclaredVariableSpec(value, _ParameterSpec(domain=domain, adaptive=True, bounds=bounds))
+            return _DeclaredVariable(value, _Parameter(domain=domain, adaptive=True, bounds=bounds))
         if order == 0:
-            spec = _StateSpec(
+            spec = _State(
                 domain=domain,
                 vector=vector,
                 n_dim=n_dim,
@@ -553,13 +553,13 @@ class _StateInference:
                 role=role,
                 quantity=quantity,
             )
-            return _DeclaredVariableSpec(value, spec)
+            return _DeclaredVariable(value, spec)
         if group is not None:
-            return _DeclaredVariableSpec(value, _StateSpec(group=group, role=role, quantity=quantity))
+            return _DeclaredVariable(value, _State(group=group, role=role, quantity=quantity))
         missing = value if lags else 0.0
         initial = tuple(starting.get(index, missing) for index in range(1, count + 1)) if starting else ()
         steps = 1 if lags else order
-        spec = _StateSpec(
+        spec = _State(
             domain=domain,
             vector=vector,
             n_dim=n_dim,
@@ -573,7 +573,7 @@ class _StateInference:
             reference=member,
             history=history,
         )
-        return _DeclaredVariableSpec(value, spec)
+        return _DeclaredVariable(value, spec)
 
     def _replace(
         self,
@@ -1250,7 +1250,7 @@ class _StateInference:
         derivatives: Mapping[str, tuple[str, str, object]],
         count: int | None,
         axes: Collection[str],
-    ) -> dict[str, _DeclaredVariableSpec]:
+    ) -> dict[str, _DeclaredVariable]:
         """Return the declarations of the derivatives that the rules of agents change.
 
         They are keyed by engine name, and the first derivative of a position, such as `"x'"`, is a velocity.
@@ -1259,7 +1259,7 @@ class _StateInference:
         for name, (_, base, given) in derivatives.items():
             role = 'velocity' if name == f'{base}_d1' and base in axes else None
             member = _StateInference._get_member_value(element, base, given, count)
-            declared[name] = _DeclaredVariableSpec(member, _StateSpec(domain=RR, role=role))
+            declared[name] = _DeclaredVariable(member, _State(domain=RR, role=role))
         return declared
 
     @staticmethod

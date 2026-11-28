@@ -24,10 +24,10 @@ from sage.symbolic.operators import FDerivativeOperator
 from ...base import BaseSpec
 from ...enums import DomainKind
 from ...errors import ParameterShapeError, RoleError, SpaceError, ValidationError
-from .._declared_variable_spec import _DeclaredVariableSpec
-from .._parameter_spec import _ParameterSpec
+from .._declared_variable import _DeclaredVariable
+from .._parameter import _Parameter
 from .._role_spec import RoleSpec
-from .._state_spec import _StateSpec
+from .._state import _State
 from .._tags import Tags
 from ..base import BaseComponent
 from ..laws import BaseLaw, NoiseLaw, ObjectiveLaw, PartnerSpec, RateLaw, UpdateLaw
@@ -157,7 +157,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
             or 'random' in (self._get_argument('ties'), self._get_argument('pick'))
         )
 
-    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariable]:
         """Return the numeric arguments of an interaction as parameters, by name.
 
         An argument annotated with a spec keeps its spec, and a role or a setting that is no number declares nothing.
@@ -175,15 +175,15 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         for name in inspect.signature(type(self)).parameters:
             value = params.get(name)
             if isinstance(value, WienerProcessSpec) and name not in specs:
-                declared[name] = _DeclaredVariableSpec(value, RoleSpec(noise=True))
+                declared[name] = _DeclaredVariable(value, RoleSpec(noise=True))
                 continue
             if name in specs or name == 'label' or not self._is_numeric(value):
                 continue
             vector, n_dim, tensor = self._get_shape_of(value)
             first = np.asarray(value).ravel()[0].item() if vector or tensor else value
             domain = allowed.get(name, self._get_domain_of(first))
-            spec = _ParameterSpec(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
-            declared[name] = _DeclaredVariableSpec(self._get_matrix_entries(value, tensor), spec)
+            spec = _Parameter(domain=domain, vector=vector, n_dim=n_dim, tensor=tensor)
+            declared[name] = _DeclaredVariable(self._get_matrix_entries(value, tensor), spec)
         return declared
 
     @classmethod
@@ -827,7 +827,7 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
 
     def _declares(self, name: str) -> bool:
         """Return whether the class declares a name as a parameter."""
-        return isinstance(type(self)._get_specs().get(name), _ParameterSpec)
+        return isinstance(type(self)._get_specs().get(name), _Parameter)
 
     def _get_parameter_value(self, name: str, system: SystemViewProtocol) -> float:
         """Return the value of a parameter in an agent form.
@@ -1032,11 +1032,11 @@ class BaseInteraction(BaseComponent[SimpleNamespace]):
         The type declares the states or the adaptive parameters.
         """
         specs = self._get_specs()
-        states = [name for name, spec in specs.items() if isinstance(spec, _StateSpec)]
+        states = [name for name, spec in specs.items() if isinstance(spec, _State)]
         adaptive = [
             name
             for name, spec in specs.items()
-            if isinstance(spec, _ParameterSpec) and spec.adaptive and spec.shape is None
+            if isinstance(spec, _Parameter) and spec.adaptive and spec.shape is None
         ]
         if adaptive:
             error_msg = (

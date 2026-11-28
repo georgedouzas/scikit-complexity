@@ -1,4 +1,4 @@
-"""Define the neighbor reduction spec."""
+"""Define the record of a reduction over neighbours."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import Expression
 
 
 @dataclass(frozen=True)
-class _NeighborReductionSpec:
+class _NeighborReduction:
     """A reduction over neighbours found in an expression.
 
     It holds its kind, argument, weight, and neighbourhood.

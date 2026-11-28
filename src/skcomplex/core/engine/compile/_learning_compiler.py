@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sklearn.base import clone
 
 from ...components import EntrySpec, Observable
-from ...components._parameter_spec import _ParameterSpec
+from ...components._parameter import _Parameter
 from ...components.interactions import TrainingInteraction
 from ...components.laws import ConstraintLaw, RateLaw, UpdateLaw
 from ...components.spaces._discrete_time import _DiscreteTime
@@ -440,9 +440,7 @@ class _LearningCompiler(BaseCompiler):
             entry = problem.states.get_entry(name)
             states.append(dataclasses.replace(entry, name=f'{training.system}/{name}', start=start))
             start += entry.size
-        hyperparameters = {
-            name: spec for name, spec in training._get_specs().items() if isinstance(spec, _ParameterSpec)
-        }
+        hyperparameters = {name: spec for name, spec in training._get_specs().items() if isinstance(spec, _Parameter)}
         parameters = tuple(
             EntrySpec(f'{training.label}.{name}', index, (), spec.domain)
             for index, (name, spec) in enumerate(hyperparameters.items())

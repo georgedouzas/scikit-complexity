@@ -1,5 +1,6 @@
 """Test the `base` module."""
 
+import dataclasses
 import inspect
 from types import SimpleNamespace
 from typing import Annotated
@@ -36,6 +37,12 @@ def test_public_names_are_classes():
     """Every public name is a class."""
     for name in package.__all__:
         assert inspect.isclass(getattr(package, name)), name
+
+
+def test_public_records_are_the_compiler_contract():
+    """The public records are the issues a compiler reports and the phases that systems build."""
+    expected = {'IssueSpec', 'PhaseSpec', 'PhasesScheduleSpec'}
+    assert {name for name in package.__all__ if dataclasses.is_dataclass(getattr(package, name))} == expected
 
 
 def test_bases_and_the_operator_compiler_are_public():

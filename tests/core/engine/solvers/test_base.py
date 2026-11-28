@@ -1,5 +1,6 @@
 """Test the `_base` module of `skcomplex.core.engine.solvers`."""
 
+import dataclasses
 import inspect
 
 import numpy as np
@@ -155,6 +156,15 @@ def test_public_names_are_classes_under_the_bases():
         item = getattr(solvers, name)
         assert inspect.isclass(item), name
         assert issubclass(item, BaseSolver | BaseSpec | SkcomplexError) or item in VIEWS, name
+
+
+def test_public_records_are_the_solver_contract():
+    """The public records are the step a solver runs, the fixes of LAMMPS, and the states of a structure.
+
+    The fixes and the states are what users pass and get back.
+    """
+    expected = {'LammpsFixSpec', 'StepSpec', 'StructureStateSpec'}
+    assert {name for name in solvers.__all__ if dataclasses.is_dataclass(getattr(solvers, name))} == expected
 
 
 def test_concrete_solvers_answer_their_hooks():

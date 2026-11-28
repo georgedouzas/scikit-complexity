@@ -1,11 +1,11 @@
-"""Test the `_state_spec` module of `skcomplex.core.components`."""
+"""Test the `_state` module of `skcomplex.core.components`."""
 
 import pytest
 from sage.all__sagemath_symbolics import CC, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components import MatrixGroupSpec
-from skcomplex.core.components._state_spec import _StateSpec
+from skcomplex.core.components._state import _State
 
 COLOR = MatrixGroupSpec('SU', 3)
 
@@ -25,4 +25,4 @@ COLOR = MatrixGroupSpec('SU', 3)
 )
 def test_state_gives_its_domain_tag(arguments, tag):
     """Test that a state spec gives the domain tag of its values."""
-    assert _StateSpec(**arguments)._get_domain_tag() == tag
+    assert _State(**arguments)._get_domain_tag() == tag

@@ -8,9 +8,9 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Self
 
-from ...components._declared_variable_spec import _DeclaredVariableSpec
-from ...components._parameter_spec import _ParameterSpec
-from ...components._state_spec import _StateSpec
+from ...components._declared_variable import _DeclaredVariable
+from ...components._parameter import _Parameter
+from ...components._state import _State
 from ...components.elements import Element, VisualSpec
 from ...components.spaces import BaseSpace
 from ...errors import ValidationError
@@ -37,7 +37,7 @@ class _DeclaredElement(Element):
 
         variables:
             The initial value and the spec of each state and parameter, by name, or `None` for none. For example,
-            `{'x': _DeclaredVariableSpec(100.0, _StateSpec())}` declares a state `x` that starts at 100, in the units of
+            `{'x': _DeclaredVariable(100.0, _State())}` declares a state `x` that starts at 100, in the units of
             the system, such as people or moles.
 
         drawing:
@@ -69,7 +69,7 @@ class _DeclaredElement(Element):
         self,
         label: str,
         *,
-        variables: Mapping[str, _DeclaredVariableSpec] | None = None,
+        variables: Mapping[str, _DeclaredVariable] | None = None,
         drawing: VisualSpec | None = None,
         view: type | None = None,
         defaults: Mapping[str, object] | None = None,
@@ -86,11 +86,11 @@ class _DeclaredElement(Element):
         """Return how the element is drawn, its `drawing` or the `visual` of its class."""
         return self.drawing if self.drawing is not None else super()._get_visual()
 
-    def _declare_variables(self) -> Mapping[str, _DeclaredVariableSpec]:
+    def _declare_variables(self) -> Mapping[str, _DeclaredVariable]:
         """Return the variables the element declares from its arguments, by name."""
         return self.variables or {}
 
-    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariable]:
         """Return the declared variables.
 
         They are read once per set of arguments, since compiling reads them often.
@@ -112,7 +112,7 @@ class _DeclaredElement(Element):
         companions: dict[str, tuple[str, int]] = {}
         for name, item in self._get_declared().items():
             spec = item.spec
-            if not isinstance(spec, _StateSpec):
+            if not isinstance(spec, _State):
                 continue
             derivatives = int(spec.order) - 1 if float(spec.order).is_integer() else 0
             companions.update({f'{name}_d{index}': (name, index - 1) for index in range(1, derivatives + 1)})
@@ -127,7 +127,7 @@ class _DeclaredElement(Element):
         """
         item = self._get_declared()[name]
         spec = item.spec
-        if not isinstance(spec, _StateSpec):
+        if not isinstance(spec, _State):
             return []
         derivatives = int(spec.order) - 1 if float(spec.order).is_integer() else 0
         missing = 0.0 if derivatives else item.value
@@ -152,7 +152,7 @@ class _DeclaredElement(Element):
             if not name.isidentifier() or name in arguments:
                 error_msg = f'Element {self.label!r} declares {name!r}. Use an identifier that no argument takes.'
                 raise ValidationError(error_msg)
-            if not isinstance(item.spec, _StateSpec | _ParameterSpec):
+            if not isinstance(item.spec, _State | _Parameter):
                 error_msg = (
                     f'Element {self.label!r} declares {name!r} with {item.spec!r}. An element declares a variable with '
                     'a state or a parameter, and a role belongs to an interaction.'
@@ -203,7 +203,7 @@ class _DeclaredElement(Element):
                 initial.setdefault(state, self._get_initial(state))[position] = value
         for state, values in initial.items():
             item = changed.get(state, declared[state])
-            if isinstance(item.spec, _StateSpec):
+            if isinstance(item.spec, _State):
                 changed[state] = replace(item, spec=replace(item.spec, initial=tuple(values)))
         if changed:
             super().set_params(variables={**(self.variables or {}), **changed})

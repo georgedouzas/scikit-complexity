@@ -92,6 +92,11 @@ def _growing_total(s):
     return s.population
 
 
+def test_translators_export_the_translator_and_no_record():
+    """The translators package exports the translator alone, and no record."""
+    assert importlib.import_module('skcomplex.core.engine.translators').__all__ == ['SystemDynamicsTranslator']
+
+
 @pytest.mark.parametrize('file_name', REFERENCES)
 def test_references_load(fixtures_folder, file_name):
     """Test that the stored run of every runnable fixture loads with times and values."""

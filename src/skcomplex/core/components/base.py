@@ -20,10 +20,10 @@ from ..base import _BaseEstimator
 from ..enums import SymmetryKind
 from ..errors import ValidationError
 from ..types import Role
-from ._declared_variable_spec import _DeclaredVariableSpec
-from ._parameter_spec import _ParameterSpec
+from ._declared_variable import _DeclaredVariable
+from ._parameter import _Parameter
 from ._role_spec import RoleSpec, _Spec
-from ._state_spec import _StateSpec
+from ._state import _State
 from ._tags import STOCHASTIC_LAWS, Tags
 from ._tensor_spec import TENSOR_DIMENSIONS
 
@@ -163,7 +163,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
             for name, argument in inspect.signature(init, eval_str=True).parameters.items():
                 metadata = getattr(cls._get_annotated(argument.annotation), '__metadata__', ())
                 for item in metadata:
-                    if isinstance(item, _StateSpec | _ParameterSpec | RoleSpec):
+                    if isinstance(item, _State | _Parameter | RoleSpec):
                         specs[name] = item
                 hinted = None if metadata else cls._get_role_of(argument.annotation)
                 if hinted is not None:
@@ -312,7 +312,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
         tags = replace(tags, randomness='stochastic') if self._get_draws() else tags
         return replace(tags, reparameterized=True) if self.reparameterized else tags
 
-    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariable]:
         """Return the variables the component declares from data, by name, none by default."""
         return {}
 
@@ -350,19 +350,19 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
         self._check_label()
         declared = self._get_declared().values()
         for item in declared:
-            if not isinstance(item.spec, _StateSpec | _ParameterSpec | RoleSpec):
+            if not isinstance(item.spec, _State | _Parameter | RoleSpec):
                 error_msg = f'A declared variable is a state, a parameter, or a role, but its spec is {item.spec!r}.'
                 raise ValidationError(error_msg)
         for spec in [*self._get_specs().values(), *(item.spec for item in declared)]:
-            if isinstance(spec, _StateSpec):
+            if isinstance(spec, _State):
                 self._check_declared_state(spec)
-            elif isinstance(spec, _ParameterSpec):
+            elif isinstance(spec, _Parameter):
                 self._check_declared_parameter(spec)
             else:
                 spec._check()
 
     @staticmethod
-    def _check_declared_group(spec: _StateSpec) -> None:
+    def _check_declared_group(spec: _State) -> None:
         """Raise an error for a matrix group state that is not a plain state.
 
         A matrix group state cannot also be a vector, a tensor, or of another order or with lags.
@@ -375,7 +375,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_declared_state(spec: _StateSpec) -> None:
+    def _check_declared_state(spec: _State) -> None:
         """Raise an error for a state with bad order, lags, initial values, or reference.
 
         The reference of a state must be scalar.
@@ -426,7 +426,7 @@ class BaseComponent[ContextT](_BaseEstimator[ContextT]):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _check_declared_parameter(spec: _ParameterSpec) -> None:
+    def _check_declared_parameter(spec: _Parameter) -> None:
         """Raise an error for an invalid parameter per role, bad bounds, or a bad shape.
 
         A parameter per role must not be a vector or adaptive.

@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 
 from ...errors import ValidationError
-from .._declared_variable_spec import _DeclaredVariableSpec
+from .._declared_variable import _DeclaredVariable
 from .._role_spec import RoleSpec
 from ..laws import BaseLaw
 from ..spaces import RadiusNeighborhood
@@ -97,19 +97,19 @@ class Interaction(BaseInteraction):
         self.along = along
         self.within = within
 
-    def _get_declared(self) -> Mapping[str, _DeclaredVariableSpec]:
+    def _get_declared(self) -> Mapping[str, _DeclaredVariable]:
         """Return the numeric arguments as parameters, and `roles` and `among` as roles.
 
         With `within`, `among` binds both members of a pair, `first` and `second`.
         """
         declared = dict(super()._get_declared())
         for name, binding in (self.roles or {}).items():
-            declared[name] = _DeclaredVariableSpec(binding, RoleSpec())
+            declared[name] = _DeclaredVariable(binding, RoleSpec())
         if self.among is not None and self.within is not None:
             for name in PAIR_ROLES:
-                declared.setdefault(name, _DeclaredVariableSpec(self.among, RoleSpec()))
+                declared.setdefault(name, _DeclaredVariable(self.among, RoleSpec()))
         elif self.among is not None and 'among' not in declared and 'among' not in self._get_specs():
-            declared['among'] = _DeclaredVariableSpec(self.among, RoleSpec())
+            declared['among'] = _DeclaredVariable(self.among, RoleSpec())
         return declared
 
     @classmethod

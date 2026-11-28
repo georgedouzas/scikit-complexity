@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ...enums import ElementKind, OptimizerKind
 from ...errors import ValidationError
 from .._observable_spec import Observable
-from .._parameter_spec import _ParameterSpec
+from .._parameter import _Parameter
 from .._role_spec import RoleSpec
 from ..laws import BaseLaw, DatasetSpec
 from ._interaction import Interaction
@@ -103,10 +103,10 @@ class TrainingInteraction(Interaction):
         loss: Observable,
         data: DatasetSpec,
         optimizer: str = 'adam',
-        learning_rate: Annotated[float, _ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-3,
-        momentum: Annotated[float, _ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.9,
-        beta1: Annotated[float, _ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.9,
-        beta2: Annotated[float, _ParameterSpec(domain=RealSet.closed_open(0, 1))] = 0.999,
+        learning_rate: Annotated[float, _Parameter(domain=RealSet.closed_open(0, oo))] = 1e-3,
+        momentum: Annotated[float, _Parameter(domain=RealSet.closed_open(0, 1))] = 0.9,
+        beta1: Annotated[float, _Parameter(domain=RealSet.closed_open(0, 1))] = 0.9,
+        beta2: Annotated[float, _Parameter(domain=RealSet.closed_open(0, 1))] = 0.999,
         batch_size: int = 32,
         truncation: int | None = None,
         metrics: Sequence[Observable] = (),

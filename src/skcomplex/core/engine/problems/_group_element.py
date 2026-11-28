@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import ZZ
 
 from ...components import RoleSpec, Tags
 from ...components._role_spec import _Spec
-from ...components._state_spec import _StateSpec
+from ...components._state import _State
 from ...components.elements import BaseElement, VisualSpec
 from ...components.spaces import BaseSpace, NetworkSpace
 from ...errors import SpaceError, ValidationError
@@ -177,14 +177,14 @@ class _GroupElement(BaseElement):
         """
         return self._get_member() if issubclass(self.element, _DeclaredElement) else self.element
 
-    def get_states(self) -> dict[str, _StateSpec]:
+    def get_states(self) -> dict[str, _State]:
         """Return the states of a member of the group with their specs.
 
         Returns:
             states:
                 The spec of every state, by name.
         """
-        return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, _StateSpec)}
+        return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, _State)}
 
     def _get_tags(self) -> Tags:
         """Return the tags of the group.

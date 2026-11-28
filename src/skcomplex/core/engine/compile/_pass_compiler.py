@@ -37,8 +37,8 @@ from ...components.laws import (
 from ...components.laws._draw_spec import RELAXED_KINDS
 from ...components.laws._flow_term import FlowTermLaw
 from ...components.laws._linear_program import _LinearProgramLaw
-from ...components.laws._neighbor_reduction_spec import _NeighborReductionSpec
-from ...components.laws._reduction_spec import _ReductionSpec
+from ...components.laws._neighbor_reduction import _NeighborReduction
+from ...components.laws._reduction import _Reduction
 from ...components.laws._sample import _SampleLaw
 from ...components.laws.utils._cells import cell_operations_in
 from ...components.laws.utils._draws import draws_in
@@ -1379,7 +1379,7 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
-    def _get_reductions_of(value: object) -> list[_NeighborReductionSpec]:
+    def _get_reductions_of(value: object) -> list[_NeighborReduction]:
         """Return every neighbourhood reduction of a law value, nested ones included."""
         found = []
         stack = neighborhoods_in(value)
@@ -1418,7 +1418,7 @@ class PassCompiler(BaseCompiler):
         """
         expression = SR(value)
         reached: set[int] = set()
-        found: list[_NeighborReductionSpec | _ReductionSpec] = [
+        found: list[_NeighborReduction | _Reduction] = [
             *neighborhoods_in(expression),
             *reductions_in(expression),
         ]

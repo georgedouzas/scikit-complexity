@@ -15,7 +15,6 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix
 from sage.modules.free_module_element import FreeModuleElement
 from scipy.optimize import root
 
-from ....base import BaseSpec
 from ....components.laws import BaseLaw, CallSpec, EventLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....components.laws._boundary import _BoundaryLaw
 from ....errors import SolverError, ValidationError
@@ -60,7 +59,7 @@ class _Relation:
 
 
 @dataclass(frozen=True)
-class _NumericBlockSpec(BaseSpec):
+class _NumericBlock:
     """Equations `residuals == 0` that a block solves numerically for its unknowns.
 
     The block solves them at every evaluation.
@@ -312,18 +311,18 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         right = vector(-residual.subs(zero) for residual in residuals)
         return dict(zip(block, system.solve_right(right, check=False), strict=True))
 
-    def _get_numeric_block(self, block: list[Expression], residuals: list[Expression]) -> _NumericBlockSpec:
+    def _get_numeric_block(self, block: list[Expression], residuals: list[Expression]) -> _NumericBlock:
         """Return the numeric solve of a block.
 
         It is linear when its coefficients hold none of its unknowns.
         """
         names = set(block)
         linear = not any(names & set(residual.diff(item).variables()) for residual in residuals for item in block)
-        return _NumericBlockSpec(tuple(block), tuple(residuals), linear)
+        return _NumericBlock(tuple(block), tuple(residuals), linear)
 
     def _get_linear_solution(
         self,
-        block: _NumericBlockSpec,
+        block: _NumericBlock,
         arguments: Sequence[Expression],
         time: Expression,
     ) -> _BlockSolution:
@@ -348,7 +347,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
     def _get_root_solution(
         self,
-        block: _NumericBlockSpec,
+        block: _NumericBlock,
         arguments: Sequence[Expression],
         time: Expression,
     ) -> _BlockSolution:
@@ -386,7 +385,7 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
 
         return solve
 
-    def _get_chained_solution(self, blocks: Sequence[_NumericBlockSpec], time: Expression) -> None:
+    def _get_chained_solution(self, blocks: Sequence[_NumericBlock], time: Expression) -> None:
         """Set `arguments_` and `solve_`.
 
         `solve_` is the function of the arguments that returns the numeric unknowns.
@@ -533,14 +532,14 @@ class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[
         relations: Sequence[_Relation],
         blocks: Sequence[Sequence[int]],
         matching: Mapping[int, int],
-    ) -> tuple[dict[Expression, Expression], list[_NumericBlockSpec]]:
+    ) -> tuple[dict[Expression, Expression], list[_NumericBlock]]:
         """Return the solution of every unknown and the numeric blocks.
 
         The solutions are in known symbols and numeric unknowns.
         """
         names = list(self.unknowns)
         solutions: dict[Expression, Expression] = {}
-        numeric: list[_NumericBlockSpec] = []
+        numeric: list[_NumericBlock] = []
         for block in blocks:
             unknowns = [names[matching[position]] for position in block]
             residuals = [relations[position].expression for position in block]

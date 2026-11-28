@@ -1,4 +1,4 @@
-"""Define the state spec."""
+"""Define the record of a declared state."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from ._power_series_spec import PowerSeriesSpec
 
 
 @dataclass(frozen=True)
-class _StateSpec:
+class _State:
     """A state of an element, its domain, order, and lags.
 
     It is given in the annotation of an argument of the constructor of an element, and the default of the argument is

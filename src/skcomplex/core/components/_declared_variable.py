@@ -1,17 +1,17 @@
-"""Define the spec of a variable a component declares from data."""
+"""Define the record of a variable a component declares from data."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from dataclasses import dataclass
 
-from ._parameter_spec import _ParameterSpec
+from ._parameter import _Parameter
 from ._role_spec import RoleSpec
-from ._state_spec import _StateSpec
+from ._state import _State
 
 
 @dataclass(frozen=True)
-class _DeclaredVariableSpec:
+class _DeclaredVariable:
     """A state, parameter, or role that a component takes as data.
 
     It holds the initial value of the variable, or the label a role binds.
@@ -25,4 +25,4 @@ class _DeclaredVariableSpec:
     """
 
     value: object
-    spec: _StateSpec | _ParameterSpec | RoleSpec
+    spec: _State | _Parameter | RoleSpec
