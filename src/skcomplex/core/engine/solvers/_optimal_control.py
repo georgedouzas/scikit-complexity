@@ -6,6 +6,7 @@
 import math
 from abc import abstractmethod
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from types import SimpleNamespace
 
 import numpy as np
@@ -23,12 +24,55 @@ from ..problems._control_problem_spec import _ControlProblemSpec
 from ..problems._control_spec import _ControlSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..types import Cost, GridFunction
-from ._control_solution_spec import _ControlSolutionSpec
 from ._solver import Solver
 
 TIME_TOLERANCE = 1e-9
 SENSES = ('min', 'max')
 NONNEGATIVE_DOMAINS = frozenset({RealSet.open(0, oo), RealSet.closed_open(0, oo), NN})
+
+
+@dataclass(frozen=True)
+class _ControlSolution:
+    """Optimal control of a run, sampled on a grid of times.
+
+    Args:
+        times:
+            The times of the grid, from the start to the horizon.
+
+        states:
+            The state vector at every time of the grid, with the controls at their optimal values, one row per time.
+
+        costates:
+            The costate of every state the controls steer, by state name, one value per time, or empty when the
+            solver does not compute costates.
+
+        cost:
+            The value of the objective, the running value integrated over the run plus the terminal value.
+
+        iterations:
+            The number of sweeps or optimiser iterations the solver took.
+    """
+
+    times: Array
+    states: Array
+    costates: Mapping[str, Array]
+    cost: float
+    iterations: int
+
+    def get_state_at(self, t: float) -> Array:
+        """Return the state vector at a time of the run.
+
+        It is interpolated linearly between the times of the grid.
+
+        Args:
+            t:
+                The time.
+
+        Returns:
+            state:
+                The state vector.
+        """
+        return np.array([np.interp(t, self.times, column) for column in self.states.T])
 
 
 class OptimalControlSolver(Solver):
@@ -117,14 +161,14 @@ class OptimalControlSolver(Solver):
         *,
         iterations: int,
         costates: Mapping[str, Array] | None = None,
-    ) -> _ControlSolutionSpec:
+    ) -> _ControlSolution:
         """Return the solution of steered states and controls on a grid, with its cost."""
         control_problem = self.control_problem_
         full = np.tile(x0, (times.size, 1))
         full[:, control_problem.indices] = states
         full[:, control_problem.control_indices] = controls
         cost = self._get_cost(times, states, controls, p)
-        return _ControlSolutionSpec(times, full, dict(costates or {}), cost, iterations)
+        return _ControlSolution(times, full, dict(costates or {}), cost, iterations)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the solver for a problem and read its optimal control problem.
@@ -417,7 +461,7 @@ class OptimalControlSolver(Solver):
         return tuple(controls)
 
     @abstractmethod
-    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolution:
         """Return the optimal solution from an initial state over a horizon.
 
         Args:

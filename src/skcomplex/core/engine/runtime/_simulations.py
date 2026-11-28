@@ -40,8 +40,8 @@ from ..solvers import (
     StepSpec,
     StructureStateSpec,
 )
-from ..solvers._agent_state_spec import _AgentStateSpec
 from ..solvers._defaults import DEFAULT_SOLVERS
+from ..solvers._mesa import _AgentState
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
 from ._invariants import InvariantObserver
@@ -359,7 +359,7 @@ class Simulation(BaseConfig[None, float]):
         The events since the previous frame go with it.
         """
         external = self.stepper_.snapshot_
-        agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentStateSpec) else ({}, {})
+        agents, reporters = (external.groups, external.reporters) if isinstance(external, _AgentState) else ({}, {})
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
         reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()

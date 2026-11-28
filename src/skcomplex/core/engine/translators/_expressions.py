@@ -22,7 +22,7 @@ from pysd.translators.structures.abstract_expressions import (
     SmoothStructure,
 )
 
-from ._system_variables_spec import _SystemVariablesSpec
+from ._system_variables import _SystemVariables
 
 TIME = '(t + START)'
 ZERO_DIVISOR = 1e-6
@@ -80,7 +80,7 @@ class _ExpressionWriter:
     It collects what it cannot translate.
     """
 
-    def __init__(self, variables: _SystemVariablesSpec, problems: list[str], imports: set[tuple[str, str]]) -> None:
+    def __init__(self, variables: _SystemVariables, problems: list[str], imports: set[tuple[str, str]]) -> None:
         self.variables = variables
         self.problems = problems
         self.imports = imports
@@ -223,9 +223,9 @@ class _ExpressionWriter:
 
         The reference is at the reading member, over a range, or at one named member.
         """
-        name = _SystemVariablesSpec.get_name(ast.reference)
+        name = _SystemVariables.get_name(ast.reference)
         source = self._write_variable(name)
-        subscripts = _SystemVariablesSpec.get_subscripts(ast)
+        subscripts = _SystemVariables.get_subscripts(ast)
         if not subscripts:
             return source
         if len(subscripts) > 1:
@@ -241,7 +241,7 @@ class _ExpressionWriter:
 
     def _write_call(self, ast: CallStructure) -> str:
         """Return the source of a call of a lookup or of a built-in function."""
-        name = _SystemVariablesSpec.get_name(ast.function.reference)
+        name = _SystemVariables.get_name(ast.function.reference)
         if name in self.variables.lookups:
             return f'_{name}({self._write(ast.arguments[0])})'
         if name in SAGE_FUNCTIONS:
@@ -313,7 +313,7 @@ class _ExpressionWriter:
 
         It reads the stock at the time the delay before, and its first value before the start.
         """
-        if _SystemVariablesSpec.get_reference(ast.input) not in self.variables.stocks:
+        if _SystemVariables.get_reference(ast.input) not in self.variables.stocks:
             return self._add_problem('DELAY FIXED of something other than a stock')
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a fixed delay whose initial value differs from its input')
@@ -325,8 +325,8 @@ class _ExpressionWriter:
 
     def _write_element_count(self, value: object) -> str:
         """Return the number of members of a range."""
-        name = _SystemVariablesSpec.get_reference(value)
-        ranges = {_SystemVariablesSpec.get_name(key): members for key, members in self.variables.ranges.items()}
+        name = _SystemVariables.get_reference(value)
+        ranges = {_SystemVariables.get_name(key): members for key, members in self.variables.ranges.items()}
         return str(len(ranges[name])) if name in ranges else self._add_problem('ELMCOUNT of an unknown range')
 
     def _write_if_then_else(self, condition: object, then: object, otherwise: object) -> str:
@@ -347,7 +347,7 @@ class _ExpressionWriter:
 
         The bounds are ordered numbers.
         """
-        if not isinstance(inner, CallStructure) or _SystemVariablesSpec.get_name(inner.function.reference) != function:
+        if not isinstance(inner, CallStructure) or _SystemVariables.get_name(inner.function.reference) != function:
             return None
         value, bound = inner.arguments
         if not isinstance(outer, int | float | np.number) or not isinstance(bound, int | float | np.number):
@@ -479,8 +479,8 @@ class _ExpressionWriter:
 
         It returns `None` when it has none yet.
         """
-        name = _SystemVariablesSpec.get_name(ast.reference)
-        subscripts = _SystemVariablesSpec.get_subscripts(ast)
+        name = _SystemVariables.get_name(ast.reference)
+        subscripts = _SystemVariables.get_subscripts(ast)
         if subscripts and subscripts[0] in self.variables.members:
             member = self.variables.members.index(subscripts[0])
         if name == 'time':

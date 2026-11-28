@@ -7,6 +7,7 @@ import math
 import numbers
 from collections import deque
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import ClassVar, cast, overload
 
 import mesa
@@ -45,13 +46,28 @@ from ..problems._layout_spec import LayoutSpec
 from ..problems._metric_search import MetricSearch
 from ..problems._variable_spec import _VariableSpec
 from ..types import MesaSpace
-from ._agent_state_spec import _AgentStateSpec
 from ._external import ExternalSolver
 
 MAX_SEED = 2**31 - 1
 HISTORY_LENGTH = 10_000
 CONTINUOUS_SIDES = (2, 3)
 MIN_CONTINUOUS_ROOM = 2
+
+
+@dataclass(frozen=True)
+class _AgentState:
+    """Agents of every group and the reporters at one frame.
+
+    Args:
+        groups:
+            A mapping from group path to the agents of that group.
+
+        reporters:
+            A mapping from dotted reporter name to its value.
+    """
+
+    groups: Mapping[str, AgentSnapshotSpec] = field(default_factory=dict)
+    reporters: Mapping[str, float] = field(default_factory=dict)
 
 
 class _AgentSystem(mesa.Model):
@@ -2096,7 +2112,7 @@ class MesaSolver(ExternalSolver):
             )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
-        self.snapshot_ = _AgentStateSpec(groups, {**reporters, **cast(dict[str, float], self.reports_)})
+        self.snapshot_ = _AgentState(groups, {**reporters, **cast(dict[str, float], self.reports_)})
         self.agents_ = {path: [self._get_view_of(agent) for agent in members] for path, members in agents.items()}
 
     @staticmethod

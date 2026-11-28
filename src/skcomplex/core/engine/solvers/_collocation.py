@@ -17,8 +17,7 @@ from ..backends import SupportSpec
 from ..problems import ProblemSpec
 from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
-from ._control_solution_spec import _ControlSolutionSpec
-from ._optimal_control import OptimalControlSolver
+from ._optimal_control import OptimalControlSolver, _ControlSolution
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')
@@ -240,7 +239,7 @@ class CollocationSolver(OptimalControlSolver):
             [control_problem.terminal.diff(item) for item in states],
         )
 
-    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolutionSpec:
+    def _solve(self, x0: Array, p: Array, horizon: float) -> _ControlSolution:
         """Return the optimal solution of the transcribed nonlinear programme.
 
         Args:

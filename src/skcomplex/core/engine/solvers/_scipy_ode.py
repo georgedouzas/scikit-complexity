@@ -7,6 +7,7 @@ import math
 import sys
 import warnings
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 import scipy.sparse
@@ -25,7 +26,6 @@ from ..problems import ProblemSpec, RunStateSpec
 from ..problems._bilinear_law import BilinearLaw
 from ._event_locator import EventLocator
 from ._history import RESTART, History
-from ._segment_spec import _SegmentSpec
 from ._solver import Solver
 
 METHODS = {'RK45': RK45, 'RK23': RK23, 'DOP853': DOP853, 'Radau': Radau, 'BDF': BDF, 'LSODA': LSODA}
@@ -47,6 +47,20 @@ BLOW_UP = 1e12
 SMALL_NORM = 1e-5
 TINY_NORM = 1e-15
 FALLBACK_STEP = 1e-6
+
+
+@dataclass(frozen=True)
+class _Segment:
+    """Accepted step of an integrator.
+
+    It holds its states at both ends and its dense output.
+    """
+
+    start: float
+    end: float
+    before: Array
+    after: Array
+    dense: Callable[[float], Array]
 
 
 class ScipyODESolver(Solver):
@@ -197,7 +211,7 @@ class ScipyODESolver(Solver):
             self.method_ = 'RK45'
             self.jacobian_options_ = {}
         self._solver: OdeSolver | None = None
-        self._segment: _SegmentSpec | None = None
+        self._segment: _Segment | None = None
         self._time = math.nan
         self._frame = math.inf
         self._until = math.inf
@@ -354,7 +368,7 @@ class ScipyODESolver(Solver):
         self._segment = None
         self._time, self._state, self._parameters = t, x.copy(), p.copy()
 
-    def _get_next_segment(self, p: Array) -> _SegmentSpec:
+    def _get_next_segment(self, p: Array) -> _Segment:
         """Return the step that covers the current time.
 
         A new step is taken, or the integrator restarts at a breakpoint.
@@ -391,7 +405,7 @@ class ScipyODESolver(Solver):
                 raise SolverError(error_msg)
             if self._stalls(start, solver.t):
                 self._leave_lsoda(solver.t, solver.y, p)
-            segment = _SegmentSpec(start, solver.t, before, solver.y.copy(), solver.dense_output())
+            segment = _Segment(start, solver.t, before, solver.y.copy(), solver.dense_output())
             if self.history_ is not None:
                 self.history_.add(start, solver.t, segment.dense)
             self._segment = segment
