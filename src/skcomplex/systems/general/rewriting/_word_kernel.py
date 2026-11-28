@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import numpy as np
 import numpy.typing as npt
@@ -19,9 +19,7 @@ from ....core.errors import RewritingError
 from . import _word
 from ._base_structure_spec import BaseStructureSpec
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
-from ._group_spec import _GroupSpec
 from ._module_spec import Letters, ModuleSpec
-from ._parameters_spec import _ParametersSpec
 from ._production import ProductionLaw
 from ._rewriting_loops import (
     ACTION_CODES,
@@ -39,13 +37,57 @@ from ._rewriting_loops import (
     _neighbors,
     _walk_word,
 )
-from ._successor_spec import _SuccessorSpec
 from ._word_structure_spec import WordStructureSpec
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 PROBABILITY_TOLERANCE = 1e-9
 SPACE_DIMENSION = 3
 TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
+
+
+@dataclass(frozen=True)
+class _Parameters:
+    """Parameter symbols of the rewritten elements.
+
+    They are in the order of the parameter vector.
+
+    Args:
+        symbols:
+            The symbols.
+
+        time:
+            The generation symbol.
+    """
+
+    symbols: tuple[Expression, ...]
+    time: Expression
+
+
+@dataclass(frozen=True)
+class _Successor:
+    """Successor of a production, as symbol codes and the function of its parameters."""
+
+    codes: npt.NDArray[np.int64]
+    slots: tuple[tuple[int, int], ...]
+    values: Callable[..., Arrays] | None
+    variables: int
+
+
+@dataclass(frozen=True)
+class _Group:
+    """Productions of one predecessor, context, and condition.
+
+    A matching module takes one of them.
+    """
+
+    code: int
+    left: tuple[int, ...]
+    right: tuple[int, ...]
+    condition: Callable[..., Arrays] | None
+    variables: int
+    successors: tuple[int, ...] = ()
+    probabilities: tuple[Callable[..., Arrays] | None, ...] = ()
+    rank: tuple[int, int, int] = (0, 0, 0)
 
 
 class WordKernel(BaseKernel):
@@ -90,7 +132,7 @@ class WordKernel(BaseKernel):
         path: str,
         word: _word.WordElement,
         productions: Sequence[ProductionLaw],
-        parameters: _ParametersSpec,
+        parameters: _Parameters,
         values: npt.NDArray[np.float64],
     ) -> None:
         self.path = path
@@ -129,7 +171,7 @@ class WordKernel(BaseKernel):
                 [ACTION_CODES.get(meanings.get(name, ''), 0) for name in self.names],
                 dtype=np.int64,
             )
-        self.successors: list[_SuccessorSpec] = []
+        self.successors: list[_Successor] = []
         self.groups = self._get_groups(productions)
         self._check_probabilities(values)
 
@@ -165,7 +207,7 @@ class WordKernel(BaseKernel):
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
         expressions = [modules[row].parameters[column] for row, column in slots]
         values = self._get_function(variables, expressions, text) if slots else None
-        self.successors.append(_SuccessorSpec(codes, tuple(slots), values, len(variables)))
+        self.successors.append(_Successor(codes, tuple(slots), values, len(variables)))
         return len(self.successors) - 1
 
     def _get_function(
@@ -218,9 +260,9 @@ class WordKernel(BaseKernel):
 
         return evaluate
 
-    def _get_groups(self, productions: Sequence[ProductionLaw]) -> list[_GroupSpec]:
+    def _get_groups(self, productions: Sequence[ProductionLaw]) -> list[_Group]:
         """Return the groups of productions in the order they are tried."""
-        groups: dict[tuple[str, ...] | int, _GroupSpec] = {}
+        groups: dict[tuple[str, ...] | int, _Group] = {}
         members: dict[tuple[str, ...] | int, tuple[list[int], list[Callable[..., Arrays] | None]]] = {}
         for order, production in enumerate(productions):
             text = self._get_production_text(production)
@@ -246,7 +288,7 @@ class WordKernel(BaseKernel):
             )
             if key not in groups:
                 members[key] = ([], [])
-                groups[key] = _GroupSpec(
+                groups[key] = _Group(
                     code=code,
                     left=tuple(self._get_code(item, text) for item in left),
                     right=tuple(self._get_code(item, text) for item in right),
@@ -266,7 +308,7 @@ class WordKernel(BaseKernel):
 
     def _get_weights(
         self,
-        group: _GroupSpec,
+        group: _Group,
         values: npt.NDArray[np.float64],
         generation: int,
     ) -> npt.NDArray[np.float64]:

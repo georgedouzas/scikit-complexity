@@ -20,13 +20,12 @@ from ....core.engine.problems import BaseProblemSpec, CompiledElementSpec, Layou
 from ....core.enums import FormKind
 from ....core.errors import IncompatibleLawsError, RewritingError, SkcomplexError, ValidationError
 from . import _patch, _word
-from ._parameters_spec import _ParametersSpec
 from ._patch_kernel import PatchKernel
 from ._production import ProductionLaw
 from ._rewriting_problem_spec import RewritingProblemSpec
 from ._rewriting_solver import RewritingSolver
 from ._substitution import SubstitutionLaw
-from ._word_kernel import WordKernel
+from ._word_kernel import WordKernel, _Parameters
 
 LAWS_OF = {'sequence': ProductionLaw, 'tiling': SubstitutionLaw}
 PRODUCTION_LAWS = (ProductionLaw, SubstitutionLaw)
@@ -242,7 +241,7 @@ class RewritingCompiler(BaseCompiler):
         path: str,
         element: Element,
         laws: list[Production],
-        parameters: _ParametersSpec,
+        parameters: _Parameters,
         values: npt.NDArray[np.float64],
     ) -> WordKernel | PatchKernel:
         """Return the compiled rewriting system of one element.
@@ -355,7 +354,7 @@ class RewritingCompiler(BaseCompiler):
             {path: interaction for path, (_, interaction) in interactions.items()},
         )
         namespaces.update({path: SimpleNamespace(t=RewritingCompiler._get_symbol('t')) for path in rewritten})
-        parameters = _ParametersSpec(tuple(symbols.values()), RewritingCompiler._get_symbol('t'))
+        parameters = _Parameters(tuple(symbols.values()), RewritingCompiler._get_symbol('t'))
         initial_parameters = np.asarray(values, dtype=float)
         productions: dict[str, list[Production]] = {path: [] for path in elements}
         for path, (_, interaction) in interactions.items():
