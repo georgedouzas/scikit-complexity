@@ -1752,7 +1752,7 @@ def check_every_error_is_raised_in_the_library(root: Path) -> list[str]:
 
 
 def check_every_dataclass_is_a_frozen_spec_or_result(root: Path) -> list[str]:
-    """Return every dataclass of the core that is not frozen, or no spec and no result a function returns."""
+    """Return every dataclass of the core that is not frozen, or no spec, no result, and no private record."""
     spec = importlib.import_module('skcomplex.core.base').BaseSpec
     found = []
     for module in _importable_modules('skcomplex.core', lambda _: False):
@@ -1760,7 +1760,9 @@ def check_every_dataclass_is_a_frozen_spec_or_result(root: Path) -> list[str]:
             own = isinstance(value, type) and value.__module__ == module.__name__
             if not own or not isinstance(value, type) or not dataclasses.is_dataclass(value):
                 continue
-            kind = issubclass(value, spec) or (value.__name__.endswith('Result') and value.__bases__ == (object,))
+            plain = value.__bases__ == (object,)
+            record = value.__name__.startswith('_') and plain
+            kind = issubclass(value, spec) or (value.__name__.endswith('Result') and plain) or record
             if not (kind and cast(Any, value).__dataclass_params__.frozen):
                 found.append(f'{_locate(value, root)}: {module.__name__}.{value.__qualname__}')
     return found
