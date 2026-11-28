@@ -4,8 +4,8 @@
 # License: MIT
 
 import functools
-from collections.abc import Callable, Sequence
-from dataclasses import replace
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 
 import networkx as nx
 import numpy as np
@@ -53,9 +53,7 @@ from ...problems._monte_carlo_kernel import MonteCarloKernel
 from ...problems._rule_kernel import RuleKernel
 from .._array_update_law import ArrayUpdateLaw
 from .._base import BaseCompiler, BasePass
-from .._compilation import Compilation
-from .._issue_spec import IssueSpec
-from .._lattice_context_spec import _LatticeContextSpec
+from .._compilation import Compilation, _Issue
 from .._laws import LATTICE_LAWS
 from .._relaxation_law import RelaxationLaw
 from ._cells import DEGREES
@@ -72,6 +70,36 @@ type LoweredObjective = tuple[
     Expression,
     tuple[scipy.sparse.csr_array, Array] | None,
 ]
+
+
+@dataclass(frozen=True)
+class _LatticeContext:
+    """What the laws of a lattice are compiled against.
+
+    It holds the lattice of every state and the symbols each law reads.
+
+    Args:
+        owner:
+            The path of the component that declares the laws.
+
+        states:
+            The lattice state of every target symbol.
+
+        arguments:
+            The parameters and states the component reads, by symbol, with their keyword names.
+
+        fused:
+            Whether lookup rules run as compiled loops.
+
+        others:
+            The entry name of every symbol of a neighbour, the namespace `s.other` of the laws.
+    """
+
+    owner: str
+    states: Mapping[Expression, _LatticeStateSpec]
+    arguments: Mapping[Expression, tuple[str, bool, int, int]]
+    fused: bool = False
+    others: Mapping[Expression, str] = field(default_factory=dict)
 
 
 class LatticeProblemPass(BasePass):
@@ -118,7 +146,7 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _get_lattice_state(
-        context: _LatticeContextSpec,
+        context: _LatticeContext,
         item: Expression,
         law: str,
         *,
@@ -143,7 +171,7 @@ class LatticeProblemPass(BasePass):
         return state
 
     @staticmethod
-    def _get_keywords(context: _LatticeContextSpec) -> _ArgumentsSpec:
+    def _get_keywords(context: _LatticeContext) -> _ArgumentsSpec:
         """Return every parameter its component reads, which a rule receives by keyword."""
         names, starts, sizes = [], [], []
         for name, is_state, start, size in context.arguments.values():
@@ -154,7 +182,7 @@ class LatticeProblemPass(BasePass):
         return _ArgumentsSpec(tuple(names), (False,) * len(names), tuple(starts), tuple(sizes))
 
     @staticmethod
-    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> _LatticeContextSpec:
+    def _get_lattice_context(spec: KernelSpec, declarations: DeclarationsSpec, fused: bool) -> _LatticeContext:
         """Return the lattice states, arguments, and neighbour symbols of a component.
 
         They are those of the symbols the component reads.
@@ -174,10 +202,10 @@ class LatticeProblemPass(BasePass):
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
             if reference.source is ReadKind.OTHER:
                 others[item] = entry.name
-        return _LatticeContextSpec(spec.owner, states, arguments, fused, others)
+        return _LatticeContext(spec.owner, states, arguments, fused, others)
 
     @staticmethod
-    def _get_monte_carlo_step(spec: KernelSpec, law: _SampleLaw, context: _LatticeContextSpec) -> LatticeStep:
+    def _get_monte_carlo_step(spec: KernelSpec, law: _SampleLaw, context: _LatticeContext) -> LatticeStep:
         """Return the Monte Carlo sampling of a sample.
 
         It uses Metropolis acceptance at `intensity` by default.
@@ -191,7 +219,7 @@ class LatticeProblemPass(BasePass):
         return LatticeProblemPass._compile_monte_carlo(law.objective, law.move, sampler, context)
 
     @staticmethod
-    def _get_lattice_step(spec: KernelSpec, law: BaseLaw, context: _LatticeContextSpec) -> LatticeStep | None:
+    def _get_lattice_step(spec: KernelSpec, law: BaseLaw, context: _LatticeContext) -> LatticeStep | None:
         """Return the step of a lattice law, or `None` for a law of another kind."""
         if isinstance(law, _LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
@@ -438,7 +466,7 @@ class LatticeProblemPass(BasePass):
         target: Expression,
         *,
         objective: ObjectiveSpec,
-        context: _LatticeContextSpec,
+        context: _LatticeContext,
         neighbors: Sequence[Expression],
         masks: Sequence[Expression],
     ) -> Expression:
@@ -539,7 +567,7 @@ class LatticeProblemPass(BasePass):
         return space.cofaces_[degree], space.orientations_[degree], space.incidences_[degree]
 
     @staticmethod
-    def _compile_drive(law: ArrayUpdateLaw, context: _LatticeContextSpec) -> DriveKernel:
+    def _compile_drive(law: ArrayUpdateLaw, context: _LatticeContext) -> DriveKernel:
         """Return a drive compiled for its lattice state.
 
         Args:
@@ -571,7 +599,7 @@ class LatticeProblemPass(BasePass):
         ).prepare()
 
     @staticmethod
-    def _compile_rule(law: _LocalRuleLaw, context: _LatticeContextSpec) -> RuleKernel:
+    def _compile_rule(law: _LocalRuleLaw, context: _LatticeContext) -> RuleKernel:
         """Return a local rule compiled for its lattice.
 
         Args:
@@ -729,7 +757,7 @@ class LatticeProblemPass(BasePass):
             raise ValidationError(error_msg) from error
 
     @staticmethod
-    def _compile_part(law: object, context: _LatticeContextSpec) -> RuleKernel | DriveKernel:
+    def _compile_part(law: object, context: _LatticeContext) -> RuleKernel | DriveKernel:
         """Return a law of a cascade compiled."""
         if isinstance(law, _LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
@@ -741,7 +769,7 @@ class LatticeProblemPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _get_array_update(law: UpdateLaw, context: _LatticeContextSpec) -> ArrayUpdateLaw:
+    def _get_array_update(law: UpdateLaw, context: _LatticeContext) -> ArrayUpdateLaw:
         """Return the drive of a cascade, an update of a state by its own value.
 
         Such a drive, such as `UpdateLaw(h, h + 1)` adding a grain to every site of a sandpile, changes every site by
@@ -781,7 +809,7 @@ class LatticeProblemPass(BasePass):
         return np.vectorize(step, otypes=[float])(array)
 
     @staticmethod
-    def _compile_cascade(law: RelaxationLaw, context: _LatticeContextSpec) -> CascadeKernel:
+    def _compile_cascade(law: RelaxationLaw, context: _LatticeContext) -> CascadeKernel:
         """Return a cascade compiled for its lattice.
 
         Args:
@@ -846,7 +874,7 @@ class LatticeProblemPass(BasePass):
         objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
-        context: _LatticeContextSpec,
+        context: _LatticeContext,
         target: _LatticeStateSpec,
     ) -> LoweredObjective:
         """Return the table, classes, symbols, and expression of a neighbour objective.
@@ -883,7 +911,7 @@ class LatticeProblemPass(BasePass):
         objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
-        context: _LatticeContextSpec,
+        context: _LatticeContext,
         target: _LatticeStateSpec,
     ) -> LoweredObjective:
         """Return the table, classes, symbols, expression, and incidence of an objective.
@@ -908,7 +936,7 @@ class LatticeProblemPass(BasePass):
         objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
-        context: _LatticeContextSpec,
+        context: _LatticeContext,
     ) -> MonteCarloKernel:
         """Return Monte Carlo sampling compiled from an objective, a move, and a sampler.
 
@@ -1027,7 +1055,7 @@ class LatticeProblemPass(BasePass):
         return None
 
     @staticmethod
-    def _schedule_issues(compilation: Compilation) -> list[IssueSpec]:
+    def _schedule_issues(compilation: Compilation) -> list[_Issue]:
         """Return the lattice laws whose checkerboard schedule needs a square lattice.
 
         Their space is not a square lattice.
@@ -1045,5 +1073,5 @@ class LatticeProblemPass(BasePass):
                     "Use the 'synchronous' or the 'random-sequential' schedule of a local rule, or the "
                     "'random-sequential' or the 'colored' schedule of a sampler."
                 )
-                issues.append(IssueSpec('schedule-unsupported', record.path, message, fix))
+                issues.append(_Issue('schedule-unsupported', record.path, message, fix))
         return issues

@@ -6,6 +6,7 @@
 import copy
 import dataclasses
 import functools
+import warnings
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from types import SimpleNamespace
 
@@ -14,7 +15,7 @@ from sage.all__sagemath_symbolics import Expression
 from ...base import BaseConfig
 from ...components import Observable
 from ...components.laws import BaseLaw
-from ...enums import FormKind
+from ...enums import FormKind, SeverityKind
 from ...errors import (
     LabelError,
     ParameterError,
@@ -26,6 +27,7 @@ from ...errors import (
     TensorShapeError,
     TensorSymmetryError,
     ValidationError,
+    ValidationWarning,
 )
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend, SupportSpec
 from ..backends._base import AUTO_MEMBERS
@@ -33,9 +35,7 @@ from ..problems import BaseProblemSpec
 from ..problems._composite_system import _CompositeSystem
 from ..problems._kernel_spec import KernelSpec
 from ..problems._reference_spec import ReferenceSpec
-from ._compilation import Compilation
-from ._issue_spec import IssueSpec
-from ._validation_report_spec import ValidationReportSpec
+from ._compilation import Compilation, _Issue
 
 FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
@@ -56,6 +56,33 @@ FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 }
 
 type _Composite = _CompositeSystem
+
+
+@dataclasses.dataclass(frozen=True)
+class _ValidationReport:
+    """Report of every problem a compiler found in a system.
+
+    Args:
+        issues:
+            The issues, in the order they were found.
+    """
+
+    issues: tuple[_Issue, ...] = ()
+
+    @property
+    def errors(self) -> list[_Issue]:
+        """Return the issues that stop compilation."""
+        return [issue for issue in self.issues if issue.severity == SeverityKind.ERROR]
+
+    @property
+    def warnings(self) -> list[_Issue]:
+        """Return the issues that do not stop compilation."""
+        return [issue for issue in self.issues if issue.severity == SeverityKind.WARNING]
+
+    @property
+    def ok(self) -> bool:
+        """Check whether the report holds no error."""
+        return not self.errors
 
 
 class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
@@ -107,7 +134,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
     """
 
     system_: _Composite
-    report_: ValidationReportSpec
+    report_: _ValidationReport
     problem_: BaseProblemSpec
     solver_: object
 
@@ -154,15 +181,15 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
             system = self._copy_with_observables(system, self.observables)
         except ValidationError as error:
             self.system_ = self._get_declared_system(system)
-            self.report_ = ValidationReportSpec(
-                (IssueSpec('observable-path', system.label, str(error), 'Label observables by their path.'),),
+            self.report_ = _ValidationReport(
+                (_Issue('observable-path', system.label, str(error), 'Label observables by their path.'),),
             )
             return
         self.system_ = self._get_declared_system(system)
         roles = self._get_domain_issues(self.system_)
-        self.report_ = ValidationReportSpec(tuple(roles or self._get_issues(self.system_)))
+        self.report_ = _ValidationReport(tuple(roles or self._get_issues(self.system_)))
 
-    def _get_domain_issues(self, system: _CompositeSystem, scope: str = '') -> list[IssueSpec]:
+    def _get_domain_issues(self, system: _CompositeSystem, scope: str = '') -> list[_Issue]:
         """Return the issue of a role bound to a value of a domain it does not accept.
 
         The values of plain elements have their domains only once the laws show which are states, so a role such as
@@ -182,7 +209,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         """Return the system with declarations for its plain elements."""
         return system
 
-    def _get_issues(self, system: _Composite) -> list[IssueSpec]:
+    def _get_issues(self, system: _Composite) -> list[_Issue]:
         """Return the issues of a system that the compiler finds before compiling it.
 
         Args:
@@ -243,7 +270,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
             ValidationError:
                 The report holds an error, or the initial values are not a mapping.
         """
-        self.report_._check()
+        self._check_report()
         if inputs is not None and not isinstance(inputs, Mapping):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
@@ -251,6 +278,21 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         observables = tuple(self._get_observables_of(problem.system)) if problem.system is not None else ()
         self.problem_ = dataclasses.replace(problem, observables=observables)
         self.solver_ = self.solver if self.solver is not None else self._get_solver(self.problem_)
+
+    def _check_report(self) -> None:
+        """Emit the warnings of the report and raise one error that lists its errors.
+
+        Raises:
+            ValidationError:
+                The report holds an error, of the class of its errors when they share one.
+        """
+        for issue in self.report_.warnings:
+            warnings.warn(issue.text, ValidationWarning, stacklevel=3)
+        if self.report_.errors:
+            lines = '\n'.join(f'- {issue.text}' for issue in self.report_.errors)
+            error_msg = f'The system is not valid, with {len(self.report_.errors)} error(s):\n{lines}'
+            classes = {issue.error for issue in self.report_.errors}
+            raise (classes.pop() if len(classes) == 1 else ValidationError)(error_msg)
 
     @staticmethod
     def _support_of(runner: type) -> SupportSpec:
@@ -434,7 +476,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
         return BaseCompiler._get_attached(system, by_scope, '')
 
     @staticmethod
-    def _get_issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> IssueSpec:
+    def _get_issue_of(error: SkcomplexError, path: str, code: str, fix: str) -> _Issue:
         """Return the issue of an error.
 
         The issue holds the code and fix of the error class, or the ones given.
@@ -457,7 +499,7 @@ class BaseCompiler(BaseConfig[_Composite, Mapping[str, object]]):
                 The issue.
         """
         code, fix = FIXES.get(type(error), (code, fix))
-        return IssueSpec(code, path, str(error), fix, error=type(error))
+        return _Issue(code, path, str(error), fix, error=type(error))
 
 
 class BasePass(BaseConfig[Compilation, None]):

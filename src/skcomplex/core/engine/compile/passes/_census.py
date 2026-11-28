@@ -65,9 +65,7 @@ from ...problems._problem_spec import ProblemSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._array_update_law import ArrayUpdateLaw
 from .._base import BasePass
-from .._census_record_spec import _CensusRecordSpec
-from .._census_spec import _CensusSpec
-from .._compilation import Compilation
+from .._compilation import Compilation, _Census, _CensusRecord
 from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
@@ -230,7 +228,7 @@ class CensusPass(BasePass):
         *,
         solver: object = None,
         scope: str = '',
-    ) -> list[_CensusRecordSpec]:
+    ) -> list[_CensusRecord]:
         """Return the census records of the laws of one component.
 
         A linear program has as many members as the rows its laws settle, such as the members of two groups it reads
@@ -253,7 +251,7 @@ class CensusPass(BasePass):
                 kind = CensusPass._get_component_kind(elements.get(owner, block).node)
                 processes, driven, reads = CensusPass._get_noise_census(spec, law, declarations)
                 records.append(
-                    _CensusRecordSpec(
+                    _CensusRecord(
                         block.node.path,
                         owner,
                         law,
@@ -296,7 +294,7 @@ class CensusPass(BasePass):
         nodes: list[_NodeSpec],
         trained: frozenset[str] = frozenset(),
         solver: object = None,
-    ) -> _CensusSpec:
+    ) -> _Census:
         """Return the census of the laws of a system.
 
         The errors of the components that fail are included. The census declares every component and collects its laws
@@ -356,7 +354,7 @@ class CensusPass(BasePass):
         records = [
             replace(record, law=CensusPass._get_corrected(record.law, record.owner, flowing)) for record in records
         ]
-        return _CensusSpec(system, records, errors, declarations.agents)
+        return _Census(system, records, errors, declarations.agents)
 
     @staticmethod
     def _get_solvers(
@@ -379,7 +377,7 @@ class CensusPass(BasePass):
         return solvers
 
     @staticmethod
-    def _get_flowing(records: Sequence[_CensusRecordSpec]) -> frozenset[str]:
+    def _get_flowing(records: Sequence[_CensusRecord]) -> frozenset[str]:
         """Return the paths of the elements and groups that flow.
 
         Rate or noise laws change their states, or equations read derivatives of them, as the equations of motion of

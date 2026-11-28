@@ -30,9 +30,19 @@ from ...problems._reduction_schedule_spec import ReductionScheduleSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
 from .._compilation import Compilation, Laws
-from .._weight_spec import _WeightSpec
 from ._layout import LayoutPass
 from ._specs import SpecsPass
+
+
+@dataclasses.dataclass(frozen=True, eq=False)
+class _Weight:
+    """Target of the weight or the score of the candidate nodes of a topology request.
+
+    It is lowered like laws.
+    """
+
+    request: TopologyRequestSpec
+    score: bool = False
 
 
 class TopologyFunctionsPass(BasePass):
@@ -203,7 +213,7 @@ class TopologyFunctionsPass(BasePass):
     @staticmethod
     def _is_weight(law: BaseLaw) -> bool:
         """Check whether a law sets the weight of the candidate nodes of a request."""
-        return isinstance(next(iter(law._get_targets()), None), _WeightSpec)
+        return isinstance(next(iter(law._get_targets()), None), _Weight)
 
     @staticmethod
     def _get_topology(
@@ -228,7 +238,7 @@ class TopologyFunctionsPass(BasePass):
             (id(target.request), target.score): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
             for spec, laws in towards
             for law in laws
-            if isinstance(law, UpdateLaw) and isinstance(target := law._get_targets()[0], _WeightSpec)
+            if isinstance(law, UpdateLaw) and isinstance(target := law._get_targets()[0], _Weight)
         }
         requests = []
         for spec, laws in updates:

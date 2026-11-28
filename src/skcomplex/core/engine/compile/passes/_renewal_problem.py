@@ -23,8 +23,7 @@ from ...problems._expression_printer import ExpressionPrinter
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._renewal_kernel import READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
-from .._bound_renewal_spec import BoundRenewalSpec
-from .._compilation import Compilation
+from .._compilation import Compilation, _BoundRenewal
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
@@ -74,7 +73,7 @@ class RenewalProblemPass(BasePass):
 
     @staticmethod
     def _compile_renewals(
-        renewals: list[BoundRenewalSpec],
+        renewals: list[_BoundRenewal],
         time: Expression,
         owners: frozenset[str] | None,
     ) -> tuple[RenewalKernel, ...]:

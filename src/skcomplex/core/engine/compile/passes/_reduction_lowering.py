@@ -58,8 +58,7 @@ from ...problems._reference_spec import ReferenceSpec
 from ...problems._static_search import StaticSearch
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
-from .._held_reduction_spec import _HeldReductionSpec
-from .._observables import _HeldElement
+from .._observables import _HeldElement, _HeldReduction
 from ._cells import DEGREES, CellTables
 from ._complex import LowerComplexPass
 from ._hyperedges import HyperedgeTables
@@ -384,7 +383,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
         agents: Mapping[Expression, tuple[str, str]],
         time: Expression,
         owner: str,
-    ) -> _HeldReductionSpec | None:
+    ) -> _HeldReduction | None:
         """Return the held reduction of a reduction of agents.
 
         It is `None` for a reduction of elements.
@@ -436,7 +435,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], lis
             )
             raise ValidationError(error_msg)
         ordered = tuple(sorted((item for item in symbols if agents[item][1]), key=str))
-        return _HeldReductionSpec(
+        return _HeldReduction(
             group,
             reduction.kind,
             tuple(agents[item][1] for item in ordered),

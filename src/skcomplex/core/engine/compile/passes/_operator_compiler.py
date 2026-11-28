@@ -40,7 +40,7 @@ from ...problems._operator_view_spec import _OperatorViewSpec
 from ...problems._subsystem_spec import _SubsystemSpec
 from ...types import Dissipators, Generators, HilbertSpaceProtocol
 from .._base import BaseCompiler
-from .._issue_spec import IssueSpec
+from .._compilation import _Issue
 from .._state_inference import _StateInference
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
@@ -116,7 +116,7 @@ class OperatorCompiler(BaseCompiler):
             raise ValidationError(error_msg)
         super()._prepare(context)
 
-    def _get_issues(self, system: _CompositeSystem) -> list[IssueSpec]:
+    def _get_issues(self, system: _CompositeSystem) -> list[_Issue]:
         """Return the issue of a system the compiler cannot compile or flatten.
 
         The tree of the system cannot be flattened, or the compiler does not compile it.
@@ -132,7 +132,7 @@ class OperatorCompiler(BaseCompiler):
         if not self._contains_operator(system):
             message = f'The system {system.label} holds no operator element or group for OperatorCompiler to compile.'
             fix = 'Pass the compiler of the system, or none for PassCompiler.'
-            return [IssueSpec('compiler', system.label, message, fix)]
+            return [_Issue('compiler', system.label, message, fix)]
         try:
             FlattenPass._flatten_system(system)
         except SkcomplexError as error:

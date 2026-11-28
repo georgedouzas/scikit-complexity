@@ -35,8 +35,7 @@ from ...problems._node_spec import _NodeSpec
 from ...problems._reference_spec import ReferenceSpec
 from ...problems._variable_spec import _VariableSpec
 from .._base import BasePass
-from .._census_record_spec import _CensusRecordSpec
-from .._compilation import Compilation
+from .._compilation import Compilation, _CensusRecord
 
 HIDDEN_MEMBERS = '~members'
 MATRIX_AXES = 2
@@ -90,7 +89,7 @@ class LayoutPass(BasePass):
     @staticmethod
     def _copy_with_program_values(
         declarations: DeclarationsSpec,
-        records: Sequence[_CensusRecordSpec],
+        records: Sequence[_CensusRecord],
     ) -> DeclarationsSpec:
         """Return the declarations with the hidden states of linear programs.
 

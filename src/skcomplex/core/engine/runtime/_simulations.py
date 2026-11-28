@@ -632,7 +632,7 @@ class Simulation(BaseConfig[None, float]):
     def _check_report(self, compiler: BaseCompiler) -> None:
         """Raise the issues of the system, naming the solvers that support it."""
         try:
-            compiler.report_._check()
+            compiler._check_report()
         except SolverError as error:
             advice = self._get_solver_advice(compiler)
             raise SolverError(f'{error} {advice}'.strip()) from error

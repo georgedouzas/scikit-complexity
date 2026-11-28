@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ConstraintLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
-from skcomplex.core.engine.compile import IssueSpec
+from skcomplex.core.engine.compile._compilation import _Issue
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import Trajectory
 from skcomplex.core.enums import FormKind
@@ -127,7 +127,7 @@ def _simulated(system: System, **settings: object) -> Trajectory:
     return system.prepare().simulate(until=1.0, **settings)
 
 
-def _issues(system: System, code: str) -> list[IssueSpec]:
+def _issues(system: System, code: str) -> list[_Issue]:
     """Return the issues of a system with a code, read from the composite the compiler checks."""
     return [item for item in PassCompiler().prepare(system._get_composite()).report_.issues if item.code == code]
 

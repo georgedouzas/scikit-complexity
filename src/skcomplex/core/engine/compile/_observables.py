@@ -5,6 +5,7 @@
 
 import copy
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated, Self
 
@@ -22,7 +23,7 @@ from ...components.laws.utils._history import derivative
 from ...components.laws.utils._local_operators import has_operator
 from ...enums import FormKind, VariableKind
 from ...errors import ValidationError
-from ...types import Array, Indices
+from ...types import AnyArray, Array, Indices
 from .._utils import binding_of, bound_labels, declarations_of, symbol, symbols_of, vector
 from ..enums import ReadKind
 from ..problems import BaseProblemSpec, ProblemSpec, RunStateSpec
@@ -45,10 +46,29 @@ from ..problems._reference_spec import ReferenceSpec
 from ..types import AgentsFunction, Declared, ObservableFunction
 from ._base import BaseCompiler, BasePass
 from ._flows import TransferLowering
-from ._held_reduction_spec import _HeldReductionSpec
 from ._member_reductions import _MemberReductions
 from ._members import MemberLowering
 from .passes._complex import LowerComplexPass
+
+
+@dataclass(frozen=True)
+class _HeldReduction:
+    """Reduction of a group that a co-simulation holds between synchronisation points.
+
+    The co-simulation computes it at every synchronisation point and holds it until the next.
+    """
+
+    group: str
+    reduce: str | Callable[[AnyArray], object]
+    variables: tuple[str, ...] = ()
+    symbols: tuple[Expression, ...] = ()
+    argument: Expression | None = None
+    condition: Expression | None = None
+
+    @property
+    def key(self) -> tuple[str, ...]:
+        """Group, reduction, argument, and condition, which identify the reduction."""
+        return (self.group, str(self.reduce), str(self.argument), str(self.condition))
 
 
 class _HeldElement(Element):
@@ -62,7 +82,7 @@ class _HeldElement(Element):
         label: str,
         value: Annotated[float, _StateSpec()] = 0.0,
         *,
-        reduction: '_HeldReductionSpec | None' = None,
+        reduction: _HeldReduction | None = None,
     ) -> None:
         super().__init__(label)
         self.value = value
@@ -122,7 +142,7 @@ class ObservableEvaluator:
         return readers
 
     @staticmethod
-    def _get_held_label(reduction: '_HeldReductionSpec', labels: set[str]) -> str:
+    def _get_held_label(reduction: _HeldReduction, labels: set[str]) -> str:
         """Return a label for the element that holds a reduction of a group.
 
         The label is unique among the labels of its system.
@@ -136,7 +156,7 @@ class ObservableEvaluator:
     @staticmethod
     def _copy_with_held_reductions(
         system: _CompositeSystem,
-        reductions: Sequence['_HeldReductionSpec'],
+        reductions: Sequence[_HeldReduction],
         scope: str = '',
     ) -> _CompositeSystem:
         """Return a system tree that holds every reduction of agents in an element.
@@ -207,7 +227,7 @@ class ObservableEvaluator:
                 )
                 raise ValidationError(error_msg)
             variables = (observable.variable,) if observable.variable is not None else ()
-            reduction = _HeldReductionSpec(
+            reduction = _HeldReduction(
                 ObservableEvaluator._join(scope, observable.group),
                 observable.reduce,
                 variables,
@@ -1168,7 +1188,7 @@ class ObservableEvaluator:
         return lowerable
 
     @staticmethod
-    def _get_held_reductions_of(problem: BaseProblemSpec) -> list[tuple[str, '_HeldReductionSpec']]:
+    def _get_held_reductions_of(problem: BaseProblemSpec) -> list[tuple[str, _HeldReduction]]:
         """Return the reductions a co-simulation computes at synchronisation points.
 
         They come with where it holds them, and they are computed at every such point. A law of one partition reads a

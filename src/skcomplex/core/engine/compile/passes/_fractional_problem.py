@@ -21,9 +21,8 @@ from ...problems._law_kernel import LawKernel
 from ...problems._lowered_kernels_spec import LoweredKernelsSpec
 from .._base import BasePass
 from .._compilation import Compilation
-from .._fractional_state_spec import _FractionalStateSpec
 from ._check_fractional_noise import CheckFractionalNoisePass
-from ._fractional_form import FractionalFormPass
+from ._fractional_form import FractionalFormPass, _FractionalState
 
 
 class FractionalProblemPass(BasePass):
@@ -109,7 +108,7 @@ class FractionalProblemPass(BasePass):
         return tuple(rows)
 
     @staticmethod
-    def _get_state_orders(states: list[_FractionalStateSpec], layout: LayoutSpec) -> Array:
+    def _get_state_orders(states: list[_FractionalState], layout: LayoutSpec) -> Array:
         """Return the order of every state component.
 
         It is 1 for the states outside the fractional ones.
