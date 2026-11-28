@@ -15,9 +15,8 @@ from ...errors import SolverError, ValidationError
 from ...types import Array
 from ..backends import SupportSpec
 from ..problems import ProblemSpec
-from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
-from ._optimal_control import OptimalControlSolver, _ControlSolution
+from ._optimal_control import OptimalControlSolver, _ControlProblem, _ControlSolution
 
 SCHEMES = ('trapezoidal', 'hermite-simpson')
 METHODS = ('SLSQP', 'trust-constr')
@@ -209,7 +208,7 @@ class CollocationSolver(OptimalControlSolver):
             np.concatenate([state_upper, np.tile(upper, points)]),
         )
 
-    def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive the Jacobians of the rates and the gradients of the costs symbolically.
 
         Args:

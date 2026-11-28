@@ -14,13 +14,12 @@ from ..components import Observable
 from ..engine.compile._observables import ObservableEvaluator
 from ..engine.problems import ProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
-from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..enums import DataKind
 from ..errors import AnalysisError
 from ..systems import System
 from ._analysis_tags import AnalysisTags
 from ._base import _get_system, _read_system
-from ._stability import StabilityResult
+from ._stability import StabilityResult, _Dynamics
 from .types import DataSource
 
 TOLERANCE = 1e-9
@@ -74,7 +73,7 @@ class InvariantsResult:
 
     problem: ProblemSpec
     system: System
-    dynamics: _DynamicsSpec
+    dynamics: _Dynamics
     namespace: SimpleNamespace
     rates: dict[str, Expression]
     conserved: dict[str, bool]
@@ -188,7 +187,7 @@ def _evaluate(namespace: SimpleNamespace, expression: Observable) -> Expression:
     return SR(value(scope) if callable(value) else value)
 
 
-def _vanishes(dynamics: _DynamicsSpec, terms: list[Expression], rng: np.random.Generator, samples: int) -> bool:
+def _vanishes(dynamics: _Dynamics, terms: list[Expression], rng: np.random.Generator, samples: int) -> bool:
     """Check whether a sum of terms vanishes.
 
     It vanishes relative to the size of its terms at random states.
@@ -208,7 +207,7 @@ def _vanishes(dynamics: _DynamicsSpec, terms: list[Expression], rng: np.random.G
 
 
 def _decide(
-    dynamics: _DynamicsSpec,
+    dynamics: _Dynamics,
     terms: list[Expression],
     rng: np.random.Generator,
     samples: int,

@@ -17,7 +17,6 @@ from ..engine.backends import JaxBackend
 from ..engine.compile._pass_compiler import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._composite_system import _CompositeSystem
-from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.problems._expression_printer import ExpressionPrinter
 from ..engine.problems._source_loader import SourceLoader
 from ..engine.runtime import Trajectory
@@ -27,7 +26,7 @@ from ..errors import AnalysisError, SkcomplexError
 from ..types import Array, VectorFunction
 from ._analysis_tags import AnalysisTags
 from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
-from ._stability import StabilityResult
+from ._stability import StabilityResult, _Dynamics
 from .types import DataSource, TangentFunction
 
 KINDS = ('spectrum', 'largest')
@@ -356,7 +355,7 @@ def _compute_spectrum(
     return np.sort(np.asarray(exponents))[::-1]
 
 
-def _get_symbolic_functions(dynamics: _DynamicsSpec) -> tuple[VectorFunction, TangentFunction, Array, Array]:
+def _get_symbolic_functions(dynamics: _Dynamics) -> tuple[VectorFunction, TangentFunction, Array, Array]:
     """Return the compiled rates and tangent dynamics of written out equations.
 
     It also returns their start and their parameters. The start is the initial state in the order of the equations,
@@ -446,7 +445,7 @@ def _without_kinks(expression: Expression) -> Expression:
     return SR(expression).subs({abs(wild): wild * sgn(wild)})
 
 
-def _jacobian(dynamics: _DynamicsSpec) -> list[Expression]:
+def _jacobian(dynamics: _Dynamics) -> list[Expression]:
     """Return the entries of the Jacobian of the rates row by row.
 
     The kinks of absolute values become signs.
@@ -458,7 +457,7 @@ def _jacobian(dynamics: _DynamicsSpec) -> list[Expression]:
 
 def _function(
     name: str,
-    dynamics: _DynamicsSpec,
+    dynamics: _Dynamics,
     expressions: list[Expression],
     shape: tuple[int, ...],
 ) -> Callable[..., Array]:

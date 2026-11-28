@@ -18,9 +18,8 @@ from ...errors import SolverError, ValidationError
 from ...types import Array
 from ..backends import SupportSpec
 from ..problems import ProblemSpec
-from ..problems._control_problem_spec import _ControlProblemSpec
 from ..types import Cost, GridFunction
-from ._optimal_control import OptimalControlSolver, _ControlSolution
+from ._optimal_control import OptimalControlSolver, _ControlProblem, _ControlSolution
 
 MIN_RELAXATION = 1e-3
 MIN_NODES = 2
@@ -179,7 +178,7 @@ class PontryaginSolver(OptimalControlSolver):
             return np.where(values > 0, lower, upper)
         return np.clip(values, lower, upper)
 
-    def _set_up_control(self, control_problem: _ControlProblemSpec) -> None:
+    def _set_up_control(self, control_problem: _ControlProblem) -> None:
         """Derive the costate equations, the terminal costates, and the control law.
 
         They are derived symbolically.
