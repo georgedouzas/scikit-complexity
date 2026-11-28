@@ -37,6 +37,7 @@ SETTINGS = {
 }
 MIN_TAIL = 10
 MIN_BLOCKS = 10
+GAUSSIAN_TOLERANCE = 1e-6
 TAGS = AnalysisTags(DataKind.SERIES)
 
 
@@ -85,14 +86,14 @@ class FitLawResult:
             The stability index of the stable law, 2 for the normal law, for `'stable'`.
 
         skewness:
-            The skewness of the stable law, for `'stable'`.
+            The skewness of the stable law, 0 at an index of 2, where it is not identified, for `'stable'`.
 
         shape:
             The shape `xi` of the extreme-value law, 0 for the Gumbel class, positive for the Fréchet class of heavy
             tails, and negative for the Weibull class of bounded tails, for `'extreme-value'`.
 
         location:
-            The location of the stable or the extreme-value law.
+            The location of the stable law in the `S0` parametrisation, or of the extreme-value law.
 
         scale:
             The scale of the stable or the extreme-value law.
@@ -169,10 +170,13 @@ def fit_law(
             `bootstrap` samples whose distance exceeds that of the data, and the law is compared with every alternative
             of `compare_with` by a likelihood ratio test. Discrete samples use the exact discrete likelihood, and the
             warnings of `powerlaw` about its optimiser are silenced. `'stable'` fits the Lévy stable law by the quantile
-            method of McCulloch, in the `S1` parameters of SciPy. `'extreme-value'` fits the generalized extreme value
-            law by maximum likelihood to the maxima of blocks of `block` samples. `'exponential'`, `'normal'`,
-            `'lognormal'`, `'gamma'`, `'maxwell'`, `'rayleigh'`, and `'uniform'` fit the free parameters of the named
-            law and test it with a Monte Carlo Kolmogorov-Smirnov test that accounts for the fit.
+            method of McCulloch, and reports its location in the `S0` parametrisation of Nolan, which is continuous in
+            the index. It is `loc1 + beta * scale * tan(pi * alpha / 2)` for the location `loc1` of SciPy's default
+            `S1`, or `loc1 + beta * scale * 2 / pi * log(scale)` at an index of 1. `'extreme-value'` fits the
+            generalized extreme value law by maximum likelihood to the maxima of blocks of `block` samples.
+            `'exponential'`, `'normal'`, `'lognormal'`, `'gamma'`, `'maxwell'`, `'rayleigh'`, and `'uniform'` fit the
+            free parameters of the named law and test it with a Monte Carlo Kolmogorov-Smirnov test that accounts for
+            the fit.
 
         variables:
             The variables of a trajectory to read, or `None` for every scalar series.
@@ -278,15 +282,7 @@ def fit_law(
                 random_state=random_state,
             )
     if law == 'stable':
-        index, skewness, location, scale = stats.levy_stable.fit(values, optimizer=_starting_point)
-        return FitLawResult(
-            values,
-            labels,
-            index=float(index),
-            skewness=float(skewness),
-            location=float(location),
-            scale=float(scale),
-        )
+        return _fit_stable(values, labels)
     if law == 'extreme-value':
         return _fit_extreme_value(values, labels, block)
     result = stats.goodness_of_fit(
@@ -429,6 +425,20 @@ def _fit_extreme_value(values: Array, labels: list[str], block: int | None) -> F
     )
 
 
+def _fit_stable(values: Array, labels: list[str]) -> FitLawResult:
+    """Return the stable law of McCulloch's quantile estimate, located in `S0`.
+
+    The skewness is 0 at an index of 2, where it is not identified.
+    """
+    index, skewness, location, scale = (float(value) for value in stats.levy_stable._fitstart(values))
+    if stats.levy_stable.parameterization == 'S1':
+        shift = 2 / np.pi * np.log(scale) if index == 1 else np.tan(np.pi * index / 2)
+        location += skewness * scale * float(shift)
+    if abs(index - 2) < GAUSSIAN_TOLERANCE:
+        skewness = 0.0
+    return FitLawResult(values, labels, index=index, skewness=skewness, location=location, scale=scale)
+
+
 def _fit_at(array: Array, minimum: float, maximum: float | None, *, discrete: bool) -> powerlaw.Fit:
     """Return the maximum-likelihood power law of the samples between the cutoffs."""
     return powerlaw.Fit(
@@ -484,11 +494,3 @@ def _sample_power_law(
     if discrete:
         return np.floor((minimum - 0.5) * (1 - uniform) ** (-1 / (alpha - 1)) + 0.5)
     return minimum * (1 - uniform) ** (-1 / (alpha - 1))
-
-
-def _starting_point(_: object, start: Array, *__: object, **___: object) -> Array:
-    """Return SciPy's starting point of a fit.
-
-    For stable laws it is McCulloch's quantile estimate, unchanged.
-    """
-    return start

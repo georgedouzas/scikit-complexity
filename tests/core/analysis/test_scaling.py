@@ -36,6 +36,17 @@ def _sierpinski(size: int) -> np.ndarray:
     return (rows & columns) == columns
 
 
+def _sierpinski_chaos_game(size: int, rng: np.random.Generator) -> np.ndarray:
+    """Return points of the chaos game of a Sierpinski triangle, each halfway to a random corner."""
+    corners = np.asarray([[0.0, 0.0], [1.0, 0.0], [0.5, np.sqrt(3) / 2]])
+    points = np.zeros((size, 2))
+    point = np.asarray([0.1, 0.1])
+    for index, corner in enumerate(rng.integers(3, size=size)):
+        point = (point + corners[corner]) / 2
+        points[index] = point
+    return points
+
+
 def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
     """Return states of the Lorenz-63 flow every `step` after a transient of 100, one row per sample."""
 
@@ -90,6 +101,24 @@ def test_detrended_fluctuation_rejects_short_series():
 def test_sierpinski_dimension():
     """Test that the box-counting dimension of a Sierpinski triangle is within 0.05 of log 3 / log 2."""
     assert _scaling('box-counting', _sierpinski(1024)).exponent == pytest.approx(np.log(3) / np.log(2), abs=0.05)
+
+
+def test_box_counting_of_chaos_game_points():
+    """Test that 50000 chaos game points of a Sierpinski triangle have a dimension near log 3 / log 2."""
+    points = _sierpinski_chaos_game(50_000, np.random.default_rng(0))
+    expected = np.log(3) / np.log(2)
+    assert _scaling('box-counting', points).exponent == pytest.approx(expected, abs=0.05)
+    assert _scaling('box-counting', points, points=True).exponent == pytest.approx(expected, abs=0.05)
+
+
+def test_box_counting_rejects_thin_grids():
+    """Test that a grid thinner than its largest box raises an error naming the short side."""
+    grid = np.zeros((1, 512))
+    grid[0, ::3] = 1
+    with pytest.raises(AnalysisError, match='side 1 along axis 0'):
+        _scaling('box-counting', grid)
+    with pytest.raises(AnalysisError, match='side 1 along axis 0'):
+        _scaling('box-counting', grid, scales=[2, 4, 8])
 
 
 def test_correlation_dimension_of_attractors_and_agents():

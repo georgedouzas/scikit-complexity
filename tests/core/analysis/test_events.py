@@ -116,6 +116,16 @@ def test_excursions_of_an_activity_series():
     assert [shape.size for shape in found.shapes] == [2, 1]
 
 
+def test_branching_ratio_prints_nothing_and_warns(capsys: pytest.CaptureFixture[str]):
+    """Test that a branching ratio prints nothing and raises the messages of its estimator as warnings."""
+    activity = _branching_activity(np.random.default_rng(0), 0.98, 5.0, 300)
+    with pytest.warns(RuntimeWarning, match='autocorrelationtime'):
+        _events('branching', activity, max_step=40)
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert captured.err == ''
+
+
 def test_branching_ratio_subsampled_network():
     """Test that a branching network with ratio 0.98 gives 0.98 from all units and from 5 percent of them."""
     rng = np.random.default_rng(2)

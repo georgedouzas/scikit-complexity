@@ -130,6 +130,22 @@ def test_stable_law_of_cauchy_sums():
     assert _fit('stable', sums).index == pytest.approx(1, abs=0.15)
 
 
+@pytest.mark.parametrize('index', [0.98, 1.02])
+def test_stable_law_location_is_continuous_near_index_one(index: float):
+    """Test that skewed stable samples of S0 location 0 near index 1 fit a location near 0."""
+    law = stats.levy_stable(index, 0.5)
+    law.parameterization = 'S0'
+    fit = _fit('stable', law.rvs(size=2000, random_state=np.random.default_rng(0)))
+    assert fit.location == pytest.approx(0, abs=0.1)
+
+
+def test_stable_law_of_normal_samples_has_no_skewness():
+    """Test that normal samples fit a stable law of index 2 and skewness 0."""
+    fit = _fit('stable', np.random.default_rng(0).normal(size=2000))
+    assert fit.index == pytest.approx(2)
+    assert fit.skewness == 0
+
+
 def test_named_law_boltzmann_law_on_two_domains():
     """Test that gas energies and exchanged money are exponential at the energy per molecule and money per agent."""
     velocities = np.asarray(IdealGasSystem().prepare().simulate(random_state=0).get_values("gas.x'"), dtype=float)

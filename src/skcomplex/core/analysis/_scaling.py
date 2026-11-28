@@ -34,7 +34,7 @@ AGAINST = ('mean', 'size')
 SETTINGS = {
     'detrended-fluctuation': {'scales', 'order'},
     'rescaled-range': {'scales'},
-    'box-counting': {'scales'},
+    'box-counting': {'scales', 'points'},
     'correlation-dimension': {'scales', 'fit_sums', 'random_state'},
     'variance-mean': {'scales', 'against'},
     'power': {'parameters', 'critical', 'above'},
@@ -46,6 +46,8 @@ PAIR_SAMPLE = 200_000
 MIN_POINTS = 2
 FRAME_DIMENSIONS = 3
 PAIR_COLUMNS = 2
+POINT_DIMENSIONS = 2
+SMALLEST_DEFAULT_SIDE = 8
 TAGS = AnalysisTags(DataKind.SERIES)
 KIND_TAGS = {
     'box-counting': AnalysisTags(DataKind.FIELD),
@@ -142,6 +144,7 @@ def scaling(
     above: bool = False,
     confidence: float = 0.95,
     resamples: int = 1000,
+    points: bool | None = None,
 ) -> ScalingResult:
     """Return the scaling exponent of series, fractal dimension of points, or a law.
 
@@ -163,7 +166,8 @@ def scaling(
             gives the Hurst exponent by the rescaled range, 0.5 for uncorrelated noise, above 0.5 for persistent and
             below 0.5 for anti-persistent noise. `'box-counting'` gives the box counting dimension of the occupied
             cells of a field, the slope of the log box count against the log box size, read from the last frame of a
-            trajectory. `'correlation-dimension'` gives the correlation dimension of Grassberger and Procaccia of a
+            trajectory. For points, one row per point, it counts the distinct boxes `floor((x - min) / side)` at every
+            box side. `'correlation-dimension'` gives the correlation dimension of Grassberger and Procaccia of a
             point set, one row per point, such as the columns of an embedded series, from tree counts of close pairs.
             `'variance-mean'` gives the mean and the standard deviation of a quantity at every scale, and the slope of
             `log deviation` against `log mean` with `against='mean'`, or of `log (deviation / mean)` against `log size`
@@ -181,9 +185,10 @@ def scaling(
             The variables of a trajectory to read, or `None` for every scalar series, or the first field for a field.
 
         scales:
-            The window sizes, the box sides in cells, or the radii, or `None` for windows spaced logarithmically up
-            to a tenth of the series, powers of 2 up to an eighth of the smallest side, or a quarter of it for
-            `'variance-mean'`, or 30 radii spaced logarithmically over the range of pair distances.
+            The window sizes, the box sides in cells or in the units of the points, or the radii, or `None` for windows
+            spaced logarithmically up to a tenth of the series, powers of 2 up to an eighth of the smallest side, or a
+            quarter of it for `'variance-mean'`, the widest extent of the points over powers of 2 from 2 until there
+            are about as many boxes as points, or 30 radii spaced logarithmically over the range of pair distances.
 
         order:
             The order of the detrending polynomial.
@@ -213,13 +218,18 @@ def scaling(
         resamples:
             The number of bootstrap resamples of `'allometric'`.
 
+        points:
+            Whether `'box-counting'` reads an array of shape `(N, d)` as points rather than as a grid, or `None` to
+            read it as points when `N > d > 1` and its values are not all 0 and 1.
+
     Returns:
         result:
             What the source was read as, the exponent, and the curves it is fitted on.
 
     Raises:
         AnalysisError:
-            The kind or a setting does not fit, or `'allometric'` reads a sample or a size that is not positive, or
+            The kind or a setting does not fit, a grid of `'box-counting'` has a side shorter than its largest box,
+            or `'allometric'` reads a sample or a size that is not positive, or
             fewer than two sizes.
 
     See Also:
@@ -251,6 +261,7 @@ def scaling(
         above=above,
         confidence=confidence,
         resamples=resamples,
+        points=points,
     )
     _check(kind, order, parameters=parameters, critical=critical, confidence=confidence, resamples=resamples)
     values, samples, labels = _read(source, kind, variables)
@@ -274,7 +285,8 @@ def scaling(
             interval=(float(result.confidence_interval.low), float(result.confidence_interval.high)),
         )
     if kind == 'box-counting':
-        sides, counts, dimension = _box_counting(values, scales)
+        as_points = _is_points(source, values) if points is None else points
+        sides, counts, dimension = _count_point_boxes(values, scales) if as_points else _box_counting(values, scales)
         return ScalingResult(values, samples, labels, dimension, scales=sides, counts=counts)
     if kind == 'variance-mean':
         moments = _size_moments(samples) if samples is not None else _box_moments(values, scales)
@@ -488,10 +500,35 @@ def _power_exponent(values: Array, parameters: Sequence[float] | None, critical:
     return float(np.polyfit(np.log(distance[inside]), np.log(values[inside]), 1)[0])
 
 
+def _is_points(source: object, values: Array) -> bool:
+    """Return whether an array of shape `(N, d)` holds points rather than a grid."""
+    if isinstance(source, Trajectory) or values.ndim != POINT_DIMENSIONS:
+        return False
+    rows, columns = values.shape
+    return rows > columns > 1 and not np.isin(values, (0, 1)).all()
+
+
+def _check_grid(grid: Array, largest: int) -> None:
+    """Raise an error for a grid with a side shorter than its largest box."""
+    for axis, size in enumerate(grid.shape):
+        if size < largest:
+            error_msg = (
+                f'Box counting has a grid of shape {grid.shape} whose side {size} along axis {axis} is shorter than '
+                f'the largest box of side {largest}. Pass smaller `scales`, or the set as a 1-D array.'
+            )
+            raise AnalysisError(error_msg)
+
+
 def _box_counting(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None = None) -> tuple[Array, Array, float]:
     """Return the box sides, the counts, and the box-counting dimension of a cell set."""
     grid = np.asarray(occupied, dtype=bool)
-    sides = 2 ** np.arange(int(np.log2(min(grid.shape) // 8)) + 1) if sizes is None else np.asarray(sizes, dtype=int)
+    if sizes is None:
+        smallest = max(min(grid.shape) // SMALLEST_DEFAULT_SIDE, 1)
+        sides = 2 ** np.arange(int(np.log2(smallest)) + 1)
+        _check_grid(grid, SMALLEST_DEFAULT_SIDE)
+    else:
+        sides = np.asarray(sizes, dtype=int)
+        _check_grid(grid, int(np.max(sides)))
     counts = []
     for side in sides:
         trimmed = grid[tuple(slice(0, size - size % side) for size in grid.shape)]
@@ -500,6 +537,26 @@ def _box_counting(occupied: npt.ArrayLike, sizes: npt.ArrayLike | None = None) -
         counts.append(boxes.sum())
     dimension = float(-np.polyfit(np.log(sides), np.log(counts), 1)[0])
     return np.asarray(sides, dtype=float), np.asarray(counts, dtype=float), dimension
+
+
+def _count_point_boxes(points: Array, sizes: npt.ArrayLike | None = None) -> tuple[Array, Array, float]:
+    """Return the box sides, the counts, and the box-counting dimension of points."""
+    if points.ndim != POINT_DIMENSIONS:
+        error_msg = f'Box counting of points reads one row per point, not an array of shape {points.shape}.'
+        raise AnalysisError(error_msg)
+    lowest = points.min(axis=0)
+    extent = float(np.max(points.max(axis=0) - lowest))
+    if sizes is None:
+        halvings = max(int(np.log2(points.shape[0]) / points.shape[1]), 2)
+        sides = np.asarray(extent / 2.0 ** np.arange(1, halvings + 1), dtype=np.float64)
+    else:
+        sides = np.asarray(sizes, dtype=np.float64)
+    counts = np.asarray(
+        [np.unique(np.floor((points - lowest) / side).astype(np.int64), axis=0).shape[0] for side in sides],
+        dtype=float,
+    )
+    dimension = float(-np.polyfit(np.log(sides), np.log(counts), 1)[0])
+    return sides, counts, dimension
 
 
 def _pair_distances(points: Array, rng: np.random.Generator) -> Array:
