@@ -16,5 +16,5 @@
 
 ## 4. Close
 
-- [ ] 4.1 Run the fast checks, the tests of the changed modules, and the full CI on `development`
-- [ ] 4.2 Close issues #45 to #48 with a comment naming the commit
+- [x] 4.1 Run the fast checks, the tests of the changed modules, and the full CI on `development`
+- [x] 4.2 Close issues #45 to #48 with a comment naming the commit
