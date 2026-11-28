@@ -87,3 +87,13 @@ tables every step when `annealed=True`.
 #### Scenario: Annealed overlap
 - **WHEN** two copies of an annealed network with `k=2` and `bias=0.5` start at a small distance
 - **THEN** their distance follows the annealed approximation of Derrida and Pomeau
+
+## MODIFIED Requirements
+
+### Requirement: Pólya urns draw once per step in discrete time
+`PolyaUrnSystem(time='discrete')` SHALL draw exactly one ball in every urn per step, and its docstring SHALL say that
+in continuous time the draws happen at the times of a Poisson process of rate 1.
+
+#### Scenario: Two reds in two draws
+- **WHEN** many urns with `balls=(1, 1)` run two discrete steps
+- **THEN** the share with two balls added to the first colour is close to 1/3

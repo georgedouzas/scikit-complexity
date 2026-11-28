@@ -31,5 +31,5 @@
 
 ## 5. Close
 
-- [ ] 5.1 Run the convention checks, ruff, black, mypy and lint-imports on the changed files
+- [x] 5.1 Run the convention checks, ruff, black, mypy and lint-imports on the changed files
 - [ ] 5.2 Run the test groups of the changed modules, push, and close #49 to #58 with a comment each
