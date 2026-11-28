@@ -24,9 +24,8 @@ from ...base import BaseConfig
 from ...components.elements import Element
 from ...errors import ValidationError
 from ._expressions import INTERPOLATED, _ExpressionWriter
-from ._module_writer import _ModuleWriter
-from ._run_settings_spec import RunSettingsSpec
-from ._system_variables_spec import _SystemVariablesSpec
+from ._module_writer import _ModuleWriter, _RunSettings
+from ._system_variables import _SystemVariables
 
 VENSIM_SUFFIX = '.mdl'
 XMILE_SUFFIXES = ('.xmile', '.xml', '.stmx')
@@ -67,15 +66,16 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             The Python source of the system module.
 
         settings_:
-            The run settings of the control section of the file.
+            The run settings of the control section of the file, with the time `start` of the file at the start of
+            a run, the length `until` of a run, the time step `dt`, and the time `save_every` between saved values.
 
     Raises:
         ValidationError:
             The path names no file of a known format, or the name is not an identifier, raised by `prepare`. The file
-            uses features without a counterpart, or names that clash, all of them listed, raised by `run`.
+            uses features without a counterpart, or names that clash, all of them listed, or its run length, time step,
+            or saving interval is not positive, raised by `run`.
 
     See Also:
-        RunSettingsSpec: The run settings of the file.
         StockFlowSystem: The base of the translated stock and flow models.
 
     Examples:
@@ -184,7 +184,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         elif ast.type != INTERPOLATED:
             problems.append(f'{element.name}: a lookup of the type {ast.type}')
         else:
-            lookups[_SystemVariablesSpec.get_name(element.name)] = ast
+            lookups[_SystemVariables.get_name(element.name)] = ast
 
     @staticmethod
     def _read_stock(element: AbstractElement, stocks: dict[str, IntegStructure], problems: list[str]) -> None:
@@ -192,9 +192,9 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         if len(element.components) > 1:
             problems.append(f'{element.name}: a stock defined apart for every subscript')
         else:
-            stocks[_SystemVariablesSpec.get_name(element.name)] = element.components[0].ast
+            stocks[_SystemVariables.get_name(element.name)] = element.components[0].ast
 
-    def _read_variables(self, problems: list[str]) -> _SystemVariablesSpec:
+    def _read_variables(self, problems: list[str]) -> _SystemVariables:
         """Return the variables of the main section sorted by what they become.
 
         It collects what cannot become any.
@@ -212,7 +212,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         auxiliaries: dict[str, Sequence[AbstractComponent]] = {}
         lookups: dict[str, LookupsStructure] = {}
         for element in elements:
-            name = _SystemVariablesSpec.get_name(element.name)
+            name = _SystemVariables.get_name(element.name)
             constant = self._read_constant(element, members)
             if isinstance(element.components[0], AbstractLookup):
                 self._read_lookup(element, lookups, problems)
@@ -222,10 +222,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 constants[name] = constant
             else:
                 auxiliaries[name] = element.components
-        return _SystemVariablesSpec(
-            originals={_SystemVariablesSpec.get_name(element.name): element.name for element in elements},
+        return _SystemVariables(
+            originals={_SystemVariables.get_name(element.name): element.name for element in elements},
             controls={
-                _SystemVariablesSpec.get_name(item.name): item.components[0].ast
+                _SystemVariables.get_name(item.name): item.components[0].ast
                 for item in main.elements
                 if isinstance(item, AbstractControlElement)
             },
@@ -238,7 +238,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             range_name=range_name,
         )
 
-    def _check_subscripts(self, variables: _SystemVariablesSpec, problems: list[str]) -> None:
+    def _check_subscripts(self, variables: _SystemVariables, problems: list[str]) -> None:
         """Collect the variables subscripted over another range than that of the stocks.
 
         This includes variables subscripted over more than one range.
@@ -252,13 +252,13 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                     elif subscripts and variables.get_covered(component) is None:
                         problems.append(f'{element.name}: a variable subscripted over {subscripts[0]}')
 
-    def _check_names(self, variables: _SystemVariablesSpec, label: str, problems: list[str]) -> None:
+    def _check_names(self, variables: _SystemVariables, label: str, problems: list[str]) -> None:
         """Collect the names that collide, clash with the module, or are no identifiers."""
         seen: dict[str, list[str]] = {}
         for section in self.system_.sections:
             for element in section.elements:
                 if not isinstance(element, AbstractControlElement):
-                    seen.setdefault(_SystemVariablesSpec.get_name(element.name), []).append(element.name)
+                    seen.setdefault(_SystemVariables.get_name(element.name), []).append(element.name)
         for name, originals in seen.items():
             if len(originals) > 1:
                 problems.append(f'{" and ".join(originals)}: names that both become {name} in Python')
@@ -272,10 +272,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     @staticmethod
     def _read_settings(
-        variables: _SystemVariablesSpec,
+        variables: _SystemVariables,
         expressions: _ExpressionWriter,
         problems: list[str],
-    ) -> RunSettingsSpec:
+    ) -> _RunSettings:
         """Return the run settings of the control section.
 
         Its length runs from its start.
@@ -287,7 +287,25 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 problems.append(f'{name}: a control value not known before a run')
             values[name] = 0.0 if value is None else value
         start = values['initial_time']
-        return RunSettingsSpec(start, values['final_time'] - start, values['time_step'], values['saveper'])
+        return _RunSettings(start, values['final_time'] - start, values['time_step'], values['saveper'])
+
+    @staticmethod
+    def _check_settings(settings: _RunSettings) -> None:
+        """Raise an error for a run length, time step, or saving interval not positive.
+
+        Args:
+            settings:
+                The run settings of the file.
+
+        Raises:
+            ValidationError:
+                The length of the run, the time step, or the saving interval is not positive.
+        """
+        for name in ('until', 'dt', 'save_every'):
+            value = getattr(settings, name)
+            if not value > 0:
+                error_msg = f'The run setting {name} is {value!r}. Give a positive number.'
+                raise ValidationError(error_msg)
 
     def _run(self, inputs: None) -> None:
         """Translate the abstract system.
@@ -300,12 +318,13 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
         Raises:
             ValidationError:
-                The file has constructs without a counterpart, or names that clash, all of them listed.
+                The file has constructs without a counterpart, or names that clash, all of them listed, or its run
+                length, time step, or saving interval is not positive.
         """
         problems: list[str] = []
         variables = self._read_variables(problems)
         stem = Path(self.path).stem
-        label = self.name or _SystemVariablesSpec.get_name(stem)
+        label = self.name or _SystemVariables.get_name(stem)
         self._check_subscripts(variables, problems)
         self._check_names(variables, label, problems)
         expressions = _ExpressionWriter(variables, problems, set())
@@ -318,6 +337,6 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                 f'translated:\n{listed}'
             )
             raise ValidationError(error_msg)
-        settings._check()
+        self._check_settings(settings)
         self.settings_ = settings
         self.source_ = source

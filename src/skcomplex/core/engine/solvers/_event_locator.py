@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from dataclasses import dataclass
 
 import numpy as np
 from scipy.optimize import brentq
@@ -13,9 +14,36 @@ from ...types import Array
 from ..problems import BaseRecordSpec, ProblemSpec, RunStateSpec
 from ..problems._event_kernel import EventKernel
 from ..types import Interpolant
-from ._event_record_spec import _EventRecordSpec
 
 SEPARATION = 1e-10
+
+
+@dataclass(frozen=True)
+class _EventRecordSpec(BaseRecordSpec):
+    """A spec of the record of an event that happened during a run.
+
+    Args:
+        label:
+            The name of the event.
+
+        time:
+            The time of the crossing.
+
+        before:
+            The state vector at the crossing, before the reset.
+
+        after:
+            The state vector after the reset.
+
+        member:
+            The member of the group whose event it is, or `None` for an event of single elements.
+    """
+
+    label: str
+    time: float
+    before: Array
+    after: Array
+    member: int | None = None
 
 
 class EventLocator:

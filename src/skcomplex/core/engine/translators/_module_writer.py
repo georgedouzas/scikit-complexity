@@ -6,12 +6,12 @@
 import re
 import textwrap
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 from pysd.translators.structures.abstract_expressions import ArithmeticStructure
 
 from ._expressions import SAGE_MODULE, UTILITIES_MODULE, _ExpressionWriter
-from ._run_settings_spec import RunSettingsSpec
-from ._system_variables_spec import _GoalSeekingSpec, _SystemVariablesSpec
+from ._system_variables import _SystemVariables
 
 LINE_LENGTH = 120
 INDENT = '    '
@@ -148,13 +148,37 @@ SOLVERS_MODULE = 'skcomplex.core.engine.solvers'
 BACKENDS_MODULE = 'skcomplex.core.engine.backends'
 
 
+@dataclass(frozen=True)
+class _RunSettings:
+    """Run settings of a model file: its start, length, and steps.
+
+    Args:
+        start:
+            The time of the file at the start of a run.
+
+        until:
+            The length of a run, the end time of the file minus `start`.
+
+        dt:
+            The time step.
+
+        save_every:
+            The time between saved values.
+    """
+
+    start: float
+    until: float
+    dt: float
+    save_every: float
+
+
 class _ModuleWriter:
     """Writer of the source of a system module, one block of source per component."""
 
     def __init__(
         self,
-        variables: _SystemVariablesSpec,
-        settings: RunSettingsSpec,
+        variables: _SystemVariables,
+        settings: _RunSettings,
         label: str,
         stem: str,
         expressions: _ExpressionWriter,
@@ -317,16 +341,17 @@ class _ModuleWriter:
             imports.add((STOCK_FLOW_MODULE, 'FlowInteraction'))
         return functions, interactions
 
-    def _write_relaxation(self, stock: str, form: _GoalSeekingSpec) -> tuple[list[str], str, str]:
+    def _write_relaxation(self, stock: str, form: tuple[object, object, bool]) -> tuple[list[str], str, str]:
         """Return the functions, rate source, and rate label of a goal-seeking stock.
 
         The rate is `(goal - stock) / time` of the functions of the goal and the time.
         """
         expressions = self.expressions
         original = self.variables.originals[stock]
-        goal = expressions.write(form.goal, original)
-        scale = expressions.write(form.scale, original)
-        time = scale if form.is_time else f'1 / ({scale})'
+        goal_ast, scale_ast, is_time = form
+        goal = expressions.write(goal_ast, original)
+        scale = expressions.write(scale_ast, original)
+        time = scale if is_time else f'1 / ({scale})'
         name = self._get_label(f'{stock}_adjustment')
         functions = [
             self._write_function(

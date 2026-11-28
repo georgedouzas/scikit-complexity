@@ -21,25 +21,11 @@ from pysd.translators.structures.abstract_expressions import (
 )
 from pysd.translators.structures.abstract_model import AbstractComponent
 
-from ...base import BaseSpec
-
 DELAYS = (DelayStructure, DelayNStructure, SmoothStructure, SmoothNStructure)
 
 
 @dataclass(frozen=True)
-class _GoalSeekingSpec(BaseSpec):
-    """Form `(goal - stock) / time` of a net rate.
-
-    It is `(goal - stock) * rate` when the scale is no time.
-    """
-
-    goal: object
-    scale: object
-    is_time: bool
-
-
-@dataclass(frozen=True)
-class _SystemVariablesSpec(BaseSpec):
+class _SystemVariables:
     """Variables of a system file by snake-case name, sorted by kind.
 
     The kinds are stocks, constants, auxiliaries, and lookups.
@@ -66,7 +52,7 @@ class _SystemVariablesSpec(BaseSpec):
 
         It returns the empty string for anything else.
         """
-        return _SystemVariablesSpec.get_name(ast.reference) if isinstance(ast, ReferenceStructure) else ''
+        return _SystemVariables.get_name(ast.reference) if isinstance(ast, ReferenceStructure) else ''
 
     @staticmethod
     def get_subscripts(ast: ReferenceStructure) -> Sequence[str]:
@@ -92,11 +78,11 @@ class _SystemVariablesSpec(BaseSpec):
             yield sign, ast
             return
         if ast.operators == ['negative']:
-            yield from _SystemVariablesSpec._split_terms(ast.arguments[0], -sign)
+            yield from _SystemVariables._split_terms(ast.arguments[0], -sign)
             return
         signs = (1, *(1 if symbol == '+' else -1 for symbol in ast.operators))
         for term_sign, argument in zip(signs, ast.arguments, strict=True):
-            yield from _SystemVariablesSpec._split_terms(argument, sign * term_sign)
+            yield from _SystemVariables._split_terms(argument, sign * term_sign)
 
     def _holds(self, ast: object, is_match: Callable[[object], bool], visited: set[str]) -> bool:
         """Check that an expression holds a match, directly or through auxiliaries.
@@ -162,10 +148,11 @@ class _SystemVariablesSpec(BaseSpec):
         """Check that an expression reads a stock, directly or through auxiliaries."""
         return self._holds(ast, lambda item: self.get_reference(item) == stock, set())
 
-    def get_goal_seeking(self, stock: str, terms: Sequence[tuple[int, object]]) -> _GoalSeekingSpec | None:
+    def get_goal_seeking(self, stock: str, terms: Sequence[tuple[int, object]]) -> tuple[object, object, bool] | None:
         """Return the goal-seeking form of the remaining terms of a stock.
 
-        It returns `None` for any other form.
+        The form `(goal - stock) / time` is the goal, the scale, and `True`, and `(goal - stock) * rate` ends with
+        `False`. It returns `None` for any other form.
         """
         if len(terms) != 1 or terms[0][0] < 0 or not isinstance(terms[0][1], ArithmeticStructure):
             return None
@@ -179,7 +166,7 @@ class _SystemVariablesSpec(BaseSpec):
         goal = ArithmeticStructure(rest, gap.arguments[:-1]) if rest else gap.arguments[0]
         if self._reads_stock(goal, stock) or self._reads_stock(scale, stock):
             return None
-        return _GoalSeekingSpec(goal, scale, term.operators == ['/'])
+        return goal, scale, term.operators == ['/']
 
     def _add_ordered(self, name: str, ordered: list[str], visiting: list[str], problems: list[str]) -> None:
         """Add an auxiliary after those it reads, and collect one that reads itself."""

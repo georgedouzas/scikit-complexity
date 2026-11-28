@@ -13,7 +13,7 @@ from ..engine.problems import LayoutSpec, ProblemSpec
 from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime._simulations import Simulation
 from ..engine.solvers import Solver
-from ..engine.solvers._event_record_spec import _EventRecordSpec
+from ..engine.solvers._event_locator import _EventRecordSpec
 from ..enums import DataKind, FormKind
 from ..errors import AnalysisError
 from ..types import Array

@@ -12,7 +12,7 @@ from skcomplex.core.analysis import loops
 from skcomplex.core.components import Observable
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.engine.solvers import EulerSolver
-from skcomplex.core.engine.translators import RunSettingsSpec, SystemDynamicsTranslator
+from skcomplex.core.engine.translators import SystemDynamicsTranslator
 from skcomplex.core.errors import ConservationError, IncompatibleLawsError, ValidationError
 from skcomplex.core.systems import BaseSystem
 from skcomplex.systems.general.dynamics import FlowInteraction, StockFlowSystem
@@ -124,7 +124,8 @@ def test_run_teacup_runs_like_pysd(fixtures_folder, translate, file_name):
 def test_run_keeps_settings_of_the_file(fixtures_folder):
     """Test that the settings hold the control section, whose length runs from the initial time."""
     translator = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').prepare().run()
-    assert translator.settings_ == RunSettingsSpec(start=10.0, until=20.0, dt=0.125, save_every=0.25)
+    settings = translator.settings_
+    assert (settings.start, settings.until, settings.dt, settings.save_every) == (10.0, 20.0, 0.125, 0.25)
     assert 'START = 10.0' in translator.source_
     assert 'UNTIL = 20.0' in translator.source_
     assert 'SAVE_EVERY = 0.25' in translator.source_
@@ -484,6 +485,28 @@ def test_run_keeps_the_values_of_initial_expressions(tmp_path):
         'f: float = -10.0',
     ):
         assert declaration in source
+
+
+def test_run_accepts_a_negative_start(tmp_path):
+    """Test that a run may start at a negative time of the file."""
+    text = CONTROL.replace('INITIAL TIME = 0', 'INITIAL TIME = -5')
+    path = tmp_path / 'system.mdl'
+    path.write_text('Level = INTEG(Level, 1) ~ ~ |\n' + text)
+    settings = SystemDynamicsTranslator(path).prepare().run().settings_
+    assert (settings.start, settings.until) == (-5.0, 9.0)
+
+
+@pytest.mark.parametrize(
+    ('control', 'name'),
+    [('FINAL TIME = 4', 'until'), ('TIME STEP = 0.25', 'dt'), ('SAVEPER = 1', 'save_every')],
+)
+def test_run_rejects_a_setting_that_is_not_positive(tmp_path, control, name):
+    """Test that a run length, a time step, or a saving interval that is not positive raises an error."""
+    zero = control.split('=')[0] + '= 0'
+    path = tmp_path / 'system.mdl'
+    path.write_text('Level = INTEG(Level, 1) ~ ~ |\n' + CONTROL.replace(control, zero))
+    with pytest.raises(ValidationError, match=f'run setting {name}'):
+        SystemDynamicsTranslator(path).prepare().run()
 
 
 @pytest.mark.parametrize('path', ['system.txt', 'missing.mdl'])

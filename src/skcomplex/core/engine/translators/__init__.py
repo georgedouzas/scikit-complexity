@@ -4,10 +4,8 @@ A translator reads a model file, such as a stock and flow model of Vensim, and w
 module that builds the same model on elements and interactions.
 """
 
-from ._run_settings_spec import RunSettingsSpec
 from ._system_dynamics import SystemDynamicsTranslator
 
 __all__: list[str] = [
-    'RunSettingsSpec',
     'SystemDynamicsTranslator',
 ]

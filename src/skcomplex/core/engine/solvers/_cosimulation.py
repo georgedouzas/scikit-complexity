@@ -31,9 +31,9 @@ from ..problems import AgentSnapshotSpec, ProblemSpec
 from ..problems._expression_printer import ExpressionPrinter
 from ..problems._partition_spec import PartitionSpec
 from ..problems._reduction_kernel import ReductionKernel
-from ._agent_state_spec import _AgentStateSpec
 from ._base import BaseSolver
 from ._defaults import DEFAULT_SOLVERS
+from ._mesa import _AgentState
 from ._metropolis import MetropolisSolver
 from ._solver import Solver
 from ._step_spec import StepSpec
@@ -406,11 +406,11 @@ class CoSimulationSolver(Solver):
         agents: dict[str, list[object]] = {}
         for stepper in self.steppers_.values():
             external = stepper.snapshot_
-            if isinstance(external, _AgentStateSpec):
+            if isinstance(external, _AgentState):
                 groups.update(external.groups)
                 reporters.update(external.reporters)
             agents.update(stepper.agents_)
-        self.snapshot_ = _AgentStateSpec(groups, reporters) if groups or reporters else None
+        self.snapshot_ = _AgentState(groups, reporters) if groups or reporters else None
         self.agents_ = agents
 
     def _release(self) -> None:
