@@ -100,17 +100,17 @@ def test_benjamini_hochberg_links_match_scipy():
     result = correlation_network(_mixed())
     first, second = np.triu_indices(len(result.labels), 1)
     adjusted = stats.false_discovery_control(result.p_values[first, second], method='bh')
-    expected = [(str(row), str(column)) for row, column, value in zip(first, second, adjusted) if value < 0.05]
+    expected = [
+        (str(row), str(column)) for row, column, value in zip(first, second, adjusted, strict=True) if value < 0.05
+    ]
     assert result.links == expected
     assert result.threshold == pytest.approx(len(expected) * 0.05 / first.size)
 
 
 def test_independent_series_rarely_link():
     """Test that independent white noise series hold a Bonferroni link in at most a tenth of the networks."""
-    linked = [
-        bool(correlation_network(np.random.default_rng(seed).standard_normal((1000, 20)), correction='bonferroni').links)
-        for seed in range(200)
-    ]
+    networks = [np.random.default_rng(seed).standard_normal((1000, 20)) for seed in range(200)]
+    linked = [bool(correlation_network(values, correction='bonferroni').links) for values in networks]
     assert np.mean(linked) <= 0.1
 
 
@@ -173,9 +173,8 @@ def test_missing_values_and_constant_series():
     values = _two_groups()
     gapped = values.copy()
     gapped[3, 2] = np.nan
-    assert np.array_equal(
-        correlation_network(gapped).strengths, correlation_network(np.delete(values, 3, axis=0)).strengths
-    )
+    dropped = correlation_network(np.delete(values, 3, axis=0))
+    assert np.array_equal(correlation_network(gapped).strengths, dropped.strengths)
     values[:, 0] = 1.0
     result = correlation_network(values, correction=None)
     assert np.isnan(result.strengths[0, 1:]).all()

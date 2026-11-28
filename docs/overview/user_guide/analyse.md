@@ -929,6 +929,26 @@ factions.modularity.round(2).tolist(), round(1 / spectrum.spectral_radius[0], 2)
 The two factions that split the club have modularity 0.36, and an epidemic spreads on the unweighted club above the
 threshold 0.15 of the ratio of the infection rate to the recovery rate.
 
+`correlation_network` builds a network from many series, one node per series and one link per significant
+correlation, as for stocks, brain regions, or climate grid points. Its `method` is `'pearson'`, `'spearman'`, or
+`'kendall'`, and its `correction` of the p-values of all pairs is `'benjamini-hochberg'`, `'bonferroni'`, or `None`.
+`backbone='spanning-tree'` keeps instead the maximum spanning tree of the correlations, and `backbone='disparity'` the
+pairs the disparity filter finds significant at `level`. Its `graph` carries the absolute correlation as `weight`.
+
+```python
+import numpy as np
+
+from skcomplex.core.analysis import correlation_network, network_measures
+
+rng = np.random.default_rng(1)
+series = np.repeat(rng.standard_normal((500, 2)), 5, axis=1) + rng.standard_normal((500, 10))
+network = correlation_network(series)
+len(network.links), network_measures(network.graph, kind='communities', random_state=0).modularity.round(2).tolist()
+```
+
+Two groups of 5 series, each sharing a common signal, give the 20 links within the groups and two communities of
+modularity 0.5.
+
 `motifs` counts motifs of three and four nodes, and scores them against degree-preserving edge switches or the
 configuration model. The system `network_structure_analysis` records a network with these measures.
 

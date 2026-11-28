@@ -27,7 +27,7 @@ TAGS = AnalysisTags(DataKind.SERIES)
 
 @dataclass(frozen=True)
 class CorrelationNetworkResult:
-    """A result of `correlation_network`, the network of the correlations of many series.
+    """A result of `correlation_network`, the network of correlations of many series.
 
     It holds the correlation and the p-value of every pair of series, the threshold of the p-values, the kept links,
     and the graph of the links, such as `[('0', '1')]` for two series that share a signal beside one that does not. It
@@ -206,9 +206,10 @@ def _correlate(values: Array, method: str) -> tuple[Array, Array]:
 
 
 def _significant(p_values: Array, level: float, correction: str | None) -> tuple[list[tuple[int, int]], float]:
-    """Return the pairs whose p-values pass the level after a correction, and the p-value threshold.
+    """Return the pairs that pass the level after a correction, and the threshold.
 
-    A pair with a `nan` p-value counts as a test that never passes.
+    The threshold is the p-value below which a pair passes, and a pair with a `nan` p-value counts as a test that
+    never passes.
     """
     first, second = np.triu_indices(p_values.shape[0], 1)
     tested = np.nan_to_num(p_values[first, second], nan=1.0)
@@ -240,7 +241,7 @@ def _spanning_tree(strengths: Array) -> list[tuple[int, int]]:
 
 
 def _disparity(strengths: Array, level: float) -> list[tuple[int, int]]:
-    """Return the pairs that the disparity filter of the absolute correlations keeps at a level.
+    """Return the pairs that the disparity filter keeps at a level.
 
     A pair is kept when `(1 - w / s) ** (k - 1)` is below the level at one of its ends, with `w` its absolute
     correlation, `s` the sum of the absolute correlations of the end, and `k` its number of pairs.
