@@ -35,7 +35,7 @@
 - [ ] 4.1 Label the update of `FireInteraction` `'fire'` with the activity of burning sites, add `boundary` to
   `ForestFireSystem`, and test the corner fire, the strip and the driven forest in
   `tests/systems/physics/criticality/test_criticality.py`
-- [ ] 4.2 Give the movement law of `NagelSchreckenbergInteraction` the activity of stopped cars and the label `'jam'`,
+- [x] 4.2 Give the movement law of `NagelSchreckenbergInteraction` the activity of stopped cars and the label `'jam'`,
   and test the dissolving queue in `tests/systems/engineering/traffic/test_traffic.py`
 - [ ] 4.3 Give the update of `z` in `BranchingInteraction` the activity and the label `'avalanche'`, add the state
   `sigma`, and test the profiles and the balance of dissipation in `tests/systems/physics/criticality/test_sandpiles.py`

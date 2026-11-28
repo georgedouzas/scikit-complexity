@@ -38,3 +38,24 @@ def test_driving_shows_its_rules_in_the_equations():
     reads = "neighbors(road.velocity, reduce='each')"
     equations = NagelSchreckenbergSystem(50).prepare().equations_
     assert equations == {'road.velocity[i]': f'accelerate({reads}), then move({reads})'}
+
+
+def _road(velocities: dict[int, float]):
+    """Return the run of a ring of 100 cells with no random braking and cars of given velocities at given cells."""
+    velocity = np.full(100, -1.0)
+    velocity[list(velocities)] = list(velocities.values())
+    system = NagelSchreckenbergSystem(100, slowdown=0.0).prepare()
+    return system.simulate(until=30, dt=1, initial_state={'road.velocity': velocity})
+
+
+def test_traffic_queue_dissolves_as_one_jam():
+    """Test that ten stopped cars bumper to bumper leave one by one as one jam of profile `10, 9, ..., 1`."""
+    (jam,) = _road(dict.fromkeys(range(10), 0.0)).events
+    assert (jam.label, jam.time, jam.size, jam.duration) == ('jam', 0.0, 55, 10)
+    assert jam.profile == tuple(range(10, 0, -1))
+
+
+def test_traffic_jam_moves_backward():
+    """Test that a stopped car at cell 10 followed by a stopped car at cell 9 at the next step is one jam."""
+    (jam,) = _road({9: 1.0, 10: 0.0}).events
+    assert (jam.size, jam.duration, jam.area, jam.profile) == (2, 2, 2, (1, 1))
