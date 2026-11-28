@@ -1596,7 +1596,8 @@ def test_group_space_reports_the_checkerboard_schedule():
     """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     system = System(elements=[SpinElement('spins', space=space)], interactions=[_ferromagnet()])
-    report = PassCompiler(solver=MetropolisSolver(rule='glauber', moves={'spins.spin': 'flip'})).prepare(system).report_
+    solver = MetropolisSolver(rule='glauber', moves={'spins.spin': 'flip'}, schedule='checkerboard')
+    report = PassCompiler(solver=solver).prepare(system).report_
     (issue,) = [issue for issue in report.issues if issue.code == 'schedule-unsupported']
     assert issue.path == 'ferromagnet'
     assert "'synchronous'" in issue.fix
